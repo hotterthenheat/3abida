@@ -55,7 +55,7 @@
 ==================================================
 */
 
-import { pastInputs } from './trailModel';
+import { pastInputs, type RegimeReference } from './trailModel';
 import { isoDayLabel } from '../../core/format';
 import type { FeedBook60 } from './trailModel';
 import { useMemo, useSyncExternalStore } from 'react';
@@ -1085,13 +1085,29 @@ export type RecordKind = 'call wall' | 'put wall' | 'flip' | 'top strike';
 export interface TrackRecordCard {
   lines: Record<RecordKind, string>;
   holdoutNote: string;
-  main: { sessions: number; months: number; touches: number; variantsTried: number; firstDay: string | null; lastDay: string | null };
+  main: {
+    sessions: number;
+    months: number;
+    touches: number;
+    variantsTried: number;
+    firstDay: string | null;
+    lastDay: string | null;
+    regime?: { ranges: { horizon: number; median: number | null; terciles: { tercile: number; n: number; range: number | null; overImplied: number | null }[] }[] };
+  };
   builtAt: number;
 }
 export function useTrackRecord(on: boolean, ticker: string): TrackRecordCard | null {
   const t = ticker.toUpperCase();
   const r = useFeedPoll(on && t ? `field:scorecard:${t}` : null, () => feedFetch(`/feed/field/${encodeURIComponent(t)}/scorecard`) as Promise<FeedResult<TrackRecordCard>>, 10 * 60_000);
   return r?.ok && r.data && r.data.lines ? r.data : null;
+}
+
+/** THE REGIME'S REFERENCE (the owner's item 3): the half-hour buckets' quantiles over the trailing sessions, built
+    nightly with the scorecard; asked hourly while the strip is on */
+export function useRegimeReference(on: boolean, ticker: string): RegimeReference | null {
+  const t = ticker.toUpperCase();
+  const r = useFeedPoll(on && t ? `field:regime:${t}` : null, () => feedFetch(`/feed/field/${encodeURIComponent(t)}/regime`) as Promise<FeedResult<RegimeReference>>, 60 * 60_000);
+  return r?.ok && r.data && Array.isArray(r.data.buckets) ? r.data : null;
 }
 
 /** THE COVERAGE LINE (the owner, 2026-10-13, item 1: "session picker shows coverage ('rebuilt <first date> to <last

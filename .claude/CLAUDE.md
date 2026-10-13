@@ -832,6 +832,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   from the minute-vol rebuild's by 0.03% at the median, the walls agree in 389 of 390). WEB PUSH IS HELD until the owner decides; the in-app tiers come first. The backfill job
   (`npm run feed:backfill`, BACKFILL_FROM on the recorder) runs at home on the always-on machine — about 1,650 calls
   and 81 s a SPY session.
+- ONE RECORDER A MACHINE (2026-10-13 — 29 minutes were written twice by two recorders in one dev server: Vite's
+  in-process restart on a server-file change left the old one ticking): the feed middleware stops its recorder when
+  its server closes and when a newer one is built in the process (server/feed.ts `close`, globalThis.__slayerFeed,
+  vite.config.ts); only the holder of .feed-cache/field/recorder.lock records (stale after three minutes or a dead
+  pid); the store re-reads a grown file before writing; a minute in a file twice reads as its first row.
 - THE TRACK RECORD (2026-10-13, the owner's item 2; docs/data-feed.md "The track record"): data/feed/trackRecord.ts
   (pure) scores the call wall, put wall, flip and three heaviest strikes on the store's FINAL rows against baselines on
   the same days — B1 random levels (Osler), B2 strike-matched (same side, same distance, |gamma| under the column's
@@ -850,6 +855,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   store's rows stand for SPX), the backfill's bars from the tape's prints for an index on every day (`build(name,
   day, tape)`), the tape reader keeping an index's contracts under the index. Terrain's SPX pane still draws no
   candles (its bars are print-built on the server; drawing them on the pane is a follow-up).
+- THE REGIME STRIP (2026-10-13, item 3): StrikeChart's `regime` overlay — a pane of the column's net a bar (trailModel
+  `netOf`), lit by the percentile of the same half-hour over the trailing 250 sessions (`regimeBucketOf`,
+  `regimePercentile`; the reference `regime.json` built nightly by server/scorecard.ts from sessions before the day,
+  read through `regimeBucketsFor` so a session at or after the day never moves it), the chip's words the sign, the
+  percentile and "attribution-robust"/"attribution-dependent" against UW's `_dir` (trailField `totalOf`, the sign
+  turned to the house's). The flip is never relabelled and the net's sign is never said to be the flip's side.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

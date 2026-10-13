@@ -9,7 +9,8 @@
   strike-matched baseline is never a real level.
 */
 import { readFileSync } from 'node:fs';
-import { recordLine, rng, touchesOf, trackRecord, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
+import { nyMinuteOf, recordLine, rng, touchesOf, trackRecord, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
+import { buildRegimeReference, ordinal, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeQuantiles } from '../src/data/feed/trailModel';
 
 let pass = 0;
 let fail = 0;
@@ -161,5 +162,18 @@ check('a strike-matched level is a listed strike and never the real level of its
 check('random levels stand from the open and are drawn within the band', one.filter(t => t.base === 'B1').every(t => sessions.slice(5, 11).some(s => s.day === t.day && Math.abs(t.level - s.bars[0].open) <= 3)));
 check('the regime tests run: ranges by tercile over 30 and 60 minutes, the last half hour by sign', rec.regime.ranges.length === 2 && rec.regime.ranges[0].terciles.every(t => t.n > 0) && rec.regime.lastHalfHour.some(l => l.source === 'house' && l.n > 10));
 
+
+/* ---- THE REGIME STRIP (the owner's item 3): the reference point in time, the percentile, the buckets --------------- */
+{
+  check('thirteen half-hours from 9:30: 9:30 is the first, 3:59 pm the last, 9:29 and 4:00 pm none', regimeBucketOf(9 * 60 + 30) === 0 && regimeBucketOf(15 * 60 + 59) === 12 && regimeBucketOf(9 * 60 + 29) === null && regimeBucketOf(16 * 60) === null);
+  const q = regimeQuantiles([5, 1, 3, 2, 4])!;
+  check('the quantiles run from the least to the most, 101 of them', q.length === 101 && q[0] === 1 && q[100] === 5 && q[50] === 3 && regimeQuantiles([]) === null);
+  check('a value stands at its midrank: under the least 0, over the most 100, the median 50, between two quantiles on the line', regimePercentile(0, q) === 0 && regimePercentile(9, q) === 100 && regimePercentile(3, q) === 50 && regimePercentile(1, q) > 0 && regimePercentile(1, q) < 25 && Math.abs(regimePercentile(50, regimeQuantiles(Array.from({ length: 101 }, (_, i) => i))!) - 50) < 1e-9 && Math.abs(regimePercentile(50.5, regimeQuantiles(Array.from({ length: 101 }, (_, i) => i))!) - 50.5) < 1e-9 && ordinal(12) === '12th' && ordinal(1) === '1st' && ordinal(22) === '22nd' && ordinal(13) === '13th');
+  const upToD = buildRegimeReference('SPY', sessions.slice(0, 200), 250, nyMinuteOf);
+  const upToD1 = buildRegimeReference('SPY', sessions.slice(0, 201), 250, nyMinuteOf);
+  const dayD = sessions[200].day;
+  check("a page on day D reads sessions before D alone: the reference built through D−1 equals the one built through D read on D, and editing a session at or after D changes nothing", JSON.stringify(regimeBucketsFor(upToD, dayD)) === JSON.stringify(regimeBucketsFor(upToD1, dayD)) && regimeBucketsFor(upToD1, dayD) === upToD1.before && regimeBucketsFor(upToD, dayD) === upToD.buckets);
+  check('the reference reaches back over the trailing sessions alone', buildRegimeReference('SPY', sessions.slice(0, 300), 250, nyMinuteOf).sessions === 250);
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

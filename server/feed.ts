@@ -388,6 +388,17 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     res.end(a.body);
   };
 
+  /* ONE FEED MIDDLEWARE A PROCESS: a dev server's restart builds a new one in the same process (Vite re-reads its
+     config when a server file changes), so the one before stops — its recorder's timer would otherwise keep writing
+     the same minutes beside the new one's (2026-10-13: 29 minutes written twice) */
+  const g = globalThis as { __slayerFeed?: { close: () => void } };
+  g.__slayerFeed?.close();
+  const close = () => {
+    recorder.stop();
+    if (g.__slayerFeed?.close === close) g.__slayerFeed = undefined;
+  };
+  g.__slayerFeed = { close };
+
   const handler = async (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => {
     const raw = req.url ?? '';
     if (!raw.startsWith('/feed/')) return next();
@@ -410,6 +421,11 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
       const sr = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/store$/.exec(url.pathname);
       if (sr) {
         const r = store.serve(sr[1], url.searchParams.get('day') ?? '', url.searchParams.get('kind') ?? 'final', Number(url.searchParams.get('since')) || 0);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
+      const rg = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/regime$/.exec(url.pathname);
+      if (rg) {
+        const r = scorecard.serveRegime(rg[1]);
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
       const sc = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/scorecard$/.exec(url.pathname);
@@ -449,5 +465,5 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     }
   };
   /* the standalone recorder (server/recorderMain.ts) reaches the job and the store through the handler */
-  return Object.assign(handler, { backfill, recorder, store, client, scorecard });
+  return Object.assign(handler, { backfill, recorder, store, client, scorecard, close });
 }

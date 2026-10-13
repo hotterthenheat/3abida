@@ -100,8 +100,14 @@ server.on('error', e => {
 /* an error nobody caught ends the process; the loop round it starts it again — append-only files lose nothing */
 process.on('uncaughtException', e => {
   console.error(`${stamp()} recorder error: ${String(e && (e as Error).stack ? (e as Error).stack : e)}`);
+  handle.close();
   process.exit(1);
 });
+for (const sig of ['SIGINT', 'SIGTERM'] as const)
+  process.on(sig, () => {
+    handle.close();
+    process.exit(0);
+  });
 process.on('unhandledRejection', e => {
   console.error(`${stamp()} recorder rejection: ${String(e)}`);
 });

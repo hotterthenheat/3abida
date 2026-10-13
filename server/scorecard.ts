@@ -40,7 +40,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import { LEVEL_KINDS, recordLine, trackRecord, type LevelKind, type TrackConfig, type TrackRecord, type TrackSession } from '../src/data/feed/trackRecord';
+import { LEVEL_KINDS, recordLine, trackRecord, nyMinuteOf, type LevelKind, type TrackConfig, type TrackRecord, type TrackSession } from '../src/data/feed/trackRecord';
+import { buildRegimeReference, type RegimeReference } from '../src/data/feed/trailModel';
 import type { createFieldBackfill, PastDay } from './fieldBackfill';
 import type { FieldStore, StoreRow } from './fieldStore';
 
@@ -48,6 +49,9 @@ type FieldBackfill = ReturnType<typeof createFieldBackfill>;
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 const CONFIG = join(process.cwd(), 'server', 'scorecard.config.json');
 const FILE = 'scorecard.json';
+const REGIME = 'regime.json';
+/** The sessions the regime's percentile reaches back over (the owner's item 3) */
+const REGIME_TRAILING = 250;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface Scorecard {
@@ -170,8 +174,23 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
     const card: Scorecard = { name: t, builtAt: clock(), configVersion: cfg.version, main, holdout, holdoutNote, lines, sources: { final: finals, rebuilt, skipped } };
     mkdirSync(join(root, t), { recursive: true });
     writeFileSync(fileOf(t), JSON.stringify(card));
+    /* THE REGIME'S REFERENCE (item 3): the nets by half-hour over the trailing sessions, the newest left out of
+       `before` so a page read on that day stands on sessions before it alone */
+    writeFileSync(join(root, t, REGIME), JSON.stringify(buildRegimeReference(t, sessions, REGIME_TRAILING, nyMinuteOf)));
     opts.log?.(`scorecard ${t}: ${sessions.length} sessions (${finals} from the store, ${rebuilt} rebuilt, ${skipped} without rows), ${main.touches} touches, ${main.variantsTried} variants; ${holdoutNote}`);
     return card;
+  }
+
+  /** GET /feed/field/<NAME>/regime: the percentile reference, or 404 */
+  function serveRegime(rawName: string): { status: number; body: string } {
+    const name = rawName.toUpperCase();
+    if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(name)) return { status: 400, body: JSON.stringify({ error: 'bad-name' }) };
+    try {
+      const ref = JSON.parse(readFileSync(join(root, name, REGIME), 'utf8')) as RegimeReference;
+      return { status: 200, body: JSON.stringify(ref) };
+    } catch {
+      return { status: 404, body: JSON.stringify({ error: 'no-reference' }) };
+    }
   }
 
   /** GET /feed/field/<NAME>/scorecard */
@@ -182,6 +201,6 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
     return card ? { status: 200, body: JSON.stringify(card) } : { status: 404, body: JSON.stringify({ error: 'no-scorecard' }) };
   }
 
-  return { run, serve, read };
+  return { run, serve, serveRegime, read };
 }
 export type ScorecardJob = ReturnType<typeof createScorecard>;

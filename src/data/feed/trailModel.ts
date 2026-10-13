@@ -394,6 +394,98 @@ export function openColumn(name: string, p: PastInputsLike, bar: { time: number;
   return modelColumn(universeOf(name, p.day, pastInputs(p)), bar);
 }
 
+/* ---- THE REGIME (the owner's item 3, 2026-10-13): the column's net a minute, read against the same half-hour over
+   the trailing sessions — never the flip's side (the two agreed in 46% of 330 live columns) ------------------------ */
+
+/** The column's net: every strike summed, the house's sign — estimated dealer gamma, assumed sign */
+export const netOf = (levels: readonly { value: number }[]): number => {
+  let s = 0;
+  for (const l of levels) s += l.value;
+  return s;
+};
+/** Thirteen half-hours from 9:30 am New York; the minute's bucket, or null outside the session */
+export const REGIME_BUCKETS = 13;
+export function regimeBucketOf(nyMinute: number): number | null {
+  const b = Math.floor((nyMinute - (9 * 60 + 30)) / 30);
+  return b >= 0 && b < REGIME_BUCKETS ? b : null;
+}
+/** The 101 quantiles (0 to 100) of a bucket's nets, ascending; null with nothing in it */
+export function regimeQuantiles(nets: readonly number[]): number[] | null {
+  if (!nets.length) return null;
+  const s = [...nets].sort((a, b) => a - b);
+  const out: number[] = [];
+  for (let q = 0; q <= 100; q++) out.push(s[Math.min(s.length - 1, Math.round((q / 100) * (s.length - 1)))]);
+  return out;
+}
+/** Where a value stands among a bucket's quantiles, 0 to 100 — the MIDRANK: on a run of equal quantiles the middle
+    of the run (a value equal to the median of five reads 50, not 60), between two quantiles the straight line */
+export function regimePercentile(value: number, quantiles: readonly number[]): number {
+  const n = quantiles.length - 1;
+  if (value < quantiles[0]) return 0;
+  if (value > quantiles[n]) return 100;
+  /* the last index at or below the value, and the first at or above it */
+  let a = 0;
+  let lo = 0;
+  let hi = n;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (quantiles[mid] <= value) {
+      a = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  let b = n;
+  lo = 0;
+  hi = n;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (quantiles[mid] >= value) {
+      b = mid;
+      hi = mid - 1;
+    } else lo = mid + 1;
+  }
+  if (b <= a) return (a + b) / 2;
+  const span = quantiles[b] - quantiles[a];
+  return span > 0 ? a + ((value - quantiles[a]) / span) * (b - a) : a;
+}
+/** The reference the strip reads: per bucket the quantiles over the sessions before the day */
+export interface RegimeReference {
+  name: string;
+  /** The newest session in `buckets`; `before` leaves it out, for a page read on that very day */
+  through: string;
+  sessions: number;
+  buckets: (number[] | null)[];
+  before: (number[] | null)[];
+  /** The sessions a reference reaches back over */
+  trailing: number;
+}
+/** The reference off sessions' rows (ascending by day): the trailing N sessions' nets by half-hour bucket */
+export function buildRegimeReference(name: string, sessions: readonly { day: string; rows: readonly { m: number; net: number }[] }[], trailing = 250, minuteOf: (ms: number) => number): RegimeReference {
+  const sorted = [...sessions].sort((a, b) => a.day.localeCompare(b.day));
+  const build = (set: readonly { rows: readonly { m: number; net: number }[] }[]): (number[] | null)[] => {
+    const by: number[][] = Array.from({ length: REGIME_BUCKETS }, () => []);
+    for (const s of set.slice(-trailing)) for (const r of s.rows) {
+      const b = regimeBucketOf(minuteOf(r.m));
+      if (b != null && Number.isFinite(r.net)) by[b].push(r.net);
+    }
+    return by.map(regimeQuantiles);
+  };
+  return { name, through: sorted[sorted.length - 1]?.day ?? '', sessions: Math.min(trailing, sorted.length), buckets: build(sorted), before: build(sorted.slice(0, -1)), trailing };
+}
+/** The quantiles a page on `day` may read — never a session at or after it */
+export function regimeBucketsFor(ref: RegimeReference, day: string): (number[] | null)[] | null {
+  if (!ref.through) return null;
+  if (day > ref.through) return ref.buckets;
+  if (day === ref.through) return ref.before;
+  return null;
+}
+/** "12th" */
+export const ordinal = (n: number): string => {
+  const v = Math.round(n);
+  const s = v % 100 >= 11 && v % 100 <= 13 ? 'th' : v % 10 === 1 ? 'st' : v % 10 === 2 ? 'nd' : v % 10 === 3 ? 'rd' : 'th';
+  return `${v}${s}`;
+};
+
 /* ---- the store's reading of a column (server/fieldStore.ts, 2026-10-13) --------------------------------------- */
 
 /** The heaviest strikes a store row keeps */

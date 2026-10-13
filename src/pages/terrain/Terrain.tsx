@@ -63,7 +63,7 @@ import { flipRing, stepSymbol, stepTf } from './paneKeys';
 import TerrainLayers from '../../components/terrain/TerrainLayers';
 import { openPopOut } from '../../components/layout/deskChannel';
 import { WALLS_LENSES, type WallsLens } from '../../components/terrain/wallsHeatPrimitive';
-import { useFeedTrailField } from '../../data/feed/trailField';
+import { useFeedTrailField, totalOf } from '../../data/feed/trailField';
 import { econMacro, useFeedEcon } from '../../data/feed/news';
 import {
   feedFreshness,
@@ -82,6 +82,7 @@ import {
   useFieldCoverage,
   coverageLine,
   useTrackRecord,
+  useRegimeReference,
   useFeedMaxPain,
   useFeedMoves,
   useFeedOi,
@@ -1270,7 +1271,19 @@ const Pane = ({
   const fCoverage = useFieldCoverage(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
   const fieldLine = useMemo(() => [fTrail.residual, coverageLine(fCoverage)].filter(Boolean).join(' '), [fTrail.residual, fCoverage]);
   /* the track record (the owner's item 2): the level types scored against their baselines, in How sure and the hover card */
-  const fRecord = useTrackRecord(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
+  const fRecord = useTrackRecord(onFeed && overlays.trails, ticker);
+  /* THE REGIME STRIP (item 3): the reference built nightly, and UW's directionalized sign in the house's sign */
+  const fRegime = useRegimeReference(onFeed && !!overlays.regime, ticker);
+  const regimeDir = useMemo<1 | -1 | 0 | null>(() => {
+    if (!onFeed || !overlays.regime) return null;
+    const rows = totalOf(ticker)?.rows;
+    const last = rows?.length ? rows[rows.length - 1] : null;
+    const d = last?.[4];
+    if (d == null || !Number.isFinite(d)) return null;
+    /* UW's sign is the house's turned over (the house negates the book) */
+    return d > 0 ? -1 : d < 0 ? 1 : 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFeed, overlays.regime, ticker, fTrail.snaps]);
   const recordSure = useMemo(
     () =>
       fRecord
@@ -1544,7 +1557,7 @@ const Pane = ({
          chart only (no Terrain surface mounts it — his tree included), and a
          switch that cannot turn anything on is a lie in a menu. Inherited
          dead toggle, caught 2026-08-28. */
-      overlayKeys={['trails', 'levels', 'darkpool', 'volume', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'alerts', 'walls', 'phases']}
+      overlayKeys={['trails', 'levels', 'darkpool', 'volume', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'alerts', 'walls', 'phases', 'regime']}
       indicators={indicators}
       onIndicators={i => onCfg({ indicators: i })}
       paneId={`terrain:${index + 1}`}
@@ -1753,6 +1766,9 @@ const Pane = ({
                  not a third of the chart (X11) */
               nyClock
               recordLines={fRecord?.lines}
+              regimeRef={fRegime}
+              regimeDir={regimeDir}
+              regimeRanges={fRecord?.main.regime?.ranges ?? null}
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
                  tape — and never spans less than eight strikes, so the ladder keeps its rows (the audit, row 31) */

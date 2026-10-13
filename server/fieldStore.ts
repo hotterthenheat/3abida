@@ -59,7 +59,7 @@
 ==================================================
 */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { columnSummary, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
@@ -129,6 +129,8 @@ interface State {
   last: number;
   gaps: number;
   loaded: boolean;
+  /** The file's size as this store last saw it — grown by another writer, it is read again before a write */
+  size: number;
 }
 
 export function createFieldStore(opts: { root?: string; now?: () => number } = {}) {
@@ -148,23 +150,39 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     }
     if (!text) return [];
     const out: StoreRow[] = [];
+    /* ONE ROW A MINUTE: a minute written twice (two writers before 2026-10-13's lock — a dev server's in-process
+       restart left the old recorder ticking) keeps its FIRST row, the one written first — what was shown first */
+    const seen = new Set<number>();
     for (const line of text.split('\n')) {
       if (!line) continue;
       try {
-        out.push(JSON.parse(line) as StoreRow);
+        const r = JSON.parse(line) as StoreRow;
+        if (seen.has(r.m)) continue;
+        seen.add(r.m);
+        out.push(r);
       } catch {
         /* a line cut short by a restart: the rest of the file stands */
       }
     }
     return out;
   }
+  const sizeOf = (file: string): number => {
+    try {
+      return statSync(file).size;
+    } catch {
+      return 0;
+    }
+  };
 
   /** The day's state, replayed from its file once: the minutes written and the scale's count */
   function stateOf(name: string, day: string, kind: RowKind): State {
     const key = `${name}|${day}|${kind}`;
     let st = states.get(key);
-    if (!st) {
-      st = { written: new Set(), scale: new RunningScale(), last: 0, gaps: 0, loaded: false };
+    const size = sizeOf(fileOf(name, day, kind));
+    /* a file another writer grew since this store last saw it is read again — its minutes are written */
+    if (!st || st.size !== size) {
+      const gaps = st?.gaps ?? 0;
+      st = { written: new Set(), scale: new RunningScale(), last: 0, gaps, loaded: false, size };
       for (const r of readRows(name, day, kind)) {
         st.written.add(r.m);
         st.scale.push(r.max);
@@ -183,6 +201,8 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     } catch {
       /* a refused disk: the row is lost, the next minute's is tried */
     }
+    const st = states.get(`${name}|${day}|${kind}`);
+    if (st) st.size = sizeOf(fileOf(name, day, kind));
   }
 
   const sortedCells = (levels: readonly { strike: number; value: number }[]): [number, number][] => [...levels].sort((a, b) => a.strike - b.strike).map(l => [l.strike, l.value]);

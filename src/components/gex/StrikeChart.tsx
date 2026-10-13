@@ -1,3 +1,6 @@
+import { alpha } from './paletteInk';
+import { netOf, ordinal, regimeBucketOf, regimeBucketsFor, regimePercentile, type RegimeReference } from '../../data/feed/trailModel';
+import { nyMinuteOf } from '../../data/feed/trackRecord';
 import { pickWalls } from '../../core/walls';
 import {
   useCallback, useEffect, useMemo, useRef, useReducer, useState,
@@ -180,7 +183,11 @@ const PANE_LABEL_LOOK: Record<string, { text: string; bg: string; fg: string }> 
   flow: { text: 'Flow', bg: 'rgba(120,110,40,0.35)', fg: '#E8E4C8' },
   netDrift: { text: 'Net drift', bg: 'rgba(40,90,60,0.35)', fg: '#CFE8D8' },
   volDrift: { text: 'Vol drift', bg: 'rgba(70,60,110,0.35)', fg: '#DCD6F0' },
+  regime: { text: 'Regime', bg: 'rgba(60,70,90,0.35)', fg: '#D8DEE8' },
 };
+const REGIME_STRETCH = 0.6;
+/** The tercile line is said once the scorecard has this many minutes in the tercile (about twenty sessions) */
+const REGIME_GATE_MINUTES = 2600;
 
 /* The drawing tools themselves — their families, names and glyphs — are drawTools.tsx; the rail's buttons are DrawRailTools.tsx. */
 
@@ -196,6 +203,9 @@ export interface ChartOverlays {
   netDrift: boolean;
   /** Realised vol measured off these bars against the feed's implied. */
   volDrift: boolean;
+  /** THE REGIME STRIP (the owner's item 3, 2026-10-13): the column's net a minute in its own pane — estimated dealer
+      gamma on an assumed sign, its light the percentile against the same half-hour over the trailing sessions */
+  regime: boolean;
   /*
     Exposure by STRIKE, docked under the chart rather than drawn inside it.
 
@@ -507,6 +517,8 @@ export const DEFAULT_OVERLAYS: ChartOverlays = {
   cone: false,
   /* Off until asked for, like every other layer of context. */
   events: false,
+  /* off until asked: a pane under the tape costs the tape its height */
+  regime: false,
 };
 
 /*
@@ -767,6 +779,12 @@ interface StrikeChartProps {
   /** The track record's line a level type (the owner's item 2): the hover card prints the hovered strike's where it is
       the column's call wall, put wall or one of its heaviest strikes */
   recordLines?: Partial<Record<'call wall' | 'put wall' | 'flip' | 'top strike', string>>;
+  /** The regime strip's reference (the owner's item 3): the half-hour buckets' quantiles over the trailing sessions */
+  regimeRef?: RegimeReference | null;
+  /** UW's directionalized whole-book gamma's sign at the newest minute, IN THE HOUSE'S SIGN — the attribution check */
+  regimeDir?: 1 | -1 | 0 | null;
+  /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
+  regimeRanges?: { horizon: number; median: number | null; terciles: { tercile: number; n: number; range: number | null; overImplied: number | null }[] }[] | null;
   /** THE SHARE OF THE OPENING VIEW THE BARS TAKE, the rest held open ahead of the last one (HISTORY_SHARE, 0.64, by
       default). A host whose tape should run near its right edge passes more (the audit's X11: a third to half of the
       chart stood empty past the last candle). */
@@ -1063,7 +1081,7 @@ const StrikeChart = ({
   onReadout,
   projectionRef,
   exportRef,
-  nyClock = false, recordLines,
+  nyClock = false, recordLines, regimeRef = null, regimeDir = null, regimeRanges = null,
   historyShare,
   fitCandles = false,
   quote = null,
@@ -1193,6 +1211,9 @@ const StrikeChart = ({
   const driftCallsRef = useRef<ISeriesApi<'Line'> | null>(null);
   const driftPutsRef = useRef<ISeriesApi<'Line'> | null>(null);
   const rvRef = useRef<ISeriesApi<'Line'> | null>(null);
+  /** The regime strip's bars (item 3) */
+  const regimeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const [regimeWords, setRegimeWords] = useState('');
   const ivRef = useRef<ISeriesApi<'Line'> | null>(null);
   /* Where each product pane's top edge sits, in px up from the container's
      bottom. MEASURED off the chart rather than computed from a constant: a
@@ -2369,7 +2390,7 @@ const StrikeChart = ({
   */
   const lastProductPaneIndex = useCallback(() => {
     let deepest = 0;
-    for (const s of [flowCallsRef.current, driftCallsRef.current, rvRef.current] as const) {
+    for (const s of [flowCallsRef.current, driftCallsRef.current, rvRef.current, regimeSeriesRef.current] as const) {
       if (!s) continue;
       try {
         const i = s.getPane().paneIndex();
@@ -2403,6 +2424,7 @@ const StrikeChart = ({
       { key: 'flow', series: flowCallsRef.current },
       { key: 'netDrift', series: driftCallsRef.current },
       { key: 'volDrift', series: rvRef.current },
+      { key: 'regime', series: regimeSeriesRef.current },
     ];
     let next: { key: string; bottom: number }[] = [];
     if (chart) {
@@ -2537,6 +2559,103 @@ const StrikeChart = ({
 
     remeasurePaneLabels();
   }, [overlays.flow, flowPrints, timeframe, ticker, themeKey, remeasurePaneLabels, altSpec]);
+
+  /*
+    THE REGIME STRIP (the owner's item 3, 2026-10-13): the column's net a bar — every strike summed, estimated dealer
+    gamma on the assumed sign — in a pane of its own under the tape, the calls' ink below zero and the puts' above,
+    each bar's light the percentile of the same half-hour over the trailing sessions (the reference the scorecard
+    builds nightly from sessions BEFORE the day; a session at or after it never moves today's light). The chip says
+    the sign, the percentile and whether UW's directionalized series agrees on the sign ("attribution-robust") or
+    not ("attribution-dependent"). The flip keeps its name on the ladder: the net's sign is not the flip's side.
+  */
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (!overlays.regime || altSpec) {
+      const old = regimeSeriesRef.current;
+      regimeSeriesRef.current = null;
+      try {
+        if (old) chart.removeSeries(old);
+      } catch {
+        /* already gone */
+      }
+      setRegimeWords('');
+      remeasurePaneLabels();
+      return;
+    }
+    let s = regimeSeriesRef.current;
+    if (!s) {
+      const paneIndex = chart.panes().length;
+      s = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' as const }, lastValueVisible: false, priceLineVisible: false, base: 0 }, paneIndex);
+      regimeSeriesRef.current = s;
+      try {
+        chart.panes()[0]?.setStretchFactor(PRICE_STRETCH);
+        s.getPane().setStretchFactor(REGIME_STRETCH);
+      } catch {
+        /* pane sizing is a nicety */
+      }
+    }
+    const barSec = tfMinutes(timeframe) * 60;
+    const today = nyIsoDateOf(Date.now());
+    const buckets = regimeRef ? regimeBucketsFor(regimeRef, today) : null;
+    /* a bar's net is its LAST minute's column — the regime as it stood when the bar closed */
+    const byBar = new Map<number, { net: number; at: number }>();
+    for (const snap of bookHistory()) {
+      const t = Math.floor(snap.time / barSec) * barSec;
+      const cur = byBar.get(t);
+      if (!cur || snap.time >= cur.at) byBar.set(t, { net: netOf(snap.levels), at: snap.time });
+    }
+    const el = boxElRef.current ?? undefined;
+    const callInk = readToken('--bull', undefined, el);
+    const putInk = readToken('--bear', undefined, el);
+    const bars = [...byBar.entries()].sort((a, b) => a[0] - b[0]);
+    let lastPct: number | null = null;
+    let lastNet: number | null = null;
+    /* the session's own last bar: after hours the chip reads it, said with its time (the reference is by half-hour of
+       the regular session, so a bar outside it has none) */
+    let lastAt: number | null = null;
+    let newestOutside = false;
+    s.setData(
+      bars.map(([t, b]) => {
+        const day = nyIsoDateOf(t * 1000);
+        let pct: number | null = null;
+        const k = regimeBucketOf(nyMinuteOf(b.at * 1000));
+        if (buckets && day === today && k != null) {
+          const q = buckets[k];
+          if (q) pct = regimePercentile(b.net, q);
+        }
+        if (day === today) {
+          newestOutside = k == null;
+          if (k != null) {
+            lastPct = pct;
+            lastNet = b.net;
+            lastAt = t;
+          }
+        }
+        const light = pct == null ? 0.35 : 0.25 + (0.75 * Math.abs(pct - 50)) / 50;
+        return { time: t as UTCTimestamp, value: b.net, color: alpha(b.net >= 0 ? putInk : callInk, light) };
+      })
+    );
+    const netNow: number | null = lastNet;
+    const pctNow: number | null = lastPct;
+    const atNow: number | null = lastAt;
+    if (netNow == null) setRegimeWords('');
+    else {
+      const sign = netNow < 0 ? 'negative' : 'positive';
+      /* the sessions the percentile stands on — a dozen is not 250, and the chip says so */
+      const refSessions = regimeRef ? (today === regimeRef.through ? Math.max(0, regimeRef.sessions - 1) : regimeRef.sessions) : 0;
+      const pctWords = (pctNow == null ? (buckets ? 'no reference for this half-hour' : 'no reference yet') : `${ordinal(pctNow)} pct of ${refSessions} session${refSessions === 1 ? '' : 's'}`) + (newestOutside && atNow != null ? ` at the ${readerClock(atNow * 1000)} bar` : '');
+      const attribution = regimeDir == null ? 'attribution unchecked' : Math.sign(netNow) === regimeDir ? 'attribution-robust' : 'attribution-dependent';
+      let tercile = '';
+      const r60 = regimeRanges?.find(r => r.horizon === 60) ?? null;
+      if (r60 && r60.median && pctNow != null) {
+        const t = r60.terciles.find(x => x.tercile === (pctNow < 33.34 ? 1 : pctNow < 66.67 ? 2 : 3));
+        if (t && t.n >= REGIME_GATE_MINUTES && t.range != null) tercile = ` · next-60-min range in this tercile: ${(t.range / r60.median).toFixed(2)}× median (${t.n} minutes${t.overImplied != null ? `; over the implied move ${t.overImplied.toFixed(2)}×` : ''})`;
+      }
+      setRegimeWords(`${sign}, ${pctWords} · ${attribution}${tercile}`);
+    }
+    remeasurePaneLabels();
+  }, [overlays.regime, altSpec, timeframe, ticker, themeKey, regimeRef, regimeDir, regimeRanges, remeasurePaneLabels, tape?.book, tape?.key]);
 
   /*
     THE NET DRIFT: the same premium the flow band bars, kept as a running total.
@@ -4797,8 +4916,10 @@ const StrikeChart = ({
               aria-hidden
               className="pointer-events-none absolute left-2 z-10 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold"
               style={{ bottom: l.bottom, background: look.bg, color: look.fg }}
+              title={l.key === 'regime' ? "Estimated dealer gamma (assumed sign) — it describes the next 30 to 60 minutes' range and the last half hour's momentum on negative days; never a level" : undefined}
+              data-pane-chip={l.key}
             >
-              {look.text}
+              {l.key === 'regime' && regimeWords ? `${look.text} · ${regimeWords}` : look.text}
             </span>
           );
         })}

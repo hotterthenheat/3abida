@@ -551,6 +551,19 @@ The owner's plan ("TERRAIN — NEXT BUILDS", item 1) with the decisions taken af
   differ by 0.00002 at the median and 0.00005 at most; over the 390 columns the cells differ by 0.03% at the median
   and 0.18% at the 90th percentile, the walls agree in 389 of 390 and the flip in 390 of 390.
 
+## One recorder a machine (2026-10-13)
+
+Today's shown file held 29 minutes written twice, 10 to 30 seconds apart. Vite re-reads its config when a server
+file changes and builds a new feed middleware in the same process, and the old recorder's minute timer kept running
+beside the new one's. The standalone recorder beside a dev server without FEED_RECORDER_URL would do the same. Three
+guards now: the middleware stops its recorder when its server closes and when a newer one is built in the process
+(server/feed.ts `close`, vite.config.ts); the recorder holding `.feed-cache/field/recorder.lock` records and any
+other reads the files and serves them (a lock not refreshed in three minutes, or whose process is gone, is taken;
+the standalone recorder lets go on SIGINT and SIGTERM); and the store reads a file again before writing when
+another writer has grown it. A minute already written twice reads as its first row, the one shown first. Proved in
+field-store-proof: two recorders on one folder write each minute once, and the second records on once the first
+stops.
+
 ## The track record (2026-10-13, the owner's item 2)
 
 The levels and the regime scored against baselines, on the store's FINAL rows alone (a rebuilt session's rows are the
@@ -625,6 +638,21 @@ underlying price (`null`, seen at 4:50 pm), so the last priced print stands, sta
   price series. The job routes an index through the tape whatever the day.
 - **Proofs**: field-backfill-proof builds an index's day on the tape's prices and asks no bar of the vendor;
   field-store-proof records SPX from its prints and writes shown and final rows for it.
+
+## The regime strip (2026-10-13, the owner's item 3)
+
+A thin pane under the candles (StrikeChart, the "Regime strip" overlay, off by default): a bar's value is the
+column's net at the bar's last minute — every strike summed, estimated dealer gamma on an assumed sign — the calls'
+ink below zero, the puts' above, each bar's light the PERCENTILE of the same half-hour bucket (thirteen from 9:30 am)
+over the trailing 250 sessions. The reference is built nightly with the scorecard (server/scorecard.ts →
+`regime.json`, `GET /feed/field/<NAME>/regime`) from sessions BEFORE the day: the file holds the quantiles through
+its newest session and a second set leaving that session out, and a page read on the newest session's own day takes
+the second (trailModel `regimeBucketsFor`), so a session at or after the day never moves its light. The chip says
+the sign, the percentile and the attribution: "attribution-robust" when the house's sign and UW's `_dir` series
+(the recorder's whole-book rows, in the house's sign) agree at the newest minute, else "attribution-dependent"; past
+the scorecard's gate (2,600 minutes in the tercile) it adds "next-60-min range in this tercile: X× median". The
+flip keeps its name on the ladder — the net's sign is not the flip's side, and nothing says it is. Proved: the
+buckets, the quantiles, the percentile, and the point-in-time rule (track-record-proof).
 
 ## The Backtest reads real days (2026-10-12)
 

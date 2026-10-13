@@ -316,6 +316,7 @@ const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[]
   { key: 'events', label: 'Events', hint: 'Earnings, FOMC/CPI/NFP and the biggest option prints, marked on the tape' },
   { key: 'alerts', label: 'Alert lines', hint: 'A dotted line where each price alert waits — the bell tells you either way' },
   { key: 'walls', label: 'Walls through the day', hint: "Each strike's exposure through the session, drawn behind the candles — the lens is the pane's" },
+  { key: 'regime', label: 'Regime strip', hint: "The column's net a minute, estimated dealer gamma on an assumed sign, against the same half-hour over the trailing sessions — it describes the next 30 to 60 minutes' range and the last half hour's momentum on negative days, never a level" },
   { key: 'phases', label: 'Session phases', hint: 'The open, lunch and power hour as quiet bands on the tape, at the market’s own hours' },
 ];
 
@@ -325,7 +326,7 @@ const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[]
    MENU honest about it, and the two agree by construction because the chart
    gates on the same idea — no interval, no interval-based layer. */
 const CLOCK_HELD_OVERLAYS = new Set<keyof ChartOverlays>([
-  'trails', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'walls', 'phases',
+  'trails', 'flow', 'netDrift', 'volDrift', 'session', 'cone', 'events', 'walls', 'phases', 'regime',
 ]);
 
 /* Re-exported so every consumer keeps importing its menu vocabulary from the

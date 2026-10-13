@@ -125,7 +125,7 @@ import { nyIsoDate, nyWallTime } from '../../core/nyTime';
 import type { Candle, GexSnapshot } from '../../types/market';
 import type { FeedBook, FeedBook60 } from './levels';
 import { TRAIL_MODEL, oiPublishedAt, universeOf, readAt, modelColumn, fieldResidual, residualFigures } from './trailModel';
-import type { ServerInputs, Universe } from './trailModel';
+import type { ServerInputs, Universe, TotalRead } from './trailModel';
 
 export * from './trailModel';
 
@@ -183,6 +183,12 @@ export function takePastSession(ticker: string, day: string, inputs: ServerInput
   if (days.has(day)) return;
   days.set(day, { inputs, version: 1 });
   for (const s of trails.values()) if (s.t === t) schedule();
+}
+
+/** UW's whole-book series as the recorder read it today — [minute ms, price, _oi, _vol, _dir] rows — for the
+    attribution chip (the owner's item 3): the newest minute's `_dir` sign against the house's net */
+export function totalOf(ticker: string): TotalRead | null {
+  return daysOf(ticker.toUpperCase()).get(nyIsoDate())?.inputs.total ?? null;
 }
 
 /** The sessions whose inputs are in for a name, New York dates */

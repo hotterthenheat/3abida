@@ -12,10 +12,15 @@ function feedProxy(keys: { uw?: string; massive?: string }, fieldUpstream?: stri
   return {
     name: 'slayer-feed-proxy',
     configureServer: server => {
-      server.middlewares.use(middleware());
+      const m = middleware();
+      server.middlewares.use(m);
+      /* the recorder stops with its server (a restart builds a new one) */
+      server.httpServer?.once('close', () => m.close());
     },
     configurePreviewServer: server => {
-      server.middlewares.use(middleware());
+      const m = middleware();
+      server.middlewares.use(m);
+      server.httpServer?.once('close', () => m.close());
     },
   };
 }

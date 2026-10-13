@@ -15,7 +15,7 @@
   7. THE D−1 SPLIT (the owner, 2026-10-13): open interest is the day's count from 7:00 am New York and the session
      before's count before it; the vols at the open are the session before's close
 */
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createFieldBackfill } from '../server/fieldBackfill';
@@ -215,9 +215,54 @@ try {
   const scale = new RunningScale();
   check('and it runs forward: each row’s reference is the 85th percentile of the maxima up to it', shown2.every(r => scale.push(r.max) === r.ref));
 
+  /* ONE RECORDER A MACHINE (2026-10-13: a dev server's in-process restart left the old recorder ticking, and 29
+     minutes were written twice): a second recorder on the same folder writes nothing while the first holds the lock,
+     takes over once it stops, and a minute is in the file once */
+  {
+    const root2 = mkdtempSync(join(tmpdir(), 'slayer-store-two-'));
+    try {
+      const store2 = createFieldStore({ root: root2, now: clock });
+      const bf2 = createFieldBackfill(client, { now: clock, root: root2 });
+      now = at(9, 29, 30);
+      const A = createFieldRecorder(client, { now: clock, root: root2, backfill: bf2, store: store2 });
+      const B = createFieldRecorder(client, { now: clock, root: root2, backfill: bf2, store: createFieldStore({ root: root2, now: clock }) });
+      A.serve('SPY');
+      B.serve('SPY');
+      await A.settle();
+      await B.settle();
+      for (let m = 31; m <= 40; m++) {
+        now = at(9, m, 10);
+        await A.tick();
+        await B.tick();
+        await A.settle();
+        await B.settle();
+      }
+      const raw = readFileSync(join(root2, 'SPY', D, 'shown.jsonl'), 'utf8').trim().split('\n').map(l => JSON.parse(l) as StoreRow);
+      const unique = new Set(raw.map(r => r.m)).size;
+      check(`two recorders on one folder: ${raw.length} shown lines for ${unique} minutes — each minute once, the second recorder writing nothing`, raw.length === unique && unique >= 10);
+      A.stop();
+      for (let m = 41; m <= 44; m++) {
+        now = at(9, m, 10);
+        await B.tick();
+        await B.settle();
+      }
+      const after = readFileSync(join(root2, 'SPY', D, 'shown.jsonl'), 'utf8').trim().split('\n').map(l => JSON.parse(l) as StoreRow);
+      check('the first stopped, the second takes the lock and records on, still a minute once', after.length > raw.length && after.length === new Set(after.map(r => r.m)).size && after.some(r => r.m === at(9, 43)));
+      /* a minute written twice before the lock (a file from 2026-10-13) reads as its first row */
+      const doubled = JSON.stringify({ ...after[0], net: 12345 });
+      appendFileSync(join(root2, 'SPY', D, 'shown.jsonl'), doubled + '\n');
+      const read = store2.readRows('SPY', D, 'shown');
+      check('a minute written twice reads as its FIRST row, the one shown first', read.length === after.length && read[0].net === after[0].net);
+      B.stop();
+    } finally {
+      rmSync(root2, { recursive: true, force: true });
+    }
+  }
+
   /* AN INDEX ON ITS PRINTS (2026-10-13): the recorder builds SPX's minutes from its prints' underlying price — the
      newest print's the close — and the final path takes those bars, UW serving none */
   {
+    rec.stop();
     const recX = createFieldRecorder(client, { now: clock, root, backfill: bf, store });
     now = at(9, 29, 30);
     recX.serve('SPX');

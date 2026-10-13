@@ -56,7 +56,8 @@
 ==================================================
 */
 
-import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import type { FeedClient } from './feed';
@@ -175,6 +176,11 @@ const occParts = (s: string) => {
 const NAME_OK = /^[A-Z][A-Z0-9.]{0,9}$/;
 /** A cash index: no bars on the plan, its minutes off its prints */
 const INDEX_NAMES = new Set(['SPX', 'NDX', 'RUT', 'VIX']);
+/** ONE RECORDER A MACHINE (2026-10-13 — two recorders wrote the same minutes 10 to 30 s apart: a dev server's
+    in-process restart left the old one ticking, and the standalone recorder beside a dev server would do the same):
+    the recorder holding .feed-cache/field/recorder.lock records; another reads the files and serves them. A lock not
+    refreshed in this long, or whose process is gone, is taken. */
+const LOCK_STALE_MS = 3 * 60_000;
 /** The files gzipped in place as the day turns */
 const PRUNED = new Set(['books.jsonl', 'books60.jsonl', 'chain.jsonl', 'total.json', 'seed.json', 'shown.jsonl', 'final.jsonl']);
 /** Bars are read through the hours Terrain draws: 04:00 to 20:00 New York */
@@ -198,6 +204,56 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
   const known = new Map<string, number>();
   const busy = new Set<string>();
   let timer: ReturnType<typeof setInterval> | null = null;
+  let stopped = false;
+  const id = randomUUID();
+  const lockFile = join(root, 'recorder.lock');
+  const alive = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (e) {
+      return (e as { code?: string }).code === 'EPERM';
+    }
+  };
+  /** This recorder holds the lock (taking it when it is free, stale or its process gone), refreshing it */
+  function holdLock(): boolean {
+    if (stopped) return false;
+    const now = clock();
+    try {
+      const had = JSON.parse(readFileSync(lockFile, 'utf8')) as { id: string; pid: number; at: number };
+      if (had.id !== id && now - had.at < LOCK_STALE_MS && alive(had.pid)) return false;
+    } catch {
+      /* no lock yet, or one cut short */
+    }
+    try {
+      mkdirSync(root, { recursive: true });
+      writeFileSync(lockFile, JSON.stringify({ id, pid: process.pid, at: now }));
+    } catch {
+      return true;
+    }
+    return true;
+  }
+  function releaseLock() {
+    try {
+      const had = JSON.parse(readFileSync(lockFile, 'utf8')) as { id: string };
+      if (had.id === id) rmSync(lockFile, { force: true });
+    } catch {
+      /* none */
+    }
+  }
+  /** The day's files' sizes when this recorder last read them — a recorder that does not hold the lock reads them
+      again when another has grown them */
+  const sizesAt = new Map<string, string>();
+  const sizesOf = (name: string, day: string) =>
+    ['books.jsonl', 'books60.jsonl', 'chain.jsonl', 'seed.json', 'total.json', 'oi.json']
+      .map(f => {
+        try {
+          return String(statSync(join(root, name, day, f)).size);
+        } catch {
+          return '0';
+        }
+      })
+      .join('|');
 
   const dirOf = (name: string, day: string) => join(root, name, day);
 
@@ -239,8 +295,12 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     }
   };
 
-  function dayOf(name: string, today: string): Day {
+  function dayOf(name: string, today: string, fresh = false): Day {
     let d = days.get(name);
+    /* a reader (not the lock's holder) takes the files as the recorder wrote them */
+    const sizes = fresh ? sizesOf(name, today) : '';
+    if (fresh && d && d.day === today && sizesAt.get(name) !== sizes) d = undefined;
+    if (fresh) sizesAt.set(name, sizes);
     if (!d || d.day !== today) {
       const dir = dirOf(name, today);
       d = {
@@ -527,6 +587,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     const now = clock();
     for (const [n, at] of watched) if (!always.has(n) && now - at > IDLE_MS) watched.delete(n);
     if (!client.hasKey('uw') || !watched.size) return;
+    /* one recorder a machine: another holds the lock, so this one only serves what it wrote */
+    if (!holdLock()) return;
     const { day, minute, weekday } = nyParts(now);
     if (weekday === 'Sat' || weekday === 'Sun') return;
     prune(day);
@@ -553,8 +615,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       timer = setInterval(() => void tick(), EVERY_MS);
       (timer as { unref?: () => void }).unref?.();
     }
-    /* a name first watched is read at once — its chain, its seed, one book — whatever the hour */
-    if (fresh) {
+    /* a name first watched is read at once — its chain, its seed, one book — whatever the hour — by the lock's holder */
+    if (fresh && holdLock()) {
       const { minute, weekday } = nyParts(clock());
       if (weekday !== 'Sat' && weekday !== 'Sun') void track(serviceName(name, minute >= 9 * 60 + 30 && minute <= 16 * 60, chainHoursAt(minute), barHoursAt(minute)).catch(() => undefined));
     }
@@ -566,7 +628,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     if (!NAME_OK.test(name)) return { status: 400, body: JSON.stringify({ error: 'bad-name' }) };
     if (!client.hasKey('uw')) return { status: 503, body: JSON.stringify({ error: 'no-key' }) };
     watch(name);
-    const d = dayOf(name, nyParts(clock()).day);
+    const d = dayOf(name, nyParts(clock()).day, !holdLock());
     const newer = <T extends { receivedAt: number }>(x: T | null) => (x && x.receivedAt > since ? x : null);
     let latest = 0;
     for (const x of [...d.books, ...d.books60, ...d.chains, d.seed, d.total]) if (x) latest = Math.max(latest, x.receivedAt);
@@ -594,5 +656,13 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     while (inFlight.size) await Promise.all([...inFlight]);
   }
 
-  return { serve, tick, settle, watched: () => [...watched.keys()], always: () => [...always] };
+  /** Stop recording: the minute's timer cleared and the lock let go (a dev server's restart, the process's end) */
+  function stop() {
+    stopped = true;
+    if (timer) clearInterval(timer);
+    timer = null;
+    releaseLock();
+  }
+
+  return { serve, tick, settle, stop, watched: () => [...watched.keys()], always: () => [...always] };
 }

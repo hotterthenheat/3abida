@@ -159,6 +159,8 @@ export interface Cell {
 }
 export interface RegimeRange {
   horizon: number;
+  /** The median range over every minute, whatever the tercile — "X times median" stands on it */
+  median: number | null;
   /** Per tercile: minutes counted, the median range as a share of spot, and the median range over the straddle's
       implied move (null without straddles) */
   terciles: { tercile: 1 | 2 | 3; n: number; range: number | null; overImplied: number | null }[];
@@ -555,7 +557,7 @@ function regimeRanges(sessions: TrackSession[], cfg: TrackConfig): RegimeRange[]
         if (row.str0 && row.str0.value > 0) by[t].over.push(range / (row.str0.value / row.spot));
       }
     });
-    out.push({ horizon: h, terciles: ([1, 2, 3] as const).map(t => ({ tercile: t, n: by[t].ranges.length, range: median(by[t].ranges), overImplied: median(by[t].over) })) });
+    out.push({ horizon: h, median: median([...by[1].ranges, ...by[2].ranges, ...by[3].ranges]), terciles: ([1, 2, 3] as const).map(t => ({ tercile: t, n: by[t].ranges.length, range: median(by[t].ranges), overImplied: median(by[t].over) })) });
   }
   return out;
 }
