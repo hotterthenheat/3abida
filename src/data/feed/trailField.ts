@@ -337,7 +337,7 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
 
 /** How far the field stands from UW's own figures today, in one line for "How sure" — null with nothing to set it
     against yet */
-export function fieldResidual(field: readonly GexSnapshot[], books: readonly FeedBook[], total: TotalRead | null): string | null {
+export function fieldResidual(field: readonly GexSnapshot[], books: readonly FeedBook[], total: TotalRead | null, whole: ReadonlyMap<number, number> = new Map()): string | null {
   const byMinute = new Map<number, GexSnapshot>();
   for (const s of field) byMinute.set(Math.floor(s.time / 60), s);
   /* per strike, at each captured book's own moment: the gap summed over the strikes both hold, against the book's size */
@@ -356,15 +356,15 @@ export function fieldResidual(field: readonly GexSnapshot[], books: readonly Fee
     }
     if (size > 0) gaps.push(gap / size);
   }
-  /* the whole book a minute: UW's series in the house's sign against the field's column sum */
+  /* the whole book a minute: UW's series in the house's sign against the model priced on every strike it holds (`whole`,
+     by minute — the universe, not the field's 30 strikes each side, so the two sum the same kind of book) */
   let same = 0;
   let n = 0;
   const ratios: number[] = [];
   for (const [at, , gamma] of total?.rows ?? []) {
-    const col = byMinute.get(Math.floor(at / 60_000));
-    if (!col || !gamma) continue;
+    const mine = whole.get(Math.floor(at / 60_000));
+    if (mine === undefined || !gamma) continue;
     const theirs = -gamma;
-    const mine = col.levels.reduce((s, l) => s + l.value, 0);
     n++;
     if (Math.sign(mine) === Math.sign(theirs)) same++;
     ratios.push(mine / theirs);
@@ -376,7 +376,7 @@ export function fieldResidual(field: readonly GexSnapshot[], books: readonly Fee
   };
   const parts: string[] = [];
   if (gaps.length) parts.push(`strike by strike it differs from Unusual Whales' book by ${(med(gaps) * 100).toFixed(1)}% of the book's size (median of ${gaps.length} book${gaps.length === 1 ? '' : 's'} read today)`);
-  if (n) parts.push(`against their whole-book figure a minute it has the same sign ${Math.round((same / n) * 100)}% of ${n} minutes, at ${med(ratios).toFixed(2)}× its size (the field holds 30 strikes each side and 60 days)`);
+  if (n) parts.push(`against their whole-book figure, priced on every strike within 15% and 60 days, it has the same sign ${Math.round((same / n) * 100)}% of ${n} sampled minutes, at ${med(ratios).toFixed(2)}× its size at the median`);
   return `The field is modeled, never rescaled to the vendor: ${parts.join('; ')}.`;
 }
 
@@ -455,6 +455,8 @@ interface NameTrail {
   cols: Map<number, { snap: GexSnapshot; inputs: string }>;
   out: GexSnapshot[];
   residual: string | null;
+  /** The whole universe's sum at sampled minutes, with the inputs it was priced on */
+  whole: Map<number, { key: string; sum: number }>;
   cost: { ms: number; minutes: number };
 }
 
@@ -533,9 +535,32 @@ function work() {
   if (more) schedule();
 }
 
+/** The model priced on the whole universe, a minute every quarter hour of today's bars — the residual's like-for-like
+    against UW's whole-book series (kept per minute and inputs) */
+const WHOLE_EVERY_MIN = 15;
+function wholeSums(s: NameTrail): Map<number, number> {
+  const out = new Map<number, number>();
+  if (!s.u) return out;
+  for (const c of s.cols.values()) {
+    const minute = Math.floor(c.snap.time / 60);
+    if (minute % WHOLE_EVERY_MIN) continue;
+    const key = `${c.inputs}|${s.uVersion}`;
+    let had = s.whole.get(minute);
+    if (!had || had.key !== key) {
+      const col = modelColumn(s.u, { time: c.snap.time, close: c.snap.spot ?? 0 }, 1e9);
+      had = { key, sum: col.levels.reduce((x, l) => x + l.value, 0) };
+      s.whole.set(minute, had);
+    }
+    out.set(minute, had.sum);
+  }
+  return out;
+}
+
 function publish(s: NameTrail) {
   s.out = [...s.cols.values()].map(c => c.snap).sort((a, b) => a.time - b.time);
-  s.residual = s.cut ? null : fieldResidual(s.out, booksOf(s.t), inputsByName.get(s.t)?.inputs.total ?? null);
+  const t0 = performance.now();
+  s.residual = s.cut ? null : fieldResidual(s.out, booksOf(s.t), inputsByName.get(s.t)?.inputs.total ?? null, wholeSums(s));
+  s.cost.ms += performance.now() - t0;
   ring(s.key);
 }
 
@@ -544,7 +569,7 @@ function stateOf(t: string, cut: string | null): NameTrail {
   const key = `${t}|${cut ?? 'all'}`;
   let s = trails.get(key);
   if (!s || s.day !== day) {
-    s = { key, t, day, cut, bars: [], u: null, uVersion: -1, cols: new Map(), out: [], residual: null, cost: { ms: 0, minutes: 0 } };
+    s = { key, t, day, cut, bars: [], u: null, uVersion: -1, cols: new Map(), out: [], residual: null, whole: new Map(), cost: { ms: 0, minutes: 0 } };
     trails.set(key, s);
   }
   return s;
