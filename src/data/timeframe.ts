@@ -137,11 +137,13 @@ interface Peaks {
   bound: boolean[];
   fresh: (number | undefined)[];
   share: (number | undefined)[];
+  /* the minute the peak was taken from (epoch s) — the card names it (the owner's second review, 2026-10-13, item 6) */
+  at: (number | undefined)[];
   /* the bucket's last price, and whether every moment in it was rebuilt (one measured moment makes it measured) */
   spot?: number;
   rebuilt: boolean;
 }
-const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], fresh: [], share: [], rebuilt: true });
+const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], fresh: [], share: [], at: [], rebuilt: true });
 const markPeaks = (p: Peaks, snap: GexSnapshot) => {
   if (snap.spot !== undefined) p.spot = snap.spot;
   if (!snap.rebuilt) p.rebuilt = false;
@@ -152,7 +154,7 @@ const bucketOf = (time: number, p: Peaks): GexSnapshot => {
   if (p.rebuilt) out.rebuilt = true;
   return out;
 };
-const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
+const mergePeaks = (p: Peaks, levels: readonly GexLevel[], at?: number): void => {
   const ps = p.strikes;
   const pv = p.values;
   const pa = p.abs;
@@ -171,6 +173,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
       p.bound.push(!!l.staleBound);
       p.fresh.push(l.freshAt);
       p.share.push(l.staleShare);
+      p.at.push(at);
     }
     return;
   }
@@ -192,6 +195,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
         p.bound[i] = !!l.staleBound;
         p.fresh[i] = l.freshAt;
         p.share[i] = l.staleShare;
+        p.at[i] = at;
       }
       const d = l.dex ?? 0;
       if (Math.abs(d) > Math.abs(pd[i])) pd[i] = d;
@@ -208,6 +212,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
       p.bound.splice(i, 0, !!l.staleBound);
       p.fresh.splice(i, 0, l.freshAt);
       p.share.splice(i, 0, l.staleShare);
+      p.at.splice(i, 0, at);
     }
     i++;
   }
@@ -221,6 +226,7 @@ const peakLevels = (p: Peaks) => {
     if (p.bound[k]) l.staleBound = true;
     if (p.fresh[k] !== undefined) l.freshAt = p.fresh[k];
     if (p.share[k] !== undefined) l.staleShare = p.share[k];
+    if (p.at[k] !== undefined) l.at = p.at[k];
     out[k] = l;
   }
   return out;
@@ -280,7 +286,7 @@ export function foldSnapshotsSlice(base: GexSnapshot[], minutes: number, maxSnap
       peaks = newPeaks();
       start = i;
     }
-    mergePeaks(peaks, snap.levels);
+    mergePeaks(peaks, snap.levels, snap.time);
     markPeaks(peaks, snap);
   }
   void start;
@@ -314,7 +320,7 @@ export function aggregateSnapshots(base: GexSnapshot[], minutes: number): GexSna
       curBucket = bucket;
       peaks = newPeaks();
     }
-    mergePeaks(peaks, snap.levels);
+    mergePeaks(peaks, snap.levels, snap.time);
     markPeaks(peaks, snap);
   }
   const out = f.closed.slice();

@@ -759,6 +759,29 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   (gexNodesPrimitive: clamped under the band, stacked when they would overlap). The duplicate state poll is gone
   (`useFeedDayState` reads price.ts's key). A print tracked with a printed time (05:33–06:02 UTC, 2026-10-13) is put
   back to New York's text on load (WatchContext `nyTextFromPrinted`).
+  THE SECOND REVIEW'S RULES (2026-10-13, the owner, of the after-shot — "STOP MAKING MISTAKES … LOOK 100 TIMES"):
+  THE FIT IS THE SPAN SHOWN: `fitCandles` as a number floors the FINAL range (the candles with their pad, never less
+  than eight strikes), and on a fit the right scale's margins are the measured chrome band's height — the pane head,
+  the HEAVIEST row and the toolbar row, and the ladder's head beside it (ProfilePanel's `data-plot-inset`, the same
+  frame) — over the pane's height, plus 6 px (StrikeChart `applyFitMargins`, FIT_GAP_PX), never the library's 20%/10%
+  (eight strikes became thirteen and a $2 day sat in a fifth of the height; "772–785" was the floor, the pad and the
+  margins, by chance the walls). So every strike row, bead line, chip and candle in the fitted range is in the clear;
+  a bead under the chrome band or off the pane's foot is not drawn, and a chip whose strike is beyond the clear area
+  stands pinned at the edge with "▲"/"▼" before its words ("▲ 785 · 8%", "▲ CW 780 → 785 · 9:25 am"), never on a
+  strike it does not name. EVERY STRIKE IN THE WINDOW DRAWS (gexNodesPrimitive `columnAt`: every bead at or above
+  MIN_STRENGTH, the twelve-heaviest cut is gone — 774 at +$506M, half the reference, drew nothing). THE PLOT STARTS
+  AFTER THE RAIL: the drawing rail docked left and open gives the chart's box a 56 px left inset (RAIL_LEFT_INSET_PX),
+  so no candle stands under it. OPEN INTEREST AS RECEIVED, NEVER AHEAD (trailField `universeOf` / `oiAt`, model
+  trail-2026-10-13.4): a column's count is the newest chain read RECEIVED at or before the column's end; before the
+  day's first read it is the seed's — the session before's dated count, carried in the seed's fourth element by the
+  recorder and the backfill (a seed without it is read again) — and the recorder reads the chain every ten minutes
+  from 04:00 New York, so the count UW publishes about 06:45 is in within ten minutes (measured 2026-10-13: the 00:27
+  read equalled the seed on 3,094 of 3,094 contracts; the 09:51 read changed 2,186 of them). A count received after a
+  minute never moves it (the proof's section 10). A BAR'S CELL IS ITS PEAK MINUTE: on a five-minute texture each
+  strike keeps the minute with the largest magnitude (timeframe.ts, GexLevel `at`), with that minute's own vols and
+  provenance, knowable at that minute's end and never past the bar's; the card names the bar ("778 · 12:35–12:40 pm
+  PDT") and the minute ("The bar's heaviest minute, 12:39 pm · knowable by 12:40 pm"). The chip counts the earlier
+  sessions the PAGE has taken in (levels.ts `useServerPastSessions`).
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

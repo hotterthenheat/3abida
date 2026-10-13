@@ -353,6 +353,15 @@ the model, `src/data/feed/trailField.ts` (`TRAIL_MODEL`, its version on every co
 | The price | UW's 1-minute bars, each bar's close | the bar's end |
 | The measured reference | `/spot-exposures/strike` once a minute (each strike's own `time` and `price` kept) and `/spot-exposures` (the whole book a minute) | as received — never blended into the field |
 
+**The positions, as received (model trail-2026-10-13.4, the owner's second review of 2026-10-13).** A column's open
+interest is the count of the newest chain read RECEIVED at or before the column's end; before the day's first read it
+is the seed's — `/option-chains?date=<the session before>`, whose count is dated that session (the count after the
+session before IT closed), carried in the seed row's fourth element. UW publishes today's count about 06:45 New York
+(measured: the 00:27 read equalled the seed on every contract both held, 3,094 of 3,094; the 09:51 read changed 2,186
+of them), and the recorder reads the chain every ten minutes from 04:00, so a pre-market column stands on the prior
+count until the published one is in — never on a count received after the minute (`universeOf`, `oiAt`;
+`scripts/trail-field-proof.ts` section 10). A seed written without its count is read again.
+
 The pricer is `core/greeks.ts` `blackScholesGreeks` on the clock and carry UW solved its vols under, measured 2026-10-13
 (`research-2026-10-13/uw-vol-convention.md`): European, r 4.15%, no dividend; today's expiry on calendar time to its
 last-trading instant (16:00 New York, 13:00 on a half day), a later one on whole calendar days ÷ 365, held all session —
@@ -405,7 +414,7 @@ before's close vols alone, every cell `carried`. `scripts/field-backfill-proof.t
 name (six at most; two idle hours let it go) and answers what was received after `since` — the books, the chain reads,
 the seed, UW's whole-book series. Through the session (09:30–16:00 New York, a weekday) it reads, through the proxy's
 own client, cache and UW gate (three at once): each name's book and whole-book series once a minute, its chain every ten
-minutes (and once on first watch, whatever the hour), its 60-day book (`/spot-exposures/expiry-strike`, the chain's
+minutes from 04:00 to 16:00 New York (and once on first watch, whatever the hour), its 60-day book (`/spot-exposures/expiry-strike`, the chain's
 expiries within 60 days, the strikes within 15%, two to five pages) every five minutes and once on first watch, the
 session before's close chain once a day. Append-only files in
 `.feed-cache/field/<NAME>/<YYYY-MM-DD>/` (`books.jsonl`, `books60.jsonl`, `chain.jsonl`, `seed.json`, `total.json`; git-ignored; the days

@@ -240,6 +240,97 @@ disabled with the keys in (no plan carries seconds), the SPX pane's "bars not in
 labels' words (above / below / between its EMA21 and VWAP — the data, not the page). No panel hidden, no control
 dropped.
 
+## Step 5 — the second review (the owner, of the after-shot at 7:56 am PDT) and its fixes
+
+Six points, each checked against the code and the recorded data before anything was changed. The page was shot again
+at 8:38 am PDT (11:38 New York): `after2/`.
+
+**1. The price axis, 772.00–785.00.** It was not the walls: the floor of eight strikes was applied BEFORE the 8% pad and
+the library's own scale margins (20% above, 10% below), so eight strikes became 8 × 1.16 ÷ 0.7 = 13.3, and 772–785 was
+that span by chance landing on the two walls. Now `fitCandles` floors the FINAL range (the candles with their pad,
+never less than eight strikes) and on a fit the scale's margins are the chrome's own (below). After: the candles
+776.0–778.9 stand in a range of 773.4–781.4, 36% of the clear height; the axis reads 773.50–782.50 with the top strike
+under the band (StrikeChart `autoscaleProvider`, `applyFitMargins`, FIT_GAP_PX).
+
+**2. The fit ignored the header.** The scale's margins are now the measured chrome band — the pane head, the HEAVIEST
+row and the toolbar row, 116 px here — and the ladder's head beside it, 74 px (ProfilePanel marks it `data-plot-inset`
+in the same frame), whichever is taller, plus 6 px; so the fitted range is exactly what stands below the band, and every
+strike row, bead line, chip and candle in it is clear. After: the ladder shows 774–781, eight rows, nothing under its
+head; the 781 beads stand at y = 165 under the band's foot at 116. A bead under the band or off the pane's foot is not
+drawn, and a chip whose strike is beyond the clear area stands pinned at the edge with an arrow — "▲ CW 780 → 785 ·
+7:45 am" under the band, never on another strike's line. (There is no strength chip on the shot: the rule draws one for
+a strike holding 8% of the column or more, and the latest column's heaviest, 785, holds 7.7%, 772 6.9%, 780 6.5% —
+the rule, not a fault; a chip for a strike beyond the clear area is pinned the same way, "▲ 785 · 8%".)
+
+**3. The drawing rail.** Docked left and open, the chart's box now begins 56 px in (RAIL_LEFT_INSET_PX): the rail
+stands at x 7–51 and the plot at 57 onward — no candle under it (the fit probe: `container.left` 57, `rail.right` 51).
+
+**4. Which open interest the 4:00–6:45 am ET columns used: today's — a look-ahead, confirmed.** `universeOf` took the
+newest chain read's count for every column ("static all day"). The recorded reads say when the count changed:
+
+| chain read (New York) | contracts | Σ open interest | changed since the read before |
+|---|---|---|---|
+| 00:27:33 | 3,313 | 6,235,665 | — |
+| 09:51:35 | 3,112 | 6,323,955 | 2,186 of 2,988 |
+| 10:02:33 … 11:02:27 | 3,112–3,115 | 6,323,955–6,328,498 | 0 |
+
+The 00:27 read equals the seed (the dated count of Oct 12) on 3,094 of 3,094 contracts both hold; the 09:51 read is
+the count UW published in the morning. Now (model `trail-2026-10-13.4`) a column's count is the newest chain read
+RECEIVED at or before the column's end, and before the day's first read the seed's — the recorder's seed carries its
+count (a fourth element; a seed without it is read again) and the backfill's too — and the recorder reads the chain
+every ten minutes from 04:00 New York, so the published count is in within ten minutes of it. A count received after
+a minute never moves it. The look-ahead test is `scripts/trail-field-proof.ts` section 10 (five checks: the seed's
+count before the first read, the read's after it, a count received at 12:00 leaves 11:00 unchanged and moves 12:30,
+no count and no seed → no cell). Today's chips moved with it: the call wall reads 785 on the prior count through the
+pre-market, 780 from the 09:51 read ("CW 785 → 780 · 6:50 am"), 785 again at 7:45 am.
+
+**5. No beads at 773–776.** The model's values at 10:55 New York beside UW's, house sign:
+
+| strike | model | UW, 60 days | UW, every expiry (the ladder) | bead strength √(size ÷ 2.04B) | rank in the column |
+|---|---|---|---|---|---|
+| 773 | +$290M | +$276M | +$309M | 0.38 | 21 of 60 |
+| 774 | +$506M | +$477M | +$529M | 0.50 | 15 of 60 |
+| 775 | −$100M | +$2M | −$29M | 0.22 | 38 of 60 |
+| 776 | +$122M | +$155M | +$146M | 0.24 | 36 of 60 |
+
+The model matched UW within a few percent; the beads were missing because `columnAt` drew only the TWELVE HEAVIEST
+strikes of a column (TOP_N = 12 — 774 ranked 15th). Every strike at or above the stated floor draws now. After: beads at
+774 (orange, about half strength), 776 (faint), 775 (a whisper — UW's own book reads it at −$18.7M by 8:38 am). The
+cost, measured on a six-second pan of the 5m chart with the whole field drawn: 556 frames, median and p95 16.7 ms,
+two frames over 33 ms.
+
+**6. The hover card "778 · 12:35 pm" with "vols as traded to 12:39 pm".** On the 5m chart a bead is the bar's cell:
+`aggregateSnapshots` keeps, per strike, the minute of the bar with the largest magnitude — with that minute's own vols
+and provenance (the minute columns are modeled on the 1m bars, each knowable at its own end; `modelColumn`'s knowBy is
+the minute's end). The 12:35–12:40 bar's 778 cell was the 12:39 minute (−$1.31B; the model gives −$1.28B at 12:35,
+−$1.29B at 12:36, −$1.31B at 12:39), knowable at 12:40 — never a vol past the bar's end. The card said neither. Now
+the cell carries its minute (GexLevel `at`) and the card names the bar and the minute: "781 · 8:00–8:05 am PDT … The
+bar's heaviest minute, 8:04 am · knowable by 8:05 am" (or "Knowable by 12:21 pm" when the cell is the bar's first
+minute). The test is section 11 of the proof: a five-minute bar's cell is its heaviest minute with that minute's time
+and vols, and a minute past the bar's end is the next bar's.
+
+**Also.** The model's version is `trail-2026-10-13.4`; `npm test` runs 41 checks on the field. The structural check,
+keys in against keys blanked (SPY and SPX, one and two panes, every menu): the same buttons, menus, canvases and
+marks on both, but for the allowed three — the 15 s bar listed and disabled with the keys in, the SPX pane's "bars not
+in the feed" mark, and the trend labels' words (the data, not the page).
+
+### The after-shot, 8:38 am PDT (`after2/01-now.png`)
+
+| Element | Value | Standing |
+|---|---|---|
+| Rail, head, capsule, spot band | `$776.21 −0.24%` / `$776.21` / `776.21` / `776.21` | one price |
+| Countdown | `01:59 → 01:44 → 01:29 → 01:14` | to the bar's end |
+| Price axis | 773.50–782.50 on the pane; the fitted range 773.4–781.4 under the band | the candles + the 8-strike floor, nothing else |
+| Ladder rows | 774–781 (8), `▲ 25 / ▼ 27` | none under the head |
+| Beads | 774, 775, 776, 777, 778, 779, 780, 781 | every strike in range |
+| Chips | `▲ CW 780 → 785 · 7:45 am` pinned under the band; `CW 785 → 780 · 6:50 am` on 780 | clear of the chrome, on their strike or pinned with the arrow |
+| Drawing rail | x 7–51; the plot from x 57 | no candle under it |
+| Day tick | `13` at the 1:00 am PDT bar | the viewer's calendar |
+| Card (5m) | `781 · 8:00–8:05 am PDT … The bar's heaviest minute, 8:04 am · knowable by 8:05 am … Unusual Whales' book (60 days), 7:57 am: −$663M` (the model −$708M) | the bar, its minute, its knowledge time |
+| 774 card | `774 · 8:50–8:55 am PDT … $570M · 2.9% of the book … The bar's heaviest minute, 8:51 am · knowable by 8:52 am … Unusual Whales' book (60 days), 8:47 am: $603M` (`after2/03c-hover-774.png`) | the strike that drew nothing, now drawn and named |
+| Oct 12 card | `778 · 12:35–12:40 pm PDT … −$1.3B · 7.4% of the book … Change since the open (6:30 am): −$957M … Flip 777.12 … The bar's heaviest minute, 12:39 pm · knowable by 12:40 pm … Vols as traded to 12:39 pm` (`after2/07-oct12-session-hover.png`) | the bar, its minute, its knowledge time — item 6 answered on the card |
+| How sure | `… (within 60 days, 9 books read today): strike by strike it differs by 6.7% of the book's size at the median; summed over those strikes it has the same sign in 8 of 9, at 1.82× …` | like for like |
+
 ### After hours
 
 Taken after 4:00 pm New York the same day (the market shut, the book's price frozen at the close): `after-close/` — the

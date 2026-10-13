@@ -54,6 +54,8 @@ export interface GexLevel {
   /** The share of the strike's gamma priced on a vol older than an hour at the column's clock (carried vols included) */
   staleShare?: number;
   coverage?: number;
+  /** When the cell is a bar's peak minute (timeframe.ts aggregateSnapshots), that minute's own time (epoch s) */
+  at?: number;
   /** Net GEX at this strike (summed across expiries), signed dollars */
   value: number;
   /** Net delta exposure at the same instant, signed dollars — the trails

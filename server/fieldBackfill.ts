@@ -90,7 +90,7 @@ export interface PastDay {
   /** [OCC symbol, open interest dated the session] */
   oi: [string, number][];
   /** The session before's close: [OCC symbol, vol or null, its stamp (ms) or null] */
-  seed: { date: string; receivedAt: number; rows: [string, number | null, number | null][] } | null;
+  seed: { date: string; receivedAt: number; rows: [string, number | null, number | null, number][] } | null;
   /** Each traded contract's vols through the session, flattened [minute start (ms), vol, …] */
   ticks: Record<string, number[]>;
   /** UW's whole book a minute: [minute start (ms), price, gamma per 1% by open interest (UW's sign)] */
@@ -212,12 +212,12 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
       if (!c) break;
       calls += c.calls;
       if (c.rows.length) {
-        const rows: [string, number | null, number | null][] = [];
+        const rows: [string, number | null, number | null, number][] = [];
         for (const r of c.rows) {
           const s = String(r.option_symbol ?? '');
           if (!inUniverse.has(s)) continue;
           const tape = Date.parse(String(r.last_tape_time ?? ''));
-          rows.push([s, num(r.implied_volatility), Number.isFinite(tape) ? tape : null]);
+          rows.push([s, num(r.implied_volatility), Number.isFinite(tape) ? tape : null, num(r.open_interest) ?? 0]);
         }
         seed = { date: prev, receivedAt: clock(), rows };
       } else prev = isoAdd(prev, -1);

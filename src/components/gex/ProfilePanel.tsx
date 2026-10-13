@@ -1848,6 +1848,10 @@ const ProfilePanel = ({
       {/* THE HEAD — the view tabs and the host's Expiry card first, the lanes' names after them
           on the full tier, the tools at the end; below the full tier a second row takes the
           tools, and the column heads under it name the lanes */}
+      {/* THE ROWS START HERE — the head, the key, the column heads and the ▲ count's line: marked for the chart's fit,
+          which keeps every strike in the candles' range below it (StrikeChart applyFitMargins; the owner's second
+          review, 2026-10-13: "the ladder hides 784/785 (call wall) at the top") */}
+      <div aria-hidden className="absolute left-0 top-0 w-px pointer-events-none" style={{ height: (twoRowHead ? HEAD_TOP_2 : HEAD_TOP) + (showSize && tier !== 'thin' ? KEY_BAND : 0) + COL_HEAD + COUNT_BAND }} data-plot-inset />
       <div className="absolute inset-x-0 top-0 flex flex-col px-2 pointer-events-none" style={{ height: twoRowHead ? HEAD_TOP_2 : HEAD_TOP }} data-profile-head data-head-rows={twoRowHead ? 2 : 1}>
         <div className="flex items-center gap-1.5 min-w-0" style={{ height: HEAD_TOP }}>
           {viewTabs}

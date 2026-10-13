@@ -92,8 +92,9 @@ export interface RecordedChain {
   receivedAt: number;
   rows: ChainRow[];
 }
-/** The session before's close: [OCC symbol, vol at the close or null, its last trade's time (ms) or null] */
-export type SeedRow = [string, number | null, number | null];
+/** The session before's close: [OCC symbol, vol at the close or null, its last trade's time (ms) or null, open interest
+    dated that session — the count the pre-market stands on until today's is received (the owner, 2026-10-13)] */
+export type SeedRow = [string, number | null, number | null, number];
 export interface RecordedSeed {
   /** The session the vols closed */
   date: string;
@@ -205,7 +206,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         books: readLines<RecordedBook>(join(dir, 'books.jsonl')),
         books60: readLines<RecordedBook60>(join(dir, 'books60.jsonl')),
         chains: readLines<RecordedChain>(join(dir, 'chain.jsonl')),
-        seed: readJson<RecordedSeed>(join(dir, 'seed.json')),
+        /* a seed written before 2026-10-13 carries no count: read again, so the pre-market stands on the prior count */
+        seed: (x => (x && x.rows.length && x.rows[0].length >= 4 ? x : null))(readJson<RecordedSeed>(join(dir, 'seed.json'))),
         total: readJson<RecordedTotal>(join(dir, 'total.json')),
       };
       days.set(name, d);
@@ -346,7 +348,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
           const strike = num(r.strike) ?? 0;
           if (Math.abs(strike - price) > price * BAND) continue;
           const tape = Date.parse(String(r.last_tape_time ?? ''));
-          rows.push([String(r.option_symbol ?? ''), num(r.implied_volatility), Number.isFinite(tape) ? tape : null]);
+          rows.push([String(r.option_symbol ?? ''), num(r.implied_volatility), Number.isFinite(tape) ? tape : null, num(r.open_interest) ?? 0]);
         }
         if (past || got.length < 500) break;
       }
@@ -359,14 +361,17 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     }
   }
 
-  async function serviceName(name: string, inSession: boolean) {
+  /** The chain is read through the pre-market too (04:00 on), so the count UW publishes about 06:45 is received within
+      ten minutes — a column before that read stands on the seed's count (data/feed/trailField.ts universeOf) */
+  const chainHoursAt = (minute: number) => minute >= 4 * 60 && minute <= 16 * 60;
+  async function serviceName(name: string, inSession: boolean, chainHours = inSession) {
     if (busy.has(name)) return;
     busy.add(name);
     try {
       const { day } = nyParts(clock());
       const d = dayOf(name, day);
       const lastChain = d.chains[d.chains.length - 1]?.receivedAt ?? 0;
-      if (!d.chains.length || (inSession && clock() - lastChain >= CHAIN_EVERY_MS)) await readChain(name, d);
+      if (!d.chains.length || (chainHours && clock() - lastChain >= CHAIN_EVERY_MS)) await readChain(name, d);
       if (inSession || !d.books.length) {
         await readBook(name, d);
         await readTotal(name, d);
@@ -388,7 +393,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     prune(day);
     const inSession = minute >= 9 * 60 + 30 && minute <= 16 * 60;
     /* one name after another — the proxy's gate keeps UW at three at once with the pages' own polls */
-    for (const name of watched.keys()) await serviceName(name, inSession).catch(() => undefined);
+    for (const name of watched.keys()) await serviceName(name, inSession, chainHoursAt(minute)).catch(() => undefined);
   }
 
   function watch(name: string) {
@@ -412,7 +417,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     /* a name first watched is read at once — its chain, its seed, one book — whatever the hour */
     if (fresh) {
       const { minute, weekday } = nyParts(clock());
-      if (weekday !== 'Sat' && weekday !== 'Sun') void serviceName(name, minute >= 9 * 60 + 30 && minute <= 16 * 60).catch(() => undefined);
+      if (weekday !== 'Sat' && weekday !== 'Sun') void serviceName(name, minute >= 9 * 60 + 30 && minute <= 16 * 60, chainHoursAt(minute)).catch(() => undefined);
     }
   }
 

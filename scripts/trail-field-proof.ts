@@ -14,12 +14,19 @@
   7. A vol stamped after the close is a bound: its print's time is said as "at or before", never as a time
   8. A PAST SESSION'S MINUTE VOLS (server/fieldBackfill.ts `ticks`): a minute's vol is the field's from that minute's
      end — never the minute before — and makes the cell 'modeled'; one in its expiry's last hour is not used
+  10. OPEN INTEREST AS RECEIVED (the owner's second review, 2026-10-13, item 4): a column stands on the count of the
+      newest chain read received at or before its end — before the day's first read, on the seed's count, dated the
+      session before; a count received after a minute never moves it; with no count received and no seed count there
+      is no cell
+  11. A BAR'S CELL IS ITS PEAK MINUTE (item 6): on a five-minute texture each strike keeps the minute of the bar with
+      the largest magnitude, with that minute's own time and vols — a minute past the bar's end belongs to the next bar
   9. THE TERRAIN AUDIT (2026-10-13): the flip is the linear zero crossing between the two strikes of opposite sign, never
      their midpoint; the residual measures the field against UW's book on the SAME strikes and expiries (the 60-day
      books), never its whole-book series — the sign agrees where the books agree; the card's measured line names its
      universe, the 60-day book within ten minutes before the every-expiry book
 */
-import { fieldResidual, measuredAt, modelColumn, residualFigures, setMeasuredSource, universeOf, uwYears, UW_VOL_CONVENTION, type ServerInputs } from '../src/data/feed/trailField';
+import { fieldResidual, measuredAt, modelColumn, residualFigures, setMeasuredSource, universeOf, uwYears, UW_VOL_CONVENTION, type SeedRow, type ServerInputs } from '../src/data/feed/trailField';
+import { aggregateSnapshots } from '../src/data/timeframe';
 import { pickFlip, zeroCrossings } from '../src/core/walls';
 import type { FeedBook, FeedBook60 } from '../src/data/feed/levels';
 import { blackScholesGreeks } from '../src/core/greeks';
@@ -47,7 +54,9 @@ const read = (h: number, m: number, iv: number) => ({
   receivedAt: at(h, m),
   rows: syms.map(s => [s, s.includes('C0') ? 1000 : 1500, noVol(s) ? null : iv, at(h, m) - 60_000] as [string, number, number | null, number | null]),
 });
-const seed = { date: '2026-10-09', receivedAt: at(8, 0), rows: syms.map(s => [s, noVol(s) ? null : 0.15, at(8, 0)] as [string, number | null, number | null]) };
+/* the seed carries the session before's dated count — the pre-market stands on it until today's is received */
+const seedOi = (s: string) => (s.includes('C0') ? 1000 : 1500);
+const seed = { date: '2026-10-09', receivedAt: at(8, 0), rows: syms.map(s => [s, noVol(s) ? null : 0.15, at(8, 0), seedOi(s)] as SeedRow) };
 const base: ServerInputs = { chains: [read(10, 0, 0.12), read(12, 0, 0.12)], seed, total: null };
 const bar = (h: number, m: number, close: number) => ({ time: sec(h, m), close });
 
@@ -224,6 +233,36 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
   check('twenty minutes on, the every-expiry book stands, named', !!later && later.universe === 'every expiry' && later.value === -7e8);
   check('no book at all → null', measuredAt('SPY', 600, sec(10, 0)) === null);
   setMeasuredSource(() => [], () => []);
+}
+
+/* 10. open interest as received */
+{
+  const v600 = (c: GexSnapshot) => c.levels.find(l => l.strike === 600)?.value ?? NaN;
+  const sameV = (a: GexSnapshot, b: GexSnapshot) => JSON.stringify(a.levels.map(l => [l.strike, l.value])) === JSON.stringify(b.levels.map(l => [l.strike, l.value]));
+  const withSeed = (k: number): ServerInputs => ({ ...base, seed: { ...seed, rows: seed.rows.map(([s, iv, t]) => [s, iv, t, seedOi(s) * k] as SeedRow) } });
+  const u1 = universeOf('SPY', day, withSeed(1));
+  const u2 = universeOf('SPY', day, withSeed(2));
+  const e1 = modelColumn(u1, bar(9, 45, 600.2));
+  const e2 = modelColumn(u2, bar(9, 45, 600.2));
+  check("before the day's first chain read a column stands on the seed's count (twice the count, twice the cell)", Math.abs(v600(e2) / v600(e1) - 2) < 1e-9);
+  check("…and a column after the first read stands on the read's count, whatever the seed held", sameV(modelColumn(u1, bar(11, 0, 600.2)), modelColumn(u2, bar(11, 0, 600.2))));
+  const tripled = read(12, 0, 0.12);
+  tripled.rows = tripled.rows.map(r => [r[0], r[1] * 3, r[2], r[3]] as typeof r);
+  const ub = universeOf('SPY', day, { ...base, chains: [read(10, 0, 0.12), tripled] });
+  check('a count received at 12:00 never moves the 11:00 column', sameV(modelColumn(ub, bar(11, 0, 600.2)), mid));
+  check('…and the 12:30 column stands on it (three times the count, three times the cell)', Math.abs(v600(modelColumn(ub, bar(12, 30, 600.2))) / v600(late) - 3) < 1e-9);
+  check('no count received yet and no seed count → no cell', modelColumn(universeOf('SPY', day, { ...base, seed: null }), bar(9, 45, 600.2)).levels.length === 0);
+}
+
+/* 11. a bar's cell is its peak minute */
+{
+  const minute = (h: number, m: number, value: number): GexSnapshot => ({ time: sec(h, m), levels: [{ strike: 600, value, prov: 'modeled', freshAt: at(h, m) - 20_000 }], spot: 600 });
+  const snaps = [minute(15, 35, 1e8), minute(15, 36, -2e8), minute(15, 37, 5e8), minute(15, 38, 3e8), minute(15, 39, 4e8), minute(15, 40, 9e8)];
+  const bars = aggregateSnapshots(snaps, 5);
+  const b = bars.find(x => x.time === sec(15, 35));
+  const l = b?.levels.find(x => x.strike === 600);
+  check("a five-minute bar's cell is its heaviest minute, with that minute's own time and vols", !!l && l.value === 5e8 && l.at === sec(15, 37) && l.freshAt === at(15, 37) - 20_000);
+  check("a minute past the bar's end is the next bar's, never this one's", bars.length === 2 && bars[1].time === sec(15, 40) && bars[1].levels[0].value === 9e8);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

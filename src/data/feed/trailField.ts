@@ -167,9 +167,9 @@ function tradeTimeOf(tape: number | null, fallback: number): { trade: number; bo
 
 /** The field's model — its version is kept with every column (trailMeta) */
 export const TRAIL_MODEL = {
-  version: 'trail-2026-10-13.3',
+  version: 'trail-2026-10-13.4',
   what: 'estimated dealer gamma (assumed sign)',
-  openInterest: "today's count — UW's row dated today, the positions at the session before's close; static all day",
+  openInterest: "as the recorder received it: a column's count is the newest chain read received at or before the column's end (UW publishes today's count — the positions at the session before's close — about 06:45 New York, and the chain is read every ten minutes from 04:00); before the day's first read, the session before's dated count (the seed) — never a count published after the minute",
   vol: "as of each minute: today, the newest chain read received at or before the minute's end; a past session, each contract's own minute vols as it traded (UW's per-contract minutes, the middle of the minute's range, knowable at the minute's end, kept when it moved a tenth of a vol point); before either, the session before's close (carried, fixed-strike); a vol read in its expiry's last hour is not used; no observation, no contract",
   price: "the minute bar's close; a column is knowable at its bar's end",
   pricer: "core/greeks.ts blackScholesGreeks on UW's convention (measured): European, r 4.15%, q 0; today's expiry on calendar time from the bar middle to its last-trading instant (16:00 New York, 13:00 on a half day), a later one on whole calendar days / 365",
@@ -188,11 +188,13 @@ export interface ChainRead {
   receivedAt: number;
   rows: ChainRow[];
 }
-/** The session before's close: [OCC symbol, vol or null, its trade's time (ms) or null] */
+/** The session before's close: [OCC symbol, vol or null, its trade's time (ms) or null, open interest dated that
+    session (the count after the session before IT closed) — the count the pre-market stands on until today's lands] */
+export type SeedRow = [string, number | null, number | null, number?];
 export interface SeedRead {
   date: string;
   receivedAt: number;
-  rows: [string, number | null, number | null][];
+  rows: SeedRow[];
 }
 export interface TotalRead {
   receivedAt: number;
@@ -246,7 +248,8 @@ export interface Universe {
   /** Contracts [start[i], start[i+1]) belong to strikes[i] */
   start: Int32Array;
   call: Uint8Array;
-  oi: Float64Array;
+  /** Each contract's open interest as it was received, oldest first — a column takes the newest at or before its end */
+  oiObs: OiObs[][];
   expires: Float64Array;
   /** UW's whole-day clock for a later expiry, in years; 0 for today's (priced on the minutes left) */
   years: Float64Array;
@@ -258,14 +261,22 @@ export interface Universe {
   seedDate: string | null;
 }
 
+/** A count of open interest and the moment it was received */
+export interface OiObs {
+  at: number;
+  oi: number;
+}
+
 /**
  * The universe of a name for a day from what the server recorded: the contracts the chain reads list (its own root
- * only — an adjusted root is another deliverable), open interest from the newest read (it is the same count all day),
- * and every vol observation with the moment it became knowable.
+ * only — an adjusted root is another deliverable), each contract's open interest AS IT WAS RECEIVED (the owner's second
+ * review, 2026-10-13: the count UW publishes about 06:45 New York is not knowable at 04:00 — a column takes the newest
+ * count received at or before its end, and before the day's first read the seed's, dated the session before), and
+ * every vol observation with the moment it became knowable.
  */
 export function universeOf(ticker: string, day: string, inputs: ServerInputs, cut: string | null = null): Universe {
   const t = ticker.toUpperCase();
-  type C = { strike: number; expiry: string; call: boolean; oi: number; obs: Obs[] };
+  type C = { strike: number; expiry: string; call: boolean; oiObs: OiObs[]; obs: Obs[] };
   const bySym = new Map<string, C>();
   const reads = [...inputs.chains].sort((a, b) => a.receivedAt - b.receivedAt);
   for (const read of reads) {
@@ -273,8 +284,9 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
       const p = parseOcc(sym);
       if (!p || p.root !== t || p.expiry < day || (cut && p.expiry !== cut) || !(p.strike > 0)) continue;
       let c = bySym.get(sym);
-      if (!c) bySym.set(sym, (c = { strike: p.strike, expiry: p.expiry, call: p.right === 'C', oi, obs: [] }));
-      c.oi = oi;
+      if (!c) bySym.set(sym, (c = { strike: p.strike, expiry: p.expiry, call: p.right === 'C', oiObs: [], obs: [] }));
+      /* a count is noted when it changes — the same count read again is the same knowledge */
+      if (!c.oiObs.length || c.oiObs[c.oiObs.length - 1].oi !== oi) c.oiObs.push({ at: read.receivedAt, oi });
       if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false });
     }
   }
@@ -298,13 +310,16 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
   if (seed) {
     const [y, m, d] = seed.date.split('-').map(Number);
     const knowable = nyWallTime(y, m, d, 16, 0);
-    for (const [sym, iv, trade] of seed.rows) {
+    for (const [sym, iv, trade, oi] of seed.rows) {
       const c = bySym.get(sym);
-      if (!c || iv == null || !(iv > 0) || lastTradeOf(c.expiry) - knowable < LAST_HOUR_MS) continue;
+      if (!c) continue;
+      /* the seed's count — dated the session before, public through it — stands before the day's first read */
+      if (oi != null && Number.isFinite(oi) && (!c.oiObs.length || c.oiObs[0].at > knowable)) c.oiObs.unshift({ at: knowable, oi });
+      if (iv == null || !(iv > 0) || lastTradeOf(c.expiry) - knowable < LAST_HOUR_MS) continue;
       c.obs.unshift({ at: knowable, iv, ...tradeTimeOf(trade, knowable), carried: true });
     }
   }
-  const kept = [...bySym.values()].filter(c => c.oi > 0).sort((a, b) => a.strike - b.strike);
+  const kept = [...bySym.values()].filter(c => c.oiObs.some(o => o.oi > 0)).sort((a, b) => a.strike - b.strike);
   const strikes: number[] = [];
   const start: number[] = [];
   kept.forEach((c, i) => {
@@ -319,7 +334,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     strikes,
     start: Int32Array.from(start),
     call: Uint8Array.from(kept.map(c => (c.call ? 1 : 0))),
-    oi: Float64Array.from(kept.map(c => c.oi)),
+    oiObs: kept.map(c => c.oiObs),
     expires: Float64Array.from(kept.map(c => lastTradeOf(c.expiry))),
     years: Float64Array.from(kept.map(c => (c.expiry > day ? uwYears(0, 0, c.expiry, day) : 0))),
     expiry: kept.map(c => c.expiry),
@@ -347,6 +362,16 @@ function obsAt(list: readonly Obs[], by: number): Obs | null {
   for (const o of list) {
     if (o.at > by) break;
     out = o;
+  }
+  return out;
+}
+
+/** The newest count of open interest received by `by`, 0 for none yet */
+export function oiAt(list: readonly OiObs[], by: number): number {
+  let out = 0;
+  for (const o of list) {
+    if (o.at > by) break;
+    out = o.oi;
   }
   return out;
 }
@@ -388,8 +413,11 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
       if (u.expires[j] <= clock) continue;
       const o = obsAt(u.obs[j], knowBy);
       if (!o) continue;
+      /* the count knowable at the bar's end — never one received after it */
+      const oi = oiAt(u.oiObs[j], knowBy);
+      if (!(oi > 0)) continue;
       const g = blackScholesGreeks(spot, k, u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS, o.iv, UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
-      const w = u.oi[j] * s2;
+      const w = oi * s2;
       const gw = w * g.gamma;
       if (u.call[j]) {
         gc += gw;

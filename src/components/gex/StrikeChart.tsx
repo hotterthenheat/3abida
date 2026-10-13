@@ -983,6 +983,18 @@ const toVolume = (b: Candle, t: CandleTheme) => ({
 /** The field's clock: a bead every 5 minutes of real history, whatever the bar —
     a 30m bar carries six, an hour twelve (Noah, 2026-08-22). */
 const TRAIL_TEXTURE_MINUTES = 5;
+/** A bar's span on the reader's clock, its am/pm said once when both ends share it: "12:35–12:40 pm PDT" */
+function barSpanLabel(fromSec: number, toSec: number): string {
+  const a = nyClockOf(fromSec * 1000);
+  const b = nyClockOf(toSec * 1000, { zone: true });
+  const m = /\s([ap]m)\b/.exec(a);
+  return `${m && b.includes(` ${m[1]}`) ? a.slice(0, m.index) : a}–${b}`;
+}
+/** On a fit, the clear pixels between the chrome band and the fitted range's top, and under its bottom */
+const FIT_GAP_PX = 6;
+/** The drawing rail docked left: 6 px in, 44 wide, 6 clear — the plot starts after it (the owner, 2026-10-13: "the
+    floating drawing toolbar covers candles on the left edge") */
+const RAIL_LEFT_INSET_PX = 56;
 /** Bars a chart opens with — more than a screen at any pitch; the rest of the
     store loads when the reader scrolls to their left edge (see onRange) */
 const INITIAL_BARS = 1000;
@@ -1828,25 +1840,43 @@ const StrikeChart = ({
         if (v < min) min = v;
         if (v > max) max = v;
       }
-      /* the floor on a fit: the candles still fit, the axis never spans less than this (fitCandles as a number) */
-      const least = typeof fitCandlesRef.current === 'number' ? fitCandlesRef.current : 0;
-      if (least > 0 && max - min < least) {
-        const mid = (max + min) / 2;
-        min = mid - least / 2;
-        max = mid + least / 2;
-      }
       const pad = Math.max((max - min) * 0.08, 0.01);
-      /* No pixel margin for the chrome here: the scale's own 20% top margin already lands the
-         highest wall ~130px under a 36px strip at rest (measured 2026-09-14) — the overlap Noah
-         saw was a hand-scaled tape, which the strike chips' clamp answers. */
-      return { priceRange: { minValue: min - pad, maxValue: max + pad } };
+      let lo = min - pad;
+      let hi = max + pad;
+      /* THE FLOOR ON A FIT IS THE SPAN SHOWN (the owner's second review, 2026-10-13: with the floor applied before the
+         pad and the scale's own margins, eight strikes became thirteen and a $2 day sat in a fifth of the height): the
+         candles with their pad, never less than `fitCandles` strikes — and that range is exactly what the fitted area
+         shows, because on a fit the scale's margins are the chrome's own (applyFitMargins), not the library's 20%/10%. */
+      const least = typeof fitCandlesRef.current === 'number' ? fitCandlesRef.current : 0;
+      if (least > 0 && hi - lo < least) {
+        const mid = (hi + lo) / 2;
+        lo = mid - least / 2;
+        hi = mid + least / 2;
+      }
+      return { priceRange: { minValue: lo, maxValue: hi } };
     },
     []
   );
 
+  /* THE FIT'S MARGINS (the owner's second review, 2026-10-13, item 2: "Fit inside the area below the pane head,
+     HEAVIEST band and toolbar on the chart, and below the legend on the ladder"): on a fit the right scale's margins
+     are the chrome band's height — and the ladder's head's, marked `data-plot-inset` by ProfilePanel in the same
+     frame — over the pane's height, plus a few pixels, so the fitted range (the candles with their floor) is exactly
+     what stands below the chrome, and every strike row, bead line and chip in that range is in the clear. */
+  const applyFitMargins = useCallback(() => {
+    const chart = chartRef.current;
+    const el = containerRef.current;
+    if (!chart || !el || !fitCandlesRef.current) return;
+    const paneH = el.clientHeight - chart.timeScale().height();
+    if (!(paneH > 0)) return;
+    const top = Math.min(0.6, (chromeInsetRef.current + FIT_GAP_PX) / paneH);
+    const bottom = Math.min(0.3, FIT_GAP_PX / paneH);
+    chart.priceScale('right').applyOptions({ scaleMargins: { top, bottom } });
+  }, []);
+
   /* THE CHROME BAND, MEASURED: on mount, when this box resizes, and when a chrome block over it
      changes size (the strip wraps to a second row). A changed band goes to the strike chips
-     (the primitive), which clamp their words under it. */
+     (the primitive), which clamp their words under it, and to the fit's margins. */
   useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -1868,14 +1898,27 @@ const StrikeChart = ({
           chromeObs.observe(c);
         }
       });
+      /* the ladder's head beside the plot (ProfilePanel `data-plot-inset`): its rows share this scale, so a strike in
+         the fitted range must clear it too */
+      el.closest('[data-chart-frame]')?.querySelectorAll<HTMLElement>('[data-plot-inset]').forEach(c => {
+        const r = c.getBoundingClientRect();
+        if (r.height === 0 || Math.abs(r.top - box.top) > 2) return;
+        low = Math.max(low, r.height);
+        if (!watched.has(c)) {
+          watched.add(c);
+          chromeObs.observe(c);
+        }
+      });
       const inset = Math.round(low);
-      if (inset === chromeInsetRef.current) return;
-      chromeInsetRef.current = inset;
-      const trails = trailsRef.current;
-      if (trails) {
-        trails.chromeInset = inset;
-        trails.requestUpdate?.();
+      if (inset !== chromeInsetRef.current) {
+        chromeInsetRef.current = inset;
+        const trails = trailsRef.current;
+        if (trails) {
+          trails.chromeInset = inset;
+          trails.requestUpdate?.();
+        }
       }
+      applyFitMargins();
     };
     const schedule = () => {
       cancelAnimationFrame(raf);
@@ -1889,7 +1932,7 @@ const StrikeChart = ({
       obs.disconnect();
       chromeObs.disconnect();
     };
-  }, [autoscaleProvider]);
+  }, [autoscaleProvider, applyFitMargins]);
 
   /* Build the main series for a style. Always returned as the nominal
      'Candlestick' handle — every consumer routes data through toMain and
@@ -2113,6 +2156,7 @@ const StrikeChart = ({
     syncRegisterRef.current?.(applySync);
 
     chartRef.current = chart;
+    applyFitMargins();
     candleSeriesRef.current = candles;
     volumeSeriesRef.current = volume;
     /* Dev-only handle for the house probes (scripts/*-proof.mjs read the
@@ -4161,6 +4205,9 @@ const StrikeChart = ({
   };
   /* where the host strip's gap is, when the rail rides the top */
   const gap = useToolbarGap(containerRef, rail.dock === 'top');
+  /* THE PLOT STARTS AFTER THE RAIL (the owner, 2026-10-13: "The floating drawing toolbar covers candles on the left
+     edge. Move it off the plot or keep candles clear of it"): docked left and open, the chart's box begins past it */
+  const railLeftInset = !compact && (drawing || onEnterDraw) && rail.open && rail.dock === 'left' ? RAIL_LEFT_INSET_PX : 0;
   const topDockStyle = rail.dock === 'top' && gap ? { left: gap.left + gap.width / 2, transform: 'translateX(-50%)', maxWidth: Math.max(160, gap.width - 16) } : undefined;
   const [, forceMark] = useReducer((x: number) => x + 1, 0);
   const [barPos, setBarPos] = useState<{ x: number; y: number } | null>(null);
@@ -4726,7 +4773,7 @@ const StrikeChart = ({
             </div>
           </>
         )}
-        <div ref={containerRef} className={`absolute inset-0 ${picking ? 'cursor-crosshair' : ''}`} onPointerDownCapture={onSleepingMarkDown} data-pick-time={picking ? '' : undefined} data-replay-idx={replay ? replayIdx : undefined} data-replay-len={replay ? (replayDataRef.current?.bars.length ?? 0) : undefined} data-replay-time={replay && replayTime != null ? replayTime : undefined} data-replay-debug={replay ? replayDebug : undefined} />
+        <div ref={containerRef} className={`absolute inset-0 ${picking ? 'cursor-crosshair' : ''}`} style={railLeftInset ? { left: railLeftInset } : undefined} onPointerDownCapture={onSleepingMarkDown} data-pick-time={picking ? '' : undefined} data-replay-idx={replay ? replayIdx : undefined} data-replay-len={replay ? (replayDataRef.current?.bars.length ?? 0) : undefined} data-replay-time={replay && replayTime != null ? replayTime : undefined} data-replay-debug={replay ? replayDebug : undefined} />
         {/* THE HOST'S LAYER (Review's position, target and stop) — over the plot, under the chrome */}
         {layer?.({ chart: () => chartRef.current, series: () => candleSeriesRef.current as ISeriesApi<SeriesType> | null, host: () => containerRef.current, room: layerRoom, reset: resetView })}
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
@@ -5292,6 +5339,11 @@ const StrikeChart = ({
 
         {/* THE FIELD'S HOVER CARD (2026-10-13) — the event card's own style, beside the bead */}
         {beadCard && !eventCard && (() => {
+          /* THE CELL AND ITS CLOCK (the owner's second review, 2026-10-13, item 6): on a bar wider than a minute the
+             cell is the bar's heaviest minute (timeframe.ts aggregateSnapshots keeps each strike's peak minute, with
+             that minute's own vols and provenance), knowable at that minute's end — never a vol past the bar's end */
+          const cellBar = trailsRef.current?.barSec ?? 60;
+          const cellAt = beadCard.level.at ?? beadCard.time;
           const meta = trailMeta(beadCard.snap);
           const lvl = beadCard.level;
           const w = containerRef.current?.clientWidth ?? 400;
@@ -5333,7 +5385,7 @@ const StrikeChart = ({
               data-bead-card
             >
               <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
-                {k(beadCard.strike)} · {nyClockOf(beadCard.time * 1000, { zone: true })}
+                {k(beadCard.strike)} · {cellBar > 60 ? barSpanLabel(beadCard.time, beadCard.time + cellBar) : nyClockOf(beadCard.time * 1000, { zone: true })}
               </div>
               <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
               {feedCell && <div className="text-[11px] text-textMuted">{pastDay ? `${isoDayLabel(beadDay)}'s` : "Today's"} opening positions re-priced along the price path, each contract on its latest traded vol</div>}
@@ -5348,6 +5400,11 @@ const StrikeChart = ({
                 Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
                 {beadCard.crossings.length ? ` · crossings near ${beadCard.crossings.map(k).join(', ')}` : ''}
               </div>
+              {feedCell && (
+                <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">
+                  {cellBar > 60 && cellAt !== beadCard.time ? `The bar's heaviest minute, ${nyClockOf(cellAt * 1000)} · knowable by ${nyClockOf((cellAt + 60) * 1000)}` : `Knowable by ${nyClockOf((cellAt + 60) * 1000)}`}
+                </div>
+              )}
               {prov && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">{prov}</div>}
               {prov && stale && <div className="font-mono text-[11px] text-textMuted">{stale[0].toUpperCase() + stale.slice(1)}</div>}
               {feedCell && (

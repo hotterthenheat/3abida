@@ -57,9 +57,9 @@ const FLIPK_RGBA = 'rgba(234,0,255,0.85)'; // the supreme outranks the flip on a
 /** What a bead's brightness says — the legend prints it (Terrain's Heaviest row) */
 export const BEAD_SCALE = "Bead light: √(size ÷ this session's 85th-percentile peak so far)";
 
-/* A dozen strikes per column, steep falloff; below the floor, nothing. The
+/* EVERY STRIKE IN THE WINDOW DRAWS (the owner's second review, 2026-10-13, item 5: 774 stood at +$506M, half the
+   reference, and drew nothing — only the twelve heaviest of a column were drawn); below the floor, nothing. The
    ranking happens ONCE, when the data arrives — a frame must never sort. */
-const TOP_N = 12;
 const MIN_STRENGTH = 0.08;
 
 /** One bead: a strike's strength against the reference, and which side owns it */
@@ -311,6 +311,8 @@ class TrailsPaneRenderer {
       };
 
       // ---- the beads (skipped whole when the cache holds) --------------------
+      const beadFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
+      const paneHCss = scope.mediaSize.height;
       for (let ci = cached ? last : first; ci < last; ci++) {
         const col = src.columnAt(ci);
         // The bead's bar, and where inside it this moment sits
@@ -349,6 +351,10 @@ class TrailsPaneRenderer {
           const isFocus = focus != null && bead.strike === focus;
           const y = yOf(bead.strike);
           if (y === null) continue;
+          /* IN RANGE ONLY (the owner's second review, 2026-10-13, item 2: "the 785 beads run along the top edge under
+             the header"): a strike under the chrome band or off the pane's foot is not drawn — the fit keeps every
+             strike in the candles' range clear of the band, and a wall beyond it is named by its pinned chip */
+          if (y < beadFloorCss || y > paneHCss) continue;
 
           /* THE DRAWN STRENGTH IS THE STATED ONE (2026-10-13): t is already √(size ÷ reference) — the legend's scale
              (BEAD_SCALE) — so height and light follow t itself; the old t^1.6 on top of it would have drawn another scale
@@ -516,13 +522,20 @@ class TrailsPaneRenderer {
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
           const boxes: { l: number; r: number; t: number; b: number }[] = [];
+          const chipFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
+          const chipPaneH = scope.mediaSize.height;
           for (const m of keep) {
             const bucket = Math.floor(m.time / barSec) * barSec;
             const xBar = ts.timeToCoordinate(bucket as Time);
-            const y = series.priceToCoordinate(m.to);
-            if (xBar === null || y === null) continue;
+            const yAt = series.priceToCoordinate(m.to);
+            if (xBar === null || yAt === null) continue;
+            /* A WALL BEYOND THE CLEAR AREA IS PINNED AT ITS EDGE AND SAYS SO (the owner's second review, 2026-10-13:
+               "the '785 · 8%' chip sits at ~783.6 instead of on 785"): under the chrome band or off the foot, the chip
+               stands at the edge with an arrow — never on a strike it does not name */
+            const pin = yAt < chipFloorCss ? '▲ ' : yAt > chipPaneH ? '▼ ' : '';
+            const y = pin === '▲ ' ? chipFloorCss : pin === '▼ ' ? chipPaneH : yAt;
             const fmt = (k: number) => (k % 1 === 0 ? k.toFixed(0) : k.toFixed(2));
-            const text = `${m.kind} ${fmt(m.from)} → ${fmt(m.to)} · ${nyClock(m.time * 1000)}`;
+            const text = `${pin}${m.kind} ${fmt(m.from)} → ${fmt(m.to)} · ${nyClock(m.time * 1000)}`;
             const w = ctx.measureText(text).width;
             const padX = 4 * hr;
             const full = (px + 5) * vr;
@@ -538,7 +551,7 @@ class TrailsPaneRenderer {
                tabs (the audit of 2026-10-13: "→ 780 · 8:45 am" stood on "1D"): a chip that would rise into the chrome
                band sits under it instead, below its line */
             const floor = src.chromeInset > 0 ? (src.chromeInset + 3) * vr : 0;
-            let top = y * vr - full - 3 * vr;
+            let top = pin === '▲ ' ? floor : y * vr - full - 3 * vr;
             if (top < floor) top = Math.max(floor, y * vr + 3 * vr);
             for (const b of boxes) if (l < b.r && l + w + padX * 2 > b.l && top < b.b && top + full > b.t) top = b.b + 2 * vr;
             if (top < 0) continue;
@@ -579,13 +592,17 @@ class TrailsPaneRenderer {
       const hCss = scope.mediaSize.height;
       const keepOut = { top: (hCss - 34) * vr, left: (wCss - 78) * hr };
 
+      const labelFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
       const drawLabel = (lvl: { strike: number; value: number }, color: string) => {
-        const y = series.priceToCoordinate(lvl.strike);
-        // Off the pane's top there is no line to name — the words go with it
-        if (y === null || y < 0) return;
+        const yAt = series.priceToCoordinate(lvl.strike);
+        if (yAt === null) return;
+        /* A STRIKE BEYOND THE CLEAR AREA IS NAMED AT ITS EDGE WITH AN ARROW (the owner's second review, 2026-10-13),
+           never on another strike's line */
+        const pin = yAt < labelFloorCss ? '▲ ' : yAt > hCss ? '▼ ' : '';
+        const y = pin === '▲ ' ? labelFloorCss : pin === '▼ ' ? hCss : yAt;
         const pct = Math.round((Math.abs(lvl.value) / total) * 100);
         const strikeLabel = lvl.strike % 1 === 0 ? lvl.strike.toFixed(0) : lvl.strike.toFixed(2);
-        const text = `${strikeLabel} · ${pct}%`;
+        const text = `${pin}${strikeLabel} · ${pct}%`;
 
         // Dark backing pad so the label survives whatever sits behind it
         const w = ctx.measureText(text).width;
@@ -607,6 +624,7 @@ class TrailsPaneRenderer {
         const boxTop = yPix - boxH / 2 - padY / 2;
         if (boxTop < floor) yPix += floor - boxTop;
         const full = boxH + padY;
+        if (pin === '▼ ') yPix = hCss * vr - full / 2 - padY;
         const gap = 2 * vr;
         const hits = (c: number) => placed.some(p => c - full / 2 < p.bottom + gap && c + full / 2 > p.top - gap);
         if (hits(yPix)) {
@@ -878,7 +896,6 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       }
       const top = [...snap.levels]
         .sort((a, b) => Math.abs(this.valueOf(b)) - Math.abs(this.valueOf(a)))
-        .slice(0, TOP_N)
         .map(l => all.get(l.strike)!)
         .filter(b => b.t >= MIN_STRENGTH);
       /* the moment's own price — the snapshot's, else its window's middle (the house's window is centred on it) */
