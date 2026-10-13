@@ -57,7 +57,7 @@ import { contractKey, type ContractId, type Quote } from '../review/quotes';
 import type { DayNote, JournalEntry } from '../review/journal';
 import { LIFE, barNowOf, candlesOf, isPaperIndex, optionQuote, spotForBidNow } from './feed';
 import { buildLevelsFor } from '../gex';
-import { dayWords, nyAt, nyClockWords } from './clock';
+import { nyMomentWords } from './clock';
 import {
   afterHand,
   endEvaluation,
@@ -395,10 +395,9 @@ export function startPractice(size: number): string | null {
   const now = Date.now();
   const m = liveMarket(now);
   const accounts = state.accounts.map(a => (a.kind === 'practice' && a.status === 'open' ? { ...flattenAll(a, m, 'rule', 'the account was started over'), status: 'ended' as const, statusAt: now, statusWhy: 'Started over' } : a));
-  /* A NAME OF ITS OWN (the audit's PR-18: two accounts both "Practice · from Oct 9"): its size and the minute it began, New
-     York's — "Practice $10K · Oct 9 14:05" */
-  const t = nyAt(now);
-  const a = newAccount({ id: newId(), kind: 'practice', name: `Practice $${Math.round(size / 1000)}K · ${dayWords(t.date).split(', ')[1]} ${nyClockWords(now)}`, startCash: size, now });
+  /* A NAME OF ITS OWN (the audit's PR-18: two accounts both "Practice · from Oct 9"): its size and the minute it began, on
+     the reader's clock — "Practice $10K · Oct 9 2:05 pm" */
+  const a = newAccount({ id: newId(), kind: 'practice', name: `Practice $${Math.round(size / 1000)}K · ${nyMomentWords(now).replace(' · ', ' ')}`, startCash: size, now });
   commit({ accounts: [a, ...accounts], inHand: a.id }, true);
   return a.id;
 }

@@ -10,6 +10,7 @@ import { usd } from '../review/words';
 import { PRACTICE_SIZES, type EvalPlan } from '../../data/paper/engine';
 import { EMBEDDED } from '../../embed';
 import PlanRows from './PlanRows';
+import { marketClock } from '../../core/nyTime';
 
 const StartCard = ({ onPractice, onEvaluation, canStart }: { onPractice: (size: number) => void; onEvaluation: (plan: EvalPlan) => void; canStart: boolean }) => (
   <div className="grid gap-2.5 lg:grid-cols-2" data-paper-start>
@@ -38,7 +39,7 @@ const StartCard = ({ onPractice, onEvaluation, canStart }: { onPractice: (size: 
         </span>
         <h2 className="text-[15px] font-semibold text-textPrimary">An evaluation</h2>
       </div>
-      <p className="text-[12px] leading-relaxed text-textSecondary">A prop firm’s test, before you pay for one, on options: a floor that follows the best close, a limit on a day’s loss, a cap on the contracts open at once, two trading days, no day more than half the profit, flat by 15:59 New York.</p>
+      <p className="text-[12px] leading-relaxed text-textSecondary">A prop firm’s test, before you pay for one, on options: a floor that follows the best close, a limit on a day’s loss, a cap on the contracts open at once, two trading days, no day more than half the profit, flat by {marketClock(15, 59, { zone: true })}.</p>
       {/* the plans as a small table — a head row says what each figure is (PlanRows) */}
       <PlanRows onStart={onEvaluation} disabled={!canStart} titleOf={p => `Start the ${p.label} at ${usd(p.size, 0)}`} rowKey="paper-start-plan" startKey="paper-start-eval" />
     </div>

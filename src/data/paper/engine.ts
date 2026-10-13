@@ -53,6 +53,7 @@ import { MAX_STOPS, MAX_TARGETS, giveUp, ladderShapeRefusal, nextRung, rungsOf }
 import { contractKey, contractWords, dteAt, legsOf, type ContractId, type Quote } from '../review/quotes';
 import type { Candle } from '../../types/market';
 import { bellOf, dayEndsAt, flatByOf, nyAt, tradingDayOf } from './clock';
+import { marketClock } from '../../core/nyTime';
 
 /* ================================================================== */
 /*  TYPES                                                              */
@@ -605,8 +606,8 @@ export function evalRead(a: PaperAccount, v: PaperView, now: number): EvalRead |
 function accountRefusal(a: PaperAccount, now: number, adding: number, v: () => PaperView): string | null {
   if (a.status !== 'open') return a.kind === 'evaluation' ? `This evaluation is over — it ${a.status === 'passed' ? 'passed' : a.status === 'failed' ? 'failed' : 'was ended'}` : 'This account is closed';
   if (a.kind !== 'evaluation' || !a.plan) return null;
-  if (a.dayOver && a.dayOver.day === a.day) return `The day’s limit was reached (${a.dayOver.why}) — no new positions until the day rolls at the 16:00 bell, New York`;
-  if (now >= flatByOf(a.day) && now < dayEndsAt(a.day)) return 'It is past 15:59 New York — an evaluation is flat into the bell; the next trading day begins at 16:00';
+  if (a.dayOver && a.dayOver.day === a.day) return `The day’s limit was reached (${a.dayOver.why}) — no new positions until the day rolls at the bell, ${marketClock(16, 0, { zone: true, on: now })}`;
+  if (now >= flatByOf(a.day) && now < dayEndsAt(a.day)) return `It is past ${marketClock(15, 59, { zone: true, on: now })} — an evaluation is flat into the bell; the next trading day begins at ${marketClock(16, 0, { on: now })}`;
   /* THE CAP COUNTS CONTRACTS AS THEY ARE BOUGHT: a call is one, and a spread is one — its sold leg is the bought leg's
      cover, not a second position */
   const open = v().opt.reduce((x, p) => x + p.qty, 0);
@@ -669,7 +670,7 @@ export function optRefusal(a: PaperAccount, m: PaperMarket, d: OptDraft): string
   if (d.kind !== 'market' && !(d.price && d.price > 0)) return 'Enter a price';
   if (d.kind === 'stop' && d.side === 'buy') return 'A stop is a way out — it sells';
   if (d.on === 'name' && (d.side === 'buy' || d.kind === 'market')) return 'Only a sell that waits can be set on the name’s price';
-  if (d.kind === 'market' && !m.open()) return 'The market is shut — options trade 09:30 to 16:00 New York. Leave a limit that waits for the open';
+  if (d.kind === 'market' && !m.open()) return `The market is shut — options trade ${marketClock(9, 30)} to ${marketClock(16, 0, { zone: true })}. Leave a limit that waits for the open`;
   const q = m.optQuote(d.contract);
   const name = d.contract.ticker;
   if (d.side === 'buy') {
@@ -1171,10 +1172,10 @@ export function tick(a: PaperAccount, m: PaperMarket): { account: PaperAccount; 
       const open = optBookOf(next).positions.length;
       const working = next.opt.orders.some(o => o.status === 'working');
       if (open || working) {
-        next = flattenAll(next, m, 'rule', `15:59 — an evaluation holds nothing into the bell`);
+        next = flattenAll(next, m, 'rule', `${marketClock(15, 59, { on: m.now })} — an evaluation holds nothing into the bell`);
         if (open) {
-          next = logged(next, m.now, `15:59 New York — ${open} ${open === 1 ? 'position' : 'positions'} closed; nothing is held into the bell`, 'rule');
-          events.push({ kind: 'flat', at: m.now, words: `15:59 — ${open} ${open === 1 ? 'position' : 'positions'} closed. An evaluation holds nothing into the bell` });
+          next = logged(next, m.now, `${marketClock(15, 59, { zone: true, on: m.now })} — ${open} ${open === 1 ? 'position' : 'positions'} closed; nothing is held into the bell`, 'rule');
+          events.push({ kind: 'flat', at: m.now, words: `${marketClock(15, 59, { on: m.now })} — ${open} ${open === 1 ? 'position' : 'positions'} closed. An evaluation holds nothing into the bell` });
         }
       }
     }
@@ -1195,7 +1196,7 @@ export function tick(a: PaperAccount, m: PaperMarket): { account: PaperAccount; 
         const why = `down ${money(v.dayOpen - v.equity, 0)} on the day, the limit is ${money(plan.dayLoss, 0)}`;
         next = flattenAll(next, m, 'rule', 'the day’s limit was reached');
         next = logged({ ...next, dayOver: { day: next.day, why } }, m.now, `The day is over — ${why}`, 'rule');
-        events.push({ kind: 'day-over', at: m.now, words: `The day is over — ${why}. No new positions until the day rolls at the 16:00 bell` });
+        events.push({ kind: 'day-over', at: m.now, words: `The day is over — ${why}. No new positions until the day rolls at the bell, ${marketClock(16, 0, { on: m.now })}` });
       }
     }
   }

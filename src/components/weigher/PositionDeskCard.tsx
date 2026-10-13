@@ -53,6 +53,7 @@ import { isoDate, nextSession, today } from '../../core/calendar';
 import type { DeskContract } from '../../data/weigherDesk';
 import type { ExposureProfileData } from '../../types/gex';
 import { daysSince, dirInk, fmtStrike, monthDay, rSigned, usdSigned, type ListRow } from './PositionsList';
+import { clock as readerClock, nyWallTime } from '../../core/nyTime';
 
 const DOOR_CLS =
   'hit inline-flex items-center gap-1 px-2 py-1 rounded-md border border-borderSubtle bg-ink/[0.03] hover:bg-ink/[0.06] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors';
@@ -149,13 +150,16 @@ const PositionDeskCard = ({ picked, row, profile, contractKey, onWatch, onClose,
       const d = Math.min(sessions, Math.floor(ahead));
       const f = sessions <= 0 ? i : ahead - d;
       const date = dates[d];
-      /* the session runs 9:30 to 16:00 — the fraction walks the day's hours */
-      const stamp = new Date(`${isoDate(date)}T09:30:00`).getTime() + Math.min(1, f) * 6.5 * 3600 * 1000;
+      /* the session runs 9:30 to 16:00 New York — the fraction walks the day's hours (the machine's own 9:30 put a Los
+         Angeles reader's open three hours late) */
+      const [y, mo, dd] = isoDate(date).split('-').map(Number);
+      const stamp = nyWallTime(y, mo, dd, 9, 30) + Math.min(1, f) * 6.5 * 3600 * 1000;
       let time = Math.floor(stamp / 1000);
       if (time <= last) time = last + 60;
       last = time;
       const worth = valueOn(pos, at, ahead, true);
-      const clock = new Date(stamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      /* printed on the reader's clock, 12-hour */
+      const clock = readerClock(stamp);
       out.push({ time, value: (worth - ref) * sign, worth, when: `${monthDay(isoDate(date))} · ${f >= 1 || (sessions <= 0 && i > 0) ? 'the bell' : clock}` });
     }
     return out;

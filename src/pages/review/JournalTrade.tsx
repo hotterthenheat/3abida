@@ -70,7 +70,7 @@ const QUESTIONS: { key: 'why' | 'saw' | 'again'; ask: string; hint: string }[] =
 ];
 const barDoor = 'inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary hover:border-borderMuted disabled:opacity-30 disabled:cursor-not-allowed transition-colors';
 
-/** "at 11:42" on the trade's own day, "Jun 23, 11:42" on another */
+/** "at 11:42 am" on the trade's own day, "Jun 23, 11:42 am" on another — the reader's clock */
 const momentOf = (time: number, sameDay: boolean) => (sameDay ? `at ${fmtClockLocal(time as UTCTimestamp, 'ny')}` : fmtStampLocal(time as UTCTimestamp, 'ny'));
 
 const wayOutWords = (row: JournalRow, w: WayOut): string => {

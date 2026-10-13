@@ -7,6 +7,7 @@
 
 import { FONT, PIX, box, chip, clock, dashes, frame, hair, keep, rgb, rng, type, walk, type Box, type Frame, type Part, type Pen, type Pill, type Stage } from '../kit';
 import type { Chart } from './chart';
+import { minuteLabel, nyWallTime } from '../../../../core/nyTime';
 
 /* ---- THE STRIKE FIELD (Terrain): a row of beads at each strike, longest where the book is heaviest, in the side's ink;
    the walls bright, the supreme in its magenta, the flip a grey line of dashes — and their chips at the pane's edge -- */
@@ -293,8 +294,10 @@ export const alertLines = (ch: Chart, o: { toast?: boolean; count?: number } = {
 
 const OPEN_MIN = 9 * 60 + 30;
 const CLOSE_MIN = 16 * 60;
-/** a replayed minute's time, as the scrubber says it */
-const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.floor(m % 60)).padStart(2, '0')}`;
+/** the replayed day — Jul 2, noon in New York */
+const REPLAY_DAY = nyWallTime(2026, 7, 2, 12, 0);
+/** a replayed minute's time (a minute of New York's day), as the scrubber says it — on the reader's clock, "9:45 am" */
+const hhmm = (m: number) => minuteLabel(Math.floor(m), REPLAY_DAY);
 
 export const replay = (o: { seed?: number; cycle?: number } = {}): Part => {
   const wk = walk(o.seed ?? 5150, { step: 1, gap: 4, kick: 1.6 });
@@ -441,7 +444,7 @@ export const replay = (o: { seed?: number; cycle?: number } = {}): Part => {
       c.fill();
       if (pen.fringe) return;
       /* the replay's own clock: the day it plays, the minute it has reached */
-      const word = `Jul 2 · ${hhmm(minute())} · NEW YORK`;
+      const word = `Jul 2 · ${hhmm(minute())}`;
       c.font = `600 9px ${FONT}`;
       c.textBaseline = 'middle';
       c.textAlign = 'left';
@@ -479,7 +482,7 @@ export const replay = (o: { seed?: number; cycle?: number } = {}): Part => {
       c.textBaseline = 'middle';
       c.textAlign = 'left';
       c.fillStyle = rgb(s.ink.line);
-      c.fillText(`Jul 2 · ${hhmm(minute())} · NEW YORK`, card.x0 + 10, track.y);
+      c.fillText(`Jul 2 · ${hhmm(minute())}`, card.x0 + 10, track.y);
       const hy = headVal();
       const w = c.measureText(hhmm(minute())).width + 14;
       c.beginPath();

@@ -39,6 +39,7 @@ import Simulator from '../../core/simulator';
 import DropdownSelect from '../../components/ui/DropdownSelect';
 import ExpiryCard from '../../components/ui/ExpiryCard';
 import type { WorkspaceCtx } from './registry';
+import { clock } from '../../core/nyTime';
 
 /** What a card click opens — enough to rebuild the campaign live. */
 interface CampaignTarget {
@@ -248,7 +249,7 @@ const CompassSetupsWidget = ({ ctx }: { ctx: WorkspaceCtx }) => {
         right: setup.right,
         scanner,
         sleeve,
-        gradedAt: new Date().toLocaleTimeString('en-GB'),
+        gradedAt: clock(Date.now(), { seconds: true }),
       }),
     [scanner, sleeve]
   );

@@ -45,7 +45,8 @@ import { MorphingInfinity, useBusy, useWorking } from '../../components/ui/Worki
 import Simulator from '../../core/simulator';
 import { play, type SoundKind } from '../../core/sound';
 import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
-import { setDeskPrefs, useDeskPrefs, type ClockZone } from '../../data/deskPrefs';
+import { setDeskPrefs, useDeskPrefs } from '../../data/deskPrefs';
+import { VIEWER_TZ, viewerZone, marketClock } from '../../core/nyTime';
 import { setProfile, signOutHere, useProfile, type SignInWay } from '../../data/profile';
 import PictureDrop from './PictureDrop';
 import { PLANS, cardBrand, fmtDate, luhnOk, planOf, setCard, setPlan, setRenewing, useBilling, type SubscriptionStatus } from '../../data/billing';
@@ -118,10 +119,13 @@ const OPENS_ON_TIMEFRAMES: DropdownOption<string>[] = [
   { value: '', label: "Each desk's own", hint: 'Pulse and the Weigher at 1m, the Map at 15m' },
   ...TIMEFRAMES.filter(t => t.value !== '15s').map(t => ({ value: t.value, label: t.label, hint: `Every chart opens at ${t.label}` })),
 ];
-const CLOCK_OPTIONS: DropdownOption<ClockZone>[] = [
-  { value: 'local', label: 'Your own', hint: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "The machine's zone"; } })() },
-  { value: 'ny', label: 'New York', hint: "The market's clock — the open at 09:30, the close at 16:00" },
-];
+/* THE CLOCK IS THE READER'S (2026-10-13 — the owner: every time on screen in the viewer's own zone, detected from the
+   browser, 12-hour with am/pm). The old pick between New York's clock and the machine's is gone from here: the row
+   names the zone every time is printed in. The market's hours stay New York's underneath. */
+const zoneWords = (): string => {
+  const abbr = viewerZone();
+  return abbr && abbr !== VIEWER_TZ ? `${VIEWER_TZ.replace(/_/g, ' ')} · ${abbr}` : VIEWER_TZ.replace(/_/g, ' ');
+};
 
 /* EVERY KEY THE TERMINAL ANSWERS TO is components/layout/keys.ts (2026-10-09): the sheet `?` opens over any page reads
    the same list, so the two can never disagree */
@@ -1286,7 +1290,7 @@ const Settings = () => {
           {/* facts, not a statement (the audit's SE-12) — and a phone keeps the first two */}
           <div className="min-w-0 max-sm:hidden">
             <dt className="text-[11px] text-textMuted whitespace-nowrap">Clock</dt>
-            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{desk.clock === 'ny' ? 'New York' : 'Your own'}</dd>
+            <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">Your zone · {viewerZone()}</dd>
           </div>
           <div className="min-w-0 max-sm:hidden">
             <dt className="text-[11px] text-textMuted whitespace-nowrap">Kept on</dt>
@@ -1379,8 +1383,10 @@ const Settings = () => {
               <DropdownSelect<string> label="Name" value={desk.opensOn.ticker ?? ''} options={OPENS_ON_NAMES} onChange={v => setDeskPrefs({ opensOn: { ticker: v || null } })} title="The name the terminal opens on" testId="settings-opens-name" align="end" />
               <DropdownSelect<string> label="Timeframe" value={desk.opensOn.timeframe ?? ''} options={OPENS_ON_TIMEFRAMES} onChange={v => setDeskPrefs({ opensOn: { timeframe: (v || null) as Timeframe | null } })} title="The timeframe every chart opens on" testId="settings-opens-timeframe" align="end" />
             </Row>
-            <Row name="Clock" line="New York's time or your own on every chart's axis and crosshair, and on the rail" testId="clock">
-              <DropdownSelect<ClockZone> label="Clock" value={desk.clock} options={CLOCK_OPTIONS} onChange={v => setDeskPrefs({ clock: v })} title="Whose clock the axes keep" testId="settings-clock" align="end" />
+            <Row name="Clock" line={`Every time on screen shows in your own zone, as your browser reports it, 12-hour — the open is ${marketClock(9, 30)} and the close ${marketClock(16, 0)} on your clock today`} testId="clock">
+              <span className="font-mono text-[12px] tnum text-textPrimary whitespace-nowrap" title="Your browser's time zone — every chart's axis and crosshair, and the rail, read it" data-settings-clock>
+                Times show in your zone · {zoneWords()}
+              </span>
             </Row>
             <Row name="Session strip" line="Under the rail's clock: where New York's day stands — pre-market, the open, lunch, power hour, the close, after hours — and how long to the next" testId="session-strip">
               <Toggle on={shell.sessionStrip} onChange={v => setShellPrefs({ sessionStrip: v })} label="Show the session strip" testId="session-strip" />

@@ -14,6 +14,7 @@
 */
 
 import { now } from './clock';
+import { marketClock } from './nyTime';
 
 /** US equity market holidays — one list for the session clock (data/sessionClock.ts) and every expiry.
     EXTENDED BACK TO 2016 (2026-09-17): the replay walks the tape from 2016, and a
@@ -241,8 +242,19 @@ export const FUTURES_PHASE_WORDS: Record<FuturesPhase, { label: string; blurb: s
   GLOBEX_EUROPE: { label: 'GLOBEX · EUROPE', blurb: 'The overnight session, European hours — London is trading the same book' },
   RTH: { label: 'RTH', blurb: 'The cash session — the hours every tape on this desk draws' },
   GLOBEX_POST: { label: 'GLOBEX · POST', blurb: 'Futures still trading in the hour after the cash close' },
-  MAINTENANCE: { label: 'MAINTENANCE', blurb: 'The daily 17:00–18:00 ET Globex break — no futures trade in it' },
-  CLOSED: { label: 'CLOSED', blurb: 'The futures week runs Sunday 18:00 to Friday 17:00 ET — this is outside it' },
+  /* the blurbs' times are New York's hours PRINTED on the reader's clock (2026-10-13), read when shown */
+  MAINTENANCE: {
+    label: 'MAINTENANCE',
+    get blurb() {
+      return `The daily ${marketClock(17, 0)}–${marketClock(18, 0, { zone: true })} Globex break — no futures trade in it`;
+    },
+  },
+  CLOSED: {
+    label: 'CLOSED',
+    get blurb() {
+      return `The futures week runs Sunday ${marketClock(18, 0)} to Friday ${marketClock(17, 0, { zone: true })} — this is outside it`;
+    },
+  },
 };
 
 const ET_FMT = new Intl.DateTimeFormat('en-US', {

@@ -16,8 +16,8 @@ export const pct = (v: number): string => `${Math.round(v * 100)}%`;
     `dir-down`, theme/tokens.css): under the blue–orange pair the figure wears ▲ or ▼, so a gain and a loss never rest on
     hue alone (Settings › Appearance, 2026-10-10) — every figure inked here gets it, wherever it is printed */
 export const dirInk = (v: number): string => (Math.abs(v) < 0.005 ? 'text-textSecondary' : v > 0 ? 'text-bull dir-up' : 'text-bear dir-down');
-/** "Mar 14 · 10:42" */
-export const momentWords = (m: Moment): string => `${dayWords(m.day)} · ${clockWords(m.minute)}`;
+/** "Mar 14 · 10:42 am" — the reader's clock */
+export const momentWords = (m: Moment): string => `${dayWords(m.day)} · ${clockWords(m.minute, m.day)}`;
 /** Session minutes as a trader would say them. `dayMin`: the minutes in a trading day of that kind — a replayed day's 390, a
     paper account's real 1,440. Days, not "1.0 sessions" (Noah's picture of the journal, 2026-09-20). */
 export const heldWords = (min: number, dayMin = 390): string => {

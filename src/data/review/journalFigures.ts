@@ -45,6 +45,7 @@
 import { directionOf, entryOf, instantOf, nameOf, type JournalRow } from './journal';
 import { nyAt } from '../paper/clock';
 import { DELTA_CUTS, DTE_CUTS } from './engine';
+import { minuteLabel } from '../../core/nyTime';
 
 /** THE CALENDAR DAY a trade closed on, New York's — what the journal's calendar files it under (see the head note) */
 export const calendarDayOf = (r: JournalRow): string => nyAt(instantOf(r, r.t.closed) * 1000).date;
@@ -214,11 +215,18 @@ const groupBy = (rows: JournalRow[], keyOf: (r: JournalRow) => string): Map<stri
   for (const r of rows) m.set(keyOf(r), [...(m.get(keyOf(r)) ?? []), r]);
   return m;
 };
-const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
-/** BY THE HOUR IT WAS OPENED, on New York's clock — the hours that have a trade, in the order of the day */
+/** New York's hour `h` PRINTED on the reader's clock ("9:00 am"), on the day of `at` (ms) so a clock change is read right */
+const hh = (h: number, at: number) => minuteLabel(h * 60, at);
+/** BY THE HOUR IT WAS OPENED, cut on New York's clock and labelled on the reader's — the hours that have a trade, in the
+    order of the day */
 export function byHour(rows: JournalRow[]): Lane[] {
   const by = groupBy(rows, r => String(Math.floor(nyAt(instantOf(r, r.t.opened) * 1000).minutes / 60)));
-  return [...by.entries()].map(([h, list]) => laneOf(h, hh(Number(h)), `Opened ${hh(Number(h))}–${hh((Number(h) + 1) % 24)} New York`, list)).sort((a, b) => Number(a.key) - Number(b.key));
+  return [...by.entries()]
+    .map(([h, list]) => {
+      const at = instantOf(list[0], list[0].t.opened) * 1000;
+      return laneOf(h, hh(Number(h), at), `Opened ${hh(Number(h), at)}–${hh((Number(h) + 1) % 24, at)}`, list);
+    })
+    .sort((a, b) => Number(a.key) - Number(b.key));
 }
 const WEEKDAYS: [number, string, string][] = [
   [1, 'Mon', 'Mondays'],

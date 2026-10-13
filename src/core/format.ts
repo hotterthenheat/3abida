@@ -19,8 +19,8 @@
     ("0.46%") where one would round it away
   - greeks: delta 2 decimals, gamma 3, theta in
     dollars a day, vega 2; IV one decimal in %
-  - a date "Oct 9", a time "14:03 ET" — New York's
-    (core/nyTime.ts)
+  - a date "Oct 9" — New York's; a time "2:03 pm EDT"
+    — the reader's clock, 12-hour (core/nyTime.ts)
 
   A room that rounds on purpose (a share of the time
   "38%", a count "1,240") says so where it does;
@@ -126,11 +126,11 @@ export const fmtVega = (v: number): string => num(v, 2);
 /** "15.4%" — implied vol from its fraction (0.154) */
 export const fmtIv = (fraction: number): string => (none(fraction) ? DASH : `${(fraction * 100).toFixed(1)}%`);
 
-// ---- dates and times — New York's ------------------------------------------------------------------------------------
+// ---- dates (New York's) and times (the reader's) ---------------------------------------------------------------------------
 
 /** "Oct 9" (or "Fri Oct 9") */
 export const dayLabel = (at?: At, opts: { weekday?: boolean } = {}): string => nyDay(at, opts);
-/** "14:03 ET" */
+/** "2:03 pm EDT" — the reader's clock and zone */
 export const timeLabel = (at?: At): string => nyClock(at, { zone: true });
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** "Oct 9" from a calendar day "2026-10-09" (an expiry, a report) — the day as written, no zone to cross */

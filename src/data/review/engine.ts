@@ -77,10 +77,11 @@
 
 import { MAX_STOPS, MAX_TARGETS, giveUp, ladderShapeRefusal, nextRung, rungsOf, type LadderBracket } from './ladder';
 import { contractKey, dteAt, legsOf, sessionsLeft, type ContractId, type Quote } from './quotes';
-import { LAST_MIN } from './tape';
+import { LAST_MIN, barTime } from './tape';
 import { dayOrdinal, marketOf, type ReplayMarket } from './market';
 import type { DayNote, JournalEntry } from './journal';
 import type { HeldRecord, TradePath } from '../paper/engine';
+import { marketClock, minuteLabel } from '../../core/nyTime';
 
 /** A cursor: the END of minute `minute` (0…389) of a day */
 export interface Moment {
@@ -601,7 +602,7 @@ export function refusal(s: Session, d: Draft): string | null {
   if (d.on === 'name' && (d.side === 'buy' || d.kind === 'market')) return 'Only a sell that waits can be set on the name’s price';
   /* 16:00 HAS RUNG: contracts have no overnight session. Nothing fills at the market until the next open; an order that
      waits (a limit, a stop) is taken and waits for it. */
-  if (d.kind === 'market' && s.cursor.minute >= LAST_MIN) return 'The market is shut — 16:00 has rung. Open the next day, or leave a limit that waits for it';
+  if (d.kind === 'market' && s.cursor.minute >= LAST_MIN) return `The market is shut — the bell has rung (${marketClock(16, 0, { on: barTime(s.cursor.day, 0) * 1000 })}). Open the next day, or leave a limit that waits for it`;
   const q = marketOf(s).quoteAt(d.contract, s.cursor.day, s.cursor.minute);
   const name = d.contract.ticker;
   /* A REAL DAY: a contract's own trades fill it, and only in a minute it traded (realTape.ts) */
@@ -957,7 +958,7 @@ export function cutsOf(trades: Trade[]): { title: string; rows: Cut[] }[] {
     { title: 'By days to expiry at entry', rows: cutBy(trades, DTE_CUTS) },
     { title: 'By delta at entry', rows: cutBy(trades, DELTA_CUTS) },
     { title: 'How it ended', rows: cutBy(trades, [['Sold by you', t => t.how === 'sold'], ['Target hit', t => t.how === 'target'], ['Stopped out', t => t.how === 'stopped'], ['Held to the bell', t => t.how === 'expired'], ['Scaled out · in pieces', t => t.how === 'scaled']]) },
-    { title: 'By the hour it was entered', rows: cutBy(trades, [['09:30 to 10:30', t => t.opened.minute < 60], ['10:30 to 12:00', t => t.opened.minute >= 60 && t.opened.minute < 150], ['12:00 to 14:00', t => t.opened.minute >= 150 && t.opened.minute < 270], ['14:00 to the bell', t => t.opened.minute >= 270]]) },
+    { title: 'By the hour it was entered', rows: cutBy(trades, [[`${minuteLabel(570)} to ${minuteLabel(630)}`, t => t.opened.minute < 60], [`${minuteLabel(630)} to ${minuteLabel(720)}`, t => t.opened.minute >= 60 && t.opened.minute < 150], [`${minuteLabel(720)} to ${minuteLabel(840)}`, t => t.opened.minute >= 150 && t.opened.minute < 270], [`${minuteLabel(840)} to the bell`, t => t.opened.minute >= 270]]) },
   ].filter(c => c.rows.length > 0);
 }
 /** Dollars of decay the trade was charged a day it was held, by the theta it was entered on */

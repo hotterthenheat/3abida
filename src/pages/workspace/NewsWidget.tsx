@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import CatTag from '../../components/news/CatTag';
 import { buildNewsFeed, type NewsCategory } from '../../data/news';
 import DropdownSelect, { type DropdownOption } from '../../components/ui/DropdownSelect';
+import { clock } from '../../core/nyTime';
 
 type Filter = 'ALL' | NewsCategory;
 
@@ -51,7 +52,7 @@ const NewsWidget = () => {
                 <CatTag category={n.category} size={9} />
                 {n.ticker && <span className="font-mono text-[11px] font-bold text-textPrimary">{n.ticker}</span>}
                 <span className="ml-auto font-mono text-[11px] text-textMuted whitespace-nowrap">
-                  {n.source} · {n.time}
+                  {n.source} · {clock(n.atMs)}
                 </span>
               </span>
               <span className="block text-[11px] text-textPrimary leading-snug line-clamp-2">{n.headline}</span>

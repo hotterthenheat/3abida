@@ -26,6 +26,7 @@
 */
 
 import { isTradingDay, isoDate, sessionsBetween } from '../../core/calendar';
+import { clock, viewerDay } from '../../core/nyTime';
 
 /** The minutes after midnight New York's clock names: the open, the bell, the flat-by and the roll */
 export const OPEN_MIN = 9 * 60 + 30;
@@ -138,16 +139,12 @@ export function yearsToExpiry(expiry: string, ms: number): number {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-/** "14:03" in New York */
-export const nyClockWords = (ms: number): string => {
-  const t = nyAt(ms);
-  return `${String(Math.floor(t.minutes / 60)).padStart(2, '0')}:${String(t.minutes % 60).padStart(2, '0')}`;
-};
-/** "Sep 22 · 14:03" in New York */
-export const nyMomentWords = (ms: number): string => {
-  const t = nyAt(ms);
-  return `${MONTHS[Number(t.date.slice(5, 7)) - 1]} ${Number(t.date.slice(8))} · ${nyClockWords(ms)}`;
-};
+/* PRINTED ON THE READER'S CLOCK (2026-10-13 — the owner: every time on screen in the viewer's own zone, 12-hour with
+   am/pm). The day these read is still New York's (nyAt above); only the words are the reader's. */
+/** "2:03 pm" — an instant on the reader's clock */
+export const nyClockWords = (ms: number): string => clock(ms);
+/** "Sep 22 · 2:03 pm" — the reader's day and clock */
+export const nyMomentWords = (ms: number): string => `${viewerDay(ms)} · ${clock(ms)}`;
 /** A trading day in words: "Tue, Sep 22" */
 export const dayWords = (day: string): string => {
   const d = dateAt(day);

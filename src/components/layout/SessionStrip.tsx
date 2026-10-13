@@ -19,7 +19,7 @@
 ==================================================
 */
 
-import { nyParts, minuteLabel } from '../../core/nyTime';
+import { nyParts, minuteLabel, marketClock, clock, viewerZone } from '../../core/nyTime';
 import { MARKET_HOLIDAYS } from '../../core/calendar';
 
 export interface Phase {
@@ -48,10 +48,10 @@ const DAY_TO = 1200;
 const isTradingDay = (y: number, m: number, d: number, weekday: number): boolean =>
   weekday !== 0 && weekday !== 6 && !MARKET_HOLIDAYS.has(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
 
-/** "1:12" or "12m" — the time to the next phase */
+/** "1h 12m" or "12m" — the time to the next phase (a span, never written like a clock) */
 const span = (mins: number): string => {
   const m = Math.max(0, Math.ceil(mins));
-  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}` : `${m}m`;
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 };
 
 export interface DayRead {
@@ -59,7 +59,7 @@ export interface DayRead {
   phase: Phase | null;
   /** "Lunch" / "Overnight" / "Closed for the weekend" */
   name: string;
-  /** "Afternoon in 0:42" — what comes next and when */
+  /** "afternoon in 42m" — what comes next and when */
   next: string;
   /** where the clock stands on the track, 0–1, or null when it is not a trading day */
   at: number | null;
@@ -74,14 +74,16 @@ export function readDay(now: number = Date.now()): DayRead {
     /* the next trading day's pre-market */
     let label = '';
     for (let i = 1; i <= 7; i++) {
-      const q = nyParts(now + i * 86_400_000);
+      const on = now + i * 86_400_000;
+      const q = nyParts(on);
       if (isTradingDay(q.year, q.month, q.day, q.weekday)) {
-        label = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][q.weekday];
+        /* New York's 09:30 on that day, on the reader's clock */
+        label = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][q.weekday]} ${marketClock(9, 30, { on })}`;
         break;
       }
     }
     const weekend = p.weekday === 0 || p.weekday === 6;
-    return { phase: null, name: weekend ? 'Closed for the weekend' : 'Closed for the holiday', next: label ? `opens ${label} 09:30` : '', at: null };
+    return { phase: null, name: weekend ? 'Closed for the weekend' : 'Closed for the holiday', next: label ? `opens ${label}` : '', at: null };
   }
   const phase = PHASES.find(ph => mins >= ph.from && mins < ph.to) ?? null;
   const at = Math.min(1, Math.max(0, (mins - DAY_FROM) / (DAY_TO - DAY_FROM)));
@@ -92,7 +94,7 @@ export function readDay(now: number = Date.now()): DayRead {
   }
   /* overnight: before 04:00 the pre-market is today's; after 20:00 it is the next trading day's */
   if (mins < DAY_FROM) return { phase: null, name: 'Overnight', next: `pre-market in ${span(DAY_FROM - mins)}`, at: 0 };
-  return { phase: null, name: 'Overnight', next: `pre-market ${minuteLabel(DAY_FROM)}`, at: 1 };
+  return { phase: null, name: 'Overnight', next: `pre-market ${minuteLabel(DAY_FROM, now + 86_400_000)}`, at: 1 };
 }
 
 const pct = (m: number) => `${((m - DAY_FROM) / (DAY_TO - DAY_FROM)) * 100}%`;
@@ -110,7 +112,7 @@ const SessionStrip = ({ read, time, className = '' }: { read: DayRead; time: str
           key={ph.name}
           className={`absolute inset-y-0 ${ph.cash ? 'bg-ink/[0.14]' : 'bg-ink/[0.05]'} ${read.phase === ph ? '!bg-silver/60' : ''}`}
           style={{ left: pct(ph.from), width: `calc(${pct(ph.to)} - ${pct(ph.from)} - 1px)` }}
-          title={`${ph.name} · ${minuteLabel(ph.from)}–${minuteLabel(ph.to)} ET`}
+          title={`${ph.name} · ${minuteLabel(ph.from)}–${minuteLabel(ph.to)} ${viewerZone()}`}
           aria-hidden
         />
       ))}
@@ -132,18 +134,9 @@ const SessionStrip = ({ read, time, className = '' }: { read: DayRead; time: str
 
 export default SessionStrip;
 
-/** The rail's clock in the reader's choice (Settings › The desk › Clock — the audit's X2.6: it was always the
-    machine's, with no zone, beside New York's "Market open"): "14:03:42 ET", or the machine's own with its zone */
-export function railClock(zone: 'ny' | 'local', now: number = Date.now()): string {
-  if (zone === 'ny') {
-    const p = nyParts(now);
-    return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}:${String(p.second).padStart(2, '0')} ET`;
-  }
-  try {
-    const parts = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZoneName: 'short' }).formatToParts(new Date(now));
-    const get = (t: string) => parts.find(x => x.type === t)?.value ?? '';
-    return `${get('hour')}:${get('minute')}:${get('second')} ${get('timeZoneName')}`.trim();
-  } catch {
-    return new Date(now).toLocaleTimeString('en-GB', { hour12: false });
-  }
+/** The rail's clock — THE READER'S, always (2026-10-13 — the owner: every time on screen in the viewer's own zone, 12-hour
+    with am/pm): "3:35:42 pm EDT". `zone` is Settings › The desk's old pick, kept by the callers' signature and no longer
+    read — the phases above stay New York's, the clock is printed on the reader's. */
+export function railClock(_zone: 'ny' | 'local', now: number = Date.now()): string {
+  return clock(now, { seconds: true, zone: true });
 }

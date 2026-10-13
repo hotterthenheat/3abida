@@ -7,6 +7,7 @@
 */
 
 import { FONT, PIX, bar, box, clock, frame, keep, rgb, rng, type, walk, type Box, type Frame, type Part, type Pen, type Pill, type Stage } from '../kit';
+import { marketClock } from '../../../../core/nyTime';
 
 interface Row {
   y: number;
@@ -259,7 +260,7 @@ export const cone = (o: { seed?: number; now?: number } = {}): Part => {
       c.fillStyle = rgb(ink.line, sharp ? 0.5 : 0.6);
       for (let y = at.y0 + 4; y < at.y1 - 4; y += sharp ? 4 : 6) if (keep(b, 0.7)) c.fillRect(at.x1 - 2, y, sharp ? 1 : 2, sharp ? 2 : 3);
       type(b, 'now', nowX + 4, at.y1 - 8, { size: 7.5, hue: ink.muted, share: 0.5 });
-      type(b, '16:00', at.x1 - 6, at.y1 - 8, { size: 7.5, hue: ink.line, share: 0.6, align: 'right' });
+      type(b, marketClock(16, 0), at.x1 - 6, at.y1 - 8, { size: 7.5, hue: ink.line, share: 0.6, align: 'right' });
     },
     tick(f) {
       t = f.t;

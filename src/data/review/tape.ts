@@ -39,6 +39,7 @@
 import { isTradingDay, isoDate, today } from '../../core/calendar';
 import { UNIVERSE } from '../universe';
 import type { Candle } from '../../types/market';
+import { minuteLabel } from '../../core/nyTime';
 
 /** Minutes in a session, and the minute the bell rings on (the last bar's index) */
 export const DAY_MIN = 390;
@@ -142,11 +143,10 @@ export const dayWords = (iso: string, long = false): string => {
   const d = dateOf(iso);
   return long ? `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}` : `${MONTHS[d.getMonth()]} ${d.getDate()}`;
 };
-/** "09:30" for minute 0 … "16:00" for the bell. A cursor on minute m stands at the END of that bar: m + 1 minutes in. */
-export const clockWords = (minute: number): string => {
-  const t = 9 * 60 + 30 + minute + 1;
-  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-};
+/** "9:31 am" for minute 0 … "4:00 pm" for the bell — New York's minute PRINTED on the reader's clock (2026-10-13: every time
+    on screen in the viewer's own zone, 12-hour). A cursor on minute m stands at the END of that bar: m + 1 minutes in.
+    `day` (the tape's day) keeps the reader's offset right across a clock change; without it, today's. */
+export const clockWords = (minute: number, day?: string): string => minuteLabel(9 * 60 + 30 + minute + 1, day ? openEpoch(day) * 1000 : undefined);
 
 /* ---- the daily path, walked back from today's quote ---- */
 interface DayFrame {

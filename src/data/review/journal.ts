@@ -54,6 +54,7 @@ import { contractWords } from './quotes';
 import { barTime, clockWords, dayWords } from './tape';
 import { optBookOf as paperOptBookOf, type OptTrade as PaperOptTrade, type PaperAccount, type PaperMoment } from '../paper/engine';
 import { nyMomentWords } from '../paper/clock';
+import { viewerZone } from '../../core/nyTime';
 
 export interface JournalEntry {
   /** One of the reader's setups */
@@ -99,7 +100,7 @@ export const paperRowsOf = (accounts: PaperAccount[], words: { entries: Record<s
     .sort((a, b) => instantOf(b, b.t.closed) - instantOf(a, a.t.closed));
 
 /* WHEN, as a real New York instant ("newest first" compares instants, not a replayed day's minutes).
-   THE MOMENT IS THE END OF ITS MINUTE, as the desk's clock says it ("in at 09:31" is the bar that began at 09:30): a bar's
+   THE MOMENT IS THE END OF ITS MINUTE, as the desk's clock says it ("in at 9:31 am" is the bar that began at 09:30): a bar's
    stamp is when it BEGAN, so a minute is added — and a figure drawn from these reads the same clock as the facts beside it.
    A PAPER moment is the instant itself — no minute to add. */
 export const instantOf = (r: JournalRow, m: Moment): number => {
@@ -110,7 +111,7 @@ export const instantOf = (r: JournalRow, m: Moment): number => {
 export const whenWords = (r: JournalRow, m: Moment): string => {
   if (r.paper) return nyMomentWords((m as PaperMoment).at);
   const x = m as Trade['closed'];
-  return `${dayWords(x.day)} · ${clockWords(x.minute)}`;
+  return `${dayWords(x.day)} · ${clockWords(x.minute, x.day)}`;
 };
 /** The minutes in a trading day of the row's kind — what "held" is counted against: an option's 390, a paper trade's real day */
 export const dayMinOf = (r: JournalRow): number => (r.paper ? 1440 : 390);
@@ -256,7 +257,7 @@ const cell = (v: string | number | null | undefined): string => {
 };
 /** The rows as CSV — what a spreadsheet opens. `extra` carries what only the page has computed (the best and the worst). */
 export function csvOf(rows: JournalRow[], extra: (r: JournalRow) => { best: number | null; worst: number | null }): string {
-  const head = ['Closed (New York)', 'Opened (New York)', 'Session', 'Name', 'Contract', 'Way', 'Size', 'In', 'Out', 'Ended', 'P&L', 'R', 'Held (minutes)', 'Best while held', 'Worst while held', 'Setup', 'Mistakes', 'Followed the plan', 'Mood', 'Why I took it', 'What I saw', 'What I would do again'];
+  const head = [`Closed (${viewerZone()})`, `Opened (${viewerZone()})`, 'Session', 'Name', 'Contract', 'Way', 'Size', 'In', 'Out', 'Ended', 'P&L', 'R', 'Held (minutes)', 'Best while held', 'Worst while held', 'Setup', 'Mistakes', 'Followed the plan', 'Mood', 'Why I took it', 'What I saw', 'What I would do again'];
   const lines = rows.map(r => {
     const e = entryOf(r);
     const x = extra(r);

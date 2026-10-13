@@ -85,8 +85,8 @@
 
   THE CLOCK'S BAR SITS AT THE FOOT OF THE PRICE PANE
   (PaneFoot), so an indicator given a pane of its own is
-  never covered. IT SPEAKS NEW YORK — the tape asks the
-  chart for New York's clock whatever Settings says.
+  never covered. IT READS NEW YORK'S MINUTES AND PRINTS
+  THEM ON THE READER'S CLOCK (2026-10-13), 12-hour.
 
   THE DESK ANSWERS TO THE KEYBOARD: Space plays and
   pauses, → and ← step a minute (Shift: five), End runs to
@@ -174,6 +174,7 @@ import { stampOf } from '../../data/review/engine';
 import type { OpeningRange } from '../../data/sessionLevels';
 import { tfMinutes, type Timeframe } from '../../data/timeframe';
 import type { KeyLevels } from '../../types/gex';
+import { viewerZone } from '../../core/nyTime';
 
 /* ---- the desk's looks, shared with the cards a desk brings ---- */
 export const card = 'desk-card border border-borderSubtle rounded-md bg-panel overflow-clip';
@@ -488,7 +489,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
     if (!clock) return;
     const to = { day, minute: Math.max(0, Math.min(clock.lastMin, minute)) };
     if (to.day < clock.day || (to.day === clock.day && to.minute < clock.minute)) {
-      setBackSaid(`The clock only moves forward — it stands at ${clock.wordsAt(clock.minute)}, New York. What is behind it stays on the chart.`);
+      setBackSaid(`The clock only moves forward — it stands at ${clock.wordsAt(clock.minute)}. What is behind it stays on the chart.`);
       return;
     }
     clock.move(to);
@@ -601,7 +602,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
       words={clock.words}
       wordsAt={p => clock.wordsAt(Math.max(0, Math.round(p / 60) - 1))}
       counter={`day ${clock.days ? clock.days.indexOf(clock.day) - Math.max(0, clock.days.indexOf(session.startDay ?? clock.day)) + 1 : dayIndex(clock.day) - dayIndex(session.startDay ?? clock.day) + 1}`}
-      stateWord="New York"
+      stateWord={viewerZone()}
       exitWords="Your sessions"
       playing={playing}
       onPlay={p => setPlaying(p && clock.minute < clock.lastMin)}
@@ -614,7 +615,7 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
       step={60}
       /* the clock only moves forward: the back doors are shut where it stands, and say so */
       minPos={(clock.minute + 1) * 60}
-      minTitle={`The clock only moves forward — it stands at ${clock.wordsAt(clock.minute)}, New York`}
+      minTitle={`The clock only moves forward — it stands at ${clock.wordsAt(clock.minute)}`}
     />
   );
   const dayInk = (pct: number) => (pct >= 0 ? 'text-bull' : 'text-bear');

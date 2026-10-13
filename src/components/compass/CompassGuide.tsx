@@ -13,6 +13,7 @@
 import type { ReactNode } from 'react';
 import { FONT_SANS } from '../../theme/fonts';
 import { GuideSvg, type GuideType } from '../ui/GuideSvg';
+import { marketClock } from '../../core/nyTime';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const BULL = 'rgb(var(--bull))';
@@ -192,8 +193,7 @@ export const CompassGuide = () => (
     <Section title="Expiry">
       <p>
         A category or a date. 0DTE is a contract whose last trading day is today — read off each name&apos;s own listed dates, so a name with nothing ending today has no 0DTE and still has every other
-        category. The last trading day is not always the expiration date: an AM-settled contract, such as SPX&apos;s third-Friday monthly, stops trading the session before. A half day ends at 1:00 pm New
-        York. After the close, and on a weekend or a holiday, the 0DTE list is the next session&apos;s, and says so. The rest are counted in calendar days to the last trading day: Weekly 1 to 7, Swing 8 to
+        category. The last trading day is not always the expiration date: an AM-settled contract, such as SPX&apos;s third-Friday monthly, stops trading the session before. A half day ends at {marketClock(13, 0, { zone: true })}. After the close, and on a weekend or a holiday, the 0DTE list is the next session&apos;s, and says so. The rest are counted in calendar days to the last trading day: Weekly 1 to 7, Swing 8 to
         45, Position 46 to 90, Long-Dated 91 or more — and a long-dated contract with more than about nine months left wears LEAPS. A contract with one day left carries an Overnight note: a single night is
         a big share of its life. On the calendar, the lit days are the dates the board&apos;s names list; picking one shows only that date, and All expiries clears it.
       </p>

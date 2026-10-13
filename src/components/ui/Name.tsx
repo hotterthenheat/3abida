@@ -35,6 +35,8 @@ const JARGON = new Set([
   'DTE', 'ATM', 'OTM', 'ITM', 'ATS', 'PW', 'CW', 'PIN', 'SUP', 'BUY', 'SELL', 'MID', 'ASK', 'BID', 'CALL', 'PUT', 'NET', 'AM', 'PM', 'UTC', 'EST', 'ET',
   'CSV', 'PNG', 'PDF', 'USD', 'ID', 'OK', 'NA', 'ALL', 'ANY', 'NOW', 'LIVE', 'HIT', 'REF', 'STOP', 'MAX', 'MIN', 'AVG', 'VOL', 'OPEX', 'LEAPS', 'ODTE',
   'RTH', 'ETH', 'GBM', 'VPOC', 'POC', 'EOD', 'FOMC', 'CPI', 'GDP', 'PCE', 'PPI', 'FDA', 'CEO', 'CFO', 'COO', 'IPO', 'SEC', 'EPS', 'PE', 'PEG', 'EV',
+  /* the reader's zone beside a printed time (2026-10-13) — never a name */
+  'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT', 'AKST', 'AKDT', 'HST', 'GMT', 'BST', 'CET', 'CEST', 'EET', 'EEST', 'IST', 'JST', 'KST', 'AEST', 'AEDT',
 ]);
 
 let base: Set<string> | null = null;

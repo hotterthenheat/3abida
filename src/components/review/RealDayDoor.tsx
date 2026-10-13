@@ -26,6 +26,7 @@ import { failWords, type RealSession } from '../../data/feed/backtest';
 import type { Session } from '../../data/review/engine';
 import type { Quote } from '../../data/review/quotes';
 import { dayWords } from '../../data/review/tape';
+import { marketClock } from '../../core/nyTime';
 
 /** The mark a price wears when the contract did not trade at it */
 export const EST = '≈';
@@ -63,7 +64,7 @@ const RealDayDoor = ({ session, state }: { session: Session; state: RealSession 
         )}
         {state.phase === 'short' && (
           <p className="text-[12px] leading-snug text-warn" data-real-phase="short">
-            The record stops short on its first day — a half session, closed at 13:00. The desk’s day runs to the 16:00 bell; start a session on another day.
+            The record stops short on its first day — a half session, closed at {marketClock(13, 0)}. The desk’s day runs to the bell at {marketClock(16, 0)}; start a session on another day.
           </p>
         )}
         {(state.phase === 'loading' || state.phase === 'failed') && (
