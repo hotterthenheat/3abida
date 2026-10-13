@@ -13,6 +13,7 @@ import {
 } from './layouts';
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
+import { useFeedPrice } from '../../data/feed/price';
 import { nyClock as nyClockAt } from '../../core/nyTime';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
@@ -73,7 +74,6 @@ import {
   useFeedByExpiry,
   useFeedDaily,
   useFeedDarkLevels,
-  useFeedDayState,
   useFeedEarnings,
   useFeedField,
   useServerField,
@@ -405,8 +405,11 @@ const feedCutChoices = (dates: string[]): ExpiryChoice<RailCut>[] => {
 };
 /** The rail off the feed's rows (ascending, the house's sign) — the walls by the book's own rule, the open interest on
     one key for the card, how sure in the feed's words */
-function feedRail(book: FeedBook, rowsAsc: readonly FeedStrike[], oi: FeedOi | null, whole: boolean): RailData {
-  const spot = book.spot;
+function feedRail(book: FeedBook, rowsAsc: readonly FeedStrike[], oi: FeedOi | null, whole: boolean, liveSpot: number | null = null): RailData {
+  /* THE ONE CURRENT PRICE (the Terrain audit of 2026-10-13, item 1): the rail's quote stands as the ladder's spot — its
+     band, Δ SPOT, the walls' and the flip's side — the book's own price (UW figured the hedging at it, the regular
+     close after hours) says so in How sure, never as the price on screen */
+  const spot = liveSpot != null && Number.isFinite(liveSpot) && liveSpot > 0 ? liveSpot : book.spot;
   const legs = new Map<number, { put: number; call: number }>();
   const asc = rowsAsc.map(r => {
     legs.set(r.strike, { put: r.gex.put, call: r.gex.call });
@@ -1176,7 +1179,9 @@ const Pane = ({
     for (const [t, b, d] of slots) if (t) out[t] = { bars: b ?? EMPTY_BARS, daily: d };
     return out;
   }, [onFeed, c0, c1, c2, c3, cb0, cb1, cb2, cb3, cd0, cd1, cd2, cd3]);
-  const fDay = useFeedDayState(onFeed, ticker);
+  /* the rail's own quote (one poll a name, price.ts) — the pane head, the ladder and the capsule print it (item 1) */
+  const fQuote = useFeedPrice(onFeed && !isCashIndex(ticker), ticker).price;
+  const fDay = useMemo(() => (fQuote ? { price: fQuote.spot, changePct: fQuote.changePct } : null), [fQuote]);
   const fMoves = useFeedMoves(onFeed, ticker);
   const fDates = useFeedMaxPain(onFeed, ticker);
   const fListed = useMemo(() => listedDates(fDates), [fDates]);
@@ -1202,8 +1207,8 @@ const Pane = ({
     const dateRows = cutDate ? fByDate?.get(cutDate) : null;
     if (cutDate && !dateRows) return null;
     const rows = dateRows ? [...dateRows].filter(r => fBook.rows.some(b => b.strike === r.strike)).sort((a, b) => a.strike - b.strike) : fBook.rows;
-    return feedRail(fBook, rows, fOi, !dateRows);
-  }, [onFeed, fBook, fOi, fByDate, cutDate]);
+    return feedRail(fBook, rows, fOi, !dateRows, fDay?.price ?? null);
+  }, [onFeed, fBook, fOi, fByDate, cutDate, fDay]);
   const railData = houseRail ?? feedRailData ?? emptyRail(fBook?.spot ?? 0);
   const levels = railData.levels;
   const changePct = useMemo(
@@ -1728,8 +1733,13 @@ const Pane = ({
                  not a third of the chart (X11) */
               nyClock
               historyShare={0.88}
-              /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the tape */
-              fitCandles
+              /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
+                 tape — and never spans less than eight strikes, so the ladder keeps its rows (the audit, row 31) */
+              fitCandles={8 * (railData.step || 1)}
+              /* the rail's quote on the capsule, and the bar's count on the clock's grid, on the feed (the audit, items 1
+                 and 15) */
+              quote={onFeed ? fDay?.price ?? null : null}
+              barCountdown={onFeed ? 'grid' : 'measured'}
               frameless
               /* WALLS THROUGH THE DAY and THE SESSION'S PHASES (the ideas report, 2026-10-09) — drawn behind the candles
                  through the chart's own layer, off until the Overlays menu turns them on */

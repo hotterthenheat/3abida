@@ -26,7 +26,7 @@
 ==================================================
 */
 
-import { TickMarkType, type Time, type TickMarkFormatter } from 'lightweight-charts';
+import { TickMarkType, defaultHorzScaleBehavior, type IHorzScaleBehavior, type Time, type TickMarkFormatter, type TimeChartOptions } from 'lightweight-charts';
 import { readDeskPrefs } from '../../data/deskPrefs';
 import { clock as readerClock } from '../../core/nyTime';
 
@@ -116,3 +116,63 @@ export const nyTickMarks: TickMarkFormatter = (time, type) => tickMarks(time, ty
 export const LOCAL_TIME = { timeFormatter: (t: Time) => fmtStampLocal(t) };
 /** The crosshair's stamp on New York's clock, whatever the reader chose (see ChartClock) */
 export const NY_TIME = { timeFormatter: (t: Time) => fmtStampLocal(t, 'ny') };
+
+/*
+  DAY, MONTH AND YEAR TICKS ON THE VIEWER'S CALENDAR (the Terrain audit of 2026-10-13, item 5). The library weighs
+  each bar by what changed since the bar before — the year, the month, the day, else the hour or minute it crossed —
+  and picks the heaviest marks to label; it reads the calendar in UTC, so a "day" tick stood on the first bar after
+  00:00 UTC: 8:00 pm New York, the LAST after-hours bar of a day, labelled with the day that was ending. This
+  behaviour weighs the calendar on the viewer's own clock (a Date's getters are the browser's zone), so a day tick
+  stands on the first bar after the viewer's midnight and the label (tickMarks, above) names the day beginning.
+  The intraday weights are the library's own (one second to twelve hours).
+*/
+const INTRADAY: [number, number][] = [
+  [12 * 3600, 33],
+  [6 * 3600, 32],
+  [3 * 3600, 31],
+  [3600, 30],
+  [30 * 60, 22],
+  [5 * 60, 21],
+  [60, 20],
+  [1, 10],
+];
+const intradayWeight = (cur: number, prev: number): number => {
+  for (const [div, w] of INTRADAY) if (Math.floor(prev / div) !== Math.floor(cur / div)) return w;
+  return 0;
+};
+const calendarWeight = (cur: Date, prev: Date): number =>
+  cur.getFullYear() !== prev.getFullYear() ? 70 : cur.getMonth() !== prev.getMonth() ? 60 : cur.getDate() !== prev.getDate() ? 50 : 0;
+const secondsOf = (t: unknown): number | null => (typeof t === 'number' && Number.isFinite(t) ? t : null);
+
+/** The time behaviour as the library types it for createChart: its options are a time chart's (tickMarkFormatter among them) */
+export type TimeBehavior = IHorzScaleBehavior<Time> & { options(): TimeChartOptions };
+
+/** The library's time scale, its calendar ticks on the viewer's clock — `createChartEx<Time, TimeBehavior>(el, new (localCalendarBehavior())(), opts)` */
+export function localCalendarBehavior(): new () => TimeBehavior {
+  const Base = defaultHorzScaleBehavior() as new () => TimeBehavior;
+  return class LocalCalendar extends Base {
+    fillWeightsForPoints(points: Parameters<IHorzScaleBehavior<Time>['fillWeightsForPoints']>[0], startIndex = 0): void {
+      super.fillWeightsForPoints(points, startIndex);
+      if (!points.length) return;
+      /* the weights again, on the viewer's calendar — a business day (a daily chart) keeps the library's own */
+      let prev = startIndex > 0 ? secondsOf(points[startIndex - 1].originalTime) : null;
+      if (prev === null && startIndex === 0 && points.length > 1) {
+        const first = secondsOf(points[0].originalTime);
+        const last = secondsOf(points[points.length - 1].originalTime);
+        if (first !== null && last !== null) prev = first - Math.ceil((last - first) / (points.length - 1));
+      }
+      for (let i = startIndex; i < points.length; i++) {
+        const cur = secondsOf(points[i].originalTime);
+        if (cur === null) {
+          prev = null;
+          continue;
+        }
+        if (prev !== null) {
+          const w = calendarWeight(new Date(cur * 1000), new Date(prev * 1000)) || intradayWeight(cur, prev);
+          (points[i] as { timeWeight: number }).timeWeight = w;
+        }
+        prev = cur;
+      }
+    }
+  };
+}

@@ -7,6 +7,7 @@ import {
 import { Eraser, MousePointer2, Trash2 } from 'lucide-react';
 import {
   createChart,
+  createChartEx,
   AreaSeries,
   BarSeries,
   BaselineSeries,
@@ -31,7 +32,10 @@ import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
 import ScriptLegend from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
-import { LOCAL_TIME, NY_TIME, localTickMarks, nyTickMarks } from './chartTime';
+import { LOCAL_TIME, NY_TIME, localCalendarBehavior, localTickMarks, nyTickMarks, type TimeBehavior } from './chartTime';
+
+/* the time scale with its day, month and year ticks on the viewer's calendar (chartTime.ts) — one class for every chart */
+const LocalCalendar = localCalendarBehavior();
 import {
   aggregateCandles,
   aggregateSnapshots,
@@ -765,8 +769,17 @@ interface StrikeChartProps {
   historyShare?: number;
   /** THE PRICE AXIS FITS THE CANDLES (2026-10-13 — the owner, of Terrain: "Price axis: yes, fit it to the candles"): the
       scale takes the bars in view alone — no wall, supreme, spot or layer's room widens it; a strike sent here to be
-      seen (the focus) still is. */
-  fitCandles?: boolean;
+      seen (the focus) still is. A NUMBER is the least the axis spans, in price (the Terrain audit, row 31: a $4 day
+      left the ladder three rows — the owner: "accept the 8-strike floor"): the candles still fit, and the axis never
+      spans less than this. */
+  fitCandles?: boolean | number;
+  /** THE ONE CURRENT PRICE (the Terrain audit, item 1): given, the live-price capsule prints and stands at this — the
+      rail's own quote — not the last bar's close, so the rail, the head, the ladder and the capsule agree. */
+  quote?: number | null;
+  /** THE BAR COUNTDOWN'S CLOCK (the Terrain audit, row 15): 'grid' when the bars sit on the clock's grid (the feed's
+      minutes) — the count runs to the bar's own end; 'measured' (the default) times the gap between bar arrivals, the
+      house tape's cadence. */
+  barCountdown?: 'grid' | 'measured';
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -1037,6 +1050,8 @@ const StrikeChart = ({
   nyClock = false,
   historyShare,
   fitCandles = false,
+  quote = null,
+  barCountdown = 'measured',
 }: StrikeChartProps) => {
   const historyShareRef = useRef(historyShare);
   historyShareRef.current = historyShare;
@@ -1265,6 +1280,10 @@ const StrikeChart = ({
   const roomRef = useRef<number[]>([]);
   const fitCandlesRef = useRef(fitCandles);
   fitCandlesRef.current = fitCandles;
+  const quoteRef = useRef(quote);
+  quoteRef.current = quote;
+  const barCountdownRef = useRef(barCountdown);
+  barCountdownRef.current = barCountdown;
   const layerRoom = useCallback((prices: number[]) => {
     roomRef.current = prices;
     /* fitted again with what it now has to hold — only a scale that is fitting itself; one set by hand is the reader's */
@@ -1809,6 +1828,13 @@ const StrikeChart = ({
         if (v < min) min = v;
         if (v > max) max = v;
       }
+      /* the floor on a fit: the candles still fit, the axis never spans less than this (fitCandles as a number) */
+      const least = typeof fitCandlesRef.current === 'number' ? fitCandlesRef.current : 0;
+      if (least > 0 && max - min < least) {
+        const mid = (max + min) / 2;
+        min = mid - least / 2;
+        max = mid + least / 2;
+      }
       const pad = Math.max((max - min) * 0.08, 0.01);
       /* No pixel margin for the chrome here: the scale's own 20% top margin already lands the
          highest wall ~130px under a 36px strip at rest (measured 2026-09-14) — the overlap Noah
@@ -1936,7 +1962,7 @@ const StrikeChart = ({
     if (!container) return;
 
     const s0 = chartSurface(themeRef.current);
-    const chart = createChart(container, {
+    const chart = createChartEx<Time, TimeBehavior>(container, new LocalCalendar(), {
       autoSize: true,
       layout: {
         background: { color: s0.bg },
@@ -1969,7 +1995,7 @@ const StrikeChart = ({
         vertLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
         horzLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
       },
-    });
+    }) as unknown as IChartApi;
 
     const candles = makeMain(chart, styleRef.current, themeRef.current);
     styleBuiltRef.current = styleRef.current;
@@ -3453,7 +3479,9 @@ const StrikeChart = ({
         el.style.width = `${gw}px`;
         shownW = gw;
       }
-      const price = lastCloseRef.current;
+      /* the one current price when the host hands one (the rail's quote), else the last bar's close */
+      const q = quoteRef.current;
+      const price = q != null && Number.isFinite(q) ? q : lastCloseRef.current;
       const y = price == null ? null : series.priceToCoordinate(price);
       if (price == null || y == null) {
         if (!Number.isNaN(shownY)) {
@@ -3510,7 +3538,18 @@ const StrikeChart = ({
       let t = '';
       /* A rule bar closes when the market moves or trades enough — "time
          left" is not a thing it has, so the card is price-only there. */
-      if (period > 0 && !altSpec) {
+      /* ON THE GRID (the Terrain audit of 2026-10-13, row 15): the feed's bars begin on the clock's grid and end a
+         timeframe later, so the count runs to the last bar's own end — the measured gap between arrivals is the poll,
+         not the bar, and read 00:00 all bar long */
+      const grid = bucketSecRef.current;
+      const onGrid = barCountdownRef.current === 'grid' && grid > 0 && grid <= 24 * 3600 && lastBarTimeRef.current > 0 && !altSpec;
+      if (onGrid) {
+        const left = Math.max(0, Math.round(lastBarTimeRef.current + grid - Date.now() / 1000));
+        const hh = Math.floor(left / 3600);
+        t = hh > 0
+          ? `${hh}:${pad(Math.floor((left % 3600) / 60))}:${pad(left % 60)}`
+          : `${pad(Math.floor(left / 60))}:${pad(left % 60)}`;
+      } else if (period > 0 && !altSpec) {
         const left = Math.max(0, Math.round((period - (Date.now() - barClockRef.current.at)) / 1000));
         const hh = Math.floor(left / 3600);
         t = hh > 0
@@ -5275,7 +5314,17 @@ const StrikeChart = ({
           const staleAt = lvl.staleSince ? `${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : '';
           /* a bound: the vendor stamped the vol's print with a later batch time, so its own time is known only to be at or
              before this */
-          const stale = feedCell && lvl.staleSince ? (lvl.staleBound ? `oldest vol from a print at or before ${staleAt}` : `stale since ${staleAt}`) : null;
+          /* THE VOLS IN USE (the Terrain audit, item 3): the newest vol the cell stands on, and how much of the strike
+             stands on one older than an hour — the oldest named last, since on a strike of thirty contracts it is a
+             far expiry's few lots (778 on Oct 12: a Nov 27 call, 4 contracts, last traded 10:17 am) */
+          const freshAt = lvl.freshAt ? `${nyClockOf(lvl.freshAt)}${nyIsoDateOf(lvl.freshAt) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.freshAt))}` : ''}` : '';
+          const oldest = lvl.staleSince ? `oldest ${lvl.staleBound ? 'at or before ' : ''}${staleAt}` : '';
+          const share = lvl.staleShare;
+          const stale = !feedCell || !lvl.staleSince
+            ? null
+            : lvl.prov === 'carried'
+              ? `vols ${lvl.staleBound ? 'from prints at or before' : 'as traded to'} ${staleAt}`
+              : `vols as traded to ${freshAt || staleAt}${share != null && share >= 0.005 ? ` · ${pct(share * 100)} of the strike's gamma on a vol older than an hour (${oldest})` : ' · every vol within the hour'}`;
           const measured = feedCell ? measuredAt(ticker, beadCard.strike, beadCard.time) : null;
           return (
             <div
@@ -5289,7 +5338,11 @@ const StrikeChart = ({
               <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
               {feedCell && <div className="text-[11px] text-textMuted">{pastDay ? `${isoDayLabel(beadDay)}'s` : "Today's"} opening positions re-priced along the price path, each contract on its latest traded vol</div>}
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-                {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since {marketClock(9, 30, { on: beadCard.time * 1000 })} {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
+                {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book
+              </div>
+              {/* a CHANGE since the session's first column at or after the open (the Terrain audit, item 6) */}
+              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                Change since the open ({marketClock(9, 30, { on: beadCard.time * 1000 })}): {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
               </div>
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
                 Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
@@ -5299,7 +5352,7 @@ const StrikeChart = ({
               {prov && stale && <div className="font-mono text-[11px] text-textMuted">{stale[0].toUpperCase() + stale.slice(1)}</div>}
               {feedCell && (
                 <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
-                  {measured ? `Unusual Whales' book, ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : pastDay ? 'Unusual Whales serves no book by strike for a past minute' : "No book of Unusual Whales' read by then"}
+                  {measured ? `Unusual Whales' book (${measured.universe}), ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : pastDay ? 'Unusual Whales serves no book by strike for a past minute' : "No book of Unusual Whales' read by then"}
                 </div>
               )}
               {feedCell && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta?.model ?? TRAIL_MODEL.version}</div>}

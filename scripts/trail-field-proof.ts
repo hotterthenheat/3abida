@@ -14,8 +14,14 @@
   7. A vol stamped after the close is a bound: its print's time is said as "at or before", never as a time
   8. A PAST SESSION'S MINUTE VOLS (server/fieldBackfill.ts `ticks`): a minute's vol is the field's from that minute's
      end — never the minute before — and makes the cell 'modeled'; one in its expiry's last hour is not used
+  9. THE TERRAIN AUDIT (2026-10-13): the flip is the linear zero crossing between the two strikes of opposite sign, never
+     their midpoint; the residual measures the field against UW's book on the SAME strikes and expiries (the 60-day
+     books), never its whole-book series — the sign agrees where the books agree; the card's measured line names its
+     universe, the 60-day book within ten minutes before the every-expiry book
 */
-import { modelColumn, universeOf, uwYears, UW_VOL_CONVENTION, type ServerInputs } from '../src/data/feed/trailField';
+import { fieldResidual, measuredAt, modelColumn, residualFigures, setMeasuredSource, universeOf, uwYears, UW_VOL_CONVENTION, type ServerInputs } from '../src/data/feed/trailField';
+import { pickFlip, zeroCrossings } from '../src/core/walls';
+import type { FeedBook, FeedBook60 } from '../src/data/feed/levels';
 import { blackScholesGreeks } from '../src/core/greeks';
 import { nyWallTime } from '../src/core/nyTime';
 import { GexTrailsPrimitive } from '../src/components/gex/gexNodesPrimitive';
@@ -173,6 +179,51 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
   check("…it is that minute's own (knowable at its end), and the cell is 'modeled'", !same(m42, modelColumn(without, bar(10, 42, 600.2))) && m42.levels.every(l => l.prov === 'modeled'));
   const only1042: Record<string, number[]> = Object.fromEntries(syms.map(s => [s, [at(10, 42), 0.3]]));
   check("a past minute's vol in its expiry's last hour is not used", same(modelColumn(withTicks, bar(15, 40, 600.2)), modelColumn(universeOf('SPY', day, { ...positions, ticks: only1042 }), bar(15, 40, 600.2))));
+}
+
+/* 9. the audit: the flip's crossing, the residual's universe, the card's reference */
+{
+  /* 9a. a +3 at 777 and a −1 at 778 cross zero at 777.75 — the midpoint 777.50 would be wrong */
+  const pts = [
+    { strike: 776, value: 5 },
+    { strike: 777, value: 3 },
+    { strike: 778, value: -1 },
+    { strike: 779, value: -4 },
+    { strike: 780, value: 2 },
+  ];
+  const xs = zeroCrossings(pts, p => p.value);
+  check('the flip is the linear zero crossing between the strikes of opposite sign, never the midpoint', xs[0] === 777.75 && xs[1] === 779.67);
+  check('…and the flip is the crossing nearest spot', pickFlip(pts, 779.9, p => p.value) === 779.67 && pickFlip(pts, 777.2, p => p.value) === 777.75);
+  check('a strike at exactly zero is a crossing; a one-sided book has none', zeroCrossings([{ strike: 1, value: 2 }, { strike: 2, value: 0 }, { strike: 3, value: 1 }], p => p.value)[0] === 2 && pickFlip([{ strike: 1, value: 2 }, { strike: 2, value: 1 }], 1.5, p => p.value) === null);
+
+  /* 9b. the residual: the model's columns against a 60-day book on the strikes both hold */
+  const col = modelColumn(u, bar(10, 30, 600.2));
+  const t = sec(10, 30) * 1000 + 30_000;
+  const agree: FeedBook60 = { at: t, spot: 600.2, expiries: ['2026-10-12', '2026-10-16'], rows: col.levels.map(l => ({ strike: l.strike, net: l.value * 1.25, call: 0, put: 0 })) };
+  const flipped: FeedBook60 = { ...agree, rows: col.levels.map(l => ({ strike: l.strike, net: -l.value * 1.25, call: 0, put: 0 })) };
+  const wider: FeedBook60 = { ...agree, rows: [...agree.rows, { strike: 10, net: 1e12, call: 0, put: 0 }, { strike: 5000, net: -1e12, call: 0, put: 0 }] };
+  const fig = residualFigures([col], [agree]);
+  check('a book 1.25× the model on every strike: gap 20% of its size, the same sign, 0.80× summed', fig.books === 1 && Math.abs(fig.gaps[0] - 0.2) < 1e-9 && fig.same === 1 && Math.abs(fig.ratios[0] - 0.8) < 1e-9);
+  check('a book of the other sign disagrees in sign', residualFigures([col], [flipped]).same === 0);
+  check('strikes the model does not hold are left out of the comparison', JSON.stringify(residualFigures([col], [wider])) === JSON.stringify(fig));
+  check('a book at a minute the model has no column for is not counted', residualFigures([col], [{ ...agree, at: t + 3_600_000 }]).books === 0);
+  const line = fieldResidual([col], [agree]);
+  check('the line names the universe and says the sign and the ratio', !!line && line.includes('same strikes and expiries') && line.includes('within 60 days') && line.includes('1 of 1') && line.includes('0.80×') && !line.includes('whole-book'));
+  check('no 60-day book read yet → no line', fieldResidual([col], []) === null);
+
+  /* 9c. the card's reference: the 60-day book within ten minutes, else the every-expiry book, each named */
+  const every: FeedBook = {
+    at: t - 60_000,
+    spot: 600.2,
+    rows: [{ strike: 600, time: t - 60_000, gex: { net: -7e8, call: 0, put: 0 } }],
+  } as unknown as FeedBook;
+  setMeasuredSource(() => [every], () => [agree]);
+  const m600 = measuredAt('SPY', 600, sec(10, 30));
+  check("within ten minutes of a 60-day book the card shows UW's 60-day figure, named", !!m600 && m600.universe === '60 days' && m600.value === agree.rows.find(r => r.strike === 600)!.net);
+  const later = measuredAt('SPY', 600, sec(10, 50));
+  check('twenty minutes on, the every-expiry book stands, named', !!later && later.universe === 'every expiry' && later.value === -7e8);
+  check('no book at all → null', measuredAt('SPY', 600, sec(10, 0)) === null);
+  setMeasuredSource(() => [], () => []);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

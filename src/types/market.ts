@@ -49,6 +49,10 @@ export interface GexLevel {
   prov?: 'modeled' | 'carried';
   staleSince?: number;
   staleBound?: boolean;
+  /** The newest trade (epoch ms) a vol it used came from — the vols are "as traded to" this moment */
+  freshAt?: number;
+  /** The share of the strike's gamma priced on a vol older than an hour at the column's clock (carried vols included) */
+  staleShare?: number;
   coverage?: number;
   /** Net GEX at this strike (summed across expiries), signed dollars */
   value: number;

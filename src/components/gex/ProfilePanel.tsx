@@ -756,7 +756,9 @@ const ProfilePanel = ({
       }
 
       /* THE KEY under the head (the full and mid tiers, the ladder view): the ramp's two poles
-         with their words, the spine, the ghost at the open, the supreme's magenta */
+         with their words, the spine, the ghost at the open — ONLY WHILE ONE IS DRAWN (the audit of 2026-10-13: the
+         key named "at the open" before today's first 9:30 column, with no ghost on the panel) — the supreme's magenta */
+      const hasGhost = !!openRatio && placed.some(r => openRatio.has(r.strike));
       if (keyOn) {
         const ky = headTop + KEY_BAND / 2 + 0.5;
         let kx = 8;
@@ -794,17 +796,19 @@ const ProfilePanel = ({
         ctx.stroke();
         kx += 16;
         word(full ? 'the spine now' : 'now');
-        ctx.save();
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = ink.keyGhost;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(kx, ky);
-        ctx.lineTo(kx + 12, ky);
-        ctx.stroke();
-        ctx.restore();
-        kx += 16;
-        word(full ? 'at the open' : 'open');
+        if (hasGhost) {
+          ctx.save();
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = ink.keyGhost;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(kx, ky);
+          ctx.lineTo(kx + 12, ky);
+          ctx.stroke();
+          ctx.restore();
+          kx += 16;
+          word(full ? 'at the open' : 'open');
+        }
         ctx.fillStyle = ink.supreme;
         ctx.fillRect(kx, ky - 3, 6, 6);
         kx += 10;
@@ -1224,8 +1228,14 @@ const ProfilePanel = ({
         if (placed.length > 1) {
           const lean = (laneW / 2) * MAX_LEAN;
           const pts = placed.map(r => ({ x: mid - (r.value / netMax) * lean, y: r.y })).sort((a, b) => a.y - b.y);
+          /* THE SPINE CROSSES ZERO AT THE FLIP (2026-10-13): the flip is the linear crossing between its two strikes
+             (core/walls.ts pickFlip), and the curve takes that point as one of its own, so the rule and the spine meet */
+          const flipY = Number.isFinite(levels.flip) ? p.yFor(levels.flip) : null;
+          if (flipY != null && Number.isFinite(flipY) && pts.length && flipY > pts[0].y && flipY < pts[pts.length - 1].y && !pts.some(q => Math.abs(q.y - flipY) < 0.5)) {
+            pts.push({ x: mid, y: flipY });
+            pts.sort((a, b) => a.y - b.y);
+          }
           const clampX = (v: number) => Math.max(sizeL + 2, Math.min(sizeR - netCol - 2, v));
-          const hasGhost = !!openRatio && placed.some(r => openRatio.has(r.strike));
           if (hasGhost) {
             const gpts = placed
               .map(r => {

@@ -735,6 +735,30 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   ("Trail · it fills as the chain is read", `data-trail-since`) stands only while the field is empty. Pinpoint still
   reads the books read (levels.ts `fieldSnaps`). The events lane's macro dates on the feed are UW's economic calendar
   (news.ts `econMacro`, the high-impact releases, one mark a date), never the house's calendar rules.
+  THE TERRAIN AUDIT'S RULES (2026-10-13, docs/terrain-audit-2026-10-13/ — the owner's six items and the table's fails,
+  every one fixed the same day): ONE PRICE ON TERRAIN — the pane head, the ladder's Δ spot and spot band, the chart's
+  last-price capsule and the rail print the same current price (the stock-state's `close`, one poll a name through
+  data/feed/price.ts; Terrain `feedRail(…, liveSpot)`, StrikeChart `quote`); the book's own price belongs in "How sure"
+  (feedFreshness: "the hedging is figured by Unusual Whales at 777.88, 6:58 am") and nowhere else. THE FLIP IS THE
+  LINEAR ZERO CROSSING (core/walls.ts `pickFlip` on `zeroCrossings`: strike_a + (b − a)·|v_a|/(|v_a|+|v_b|), to the
+  cent), never the midpoint of two strikes, and the ladder's spine passes through it; a card's "crossings near" are
+  the same crossings. THE CARD SAYS WHAT A FIGURE IS: "Change since the open (6:30 am): −$957M", never a bare "since";
+  staleness is `freshAt` and `staleShare` ("vols as traded to 10:38 am · 3% of the strike's gamma on a vol older than
+  an hour (oldest 7:17 am)"), never "stale since" the least traded contract; the measured line is named by its
+  universe ("Unusual Whales' book (60 days)" / "(every expiry)"). THE RESIDUAL IS LIKE FOR LIKE (trailField
+  `fieldResidual`): the model against UW's book on the SAME strikes and expiries — the 60-day book by strike
+  (/spot-exposures/expiry-strike for the chain's expiries, read every five minutes by the recorder into books60.jsonl,
+  levels.ts FeedBook60) — strike by strike and summed; never against UW's whole-book series or every-expiry book (a
+  different universe; "same sign 13% at −1.99×" was that, not a sign flip — checked: the series equals the sum of the
+  per-strike book in UW's sign, and the house negates both). A KEY NAMES ONLY WHAT IS DRAWN (ProfilePanel `hasGhost`:
+  "at the open" only with the ghost). THE LADDER SHOWS 8 STRIKES AT LEAST: the price axis fits the candles but never
+  narrower than eight strike steps (StrikeChart `fitCandles={8 * step}`; the owner: "accept the 8-strike floor"). THE
+  DAY TICKS ARE THE VIEWER'S CALENDAR (chartTime `localCalendarBehavior` — the library weighted day ticks by UTC, so after
+  8 pm ET the last bar wore the ENDING day's number). THE COUNTDOWN IS TO THE BAR'S END ON THE GRID (`barCountdown
+  'grid'` on the feed: the arrival gap was the poll, so it stuck at 00:00). A WALL-MOVE CHIP STANDS CLEAR OF THE CHROME
+  (gexNodesPrimitive: clamped under the band, stacked when they would overlap). The duplicate state poll is gone
+  (`useFeedDayState` reads price.ts's key). A print tracked with a printed time (05:33–06:02 UTC, 2026-10-13) is put
+  back to New York's text on load (WatchContext `nyTextFromPrinted`).
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

@@ -46,8 +46,10 @@
   its key handling; this file never sees a key.
 
   ON DISK, append-only, git-ignored:
-  .feed-cache/field/<NAME>/<YYYY-MM-DD>/{books,chain}.jsonl,
-  total.json, seed.json. A DAY IS NEVER DELETED (2026-10-13 — the research, reports/Dealer exposure
+  .feed-cache/field/<NAME>/<YYYY-MM-DD>/{books,books60,chain}.jsonl,
+  total.json, seed.json (books60: UW's book on the
+  expiries within 60 days, per strike, every five
+  minutes — the field's like-for-like reference). A DAY IS NEVER DELETED (2026-10-13 — the research, reports/Dealer exposure
   reconstruction.md, and its review: every minute not recorded, or recorded and thrown away, is lost for good — UW
   never serves the book by strike for an earlier time): as the day turns, the days before are gzipped in place
   (<file>.gz) and kept, for the backfill and the validation runs to come.
@@ -64,6 +66,13 @@ const MAX_NAMES = 6;
 const IDLE_MS = 2 * 60 * 60_000;
 const EVERY_MS = 60_000;
 const CHAIN_EVERY_MS = 10 * 60_000;
+/* THE BOOK ON THE MODEL'S OWN UNIVERSE (the Terrain audit of 2026-10-13, row 41): UW's /spot-exposures/expiry-strike
+   for the expiries within 60 days, every five minutes, summed per strike — the field is compared to THIS, like for like
+   (its whole-book series spans every expiry and strike: within 15% of the price every expiry summed to −0.13 B while
+   the 60-day book summed to −0.67 B, so the sum's sign disagreed most minutes; the expiries past 60 days are a third of
+   the near-the-money book's cancelling mass). Pages of 500 rows: SPY is ~2,000 rows, five calls a read. */
+const BOOK60_EVERY_MS = 5 * 60_000;
+const BOOK60_BAND = 0.15;
 const MAX_DTE = 60;
 /** A chain row is kept within this share of the price (the field draws 30 strikes each side) */
 const BAND = 0.15;
@@ -91,6 +100,15 @@ export interface RecordedSeed {
   receivedAt: number;
   rows: SeedRow[];
 }
+/** UW's book on the expiries within 60 days, summed per strike: [strike, call gamma per 1% by OI, put gamma (UW's sign), the strike's newest row time (ms) or null] */
+export type Book60Row = [number, number, number, number | null];
+export interface RecordedBook60 {
+  receivedAt: number;
+  /** The price UW figured it at */
+  price: number;
+  expiries: string[];
+  rows: Book60Row[];
+}
 export interface RecordedTotal {
   receivedAt: number;
   /** [minute's start (ms), UW's price, whole book's gamma per 1% by open interest (UW's sign)] */
@@ -100,6 +118,7 @@ interface Day {
   name: string;
   day: string;
   books: RecordedBook[];
+  books60: RecordedBook60[];
   chains: RecordedChain[];
   seed: RecordedSeed | null;
   total: RecordedTotal | null;
@@ -184,6 +203,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         name,
         day: today,
         books: readLines<RecordedBook>(join(dir, 'books.jsonl')),
+        books60: readLines<RecordedBook60>(join(dir, 'books60.jsonl')),
         chains: readLines<RecordedChain>(join(dir, 'chain.jsonl')),
         seed: readJson<RecordedSeed>(join(dir, 'seed.json')),
         total: readJson<RecordedTotal>(join(dir, 'total.json')),
@@ -234,6 +254,39 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     const book: RecordedBook = { receivedAt: clock(), rows: rows.map(r => Object.fromEntries(KEEP.map(k => [k, r[k]]))) };
     d.books.push(book);
     write(name, d.day, 'books.jsonl', JSON.stringify(book), true);
+  }
+
+  /** UW's book on the expiries within 60 days, per strike — the expiries off the newest chain read */
+  async function readBook60(name: string, d: Day) {
+    const chain = d.chains[d.chains.length - 1];
+    if (!chain) return;
+    const price = await priceOf(name);
+    if (price == null) return;
+    const last = isoAdd(d.day, MAX_DTE);
+    const expiries = [...new Set(chain.rows.map(r => occParts(r[0])?.expiry ?? '').filter(e => e >= d.day && e <= last))].sort();
+    if (!expiries.length) return;
+    const half = price * BOOK60_BAND;
+    const q = expiries.map(e => `expirations[]=${e}`).join('&');
+    const by = new Map<number, { c: number; p: number; t: number | null }>();
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const got = await getRows(`/api/stock/${name}/spot-exposures/expiry-strike?${q}&min_strike=${Math.floor(price - half)}&max_strike=${Math.ceil(price + half)}&limit=500&page=${page}`);
+      if (!got) return;
+      for (const r of got) {
+        const k = num(r.strike);
+        if (k == null) continue;
+        const cur = by.get(k) ?? { c: 0, p: 0, t: null };
+        cur.c += num(r.call_gamma_oi) ?? 0;
+        cur.p += num(r.put_gamma_oi) ?? 0;
+        const t = Date.parse(String(r.time ?? ''));
+        if (Number.isFinite(t) && (cur.t == null || t > cur.t)) cur.t = t;
+        by.set(k, cur);
+      }
+      if (got.length < 500) break;
+    }
+    if (!by.size) return;
+    const read: RecordedBook60 = { receivedAt: clock(), price, expiries, rows: [...by].map(([k, v]) => [k, v.c, v.p, v.t] as Book60Row).sort((a, b) => a[0] - b[0]) };
+    d.books60.push(read);
+    write(name, d.day, 'books60.jsonl', JSON.stringify(read), true);
   }
 
   async function readTotal(name: string, d: Day) {
@@ -318,6 +371,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         await readBook(name, d);
         await readTotal(name, d);
       }
+      const lastBook60 = d.books60[d.books60.length - 1]?.receivedAt ?? 0;
+      if (!d.books60.length || (inSession && clock() - lastBook60 >= BOOK60_EVERY_MS)) await readBook60(name, d);
       if (!d.seed) await readSeed(name, d);
     } finally {
       busy.delete(name);
@@ -370,7 +425,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     const d = dayOf(name, nyParts(clock()).day);
     const newer = <T extends { receivedAt: number }>(x: T | null) => (x && x.receivedAt > since ? x : null);
     let latest = 0;
-    for (const x of [...d.books, ...d.chains, d.seed, d.total]) if (x) latest = Math.max(latest, x.receivedAt);
+    for (const x of [...d.books, ...d.books60, ...d.chains, d.seed, d.total]) if (x) latest = Math.max(latest, x.receivedAt);
     return {
       status: 200,
       body: JSON.stringify({
@@ -378,6 +433,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         day: d.day,
         latest,
         books: d.books.filter(b => b.receivedAt > since),
+        books60: d.books60.filter(b => b.receivedAt > since),
         chains: d.chains.filter(c => c.receivedAt > since),
         seed: newer(d.seed),
         total: newer(d.total),

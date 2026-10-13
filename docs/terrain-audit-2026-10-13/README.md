@@ -129,4 +129,118 @@ it is unlikely any was. A load-time repair is added anyway (below).
 
 ## Step 4 — the fixes
 
-(filled in after the fixes)
+Every fail above is fixed in the same push; the page was shot again live at 7:53 am PDT (10:53 New York) on the same
+desk (`after/01-now.png`, the hovers, the 2× plot and ladder, How sure, the Oct 12 session). The after-hours shot, for
+item 1, is `after-close/` (taken after 4:00 pm New York; the row below is filled from it).
+
+**What changed, by item.**
+
+- **Item 1 — one price.** The pane head, the ladder's Δ spot and spot band and the chart's last-price capsule now print
+  the rail's own price: the stock-state's `close`, ONE poll a name (price.ts `useFeedPrice`; Terrain `fQuote` →
+  `feedRail(…, liveSpot)`; StrikeChart `quote`). The book's price — the one UW figured the hedging at, frozen at the close
+  after hours — stands only in How sure ("figured by Unusual Whales at 776.95, 7:55 am PDT"), where it belongs. The second
+  state poll (row 6) is gone: `useFeedDayState` reads price.ts's key.
+- **Item 2 — the flip.** `pickFlip` (core/walls.ts) is the linear zero crossing between the two strikes of opposite sign
+  (`zeroCrossings`, to the cent), never their midpoint, and the ladder's spine passes through it (ProfilePanel adds the
+  flip as a point of the spline); the columns' flip ticks and the card's "crossings near" are the same crossings.
+- **Item 3 — staleness.** A cell carries `freshAt` (the newest vol in use) and `staleShare` (the share of the strike's
+  gamma on a vol older than an hour); the card says "Vols as traded to 7:40 am · every vol within the hour", or "… ·
+  17.6% of the strike's gamma on a vol older than an hour (oldest 8:28 am)". A carried cell keeps "from prints at or
+  before 16:15".
+- **Item 4 — the key.** "at the open" is drawn only with the ghost (ProfilePanel `hasGhost`).
+- **Item 5 — the day ticks.** `localCalendarBehavior` (chartTime.ts) re-weights the library's tick marks by the viewer's
+  calendar, so a day tick is the first bar of the viewer's day: "13" stands at the 1:00 am PDT bar (the first after the
+  overnight gap), and after 8 pm New York no bar wears the ending day's number.
+- **Item 6 — the card.** "Change since the open (6:30 am): −$647K".
+- **Row 15 — the countdown** counts to the bar's end on the 5m grid (`barCountdown 'grid'` on the feed): 01:18 → 01:03 →
+  00:48 → 00:33 at 15 s apart.
+- **Row 19 — the chips** clamp under the chrome band and stack when they would overlap: "CW 780 → 785 · 9:25 am" (its wall
+  under the band, so it stands at the top of the plot), "CW 785 → 780 · 8:45 am" and "· 1:00 am" one above the other.
+- **Row 31 — the ladder** shows eleven strikes (773–783; the axis 772.00–785.00): the candle fit never narrower than
+  eight strike steps (StrikeChart `fitCandles={8 * step}`), the owner's floor.
+- **Row 41 — the residual, like for like.** The recorder reads UW's book on the model's own universe every five minutes
+  (`/spot-exposures/expiry-strike`, the chain's 16 expiries within 60 days — Oct 13 to Nov 30 — the strikes within 15%,
+  summed per strike; `books60.jsonl`, levels.ts `FeedBook60`), and `fieldResidual` measures the field against it over
+  the strikes both hold, strike by strike and summed. The whole-book series is no longer measured against anything.
+  **The sign-flip check**: UW's whole-book `gamma_per_one_percent_move_oi` equals the sum of its per-strike book
+  (−0.730 B both, UW's sign, 2026-10-13 14:00Z), and the house negates both — no flip was missing; the old line
+  compared the model's 60 days within 15% with UW's every expiry and every strike. The corrected figures, from the live
+  page (`__slayerTrail.figures('SPY')`):
+
+  | UW's 60-day book read at | strikes both hold | model, summed | UW, summed | Σ\|UW\| | per-strike gap | sign | model ÷ UW |
+  |---|---|---|---|---|---|---|---|
+  | 10:40:28 New York | 60 | −$4.05B | −$1.86B | $19.4B | 11.4% | same | 2.18× |
+  | 10:46:25 | 60 | −$3.54B | −$2.45B | $19.5B | 6.3% | same | 1.44× |
+  | 10:51:28 | 60 | −$3.02B | −$1.80B | $19.4B | 6.7% | same | 1.68× |
+
+  The line now reads: "Against Unusual Whales' book on the same strikes and expiries (within 60 days, 3 books read
+  today): strike by strike it differs by 6.7% of the book's size at the median; summed over those strikes it has the
+  same sign in 3 of 3, at 1.68× the book's size at the median." The per-strike gap is 6–11% of the book's absolute
+  size; the summed net is the model's being more negative than UW's across the 60 strikes (a residual of the model,
+  stated, never calibrated away). The hover's measured line names its universe: "Unusual Whales' book (60 days), 7:40
+  am: −$1.5B" against the model's −$1.8B at 780, or "(every expiry)" when no 60-day book was read within ten minutes.
+- **The disk question's repair.** A tracked print whose `time` is a printed 12-hour text is put back to New York's text
+  on load (WatchContext `nyTextFromPrinted`), its key rebuilt.
+- **Also found while re-shooting:** the trail chip said nothing while the page was still taking the earlier sessions in
+  (the server had them built; the page was fetching and modeling them), so a first shot stood without Oct 12's beads.
+  The chip now counts the sessions the page has taken in (levels.ts `useServerPastSessions`).
+
+### The table, after the fixes (live, 7:53 am PDT)
+
+| # | Element | Value shown | Source | What it should be | Pass/fail |
+|---|---|---|---|---|---|
+| 1 | Rail name, price, change | `SPY $777.00 −0.14%` | `useFeedPrice` (price.ts), the state's `close`, 10 s | the latest trade | pass |
+| 2 | Rail session strip | `Morning · lunch in 37m` | SessionStrip | — | pass |
+| 3 | Rail clock | `7:53:41 am PDT` | `clock()` | the viewer's clock with its zone | pass |
+| 4 | Signature | `slayer:~ $ ● live` | marketState.ts | — | pass |
+| 5 | Pane head price | `$777.00` | Terrain `fQuote` → `feedRail(…, liveSpot)` — the rail's price | the same current price as the rail and the capsule | **pass** (was fail, item 1) |
+| 6 | Pane head change | `−0.14%` | the same poll as the rail (`useFeedDayState` → price.ts) | one poll | **pass** (was fail) |
+| 7 | Timeframe tabs and trends | `1m ▼ 5m ▼ 15m ▼ 1h ▼ 1D ▬` | the strip | — | pass |
+| 8 | Heaviest | `785 −$1.6B · 780 −$1.5B · 772 $1.2B` | `heaviest(rail.core, 3)` | the book at 14:51Z: 785 −$1.6B, 780 −$1.5B, 772 +$1.2B | pass |
+| 9 | Amplifies/absorbs key | `+ amplifies · − absorbs` | Terrain.tsx | — | pass |
+| 10 | Bead scale | `Bead light: √(size ÷ this session's 85th-percentile peak so far)` | `BEAD_SCALE` | — | pass |
+| 11 | Overlays badge | `⧉ 2` | ChartToolbar | — | pass |
+| 12 | Candles, volume | — | `uwOhlc` 1m → 5m | — | pass |
+| 13 | Price axis | `772.00 … 785.00` | `fitCandles={8 * step}`: the candles 776.5–779.1 widened to eight strikes, then the library's margins | fits the candles, never under eight strikes | pass |
+| 14 | Last-price capsule | `777.00` | StrikeChart `quote` (the rail's price) | the same price as the rail and the head | **pass** (was fail, item 1) |
+| 15 | Capsule countdown | `01:18 → 01:03 → 00:48 → 00:33` (15 s apart) | `barCountdown 'grid'`: the bar's end on the 5m grid | time to the bar's end | **pass** (was fail) |
+| 16 | Time axis | `11:00 am · 2:00 pm · 13 · 3:00 am · 5:00 am · 8:00 am` | chartTime `tickMarks` + `localCalendarBehavior` | the reader's clock | pass |
+| 17 | The day tick `13` | at the 1:00 am PDT bar — the first bar of the viewer's Oct 13 (the overnight gap holds midnight) | `localCalendarBehavior` re-weights day ticks by the viewer's calendar | a day tick at the viewer's midnight, labelled with the day beginning | **pass** (was fail, item 5); the 8 pm case is checked in `after-close/` |
+| 18 | Wall-move chips | `CW 780 → 785 · 9:25 am`, `CW 785 → 780 · 8:45 am`, `CW 785 → 780 · 1:00 am` | gexNodesPrimitive, the column's call wall held three columns | — | pass (the 1:00 am one is a modeled re-pricing on the pre-market price; by design) |
+| 19 | Wall-move chip placement | clear of the tabs: the 785 chip at the top of the plot under the band, the two 780 chips one above the other | the chips clamp under the chrome and stack | clear of the head's chrome | **pass** (was fail) |
+| 20 | Strength chip | `785 · 8%` | the newest column's heaviest strike | the Heaviest row's 785 | pass |
+| 21 | Beads | Oct 12's session and today's, 4,223 columns | trailField `modelColumn`; the earlier sessions from the server | — | pass |
+| 22 | Column flip ticks | dashed ticks at the crossing | `pickFlip` = the linear zero crossing | the price where the net crosses zero | **pass** (was fail, item 2) |
+| 23 | Card: strike and time | `780 · 7:40 am PDT` | `nyClockOf(time, {zone})` | — | pass |
+| 24 | Card: what it is | `Estimated dealer gamma (assumed sign)` / `Today's opening positions re-priced …` | StrikeChart | — | pass |
+| 25 | Card: value and share | `−$1.8B · 8.8% of the book` | `beadAt` | — | pass |
+| 26 | Card: since the open | `Change since the open (6:30 am): −$647K` | `value − open`, said as a change | a change, named | **pass** (was fail, item 6) |
+| 27 | Card: flip and crossings | `Flip 777.47 · crossings near 775.52, 774.84` | `zeroCrossings` on the column | the interpolated crossings | **pass** (was fail, item 2) |
+| 28 | Card: provenance | `Modeled · vols read today` | `prov` | — | pass |
+| 29 | Card: staleness | `Vols as traded to 7:40 am · every vol within the hour`; Oct 12's 780 at 12:00 pm: `Vols as traded to 12:01 pm · 17.6% of the strike's gamma on a vol older than an hour (oldest 8:28 am)` | `freshAt`, `staleShare`, `staleSince` | the newest vol in use and how much stands on an old one | **pass** (was fail, item 3) |
+| 30 | Card: the measured reference | `Unusual Whales' book (60 days), 7:40 am: −$1.5B` (the model −$1.8B); `(every expiry)` when no 60-day book is within ten minutes; `serves no book by strike for a past minute` (Oct 12) | `measuredAt` with its universe | named by universe | pass |
+| 31 | Ladder rows on screen | 11 of 60 (773–783; `▲ 24 / ▼ 25`) | the rows on the chart's scale, now eight strikes at least | enough strikes to read | **pass** (was fail) |
+| 32 | Ladder key | `puts amplify · calls absorb · — the spine now · -- at the open · ■ supreme`, the ghost drawn | `hasGhost` | the key names what is drawn | **pass** (was fail, item 4) |
+| 33 | Column heads | `STRIKE · Δ SPOT · ◂ PUTS · CALLS ▸ · NET` | ProfilePanel | — | pass |
+| 34 | Rows: strike, Δ spot | `780 +0.39%`, `778 +0.13%`, `777 0.00%` | Δ from the rail's price (777.00) | Δ from the one current price | **pass** (was fail, item 1) |
+| 35 | Rows: legs and net | `780 $1.0B ▮ $2.5B −$1.5B`, `778 $1.6B ▮ $2.2B −$550M`, `777 $2.2B ▮ $1.4B $829M` | the book's legs in the house's sign | the book at 14:51Z | pass |
+| 36 | Spot band | `777.00` | `levels.spot` = the rail's price | the one current price | **pass** (was fail, item 1) |
+| 37 | Flip rule | `flip 777.60` | `pickFlip(rows, spot)` — the linear crossing between 778 (−$550M) and 777 (+$829M): 777 + 829/(829+550) = 777.60 | where the spine crosses zero | **pass** (was fail, item 2) |
+| 38 | The spine and its ghost | solid through the flip; the ghost dashed | ProfilePanel | — | pass |
+| 39 | Ladder foot | `hover a strike · click to keep it` | ProfilePanel | — | pass |
+| 40 | How sure: assumption, freshness | `… figured by Unusual Whales at 776.95, 7:55 am PDT` | `feedFreshness` — the book's own price and time | — | pass |
+| 41 | How sure: the field | `Against Unusual Whales' book on the same strikes and expiries (within 60 days, 3 books read today): strike by strike it differs by 6.7% of the book's size at the median; summed over those strikes it has the same sign in 3 of 3, at 1.68× the book's size at the median.` | `fieldResidual` on the 60-day books (the table above) | a comparison on the same strikes and expiries | **pass** (was fail) |
+| 42 | Desk bar | `1 2 3 4 · STRIKES · Colours Thermal · $ % ATR σ · LAYOUTS · RTH` | Terrain.tsx | — | pass |
+| 43 | Hover readout | `O 778.19 H 778.44 L 778.19 C 778.44 V 2.3K` | StrikeChart T-8 | — | pass |
+| 44 | Crosshair labels | `Oct 13, 1:25 am` · `778.44` | chartTime `fmtStampLocal` | — | pass |
+
+**The structural check** (keys in against keys blanked, `terrain-struct.mjs`, SPY and SPX, one and two panes, every
+menu): the same buttons, menus, canvases and marks on both, but for what the rule allows — the 15 s bar listed and
+disabled with the keys in (no plan carries seconds), the SPX pane's "bars not in the feed" mark, and the trend
+labels' words (above / below / between its EMA21 and VWAP — the data, not the page). No panel hidden, no control
+dropped.
+
+### After hours
+
+Taken after 4:00 pm New York the same day (the market shut, the book's price frozen at the close): `after-close/` — the
+row is written there once taken.

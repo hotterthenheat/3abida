@@ -60,6 +60,7 @@ import { pickFlip, pickWalls } from '../../core/walls';
 import { clock, nyDay, nyIsoDate, nyMinutes, nyWallTime } from '../../core/nyTime';
 import { isTradingDay } from '../../core/calendar';
 import { useFeedPoll } from './poll';
+import { loadState, priceKey } from './price';
 import { useRoomSource, type FeedRoom } from './rooms';
 import { useFeedStatus } from './status';
 import { feedFetch, type FeedFail, type FeedResult } from './client';
@@ -72,7 +73,6 @@ import {
   uwSpotGexByExpiryStrike,
   uwSpotGexByStrike,
   uwFlowPerStrike,
-  uwStockState,
   uwDailyBars,
   uwDarkpool,
   uwEarningsFor,
@@ -641,8 +641,10 @@ export function feedSurface(book: FeedBook, profile: ExposureProfileData, column
     index no state) or before it answers */
 export function useFeedDayState(on: boolean, ticker: string): { price: number; changePct: number } | null {
   const t = ticker.toUpperCase();
-  const key = on && t && !isCashIndex(t) ? `trace:state:${t}` : null;
-  const r = useFeedPoll(key, () => uwStockState(t), 10_000);
+  /* ONE POLL A NAME (the Terrain audit of 2026-10-13, row 6): the rail's own key (price.ts), so a page and the rail
+     never read the state twice and print two prices */
+  const key = on && t && !isCashIndex(t) ? priceKey(t) : null;
+  const r = useFeedPoll(key, () => loadState(t), 10_000);
   const k = keep(key, r);
   return useMemo(() => {
     if (!k || k.data.close === null) return null;
@@ -900,6 +902,35 @@ function noteField(book: FeedBook) {
   saveField(t);
 }
 
+/* THE BOOK ON THE MODEL'S UNIVERSE (the Terrain audit of 2026-10-13, row 41): UW's exposure by expiry and strike, the
+   expiries within 60 days summed per strike, in the house's sign — what the field is measured against like for like
+   (the per-strike book above spans every expiry; UW's whole-book series every expiry and strike). */
+export interface FeedBook60 {
+  /** When UW figured it (the newest row's time), epoch ms */
+  at: number;
+  spot: number;
+  expiries: string[];
+  /** Ascending; the house's sign */
+  rows: { strike: number; net: number; call: number; put: number }[];
+}
+const measured60 = new Map<string, { day: string; books: FeedBook60[] }>();
+function noteMeasured60(t: string, b: NonNullable<ServerDay['books60']>[number]) {
+  const day = nyIsoDate(b.receivedAt);
+  let m = measured60.get(t);
+  if (!m || m.day !== day) measured60.set(t, (m = { day, books: [] }));
+  if (m.books.some(x => x.at === b.receivedAt)) return;
+  const rows = b.rows.map(([strike, c, p]) => ({ strike, net: -(c + p), call: -c, put: -p })).sort((x, y) => x.strike - y.strike);
+  const newest = b.rows.reduce((mx, r) => (r[3] != null && r[3] > mx ? r[3] : mx), 0);
+  m.books = [...m.books, { at: newest || b.receivedAt, spot: b.price, expiries: b.expiries, rows }].sort((x, y) => x.at - y.at);
+}
+/** The 60-day books read today for a name, oldest first */
+export function measuredBooks60(ticker: string): readonly FeedBook60[] {
+  const t = ticker.toUpperCase();
+  const m = measured60.get(t);
+  return m && m.day === nyIsoDate() ? m.books : EMPTY_BOOKS60;
+}
+const EMPTY_BOOKS60: FeedBook60[] = [];
+
 /** The books read today for a name with their legs, oldest first (outside a render) */
 export function measuredBooks(ticker: string): readonly FeedBook[] {
   const t = ticker.toUpperCase();
@@ -908,7 +939,7 @@ export function measuredBooks(ticker: string): readonly FeedBook[] {
 }
 const EMPTY_BOOKS: FeedBook[] = [];
 /* the field's rebuild measures its minutes against these (data/feed/trailField.ts) */
-setMeasuredSource(measuredBooks);
+setMeasuredSource(measuredBooks, measuredBooks60);
 
 /* ---- THE SERVER'S DAY (2026-10-13): the local server reads each watched name's book once a minute through the session
    (server/fieldRecorder.ts), tab or no tab; GET /feed/field/<NAME> watches the name and answers the day so far. Each
@@ -919,6 +950,8 @@ interface ServerDay {
   /** The newest moment anything in the answer was received — the next ask's `since` */
   latest: number;
   books: { receivedAt: number; rows: Record<string, unknown>[] }[];
+  /** UW's book on the expiries within 60 days, per strike (server/fieldRecorder.ts readBook60) */
+  books60?: { receivedAt: number; price: number; expiries: string[]; rows: [number, number, number, number | null][] }[];
   chains: ChainRead[];
   seed: SeedRead | null;
   total: TotalRead | null;
@@ -934,6 +967,8 @@ async function loadServerDay(t: string): Promise<FeedResult<ServerDay>> {
       const book = bookFrom(t, b.rows.map(strikeExposure));
       if (book) noteField(book);
     }
+    /* the books on the model's own universe (60 days): the field's like-for-like reference (the audit, row 41) */
+    for (const b of r.data.books60 ?? []) noteMeasured60(t, b);
     /* the chain reads, the seed and UW's whole-book series: the field's inputs (data/feed/trailField.ts) */
     takeServerInputs(t, r.data.day, { chains: r.data.chains ?? [], seed: r.data.seed ?? null, total: r.data.total ?? null });
     serverSeen.set(t, { day: r.data.day, since: Math.max(since, r.data.latest ?? 0) });
@@ -970,6 +1005,10 @@ interface PastDayAnswer {
 }
 const pastLoaded = new Set<string>();
 const pastLoading = new Set<string>();
+/* the chip counts the sessions the PAGE has taken in, not the ones the server has built: a built session is a ~200 KB
+   fetch and a parse away (the Terrain audit, 2026-10-13: the chip went before the beads came) */
+const pastLoadedSubs = new Set<() => void>();
+const pastLoadedCount = (t: string, days: readonly string[]): number => days.reduce((n, d) => n + (pastLoaded.has(`${t}|${d}`) ? 1 : 0), 0);
 async function loadPastDay(t: string, day: string): Promise<void> {
   const key = `${t}|${day}`;
   if (pastLoaded.has(key) || pastLoading.has(key)) return;
@@ -982,6 +1021,7 @@ async function loadPastDay(t: string, day: string): Promise<void> {
     const open: ChainRead = { receivedAt: nyWallTime(y, m, d, 9, 30), rows: r.data.oi.map(([sym, oi]) => [sym, oi, null, null]) };
     takePastSession(t, day, { chains: [open], seed: r.data.seed, total: r.data.total, ticks: r.data.ticks ?? {} });
     pastLoaded.add(key);
+    pastLoadedSubs.forEach(f => f());
   } finally {
     pastLoading.delete(key);
   }
@@ -1008,7 +1048,7 @@ export function pastSessionsOf(bars: readonly Candle[] | null): string[] {
 }
 
 export interface PastSessions {
-  /** Sessions asked, ready, and the one being built */
+  /** Sessions asked (less the ones the server cannot build), in the page, and the one being built */
   asked: number;
   ready: number;
   working: string | null;
@@ -1032,7 +1072,16 @@ export function useServerPastSessions(on: boolean, ticker: string, bars: readonl
     15_000
   );
   const a = r?.ok ? (r.data as PastAnswer) : null;
-  return a ? { asked: days.length, ready: a.ready.length, working: a.working } : null;
+  const inPage = useSyncExternalStore(
+    fn => {
+      pastLoadedSubs.add(fn);
+      return () => pastLoadedSubs.delete(fn);
+    },
+    () => pastLoadedCount(t, days)
+  );
+  if (!a) return null;
+  const failed = days.filter(d => a.failed && d in a.failed).length;
+  return { asked: days.length - failed, ready: Math.min(inPage, a.ready.length), working: a.working };
 }
 
 /** The books read so far today for a name, oldest first, outside a render (data/feed/pinpointMarket.ts) */

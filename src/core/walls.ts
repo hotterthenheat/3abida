@@ -97,7 +97,10 @@ export function pickWalls<T extends Struck>(
 }
 
 /**
- * The gamma flip: the sign-change midpoint NEAREST SPOT.
+ * The gamma flip: the price where the net crosses zero, NEAREST SPOT — the linear crossing between the two
+ * strikes on either side of the sign change (2026-10-13 — the owner: the ladder's rule said 777.50 while its spine
+ * crossed zero at 777.12; the midpoint was the old rule, and the spine, the ladder, Pinpoint and the hover now all
+ * read this one crossing).
  *
  * ---------------------------------------------------------------------------
  * THE WALLS' STORY, A SECOND TIME — caught before it finished happening
@@ -128,18 +131,37 @@ export function pickFlip<T extends Struck>(
   spot: number,
   valueOf: (p: T) => number
 ): number | null {
-  const asc = [...points].sort((a, b) => a.strike - b.strike);
   let flip: number | null = null;
   let flipDist = Infinity;
-  for (let i = 1; i < asc.length; i++) {
-    if (Math.sign(valueOf(asc[i - 1])) !== Math.sign(valueOf(asc[i]))) {
-      const mid = (asc[i - 1].strike + asc[i].strike) / 2;
-      const d = Math.abs(mid - spot);
-      if (d < flipDist) {
-        flipDist = d;
-        flip = mid;
-      }
+  for (const x of zeroCrossings(points, valueOf)) {
+    const d = Math.abs(x - spot);
+    if (d < flipDist) {
+      flipDist = d;
+      flip = x;
     }
   }
   return flip;
+}
+
+/**
+ * Every price where the net crosses zero, ascending: between two neighbouring strikes of opposite sign, the linear
+ * crossing — strike_a + (strike_b − strike_a) × |v_a| ÷ (|v_a| + |v_b|) — rounded to the cent; a strike whose value
+ * is exactly zero is a crossing itself. The flip is the one nearest spot (pickFlip); the hover names the rest.
+ */
+export function zeroCrossings<T extends Struck>(points: readonly T[], valueOf: (p: T) => number): number[] {
+  const asc = [...points].sort((a, b) => a.strike - b.strike);
+  const out: number[] = [];
+  for (let i = 1; i < asc.length; i++) {
+    const va = valueOf(asc[i - 1]);
+    const vb = valueOf(asc[i]);
+    if (!Number.isFinite(va) || !Number.isFinite(vb)) continue;
+    if (va === 0 && vb === 0) continue;
+    if (Math.sign(va) === Math.sign(vb) && va !== 0 && vb !== 0) continue;
+    const a = asc[i - 1].strike;
+    const b = asc[i].strike;
+    const x = va === 0 ? a : vb === 0 ? b : a + ((b - a) * Math.abs(va)) / (Math.abs(va) + Math.abs(vb));
+    const r = Math.round(x * 100) / 100;
+    if (!out.length || out[out.length - 1] !== r) out.push(r);
+  }
+  return out;
 }

@@ -135,11 +135,13 @@ interface Peaks {
   prov: (GexLevel['prov'] | undefined)[];
   stale: (number | undefined)[];
   bound: boolean[];
+  fresh: (number | undefined)[];
+  share: (number | undefined)[];
   /* the bucket's last price, and whether every moment in it was rebuilt (one measured moment makes it measured) */
   spot?: number;
   rebuilt: boolean;
 }
-const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], rebuilt: true });
+const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], fresh: [], share: [], rebuilt: true });
 const markPeaks = (p: Peaks, snap: GexSnapshot) => {
   if (snap.spot !== undefined) p.spot = snap.spot;
   if (!snap.rebuilt) p.rebuilt = false;
@@ -167,6 +169,8 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
       p.prov.push(l.prov);
       p.stale.push(l.staleSince);
       p.bound.push(!!l.staleBound);
+      p.fresh.push(l.freshAt);
+      p.share.push(l.staleShare);
     }
     return;
   }
@@ -186,6 +190,8 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
         p.prov[i] = l.prov;
         p.stale[i] = l.staleSince;
         p.bound[i] = !!l.staleBound;
+        p.fresh[i] = l.freshAt;
+        p.share[i] = l.staleShare;
       }
       const d = l.dex ?? 0;
       if (Math.abs(d) > Math.abs(pd[i])) pd[i] = d;
@@ -200,6 +206,8 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
       p.prov.splice(i, 0, l.prov);
       p.stale.splice(i, 0, l.staleSince);
       p.bound.splice(i, 0, !!l.staleBound);
+      p.fresh.splice(i, 0, l.freshAt);
+      p.share.splice(i, 0, l.staleShare);
     }
     i++;
   }
@@ -211,6 +219,8 @@ const peakLevels = (p: Peaks) => {
     if (p.prov[k]) l.prov = p.prov[k];
     if (p.stale[k] !== undefined) l.staleSince = p.stale[k];
     if (p.bound[k]) l.staleBound = true;
+    if (p.fresh[k] !== undefined) l.freshAt = p.fresh[k];
+    if (p.share[k] !== undefined) l.staleShare = p.share[k];
     out[k] = l;
   }
   return out;

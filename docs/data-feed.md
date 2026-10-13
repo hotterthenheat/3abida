@@ -361,15 +361,23 @@ last print's; its `last_tape_time` after the close is a batch stamp, so a vol st
 at or before 16:15" (`staleBound`). A leg is OI × greek × price² (UW's per-1% units — summed over UW's own per-contract gamma it reproduces
 `/spot-exposures/strike` to the dollar, checked 2026-10-12); the house's sign. A vol read in its expiry's last hour is not
 used (UW figures far strikes at 500% and more after the close). A contract with no vol stays out and its strike's
-coverage drops; a strike with none is a gap. No magnitude is rescaled to UW: the residual against UW's books (per
-strike, at the captured times: the gap summed over the strikes both hold, against the book's size) and UW's whole-book
-series (the model summed over every strike within 15% and 60 days, a minute every quarter hour: sign agreement and the
-median ratio) is one line in the ladder's "How sure". Seen on SPY, 2026-10-12, read after the close: 35.6% per strike
-against UW's one after-close book (which still carries the day's expired contracts at the money), the same sign 94% of
-32 minutes at 2.29× UW's whole-book figure — every vol that day carried from Oct 9's close, as nothing was read in the
-session.
+coverage drops; a strike with none is a gap. No magnitude is rescaled to UW: the residual is one line in the ladder's
+"How sure", measured LIKE FOR LIKE (the Terrain audit of 2026-10-13, row 41) against UW's book on the model's own
+universe — `/spot-exposures/expiry-strike` for the chain's expiries within 60 days, summed per strike within 15% of the
+price, read every five minutes by the recorder (`books60.jsonl`; `levels.ts` FeedBook60) — over the strikes both hold:
+strike by strike (the gap summed, against the book's size, the median over the books read today) and summed (the sign,
+and the model's sum over the book's at the median). UW's whole-book series (`/spot-exposures`, every expiry and every
+strike) and its per-strike book (`/spot-exposures/strike`, every expiry) are a different universe: the audit's "same
+sign 13% of the time at −1.99×" was the model's 60 days against UW's whole book, not a sign flip (UW's series equals the
+sum of its per-strike book, −0.730 B both in UW's sign on 2026-10-13; the house negates both). Those two are kept and
+shown (the hover's "every expiry" line; `total.json`), never measured against. On SPY, 2026-10-13, 10:40 New York: see
+`docs/terrain-audit-2026-10-13/README.md`, Step 4.
 Each cell keeps `prov` (`modeled` when half its gamma or more stands on today's vols, `carried` otherwise), `staleSince`
-and `coverage`; the hover card shows them with UW's own figure for the strike. The bead scale runs forward, per session, on a square root (each column's beads
+and `coverage`, and since the audit `freshAt` (the newest vol in use) and `staleShare` (the share of the strike's gamma on a
+vol older than an hour) — the hover card says "vols as traded to 10:38 am · 3.1% of the strike's gamma on a vol older than
+an hour (oldest 7:17 am)", never "stale since" the least informative contract; beside it UW's own figure for the strike,
+named by its universe ("Unusual Whales' book (60 days), 10:35 am" when a 60-day book was read within ten minutes, else
+"(every expiry)"). The bead scale runs forward, per session, on a square root (each column's beads
 are √(size ÷ the 85th percentile of the column peaks at or before it in its own session), stated in Terrain's legend). The sessions before today are drawn, rebuilt by the server on the same model (below).
 
 **The sessions before today (server/fieldBackfill.ts, 2026-10-13).** UW answers no book by strike for a past minute, but
@@ -397,8 +405,10 @@ before's close vols alone, every cell `carried`. `scripts/field-backfill-proof.t
 name (six at most; two idle hours let it go) and answers what was received after `since` — the books, the chain reads,
 the seed, UW's whole-book series. Through the session (09:30–16:00 New York, a weekday) it reads, through the proxy's
 own client, cache and UW gate (three at once): each name's book and whole-book series once a minute, its chain every ten
-minutes (and once on first watch, whatever the hour), the session before's close chain once a day. Append-only files in
-`.feed-cache/field/<NAME>/<YYYY-MM-DD>/` (`books.jsonl`, `chain.jsonl`, `seed.json`, `total.json`; git-ignored; the days
+minutes (and once on first watch, whatever the hour), its 60-day book (`/spot-exposures/expiry-strike`, the chain's
+expiries within 60 days, the strikes within 15%, two to five pages) every five minutes and once on first watch, the
+session before's close chain once a day. Append-only files in
+`.feed-cache/field/<NAME>/<YYYY-MM-DD>/` (`books.jsonl`, `books60.jsonl`, `chain.jsonl`, `seed.json`, `total.json`; git-ignored; the days
 before are kept, gzipped in place, never deleted — an unrecorded or discarded minute is lost for good). The shell's `FieldRecorder` and each Terrain pane ask it every 15 s (a local call). Measured on SPY,
 2026-10-12 after the close: a first watch costs about 4 s and ~21 UW calls (one book, the series, nine chain pages, ten
 seed pages); the first answer is ~460 KB, a `since` answer a few hundred bytes; modeling 755 minutes costs ~320 ms of

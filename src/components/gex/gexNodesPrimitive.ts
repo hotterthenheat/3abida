@@ -2,7 +2,7 @@ import { HEAT_MODE, heatRampColor, heatRampColorFor } from './heatmap';
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
-import { pickFlip, pickWalls } from '../../core/walls';
+import { pickFlip, pickWalls, zeroCrossings } from '../../core/walls';
 import { nyClock } from '../../core/nyTime';
 
 /*
@@ -534,9 +534,13 @@ class TrailsPaneRenderer {
             if (l + w + padX * 2 > rightMost) l = xBar * hr - 3 * hr - w - padX * 2;
             l = Math.max(leftMost, Math.min(l, rightMost - w - padX * 2));
             if (l + w + padX * 2 > rightMost) continue;
-            /* above its line, off any chip placed already */
+            /* above its line, off any chip placed already — and UNDER THE HOST'S CHROME, never over the timeframe
+               tabs (the audit of 2026-10-13: "→ 780 · 8:45 am" stood on "1D"): a chip that would rise into the chrome
+               band sits under it instead, below its line */
+            const floor = src.chromeInset > 0 ? (src.chromeInset + 3) * vr : 0;
             let top = y * vr - full - 3 * vr;
-            for (const b of boxes) if (l < b.r && l + w + padX * 2 > b.l && top < b.b && top + full > b.t) top = b.t - full - 2 * vr;
+            if (top < floor) top = Math.max(floor, y * vr + 3 * vr);
+            for (const b of boxes) if (l < b.r && l + w + padX * 2 > b.l && top < b.b && top + full > b.t) top = b.b + 2 * vr;
             if (top < 0) continue;
             boxes.push({ l, r: l + w + padX * 2, t: top, b: top + full });
             const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
@@ -944,11 +948,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       open = lo2 ? this.valueOf(lo2) : null;
       break;
     }
-    /* every sign change of the column's book, nearest its price first — the flip is the first (core/walls.ts pickFlip) */
+    /* every zero crossing of the column's book, nearest its price first — the flip is the first (core/walls.ts
+       pickFlip, the same linear crossing) */
     const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
-    const asc = [...snap.levels].sort((a, b) => a.strike - b.strike);
-    const crossings: number[] = [];
-    for (let k = 1; k < asc.length; k++) if (Math.sign(asc[k - 1].value) !== Math.sign(asc[k].value)) crossings.push((asc[k - 1].strike + asc[k].strike) / 2);
+    const crossings = zeroCrossings(snap.levels, l => l.value);
     crossings.sort((a, b) => Math.abs(a - spot) - Math.abs(b - spot));
     return { strike: best.strike, time: snap.time, value, share: total > 0 ? Math.abs(value) / total : 0, open, rebuilt: !!snap.rebuilt, level: lvl, flip: col.flip, crossings: crossings.slice(1, 4), snap, x, y: this.series.priceToCoordinate(best.strike) ?? y };
   }

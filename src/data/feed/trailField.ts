@@ -77,10 +77,14 @@
   NO CALIBRATION. The modeled magnitudes are never
   rescaled to UW's readings: the books the server
   captured are a MEASURED REFERENCE beside the field
-  (the hover's readout) and the residual against them
-  — per strike at the captured times, and against UW's
-  whole-book series a minute — is said in "How sure"
-  (fieldResidual), never blended in.
+  (the hover's readout) and the residual against UW's
+  book on the model's own universe — the expiries
+  within 60 days, summed per strike, read every five
+  minutes (books60) — strike by strike and summed over
+  the strikes both hold, is said in "How sure"
+  (fieldResidual), never blended in. UW's whole-book
+  series and its every-expiry book are kept and shown,
+  never measured against: a different universe.
 
   EVERY CELL CARRIES ITS PROVENANCE (GexLevel.prov):
   'modeled' (at least half its gamma priced on a vol
@@ -121,7 +125,7 @@ import { blackScholesGreeks } from '../../core/greeks';
 import { nyIsoDate, nyWallTime } from '../../core/nyTime';
 import { closeMinuteOn } from '../expiryClass';
 import type { Candle, GexLevel, GexSnapshot } from '../../types/market';
-import type { FeedBook } from './levels';
+import type { FeedBook, FeedBook60 } from './levels';
 
 /* ---- the model, named --------------------------------------------------------------------------------------------- */
 
@@ -131,6 +135,8 @@ export const TRAIL_HALF = 30;
 export const CHAIN_MAX_DTE = 60;
 /** A vol read this close to its expiry is not used */
 const LAST_HOUR_MS = 3600_000;
+/** A vol older than this at the column's clock counts as old in the cell's `staleShare` */
+const STALE_MS = 3600_000;
 const YEAR_MS = 365 * 864e5;
 
 /** UW's carry: the rate and yield its vols are solved under (fitted on six names, one figure for all of them) */
@@ -376,6 +382,8 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
     let all = 0;
     let stale = Infinity;
     let staleBound = false;
+    let newest = 0;
+    let old = 0;
     for (let j = u.start[i]; j < u.start[i + 1]; j++) {
       if (u.expires[j] <= clock) continue;
       const o = obsAt(u.obs[j], knowBy);
@@ -396,11 +404,14 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
         stale = o.trade;
         staleBound = o.bound;
       }
+      if (o.trade > newest) newest = o.trade;
+      /* on a vol older than an hour at this minute — the hover says how much of the strike stands on one */
+      if (clock - o.trade > STALE_MS) old += gw;
     }
     if (all <= 0) continue;
     const coverage = fresh / all;
     /* the house's sign (levels.ts feedStrike): the calls' gamma and every delta turned over, the puts' gamma as is */
-    levels.push({ strike: k, value: -gc + gp, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), coverage });
+    levels.push({ strike: k, value: -gc + gp, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, coverage });
   }
   return { time: bar.time, levels, spot, rebuilt: true };
 }
@@ -408,48 +419,77 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
 /* ---- the reference: the residual against UW's own figures -------------------------------------------------------- */
 
 /** How far the field stands from UW's own figures today, in one line for "How sure" — null with nothing to set it
-    against yet */
-export function fieldResidual(field: readonly GexSnapshot[], books: readonly FeedBook[], total: TotalRead | null, whole: ReadonlyMap<number, number> = new Map()): string | null {
+    against yet. LIKE FOR LIKE (the Terrain audit of 2026-10-13, row 41): the reference is UW's book on the model's own
+    universe — the expiries within 60 days summed per strike (levels.ts FeedBook60, read every five minutes through
+    the session) — and the comparison is made over the strikes both hold, strike by strike and summed. UW's whole-book
+    series (every expiry, every strike) and its per-strike book (every expiry) are not the model's universe, so neither
+    is a measure of it: the same sign 13% of the time at −1.99× was the universe, not a sign. */
+export function fieldResidual(field: readonly GexSnapshot[], books60: readonly FeedBook60[]): string | null {
   const byMinute = new Map<number, GexSnapshot>();
   for (const s of field) byMinute.set(Math.floor(s.time / 60), s);
-  /* per strike, at each captured book's own moment: the gap summed over the strikes both hold, against the book's size */
   const gaps: number[] = [];
-  for (const b of books) {
+  const ratios: number[] = [];
+  let same = 0;
+  for (const b of books60) {
     const col = byMinute.get(Math.floor(b.at / 60_000));
     if (!col) continue;
     const mine = new Map(col.levels.map(l => [l.strike, l.value]));
     let gap = 0;
     let size = 0;
+    let sumMine = 0;
+    let sumTheirs = 0;
+    let n = 0;
     for (const r of b.rows) {
       const m = mine.get(r.strike);
-      if (m === undefined) continue;
-      gap += Math.abs(m - r.gex.net);
-      size += Math.abs(r.gex.net);
+      if (m === undefined || !Number.isFinite(m)) continue;
+      n++;
+      gap += Math.abs(m - r.net);
+      size += Math.abs(r.net);
+      sumMine += m;
+      sumTheirs += r.net;
     }
-    if (size > 0) gaps.push(gap / size);
+    if (n < 8 || size <= 0 || !sumTheirs) continue;
+    gaps.push(gap / size);
+    if (Math.sign(sumMine) === Math.sign(sumTheirs)) same++;
+    ratios.push(sumMine / sumTheirs);
   }
-  /* the whole book a minute: UW's series in the house's sign against the model priced on every strike it holds (`whole`,
-     by minute — the universe, not the field's 30 strikes each side, so the two sum the same kind of book) */
-  let same = 0;
-  let n = 0;
-  const ratios: number[] = [];
-  for (const [at, , gamma] of total?.rows ?? []) {
-    const mine = whole.get(Math.floor(at / 60_000));
-    if (mine === undefined || !gamma) continue;
-    const theirs = -gamma;
-    n++;
-    if (Math.sign(mine) === Math.sign(theirs)) same++;
-    ratios.push(mine / theirs);
-  }
-  if (!gaps.length && !n) return null;
+  if (!gaps.length) return null;
   const med = (xs: number[]) => {
     const s = [...xs].sort((a, b) => a - b);
     return s[Math.floor(s.length / 2)];
   };
-  const parts: string[] = [];
-  if (gaps.length) parts.push(`strike by strike it differs from Unusual Whales' book by ${(med(gaps) * 100).toFixed(1)}% of the book's size (median of ${gaps.length} book${gaps.length === 1 ? '' : 's'} read today)`);
-  if (n) parts.push(`against their whole-book figure, priced on every strike within 15% and 60 days, it has the same sign ${Math.round((same / n) * 100)}% of ${n} sampled minutes, at ${med(ratios).toFixed(2)}× its size at the median`);
-  return `The field is modeled, never rescaled to the vendor: ${parts.join('; ')}.`;
+  const n = gaps.length;
+  const books = `${n} book${n === 1 ? '' : 's'}`;
+  return `The field is modeled, never rescaled to the vendor. Against Unusual Whales' book on the same strikes and expiries (within 60 days, ${books} read today): strike by strike it differs by ${(med(gaps) * 100).toFixed(1)}% of the book's size at the median; summed over those strikes it has the same sign in ${same} of ${n}, at ${med(ratios).toFixed(2)}× the book's size at the median.`;
+}
+
+/** The residual's figures, for a check (window.__slayerTrail) */
+export function residualFigures(field: readonly GexSnapshot[], books60: readonly FeedBook60[]): { books: number; gaps: number[]; ratios: number[]; same: number; sums: { at: number; strikes: number; mine: number; theirs: number; size: number }[] } {
+  const byMinute = new Map<number, GexSnapshot>();
+  for (const s of field) byMinute.set(Math.floor(s.time / 60), s);
+  const out = { books: 0, gaps: [] as number[], ratios: [] as number[], same: 0, sums: [] as { at: number; strikes: number; mine: number; theirs: number; size: number }[] };
+  for (const b of books60) {
+    const col = byMinute.get(Math.floor(b.at / 60_000));
+    if (!col) continue;
+    const mine = new Map(col.levels.map(l => [l.strike, l.value]));
+    let gap = 0, size = 0, sm = 0, st = 0, n = 0;
+    for (const r of b.rows) {
+      const m = mine.get(r.strike);
+      if (m === undefined || !Number.isFinite(m)) continue;
+      n++;
+      gap += Math.abs(m - r.net);
+      size += Math.abs(r.net);
+      sm += m;
+      st += r.net;
+    }
+    if (n < 8 || size <= 0 || !st) continue;
+    out.books++;
+    out.gaps.push(gap / size);
+    out.ratios.push(sm / st);
+    out.sums.push({ at: b.at, strikes: n, mine: sm, theirs: st, size });
+    if (Math.sign(sm) === Math.sign(st)) out.same++;
+  }
+  return out;
 }
 
 /* ---- the column's record -------------------------------------------------------------------------------------- */
@@ -514,23 +554,40 @@ export function takePastSession(ticker: string, day: string, inputs: ServerInput
 /** The sessions whose inputs are in for a name, New York dates */
 export const sessionsIn = (ticker: string): string[] => [...(inputsByName.get(ticker.toUpperCase())?.keys() ?? [])];
 
-/** The books read today for a name, with their legs — the measured reference (levels.ts hands them in) */
+/** The books read today for a name — the measured reference (levels.ts hands them in): UW's per-strike book, every
+    expiry, read a minute; and its book on the model's universe (the expiries within 60 days), read every five minutes */
 let booksOf: (t: string) => readonly FeedBook[] = () => [];
-export function setMeasuredSource(fn: (t: string) => readonly FeedBook[]): void {
+let books60Of: (t: string) => readonly FeedBook60[] = () => [];
+export function setMeasuredSource(fn: (t: string) => readonly FeedBook[], fn60: (t: string) => readonly FeedBook60[] = () => []): void {
   booksOf = fn;
+  books60Of = fn60;
 }
 
+/** How near a 60-day book must stand to a minute to be its reference, before the every-expiry book is shown instead */
+const MEASURED_60_WITHIN_MS = 10 * 60_000;
+
 /** The measured reference at a cell: UW's own figure for the strike in the newest book read at or before the minute's
-    end, with the moment UW figured that strike — null with no such book */
-export function measuredAt(ticker: string, strike: number, timeSec: number): { value: number; at: number } | null {
+    end, with the moment UW figured that strike and which universe the book spans — the model's own (the expiries
+    within 60 days) when one was read within ten minutes, else UW's book on every expiry. Null with no such book */
+export function measuredAt(ticker: string, strike: number, timeSec: number): { value: number; at: number; universe: '60 days' | 'every expiry' } | null {
   const by = (timeSec + 60) * 1000;
+  const t = ticker.toUpperCase();
+  let b60: FeedBook60 | null = null;
+  for (const b of books60Of(t)) {
+    if (b.at > by) break;
+    b60 = b;
+  }
+  if (b60 && by - b60.at <= MEASURED_60_WITHIN_MS) {
+    const row = b60.rows.find(r => r.strike === strike);
+    if (row) return { value: row.net, at: b60.at, universe: '60 days' };
+  }
   let book: FeedBook | null = null;
-  for (const b of booksOf(ticker.toUpperCase())) {
+  for (const b of booksOf(t)) {
     if (b.at > by) break;
     book = b;
   }
   const row = book?.rows.find(r => r.strike === strike);
-  return book && row ? { value: row.gex.net, at: row.time ?? book.at } : null;
+  return book && row ? { value: row.gex.net, at: row.time ?? book.at, universe: 'every expiry' } : null;
 }
 
 interface NameTrail {
@@ -545,8 +602,6 @@ interface NameTrail {
   cols: Map<number, { snap: GexSnapshot; inputs: string }>;
   out: GexSnapshot[];
   residual: string | null;
-  /** The whole universe's sum at sampled minutes, with the inputs it was priced on */
-  whole: Map<number, { key: string; sum: number }>;
   cost: { ms: number; minutes: number };
 }
 
@@ -639,34 +694,12 @@ function work() {
   if (more) schedule();
 }
 
-/** The model priced on the whole universe, a minute every quarter hour of today's bars — the residual's like-for-like
-    against UW's whole-book series (kept per minute and inputs) */
-const WHOLE_EVERY_MIN = 15;
-function wholeSums(s: NameTrail): Map<number, number> {
-  const out = new Map<number, number>();
-  const today = s.us.get(s.day);
-  if (!today) return out;
-  for (const c of s.cols.values()) {
-    const minute = Math.floor(c.snap.time / 60);
-    if (minute % WHOLE_EVERY_MIN || barDay(c.snap.time) !== s.day) continue;
-    const key = `${c.inputs}|${today.version}`;
-    let had = s.whole.get(minute);
-    if (!had || had.key !== key) {
-      const col = modelColumn(today.u, { time: c.snap.time, close: c.snap.spot ?? 0 }, 1e9);
-      had = { key, sum: col.levels.reduce((x, l) => x + l.value, 0) };
-      s.whole.set(minute, had);
-    }
-    out.set(minute, had.sum);
-  }
-  return out;
-}
-
 function publish(s: NameTrail) {
   s.out = [...s.cols.values()].map(c => c.snap).sort((a, b) => a.time - b.time);
   const t0 = performance.now();
-  /* the residual is today's: the books this terminal read, and UW's whole book a minute against today's columns */
+  /* the residual is today's: UW's 60-day books read today against today's columns, on the strikes both hold */
   const todays = s.out.filter(c => barDay(c.time) === s.day);
-  s.residual = s.cut ? null : fieldResidual(todays, booksOf(s.t), inputsByName.get(s.t)?.get(s.day)?.inputs.total ?? null, wholeSums(s));
+  s.residual = s.cut ? null : fieldResidual(todays, books60Of(s.t));
   s.cost.ms += performance.now() - t0;
   ring(s.key);
 }
@@ -676,7 +709,7 @@ function stateOf(t: string, cut: string | null): NameTrail {
   const key = `${t}|${cut ?? 'all'}`;
   let s = trails.get(key);
   if (!s || s.day !== day) {
-    s = { key, t, day, cut, bars: [], us: new Map(), cols: new Map(), out: [], residual: null, whole: new Map(), cost: { ms: 0, minutes: 0 } };
+    s = { key, t, day, cut, bars: [], us: new Map(), cols: new Map(), out: [], residual: null, cost: { ms: 0, minutes: 0 } };
     trails.set(key, s);
   }
   return s;
@@ -735,6 +768,12 @@ if (typeof window !== 'undefined')
     cost: (t: string, cut: string | null = null) => trails.get(`${t.toUpperCase()}|${cut ?? 'all'}`)?.cost ?? null,
     size: (t: string) => trails.get(`${t.toUpperCase()}|all`)?.out.length ?? 0,
     residual: (t: string) => trails.get(`${t.toUpperCase()}|all`)?.residual ?? null,
+    /* the residual's figures: per 60-day book, the per-strike gap and the summed ratio on the strikes both hold */
+    figures: (t: string) => {
+      const s = trails.get(`${t.toUpperCase()}|all`);
+      return s ? residualFigures(s.out.filter(c => barDay(c.time) === s.day), books60Of(s.t)) : null;
+    },
+    books60: (t: string) => books60Of(t.toUpperCase()).map(b => ({ at: b.at, spot: b.spot, expiries: b.expiries.length, rows: b.rows.length, sum: b.rows.reduce((x, r) => x + r.net, 0) })),
     prov: (t: string) => {
       const n: Record<string, number> = {};
       for (const s of trails.get(`${t.toUpperCase()}|all`)?.out ?? []) for (const l of s.levels) n[l.prov ?? 'house'] = (n[l.prov ?? 'house'] ?? 0) + 1;

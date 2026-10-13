@@ -34,6 +34,7 @@ import type { BookContract, FlowPrint } from '../types/trace';
 import type { SpreadTrade } from '../data/flowBook';
 import { getFeedStatus } from '../data/feed/status';
 import { roomSource } from '../data/feed/rooms';
+import { nyText } from '../core/nyTime';
 
 /** Which market a mark is made in: the feed's, when Trace reads it */
 const srcNow = (): { src?: 'feed' } => (roomSource('trace', getFeedStatus()) === 'feed' ? { src: 'feed' } : {});
@@ -103,7 +104,7 @@ export const contractKey = (c: { ticker: string; strike: number; right: 'C' | 'P
 
 /** A print's key is its CONTENT, not its tape id — ids restart with the
     session, the print itself does not. */
-export const printKey = (p: FlowPrint) => `p:${p.ticker}:${p.strike}:${p.right}:${p.expiry}:${p.time}:${p.size}:${p.fill}`;
+export const printKey = (p: Pick<FlowPrint, 'ticker' | 'strike' | 'right' | 'expiry' | 'time' | 'size' | 'fill'>) => `p:${p.ticker}:${p.strike}:${p.right}:${p.expiry}:${p.time}:${p.size}:${p.fill}`;
 
 export const structureKey = (t: SpreadTrade) => `s:${t.ticker}:${t.id}`;
 
@@ -178,6 +179,19 @@ function isValid(v: unknown): v is WatchedItem {
   );
 }
 
+/** "2:50:12 pm" on the reader's clock, on the local day `watchedAt` fell on → New York's "14:50:12"; null when the text
+    is already a New York clock text (or anything else) */
+export function nyTextFromPrinted(text: string, watchedAt: number): string | null {
+  const m = /^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap])m\s*$/i.exec(text);
+  if (!m) return null;
+  const h12 = Number(m[1]) % 12;
+  const h = m[4].toLowerCase() === 'p' ? h12 + 12 : h12;
+  const d = new Date(watchedAt);
+  const local = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, Number(m[2]), Number(m[3] ?? 0));
+  if (Number.isNaN(local.getTime())) return null;
+  return nyText(local.getTime(), { seconds: m[3] != null });
+}
+
 function load(): WatchedItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -193,7 +207,19 @@ function load(): WatchedItem[] {
         renamed++;
       }
     }
-    if (valid.length !== parsed.length || renamed > 0) save(valid);
+    /* A print's `time` is New York's "HH:MM:SS" text. For half an hour on 2026-10-13 the tape wrote it as a printed
+       time on the reader's clock ("2:50:12 pm"); a print tracked then is put back: the 12-hour time read on the
+       reader's own clock on the day it was watched, written as New York's text, and its key rebuilt */
+    let repaired = 0;
+    for (const it of valid) {
+      if (it.kind !== 'print' && it.kind !== 'structure') continue;
+      const fixed = nyTextFromPrinted(it.time, it.watchedAt);
+      if (fixed == null) continue;
+      it.time = fixed;
+      if (it.kind === 'print') it.key = printKey(it);
+      repaired++;
+    }
+    if (valid.length !== parsed.length || renamed > 0 || repaired > 0) save(valid);
     return valid;
   } catch {
     return [];
