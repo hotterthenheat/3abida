@@ -296,6 +296,11 @@ const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
           <ul className="mt-1 flex flex-col gap-1.5">{examples}</ul>
         </div>
       )}
+      {/* THE FIELD ON THE CHART, one line (2026-10-13): which beads were read as they stood and which were rebuilt, and the
+          scale they share */}
+      <p className="text-[11px] text-textMuted" data-guide-field>
+        On the chart, a bead read as the book stood draws full; a rebuilt or held one draws a step quieter — hover a bead to see which. Each column's grey ticks are its own flip, and a bead's strength is measured against the field's columns up to now — while replaying, up to the replayed bar.
+      </p>
       <p className="text-[11px] text-textMuted">Hover any strike to see both numbers in the line under the lanes · click to keep it there.</p>
     </div>
   );

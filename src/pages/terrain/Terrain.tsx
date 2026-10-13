@@ -74,6 +74,7 @@ import {
   useFeedDayState,
   useFeedEarnings,
   useFeedField,
+  useServerField,
   useFeedMaxPain,
   useFeedMoves,
   useFeedOi,
@@ -1139,11 +1140,8 @@ const Pane = ({
   const fOi = useFeedOi(onFeed, ticker).today;
   const fBars = useFeedBars(onFeed, ticker, { history: true });
   const fFieldRead = useFeedField(ticker);
-  /* THE FIELD, FULL (2026-10-13): today's minutes rebuilt from the chain on the house's pricer and calibrated to UW's
-     newest book, the sessions before off UW's own book for each date, the books this terminal read in their own minutes
-     (data/feed/trailField.ts) */
-  const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, fBook);
-  const fField = fTrail.snaps;
+  /* the server records this pane's name once a minute through the session (server/fieldRecorder.ts) — its day joins the field */
+  useServerField(onFeed && !isCashIndex(ticker), ticker);
   /* 1D and 1W read the day bars — asked only while the pane draws them */
   const wantsDaily = timeframe === '1D' || timeframe === '1W';
   const fDaily = useFeedDaily(onFeed && wantsDaily, ticker);
@@ -1177,6 +1175,13 @@ const Pane = ({
   const fListed = useMemo(() => listedDates(fDates), [fDates]);
   /* the desk's cut as one of UW's listed dates — a cut no listed date matches reads the whole book */
   const cutDate = onFeed && railCut !== 'book' ? fListed.find(d => calDaysTo(d) === railCut) ?? null : null;
+  /* THE FIELD, FULL (2026-10-13): today's minutes rebuilt from the chain on the house's pricer and calibrated to UW's
+     newest book, the sessions before off UW's own book for each date, the books this terminal read in their own minutes
+     (data/feed/trailField.ts) */
+  /* the field follows the pane's expiry card: one listed date's contracts alone, or every expiry */
+  const trailCut = cutDate;
+  const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, trailCut);
+  const fField = fTrail.snaps;
   const fByDate = useFeedByExpiry(onFeed && cutDate !== null, ticker, cutDate ? [cutDate] : []);
   const houseRail = useMemo(
     () => (offHouse ? null : railForCut(ticker, railCut)),

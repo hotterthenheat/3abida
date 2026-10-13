@@ -10,86 +10,112 @@
   session the chart shows (core/simulator.ts keeps one
   a bar). UW answers the book as it stands now and no
   route gives it strike by strike for an earlier
-  minute, so the field read only what this terminal
-  had read: a few columns, or one after hours.
+  minute, so the field read only what was read: a few
+  columns, or one after hours.
 
-  So the field is REBUILT FROM REAL INPUTS WITH THE
-  HOUSE'S OWN MATH:
+  THIS FILE IS THE ONE PLACE THE FIELD'S MODEL LIVES —
+  every choice below is named in TRAIL_MODEL (its
+  version travels with the field: trailMeta), so a
+  change to the method is a change here alone.
+
+  MEASURED OVER REBUILT. A book UW answered (read by
+  the local server once a minute through the session —
+  server/fieldRecorder.ts — or by a page) stands in its
+  own minute as it was read: MEASURED. Every other
+  minute is REBUILT from real inputs with the house's
+  own math, and draws a step quieter (gexNodesPrimitive).
 
   TODAY (every minute bar of New York's day — the
-  pre-market and the evening too: the count is the
-  day's, the price the minute's own). Every contract of the name listed within 60
-  days with open interest (UW /option-contracts —
-  nine pages for SPY, asked once and again every half
-  hour while the session is open; the proxy keeps
-  them ten minutes): its strike, expiry, today's open
-  interest and its implied vol. For every minute bar,
-  the minute's real close is the price, the time to
-  each expiry is the minute's own (16:00 New York on
-  the expiry date; a contract past it holds nothing,
-  so the day's own expiry leaves the field at the
-  close), and each contract's gamma and
-  delta are core/greeks.ts blackScholesGreeks — the
-  simulator's own pricer. A strike's leg is
-  open interest × greek × price² (× 100 shares × 1% of
-  the price — UW's own units: summed over UW's own
-  per-contract gamma this reproduces /spot-exposures/
-  strike to the dollar, checked 2026-10-12). The
-  house's sign: the calls' gamma negative, the puts'
-  positive, delta negated (levels.ts feedStrike).
-  The window is the house's: 30 strikes each side of
-  the minute's price.
+  pre-market and the evening too). Every contract of
+  the name listed within 60 days with open interest
+  (UW /option-contracts — nine pages for SPY; the
+  proxy keeps them ten minutes): its strike, expiry,
+  open interest and implied vol.
+    · OPEN INTEREST: the count UW publishes for today —
+      the positions at the session before's close —
+      never one dated later.
+    · VOL, STICKY-STRIKE: each contract keeps its own
+      vol as read, across the day. A minute is priced
+      once, with the chain in hand when it is priced; a
+      later read of the chain (every half hour while the
+      session is open) prices the minutes after it and
+      never re-prices the ones before. The one input not
+      point in time: a minute before the first read of
+      the chain takes the vol as first read (no route
+      carries a contract's vol earlier in the day). A
+      contract with no vol (about one in nine near the
+      money, seen) takes its expiry's nearest strike's,
+      the same side first; a vol read in its expiry's
+      last hour is not used (UW figures it on the
+      minutes left: a far strike reads 500% and more
+      after the close) — the next expiry's stands in.
+    · THE PRICER: core/greeks.ts blackScholesGreeks,
+      the simulator's own, at the minute's real close
+      and the minute's own clock (its middle) to each
+      expiry's 16:00 New York; a contract past its
+      expiry holds nothing, so the day's own expiry
+      leaves the field at the close.
+    · THE UNITS AND THE SIGN: a strike's leg is open
+      interest × greek × price² (× 100 shares × 1% of
+      the price) — UW's own units: summed over UW's own
+      per-contract gamma it reproduces /spot-exposures/
+      strike to the dollar (checked 2026-10-12). The
+      house's sign: the calls' gamma negative, the puts'
+      positive, every delta turned over (levels.ts
+      feedStrike). 30 strikes each side of the minute's
+      price, as the house's book.
 
-  CALIBRATED TO UW, strike by strike: the rebuild is
-  priced once more at the moment and price UW figured
-  its newest book at, and each strike's four legs
-  (calls' and puts' gamma, calls' and puts' delta)
-  take the ratio UW's figure bears to the rebuild's —
-  clamped to a quarter and four times the whole
-  book's ratio for that leg, and the whole book's
-  ratio where the rebuild's leg is under 2% of its
-  largest (a ratio of two near-noughts is noise). So
-  the newest minute stands on UW's book, and what our
-  inputs leave out — the contracts past 60 days, a vol
-  UW figures differently — is carried at UW's level
-  through the session. After the close UW's book still
-  carries the day's expired contracts at their last
-  minutes' greeks (a spike at the money): a calibration
-  made while the session was open is kept, and without
-  one only the whole book's ratio is taken, read off
-  the strikes past 1% of the price. The books this terminal read
-  (levels.ts, the field kept on this machine) stand
-  in their own minutes in place of the rebuilt column.
+  CALIBRATED POINT IN TIME, never ahead: a rebuilt
+  minute is measured only against the newest book
+  read AT OR BEFORE it. The rebuild is priced at that
+  book's own moment and price, and each strike's four
+  legs (calls' and puts' gamma and delta) take the
+  ratio UW's figure bears to the rebuild's — clamped
+  to a quarter and four times the whole book's ratio
+  for the leg, and the whole book's ratio where the
+  rebuild's leg is under 2% of its largest. Before the
+  day's first measured book a minute is rebuilt and
+  uncalibrated (its units are UW's already). A book
+  figured after the close still carries the day's
+  expired contracts at their last minutes' greeks (a
+  spike at the money): against one, only the whole
+  book's ratio is taken, off the strikes past 1% of
+  the price. Each column keeps the moment of the book
+  it was measured against (trailMeta).
 
-  A CONTRACT WITH NO VOL (UW carries none on about one
-  in nine near the money, seen): its expiry's nearest
-  strike with a vol, the same side first. A vol read
-  in its expiry's last hour is not used (UW figures it
-  on the minutes left: a far strike's reads 500% and
-  more after the close) — the next expiry's stands in.
-  An expiry with no vol at all is left out.
+  AN EXPIRY CUT (the pane's expiry card on one listed
+  date): the same rebuild on that date's contracts
+  alone, uncalibrated — no book of one date is kept
+  through the day — and nothing for the sessions
+  before (no route carries a past date's book by
+  expiry).
 
   THE SESSIONS BEFORE: today's open interest is not
   theirs, and the contracts that expired at their
-  close are no longer listed (Friday's own expiry is
-  gone by Monday), so they are never rebuilt from
-  today's chain. Each is UW's own book for that date
-  (/greek-exposure/strike?date= — every expiry the
-  date listed, on that date's open interest, figured
-  once that day), held from that day's pre-market to
-  its close (after it the date's own expiry is gone): each
-  minute takes the 30 strikes round its price and
-  states the book per 1% at its price (× price² / 100,
-  the ratio that route bears to /spot-exposures/
-  strike, checked 2026-10-12). Not re-priced minute by
-  minute — no route carries those contracts any more.
-  The ten sessions before today the bars reach, asked
-  newest first, one at a time; a past date never
-  changes, so each is kept on this machine
-  (IndexedDB slayer_trail).
+  close are no longer listed, so they are never
+  rebuilt from today's chain. Each is UW's own book
+  for that date (/greek-exposure/strike?date= — every
+  expiry the date listed, on that date's own count,
+  figured once that day), held from that day's
+  pre-market to its close: each minute takes the 30
+  strikes round its price, per 1% at its price
+  (× price² / 100, that route's ratio to /spot-
+  exposures/strike, checked 2026-10-12). Drawn as
+  rebuilt — it is not that minute's book. The ten
+  sessions before today the bars reach, one at a
+  time, newest first; kept on this machine (IndexedDB
+  slayer_trail — a past date never changes).
 
-  OFF THE MAIN FRAME: the minutes are priced in slices
-  of 8 ms, one task apart, each minute once (kept per
+  DISCRETE: a bead is one strike at one minute — no
+  smoothing between strikes or minutes; a minute with
+  no bar is a gap. THE INTENSITY SCALE is the house's
+  (gexNodesPrimitive): a bead's strength against the
+  85th percentile of the moments' maxima among the
+  columns handed in — while the chart replays, only
+  the columns up to the replayed bar.
+
+  OFF THE MAIN FRAME: minutes are priced in slices of
+  8 ms, one task apart, each minute once (kept per
   name for the day), and nothing runs while the tab is
   hidden. An index has no bars on these plans: nothing
   is asked, the pane says so as before.
@@ -428,26 +454,110 @@ export function sessionsOf(bars: readonly Candle[], regular = false): Map<string
   return out;
 }
 
+/** The field's model, named — its version is kept with every column (trailMeta) */
+export const TRAIL_MODEL = {
+  version: 'trail-2026-10-13.1',
+  openInterest: "today's count (the positions at the session before's close); a session before: its own date's book",
+  vol: "sticky-strike: each contract keeps its own vol as read; a minute is priced with the chain in hand; a vol read in its expiry's last hour gives way to the next expiry's",
+  pricer: 'core/greeks.ts blackScholesGreeks at the minute close and the minute middle; carry from core/carry.ts',
+  expiries: `listed within ${CHAIN_MAX_DTE} days; past them carried by the calibration`,
+  units: 'open interest × greek × price² (UW /spot-exposures/strike units)',
+  sign: "the house's: the calls' gamma negative, the puts' positive, delta turned over",
+  calibration: 'per strike and leg, against the newest measured book at or before the minute; none before the first; after the close the whole book off the strikes past 1%',
+  scale: "the house's: the 85th percentile of the moments' maxima among the columns handed in",
+} as const;
+
+/** A rebuilt minute's moment before calibration — UW's units already */
+export function uncalibratedSnapshot(col: RawColumn): GexSnapshot {
+  const levels: GexLevel[] = new Array(col.strikes.length);
+  for (let i = 0; i < col.strikes.length; i++) levels[i] = { strike: col.strikes[i], value: col.gexCall[i] + col.gexPut[i], dex: col.dexCall[i] + col.dexPut[i] };
+  return { time: col.time, levels };
+}
+
+/** Which way a column of the field was made, and against what */
+export interface TrailMeta {
+  kind: 'measured' | 'rebuilt' | 'held';
+  /** A rebuilt minute: the moment (epoch ms) of the measured book it was scaled to — absent when uncalibrated */
+  calAt?: number;
+  model: string;
+}
+const metas = new WeakMap<GexSnapshot, TrailMeta>();
+/** How a column of the field was made — null for the house's own field */
+export const trailMeta = (snap: GexSnapshot): TrailMeta | null => metas.get(snap) ?? null;
+const mark = (snap: GexSnapshot, meta: TrailMeta): GexSnapshot => {
+  metas.set(snap, meta);
+  return snap;
+};
+
 /* ---- the store: a name's field, built in slices -------------------------------------------------------------- */
 
+/** A name's chain, shared by every cut */
+interface ChainState {
+  chain: PreparedChain | null;
+  /** By listed date — a cut's chain, made once a chain */
+  byDate: Map<string, PreparedChain>;
+  at: number;
+  state: 'idle' | 'loading' | 'ok' | 'failed';
+  calls: number;
+}
+const chains = new Map<string, ChainState>();
+const chainOf = (t: string, day: string): ChainState => {
+  const key = `${t}|${day}`;
+  let c = chains.get(key);
+  if (!c) chains.set(key, (c = { chain: null, byDate: new Map(), at: 0, state: 'idle', calls: 0 }));
+  return c;
+};
+/** A chain cut to one listed date */
+function cutChain(c: PreparedChain, date: string): PreparedChain {
+  const close = closeOf(date);
+  const keep: number[] = [];
+  for (let j = 0; j < c.expires.length; j++) if (c.expires[j] === close) keep.push(j);
+  const strikeOf: number[] = [];
+  for (let i = 0; i < c.strikes.length; i++) for (let j = c.start[i]; j < c.start[i + 1]; j++) strikeOf[j] = c.strikes[i];
+  const strikes: number[] = [];
+  const start: number[] = [];
+  keep.forEach((j, n) => {
+    if (!strikes.length || strikeOf[j] !== strikes[strikes.length - 1]) {
+      strikes.push(strikeOf[j]);
+      start.push(n);
+    }
+  });
+  start.push(keep.length);
+  return {
+    day: c.day,
+    strikes,
+    start: Int32Array.from(start),
+    call: Uint8Array.from(keep.map(j => c.call[j])),
+    oi: Float64Array.from(keep.map(j => c.oi[j])),
+    iv: Float64Array.from(keep.map(j => c.iv[j])),
+    expires: Float64Array.from(keep.map(j => c.expires[j])),
+    counts: { rows: c.counts.rows, kept: keep.length, noVol: 0 },
+  };
+}
+
+/** A name's sessions before today, shared by every pane of it */
+const pastBooks = new Map<string, Map<string, PastBook | 'loading' | 'failed'>>();
+const pastOf = (t: string) => {
+  let m = pastBooks.get(t);
+  if (!m) pastBooks.set(t, (m = new Map()));
+  return m;
+};
+
 interface NameTrail {
+  key: string;
   t: string;
   day: string;
+  /** null: every expiry; else one listed date */
+  cut: string | null;
   bars: readonly Candle[];
-  /** The books this terminal read, and the newest of them */
+  /** The books read (measured), as snapshots */
   reads: readonly GexSnapshot[];
-  book: FeedBook | null;
-  chain: PreparedChain | null;
-  chainAt: number;
-  chainState: 'idle' | 'loading' | 'ok' | 'failed';
   /** Today's minutes priced, by bar time */
   raw: Map<number, RawColumn>;
-  /** UW's newest book measured against the rebuild */
-  cal: Calibration | null;
-  /** The chain the calibration was measured on */
-  calGen: number;
-  calSnaps: Map<number, GexSnapshot>;
-  past: Map<string, PastBook | 'loading' | 'failed'>;
+  /** A calibration per measured book, by its moment */
+  cals: Map<number, Calibration>;
+  /** The made snapshots, by `${time}|${calAt}` */
+  made: Map<string, GexSnapshot>;
   pastSnaps: Map<string, { n: number; snaps: GexSnapshot[] }>;
   out: GexSnapshot[];
   full: boolean;
@@ -457,7 +567,10 @@ interface NameTrail {
 
 const trails = new Map<string, NameTrail>();
 const subs = new Map<string, Set<() => void>>();
-const ring = (t: string) => subs.get(t)?.forEach(f => f());
+const ring = (key: string) => subs.get(key)?.forEach(f => f());
+const ringName = (t: string) => {
+  for (const s of trails.values()) if (s.t === t) ring(s.key);
+};
 
 const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
 
@@ -513,76 +626,70 @@ function savePast(id: string, b: PastBook) {
 
 const CHAIN_REFRESH_MS = 30 * 60_000;
 const MAX_PAGES = 20;
+const pause = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-async function loadChain(s: NameTrail) {
-  s.chainState = 'loading';
+async function loadChain(t: string, c: ChainState, day: string) {
+  c.state = 'loading';
   const rows: UwChainContract[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    let r: FeedResult<UwChainContract[]> = await uwChainContracts(s.t, { maxDte: CHAIN_MAX_DTE, page });
-    s.cost.calls++;
+    let r: FeedResult<UwChainContract[]> = await uwChainContracts(t, { maxDte: CHAIN_MAX_DTE, page });
+    c.calls++;
     if (!r.ok && r.reason === 'rate') {
-      await new Promise(res => setTimeout(res, 2000));
-      r = await uwChainContracts(s.t, { maxDte: CHAIN_MAX_DTE, page });
-      s.cost.calls++;
+      await pause(2000);
+      r = await uwChainContracts(t, { maxDte: CHAIN_MAX_DTE, page });
+      c.calls++;
     }
     if (!r.ok) {
-      s.chainState = s.chain ? 'ok' : 'failed';
-      s.chainAt = Date.now();
-      ring(s.t);
+      c.state = c.chain ? 'ok' : 'failed';
+      c.at = Date.now();
+      ringName(t);
       return;
     }
     rows.push(...r.data);
     if (r.data.length < 500) break;
   }
-  const t0 = performance.now();
-  s.chain = prepareChain(s.t, rows, s.day);
-  s.cost.ms += performance.now() - t0;
-  s.chainAt = Date.now();
-  s.chainState = 'ok';
-  /* a fresh chain prices every minute again (its vols moved); the old columns stand until each is replaced */
-  s.cal = null;
+  c.chain = prepareChain(t, rows, day);
+  c.byDate = new Map();
+  c.at = Date.now();
+  c.state = 'ok';
+  /* sticky-strike: the minutes already priced keep their pricing; the next ones take this chain */
   schedule();
 }
 
-const pastFlying = new Set<string>();
-async function loadPast(s: NameTrail, date: string, lo: number, hi: number) {
-  const id = `${s.t}:${date}`;
-  s.past.set(date, 'loading');
-  pastFlying.add(id);
-  try {
-    const kept = await diskPast(id);
-    if (kept && kept.strikes.length) {
-      s.past.set(date, kept);
-    } else {
-      let r = await uwGreekExposureByStrike(s.t, date);
-      s.cost.calls++;
-      if (!r.ok && r.reason === 'rate') {
-        await new Promise(res => setTimeout(res, 2000));
-        r = await uwGreekExposureByStrike(s.t, date);
-        s.cost.calls++;
-      }
-      if (r.ok && r.data.length) {
-        /* a generous band round the session's range, so a minute anywhere in it finds its 30 strikes each side */
-        const b = pastBookOf(date, r.data, lo, hi);
-        s.past.set(date, b);
-        savePast(id, b);
-      } else s.past.set(date, 'failed');
+async function loadPast(t: string, date: string, lo: number, hi: number) {
+  const id = `${t}:${date}`;
+  const past = pastOf(t);
+  past.set(date, 'loading');
+  const kept = await diskPast(id);
+  if (kept && kept.strikes.length) past.set(date, kept);
+  else {
+    let r = await uwGreekExposureByStrike(t, date);
+    if (!r.ok && r.reason === 'rate') {
+      await pause(2000);
+      r = await uwGreekExposureByStrike(t, date);
     }
-  } finally {
-    pastFlying.delete(id);
+    for (const s of trails.values()) if (s.t === t) s.cost.calls++;
+    if (r.ok && r.data.length) {
+      /* a generous band round the session's range, so a minute anywhere in it finds its 30 strikes each side */
+      const b = pastBookOf(date, r.data, lo, hi);
+      past.set(date, b);
+      savePast(id, b);
+    } else past.set(date, 'failed');
   }
-  rebuildOut(s);
-  pumpPast(s);
+  for (const s of trails.values()) if (s.t === t) rebuildOut(s);
+  const any = [...trails.values()].find(s => s.t === t && !s.cut);
+  if (any) pumpPast(any);
 }
 
 /** Ask for the next session before today that is not in yet — one at a time, newest first */
 function pumpPast(s: NameTrail) {
-  if (hidden()) return;
-  if ([...s.past.values()].some(v => v === 'loading')) return;
+  if (hidden() || s.cut) return;
+  const past = pastOf(s.t);
+  if ([...past.values()].some(v => v === 'loading')) return;
   const sessions = sessionsOf(s.bars, true);
   const dates = [...sessions.keys()].filter(d => d < s.day).sort().reverse().slice(0, PAST_SESSIONS);
   for (const d of dates) {
-    if (s.past.has(d)) continue;
+    if (past.has(d)) continue;
     const list = sessions.get(d) ?? [];
     let lo = Infinity;
     let hi = -Infinity;
@@ -591,7 +698,7 @@ function pumpPast(s: NameTrail) {
       hi = Math.max(hi, b.high);
     }
     const pad = Math.max(hi * 0.12, 1);
-    void loadPast(s, d, lo - pad, hi + pad);
+    void loadPast(s.t, d, lo - pad, hi + pad);
     return;
   }
 }
@@ -606,14 +713,22 @@ function schedule() {
 }
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => !hidden() && schedule());
 
-const gen = new WeakMap<RawColumn, number>();
-const chainGen = new WeakMap<PreparedChain, number>();
-let nextGen = 1;
-const genOf = (c: PreparedChain) => {
-  let g = chainGen.get(c);
-  if (!g) chainGen.set(c, (g = nextGen++));
-  return g;
-};
+/** The chain a trail prices with — the whole chain, or its cut */
+function chainFor(s: NameTrail): PreparedChain | null {
+  const c = chainOf(s.t, s.day);
+  if (!c.chain) return null;
+  if (!s.cut) return c.chain;
+  let cut = c.byDate.get(s.cut);
+  if (!cut) c.byDate.set(s.cut, (cut = cutChain(c.chain, s.cut)));
+  return cut;
+}
+
+/** The measured books a trail calibrates against — the whole book's, never a cut's (none is kept through the day) */
+let booksOf: (t: string) => readonly FeedBook[] = () => [];
+/** levels.ts hands in its measured books (kept apart so this module never imports the page's poll machinery) */
+export function setMeasuredSource(fn: (t: string) => readonly FeedBook[]): void {
+  booksOf = fn;
+}
 
 function work() {
   timer = null;
@@ -621,21 +736,17 @@ function work() {
   const t0 = performance.now();
   let more = false;
   for (const s of trails.values()) {
-    if (!subs.get(s.t)?.size) continue;
-    const chain = s.chain;
+    if (!subs.get(s.key)?.size) continue;
+    const chain = chainFor(s);
     if (!chain) continue;
-    const g = genOf(chain);
-    const today = dayBars(s.bars, s.day);
     let did = false;
-    for (const b of today) {
+    for (const b of dayBars(s.bars, s.day)) {
       const have = s.raw.get(b.time);
-      if (have && have.spot === b.close && gen.get(have) === g) continue;
+      /* a minute is priced once; only the forming bar, whose close still moves, is priced again */
+      if (have && have.spot === b.close) continue;
       const tS = performance.now();
       /* the minute's middle is its clock: the 15:59 bar still holds the day's own expiry */
-      const col = rebuildColumn(chain, b.close, b.time * 1000 + 30_000, b.time);
-      gen.set(col, g);
-      s.raw.set(b.time, col);
-      s.calSnaps.delete(b.time);
+      s.raw.set(b.time, rebuildColumn(chain, b.close, b.time * 1000 + 30_000, b.time));
       s.cost.minutes++;
       s.cost.ms += performance.now() - tS;
       did = true;
@@ -644,77 +755,101 @@ function work() {
         break;
       }
     }
-    const close = closeOf(s.day);
-    const afterClose = !!s.book && s.book.at >= close;
-    /* a calibration made while the session was open is kept past the close; without one, the book after it is read the
-       after-close way (calibrate) */
-    const keepOpen = afterClose && !!s.cal && s.cal.at < close && s.calGen === g;
-    if (s.book && !keepOpen && (!s.cal || s.cal.at !== s.book.at || s.calGen !== g) && nyIsoDate(s.book.at) === s.day) {
-      const tS = performance.now();
-      s.cal = calibrate(chain, s.book, { afterClose });
-      s.calGen = g;
-      s.calSnaps.clear();
-      s.cost.ms += performance.now() - tS;
-      did = true;
-    }
     if (did) rebuildOut(s);
     if (more) break;
   }
   if (more) schedule();
 }
 
+/** The calibration a rebuilt minute takes: the newest measured book at or before it (none before the first) */
+function calFor(s: NameTrail, chain: PreparedChain, books: readonly FeedBook[], clockMs: number): Calibration | null {
+  let book: FeedBook | null = null;
+  for (const b of books) {
+    if (b.at <= clockMs) book = b;
+    else break;
+  }
+  if (!book) return null;
+  let cal = s.cals.get(book.at);
+  if (!cal) {
+    const tS = performance.now();
+    cal = calibrate(chain, book, { afterClose: book.at >= closeOf(s.day) });
+    s.cals.set(book.at, cal);
+    s.cost.ms += performance.now() - tS;
+  }
+  return cal;
+}
+
 /** The field for the chart: the sessions before, today's rebuilt minutes, and the books read in their own minutes */
 function rebuildOut(s: NameTrail) {
   const t0 = performance.now();
-  const sessions = sessionsOf(s.bars);
   const out: GexSnapshot[] = [];
-  /* the sessions before: UW's book for the date, held through its minutes */
-  for (const [date, list] of sessions) {
-    if (date >= s.day) continue;
-    const b = s.past.get(date);
-    if (!b || typeof b === 'string') continue;
-    let made = s.pastSnaps.get(date);
-    if (!made || made.n !== list.length) {
-      made = { n: list.length, snaps: list.map(bar => pastSnapshot(b, bar.close, bar.time)) };
-      s.pastSnaps.set(date, made);
+  /* the sessions before: UW's book for the date, held through its minutes (the whole book only) */
+  if (!s.cut) {
+    const past = pastOf(s.t);
+    for (const [date, list] of sessionsOf(s.bars)) {
+      if (date >= s.day) continue;
+      const b = past.get(date);
+      if (!b || typeof b === 'string') continue;
+      let made = s.pastSnaps.get(date);
+      if (!made || made.n !== list.length) {
+        made = {
+          n: list.length,
+          snaps: list.map(bar => {
+            const snap = pastSnapshot(b, bar.close, bar.time);
+            snap.spot = bar.close;
+            snap.rebuilt = true;
+            return mark(snap, { kind: 'held', model: TRAIL_MODEL.version });
+          }),
+        };
+        s.pastSnaps.set(date, made);
+      }
+      out.push(...made.snaps);
     }
-    out.push(...made.snaps);
   }
-  /* today: the rebuilt minutes on UW's level, a minute this terminal read standing as read */
+  /* today: a minute read stands as read; every other is rebuilt, scaled to the newest book read at or before it */
+  const reads = s.cut ? [] : s.reads;
   const readMin = new Set<number>();
-  for (const r of s.reads) readMin.add(Math.floor(r.time / 60));
-  if (s.cal) {
+  for (const r of reads) readMin.add(Math.floor(r.time / 60));
+  const chain = chainFor(s);
+  const books = s.cut ? [] : booksOf(s.t);
+  if (chain) {
     for (const col of s.raw.values()) {
       if (readMin.has(Math.floor(col.time / 60))) continue;
-      let snap = s.calSnaps.get(col.time);
+      const cal = calFor(s, chain, books, col.time * 1000 + 30_000);
+      const id = `${col.time}|${col.spot}|${cal?.at ?? 0}`;
+      let snap = s.made.get(id);
       if (!snap) {
-        snap = calibratedSnapshot(col, s.cal);
-        s.calSnaps.set(col.time, snap);
+        snap = cal ? calibratedSnapshot(col, cal) : uncalibratedSnapshot(col);
+        snap.spot = col.spot;
+        snap.rebuilt = true;
+        mark(snap, { kind: 'rebuilt', calAt: cal?.at, model: TRAIL_MODEL.version });
+        s.made.set(id, snap);
       }
       out.push(snap);
     }
   }
-  for (const r of s.reads) out.push(r);
+  for (const r of reads) out.push(metas.has(r) ? r : mark(r, { kind: 'measured', model: TRAIL_MODEL.version }));
   out.sort((a, b) => a.time - b.time);
   s.out = out;
-  s.full = !!s.cal && s.raw.size > 0;
+  s.full = s.raw.size > 0 || out.some(x => metas.get(x)?.kind === 'held');
   s.cost.ms += performance.now() - t0;
-  ring(s.t);
+  ring(s.key);
 }
 
-function stateOf(t: string): NameTrail {
+function stateOf(t: string, cut: string | null): NameTrail {
   const day = nyIsoDate();
-  let s = trails.get(t) as NameTrail | undefined;
+  const key = `${t}|${cut ?? 'all'}`;
+  let s = trails.get(key);
   if (!s || s.day !== day) {
-    s = { t, day, bars: [], reads: [], book: null, chain: null, chainAt: 0, chainState: 'idle', raw: new Map(), cal: null, calGen: 0, calSnaps: new Map(), past: new Map(), pastSnaps: new Map(), out: [], full: false, cost: { ms: 0, calls: 0, minutes: 0 } };
-    trails.set(t, s);
+    s = { key, t, day, cut, bars: [], reads: [], raw: new Map(), cals: new Map(), made: new Map(), pastSnaps: new Map(), out: [], full: false, cost: { ms: 0, calls: 0, minutes: 0 } };
+    trails.set(key, s);
   }
   return s;
 }
 
-/** Hand a name's inputs to its field: the bars, the books read, the newest book */
-function feed(t: string, bars: readonly Candle[], reads: readonly GexSnapshot[], book: FeedBook | null) {
-  const s = stateOf(t);
+/** Hand a name's inputs to its field: the bars and the books read */
+function feed(t: string, cut: string | null, bars: readonly Candle[], reads: readonly GexSnapshot[]) {
+  const s = stateOf(t, cut);
   let changed = false;
   if (s.bars !== bars) {
     s.bars = bars;
@@ -724,14 +859,17 @@ function feed(t: string, bars: readonly Candle[], reads: readonly GexSnapshot[],
     s.reads = reads;
     changed = true;
   }
-  if (book && s.book !== book) {
-    s.book = book;
-    changed = true;
-  }
   if (hidden()) return;
+  const c = chainOf(t, s.day);
   const hasToday = dayBars(s.bars, s.day).length > 0;
-  const due = s.chainState === 'idle' || (s.chainState !== 'loading' && nySessionPhase() === 'open' && Date.now() - s.chainAt > CHAIN_REFRESH_MS) || (s.chainState === 'failed' && Date.now() - s.chainAt > 5 * 60_000);
-  if (hasToday && due) void loadChain(s);
+  const due =
+    c.state === 'idle' ||
+    (c.state === 'ok' && nySessionPhase() === 'open' && Date.now() - c.at > CHAIN_REFRESH_MS) ||
+    (c.state === 'failed' && Date.now() - c.at > 5 * 60_000);
+  if (hasToday && due) {
+    const before = c.calls;
+    void loadChain(t, c, s.day).then(() => (s.cost.calls += c.calls - before));
+  }
   pumpPast(s);
   if (changed) {
     rebuildOut(s);
@@ -743,42 +881,58 @@ const EMPTY: GexSnapshot[] = [];
 
 export interface TrailField {
   snaps: GexSnapshot[];
-  /** Today's minutes are rebuilt and on UW's level, or the sessions before are in */
+  /** Today's minutes are rebuilt, or the sessions before are in */
   full: boolean;
   /** The chain could not be read — the field is the books read, and the sessions before */
   chainFailed: boolean;
 }
 
 /**
- * Terrain's strike field on the feed: the sessions before (UW's book for each date), today's minutes rebuilt from the
- * chain and calibrated to UW's newest book, and the books this terminal read in their own minutes — oldest first.
- * `on` false (the house's market, an index) asks nothing and hands back the books read as they are.
+ * Terrain's strike field on the feed: the sessions before (UW's book for each date, held), today's minutes rebuilt from
+ * the chain and scaled to the newest book read at or before each, and the books read in their own minutes — oldest
+ * first. `cut` is one listed date, or null for every expiry. `on` false (the house's market, an index) asks nothing
+ * and hands back the books read as they are.
  */
-export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Candle[] | null, reads: readonly GexSnapshot[], book: FeedBook | null): TrailField {
+export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Candle[] | null, reads: readonly GexSnapshot[], cut: string | null = null): TrailField {
   const t = ticker.toUpperCase();
   const live = on && !!t && !!bars;
+  const key = `${t}|${cut ?? 'all'}`;
   useEffect(() => {
     if (!live || !bars) return;
-    feed(t, bars, reads, book);
-  }, [live, t, bars, reads, book]);
+    feed(t, cut, bars, reads);
+  }, [live, t, cut, bars, reads]);
   const snaps = useSyncExternalStore(
     fn => {
-      const set = subs.get(t) ?? new Set();
+      const set = subs.get(key) ?? new Set();
       set.add(fn);
-      subs.set(t, set);
+      subs.set(key, set);
       if (live) schedule();
       return () => set.delete(fn);
     },
-    () => (live ? trails.get(t)?.out ?? EMPTY : EMPTY)
+    () => (live ? trails.get(key)?.out ?? EMPTY : EMPTY)
   );
-  const s = live ? trails.get(t) : undefined;
   if (!live) return { snaps: reads as GexSnapshot[], full: false, chainFailed: false };
-  const full = !!s && (s.full || [...s.past.values()].some(v => typeof v !== 'string'));
-  return { snaps: snaps.length ? snaps : (reads as GexSnapshot[]), full, chainFailed: s?.chainState === 'failed' };
+  const s = trails.get(key);
+  const c = chains.get(`${t}|${nyIsoDate()}`);
+  return { snaps: snaps.length || cut ? snaps : (reads as GexSnapshot[]), full: !!s?.full, chainFailed: c?.state === 'failed' };
 }
 
 /** What a name's field has cost so far (the checks read it off window.__slayerTrail) */
-export function trailCost(ticker: string): NameTrail['cost'] | null {
-  return trails.get(ticker.toUpperCase())?.cost ?? null;
+export function trailCost(ticker: string, cut: string | null = null): NameTrail['cost'] | null {
+  return trails.get(`${ticker.toUpperCase()}|${cut ?? 'all'}`)?.cost ?? null;
 }
-if (typeof window !== 'undefined') (window as unknown as { __slayerTrail?: unknown }).__slayerTrail = { cost: trailCost, size: (t: string) => trails.get(t.toUpperCase())?.out.length ?? 0 };
+if (typeof window !== 'undefined')
+  (window as unknown as { __slayerTrail?: unknown }).__slayerTrail = {
+    cost: trailCost,
+    size: (t: string) => trails.get(`${t.toUpperCase()}|all`)?.out.length ?? 0,
+    kinds: (t: string) => {
+      const out = trails.get(`${t.toUpperCase()}|all`)?.out ?? [];
+      const n: Record<string, number> = {};
+      for (const x of out) {
+        const k = metas.get(x)?.kind ?? 'house';
+        n[k] = (n[k] ?? 0) + 1;
+      }
+      return n;
+    },
+    model: TRAIL_MODEL,
+  };

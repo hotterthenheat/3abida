@@ -2,6 +2,8 @@ import { HEAT_MODE, heatRampColor, heatRampColorFor } from './heatmap';
 import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
+import { pickFlip, pickWalls } from '../../core/walls';
+import { nyClock } from '../../core/nyTime';
 
 /*
   Exposure nodes — the ORIGINAL trail form, back by request (Noah,
@@ -72,6 +74,42 @@ interface Column {
   top: Bead[];
   /** Every strike — only consulted for a focused strike outside the top */
   all: Map<number, Bead>;
+  /** Rebuilt or held, not a book read as it stood — its beads draw a step quieter */
+  rebuilt: boolean;
+  /* THIS MOMENT'S OWN LEVELS (2026-10-13): the flip and the walls of the column's own book, against its own price —
+     core/walls.ts pickFlip (the sign change nearest the price; null where the book never changes sign: a gap, never the
+     last one carried) and pickWalls */
+  flip: number | null;
+  cw: number | null;
+  pw: number | null;
+}
+
+/* REBUILT BEADS, A STEP QUIETER (2026-10-13): a measured moment (a book read as it stood, or the house's own field)
+   draws as ever; a rebuilt one (data/feed/trailField.ts) at 78% of the core's alpha and with a halo a hairline
+   tighter — the same inks, so the field reads as one, and a reader who looks can tell them apart. */
+const REBUILT_CORE = 0.78;
+const REBUILT_HALO_W = 1.0;
+const REBUILT_HALO_H = 1.6;
+
+/* A WALL THAT MOVES (2026-10-13): a chip at the moment the call or put wall changes strike — "CW 780 → 785 · 11:42" —
+   counted once the new strike has held three moments (a wall trading places with its neighbour for a moment is not a
+   move), the newest few on screen. */
+const WALL_HOLD = 3;
+const WALL_CHIPS = 3;
+
+/** What sits under the pointer on the field — the hover card's words come off it */
+export interface BeadHit {
+  strike: number;
+  time: number;
+  value: number;
+  /** Its share of the moment's book, 0–1 */
+  share: number;
+  /** Its value at the day's 09:30 moment, when the field holds one */
+  open: number | null;
+  rebuilt: boolean;
+  snap: GexSnapshot;
+  x: number;
+  y: number;
 }
 
 /** The focused level's ink: the focus silver (the house accent, the lime until
@@ -241,6 +279,7 @@ class TrailsPaneRenderer {
       const cores = new Map<string, Path2D>();
       const halos = new Map<string, Path2D>();
       const flipPath = new Path2D();
+      const flipKPath = new Path2D();
       let flipDrawn = false;
       const pathFor = (map: Map<string, Path2D>, key: string) => {
         let p = map.get(key);
@@ -269,16 +308,17 @@ class TrailsPaneRenderer {
         const x = slots > 1 ? xBar - halfW + ((slot / stride + 0.5) / drawnSlots) * barSpacing : xBar;
         const cx = x * hr;
 
-        // The flip: ONE dotted blue line at TODAY'S flip — a tick per column
-        // in the field's grammar, never a solid side line
-        if (src.flipPrice != null) {
-          const fy = series.priceToCoordinate(src.flipPrice);
+        // The flip: a tick per column in the field's grammar, never a solid side line — EACH COLUMN'S OWN flip
+        // (2026-10-13), off its own book; a column whose book never changes sign has none, and the trail gaps there
+        if (col.flip != null) {
+          const fy = series.priceToCoordinate(col.flip);
           if (fy !== null) {
             /* Taller and near-continuous (Noah, 2026-08-29: "more noticable
                ... not color wise") — 90% slot coverage keeps it reading as a
                dashed rule rather than a row of crumbs. */
             const w = (barSpacing / drawnSlots) * 0.9 * hr;
-            flipPath.rect(cx - w / 2, fy * vr - 1.3 * vr, w, 2.6 * vr);
+            const onK = supreme != null && Math.abs(col.flip - supreme) < 1e-6;
+            (onK ? flipKPath : flipPath).rect(cx - w / 2, fy * vr - 1.3 * vr, w, 2.6 * vr);
             flipDrawn = true;
           }
         }
@@ -304,6 +344,7 @@ class TrailsPaneRenderer {
           // Translucent on purpose — the tape reads THROUGH the ribbon
           let core = 0.16 + s * 0.5;
           let halo = 0.04 + s * 0.14;
+          if (col.rebuilt && !isFocus) core *= REBUILT_CORE;
           if (focus != null && !isFocus) {
             core *= 0.3; // the field steps back
             halo *= 0.3;
@@ -346,14 +387,15 @@ class TrailsPaneRenderer {
           // The halo: wider and taller, faint — what makes the ribbon soft.
           // Gated on real pixels too: a halo around a sub-pixel bead is
           // path-building with no visible return.
-          if (t > 0.2 && ry * 1.9 > 2.2 * vr) {
-            const hx = rx * 1.15;
+          const haloH = col.rebuilt ? REBUILT_HALO_H : 1.9;
+          if (t > 0.2 && ry * haloH > 2.2 * vr) {
+            const hx = rx * (col.rebuilt ? REBUILT_HALO_W : 1.15);
             const p = pathFor(halos, `${inkKey}|${Math.round(halo * 40)}`);
             if (round) {
               p.moveTo(cx + hx, yc);
-              p.ellipse(cx, yc, hx, ry * 1.9, 0, 0, Math.PI * 2);
+              p.ellipse(cx, yc, hx, ry * haloH, 0, 0, Math.PI * 2);
             } else {
-              p.rect(cx - hx, yc - ry * 1.9, hx * 2, ry * 3.8);
+              p.rect(cx - hx, yc - ry * haloH, hx * 2, ry * haloH * 2);
             }
           }
           // The core: a slot-wide bead whose height is this moment's strength
@@ -404,15 +446,85 @@ class TrailsPaneRenderer {
              line the whole map hinges on, and under the beads it spent half
              its length buried in whatever band it crossed. */
           if (flipDrawn) {
-            const flipOnSupreme = supreme != null && src.flipPrice != null && Math.abs(src.flipPrice - supreme) < 1e-6;
-            bctx.fillStyle = paper ? rgba(flipOnSupreme ? paper.supreme : paper.flip, 0.85) : flipOnSupreme ? FLIPK_RGBA : FLIP_RGBA;
+            bctx.fillStyle = paper ? rgba(paper.flip, 0.85) : FLIP_RGBA;
             bctx.fill(flipPath);
+            bctx.fillStyle = paper ? rgba(paper.supreme, 0.85) : FLIPK_RGBA;
+            bctx.fill(flipKPath);
           }
           this.bmp = bmp;
           this.cacheKey = key;
         }
       }
       if (this.bmp) ctx.drawImage(this.bmp, 0, 0);
+
+      // ---- the walls' moves: a chip where a wall changed strike and held --------------------------------------------
+      {
+        type Move = { kind: 'CW' | 'PW'; from: number; to: number; time: number; i: number };
+        const moves: Move[] = [];
+        for (const kind of ['CW', 'PW'] as const) {
+          let held: number | null = null;
+          let cand: number | null = null;
+          let candAt = -1;
+          let run = 0;
+          for (let ci = first; ci < last; ci++) {
+            const c = src.columnAt(ci);
+            const w = kind === 'CW' ? c.cw : c.pw;
+            if (w == null) continue;
+            if (held == null) {
+              held = w;
+              continue;
+            }
+            if (w === held) {
+              cand = null;
+              run = 0;
+              continue;
+            }
+            if (w !== cand) {
+              cand = w;
+              candAt = ci;
+              run = 1;
+            } else run++;
+            if (run >= WALL_HOLD && cand != null) {
+              moves.push({ kind, from: held, to: cand, time: src.columnAt(candAt).time, i: candAt });
+              held = cand;
+              cand = null;
+              run = 0;
+            }
+          }
+        }
+        moves.sort((a, b) => b.time - a.time);
+        const keep = moves.slice(0, WALL_CHIPS);
+        if (keep.length) {
+          const px = Math.max(11, src.labelPx);
+          ctx.font = `${Math.round(px * vr)}px ${FONT_SANS}`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          const boxes: { l: number; r: number; t: number; b: number }[] = [];
+          for (const m of keep) {
+            const bucket = Math.floor(m.time / barSec) * barSec;
+            const xBar = ts.timeToCoordinate(bucket as Time);
+            const y = series.priceToCoordinate(m.to);
+            if (xBar === null || y === null) continue;
+            const fmt = (k: number) => (k % 1 === 0 ? k.toFixed(0) : k.toFixed(2));
+            const text = `${m.kind} ${fmt(m.from)} → ${fmt(m.to)} · ${nyClock(m.time * 1000)}`;
+            const w = ctx.measureText(text).width;
+            const padX = 4 * hr;
+            const full = (px + 5) * vr;
+            let l = xBar * hr + 3 * hr;
+            if (l + w + padX * 2 > (wCss - 4) * hr) l = xBar * hr - 3 * hr - w - padX * 2;
+            /* above its line, off any chip placed already */
+            let top = y * vr - full - 3 * vr;
+            for (const b of boxes) if (l < b.r && l + w + padX * 2 > b.l && top < b.b && top + full > b.t) top = b.t - full - 2 * vr;
+            if (top < 0) continue;
+            boxes.push({ l, r: l + w + padX * 2, t: top, b: top + full });
+            const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
+            ctx.fillStyle = paper ? rgba(paper.pad, 0.86) : 'rgba(5,5,5,0.72)';
+            ctx.fillRect(l, top, w + padX * 2, full);
+            ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.95)`;
+            ctx.fillText(text, l + padX, top + full / 2);
+          }
+        }
+      }
 
       // ---- axis-side strength labels for the heaviest strikes ---------------
       const latest = src.snapshots[src.snapshots.length - 1];
@@ -621,7 +733,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   /** Bumped on every data hand-off — the renderer's path cache keys on it. */
   rev = 0;
   /** Built columns by snapshot identity — see setData's incremental note. */
-  private colCache = new WeakMap<GexSnapshot, { time: number; top: Bead[]; all: Map<number, Bead> }>();
+  private colCache = new WeakMap<GexSnapshot, Column>();
   private colRef = -1;
 
   /** The Greek the beads draw — see TrailGreek */
@@ -701,9 +813,91 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         .slice(0, TOP_N)
         .map(l => all.get(l.strike)!)
         .filter(b => b.t >= MIN_STRENGTH);
-      col = { time: snap.time, top, all };
+      /* the moment's own price — the snapshot's, else its window's middle (the house's window is centred on it) */
+      const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
+      const flip = snap.levels.length > 1 ? pickFlip(snap.levels, spot, l => l.value) : null;
+      const walls = pickWalls(snap.levels, spot, l => l.value);
+      col = { time: snap.time, top, all, rebuilt: !!snap.rebuilt, flip, cw: walls.callWall, pw: walls.putWall };
       this.colCache.set(snap, col);
     }
     return col;
   }
+
+  /**
+   * The bead under a point on the pane (CSS px), or null — the moment whose slot holds x, and the strike drawn within a
+   * few pixels of y among that moment's drawn beads. Read by the chart's hover card.
+   */
+  beadAt(x: number, y: number): BeadHit | null {
+    if (!this.enabled || !this.chart || !this.series || !this.snapshots.length || this.ref <= 0) return null;
+    const ts = this.chart.timeScale();
+    const t = ts.coordinateToTime(x);
+    if (t == null) return null;
+    const bar = Number(t);
+    const snaps = this.snapshots;
+    /* the moments inside the bar under x; the one whose slot is nearest x */
+    let lo = 0;
+    let hi = snaps.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (snaps[m].time < bar) lo = m + 1;
+      else hi = m;
+    }
+    if (lo >= snaps.length || snaps[lo].time >= bar + this.barSec) return null;
+    const barX = ts.timeToCoordinate(bar as Time);
+    const spacing = ts.options().barSpacing ?? 6;
+    const slots = Math.max(1, Math.round(this.barSec / Math.max(1, this.stepSec)));
+    let i = lo;
+    if (slots > 1 && barX !== null) {
+      const slot = Math.max(0, Math.min(slots - 1, Math.floor(((x - (barX - spacing / 2)) / spacing) * slots)));
+      const want = bar + (slot * this.barSec) / slots;
+      while (i + 1 < snaps.length && snaps[i + 1].time <= want && snaps[i + 1].time < bar + this.barSec) i++;
+    }
+    const col = this.columnAt(i);
+    let best: Bead | null = null;
+    let bestD = 6;
+    for (const b of col.top) {
+      const by = this.series.priceToCoordinate(b.strike);
+      if (by === null) continue;
+      const d = Math.abs(by - y);
+      if (d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    if (!best) return null;
+    const snap = snaps[i];
+    const lvl = snap.levels.find(l => l.strike === best!.strike);
+    if (!lvl) return null;
+    const value = this.valueOf(lvl);
+    const total = snap.levels.reduce((s, l) => s + Math.abs(this.valueOf(l)), 0);
+    /* the day's 09:30 moment: the first at or after New York's open on the same New York day */
+    const day = nyDayKey(snap.time);
+    let open: number | null = null;
+    for (let k = 0; k <= i; k++) {
+      const sk = snaps[k];
+      if (nyDayKey(sk.time) !== day || nyMinuteOf(sk.time) < 570) continue;
+      const lo2 = sk.levels.find(l => l.strike === best!.strike);
+      open = lo2 ? this.valueOf(lo2) : null;
+      break;
+    }
+    return { strike: best.strike, time: snap.time, value, share: total > 0 ? Math.abs(value) / total : 0, open, rebuilt: !!snap.rebuilt, snap, x, y: this.series.priceToCoordinate(best.strike) ?? y };
+  }
 }
+
+/* New York's day and minute of a moment, for the hover's 09:30 column */
+const nyFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: 'numeric' });
+const nyCache = new Map<number, { day: string; minute: number }>();
+function nyOf(timeSec: number): { day: string; minute: number } {
+  const h = Math.floor(timeSec / 3600);
+  let p = nyCache.get(h);
+  if (!p) {
+    const r: Record<string, string> = {};
+    for (const x of nyFmt.formatToParts(new Date(h * 3600_000))) if (x.type !== 'literal') r[x.type] = x.value;
+    p = { day: `${r.year}-${r.month}-${r.day}`, minute: (Number(r.hour) % 24) * 60 + Number(r.minute) };
+    if (nyCache.size > 5000) nyCache.clear();
+    nyCache.set(h, p);
+  }
+  return { day: p.day, minute: p.minute + Math.floor((timeSec - h * 3600) / 60) };
+}
+const nyDayKey = (timeSec: number) => nyOf(timeSec).day;
+const nyMinuteOf = (timeSec: number) => nyOf(timeSec).minute;

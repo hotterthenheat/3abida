@@ -61,6 +61,12 @@ export interface GexLevel {
 export interface GexSnapshot {
   time: number;
   levels: GexLevel[];
+  /** The price the moment was figured at — each column's own flip and walls are read against it (optional: an older
+      snapshot reads its window's middle) */
+  spot?: number;
+  /** A moment rebuilt from the chain or held from a date's book, not a book read as it stood (data/feed/trailField.ts):
+      its beads draw a step quieter. Absent on a measured book and on the house's own field. */
+  rebuilt?: boolean;
 }
 
 export interface Indicators {

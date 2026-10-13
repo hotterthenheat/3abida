@@ -49,3 +49,6 @@ public/tiles/
 # graphify's knowledge graph of this repo (installed 2026-09-19): kept out of git until it has earned a place
 graphify-out/
 
+
+# The field's recorder (server/fieldRecorder.ts): a day of UW books a watched name, deleted as the day turns
+.feed-cache/

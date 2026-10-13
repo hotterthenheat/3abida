@@ -330,7 +330,7 @@ export interface UwStrikeExposure {
 }
 
 /** One row of a name's exposure by strike — the same row for the whole book and for one expiry */
-const strikeExposure = (r: Record<string, unknown>): UwStrikeExposure => ({
+export const strikeExposure = (r: Record<string, unknown>): UwStrikeExposure => ({
   strike: num0(r.strike),
   price: num(r.price),
   time: ms(r.time),

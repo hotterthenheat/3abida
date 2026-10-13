@@ -42,7 +42,10 @@ import {
   INTRADAY_MAX_MINUTES,
   type Timeframe,
 } from '../../data/timeframe';
-import { GexTrailsPrimitive, trailPaperFrom } from './gexNodesPrimitive';
+import { GexTrailsPrimitive, trailPaperFrom, type BeadHit } from './gexNodesPrimitive';
+import { trailMeta } from '../../data/feed/trailField';
+import { pct, usdCompact, usdCompactSigned } from '../../core/format';
+import { nyClock as nyClockOf } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { alertMarket } from './alertMarket';
@@ -1232,6 +1235,9 @@ const StrikeChart = ({
   const eventsCalRef = useRef<{ key: string; earnings: TapeEarnings | null; macro: MacroDate[]; todayIso: string } | null>(null);
   /** The hovered marker's card. */
   const [eventCard, setEventCard] = useState<{ e: MarketEvent; x: number } | null>(null);
+  /* THE FIELD'S HOVER (2026-10-13): the bead under the pointer — its strike, New York's minute, its net, its share of
+     the moment's book, its change since the 09:30 moment, and whether the moment was measured or rebuilt */
+  const [beadCard, setBeadCard] = useState<BeadHit | null>(null);
   const levelRafRef = useRef(0);
   /** Time of that bar, and the seconds one bar covers — what the runway is
       built from, kept in refs so the time-scale subscription can read them
@@ -4643,8 +4649,14 @@ const StrikeChart = ({
              cannot be hovered and the card wants real type. Cheap: one hit
              test per move, state written only when the answer changes. */
           const prim = eventsPrimRef.current;
-          if (!prim?.data) return;
           const rect = e.currentTarget.getBoundingClientRect();
+          /* the field's bead under the pointer — written only when the bead changes */
+          const tr = trailsRef.current;
+          const plotW = chartRef.current?.paneSize(0).width ?? rect.width;
+          const px = e.clientX - rect.left;
+          const bead = tr && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
+          setBeadCard(prev => (bead === null ? (prev === null ? prev : null) : prev && prev.strike === bead.strike && prev.time === bead.time ? prev : bead));
+          if (!prim?.data) return;
           const plotH = chartRef.current?.paneSize(0).height ?? rect.height;
           const hit = prim.eventAtX(e.clientX - rect.left, e.clientY - rect.top, plotH);
           prim.setHovered(hit);
@@ -4658,6 +4670,7 @@ const StrikeChart = ({
         onMouseLeave={() => {
           eventsPrimRef.current?.setHovered(null);
           setEventCard(null);
+          setBeadCard(null);
         }}
       >
         {picking && pickFade && (
@@ -5233,6 +5246,32 @@ const StrikeChart = ({
               : `live only · from ${new Date(liveFrom * 1000).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })}`}
           </span>
         )}
+
+        {/* THE FIELD'S HOVER CARD (2026-10-13) — the event card's own style, beside the bead */}
+        {beadCard && !eventCard && (() => {
+          const meta = trailMeta(beadCard.snap);
+          const kind = meta?.kind === 'rebuilt' ? (meta.calAt ? `Rebuilt · scaled to the ${nyClockOf(meta.calAt)} read` : 'Rebuilt · before the day\'s first read') : meta?.kind === 'held' ? 'That day\'s book, held' : beadCard.rebuilt ? 'Rebuilt' : 'Measured';
+          const w = containerRef.current?.clientWidth ?? 400;
+          const k = beadCard.strike % 1 === 0 ? beadCard.strike.toFixed(0) : beadCard.strike.toFixed(2);
+          return (
+            <div
+              className="absolute z-30 pointer-events-none border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[260px]"
+              style={{ top: Math.max(4, beadCard.y - 64), ...(beadCard.x > w - 270 ? { right: Math.max(4, w - beadCard.x + 10) } : { left: beadCard.x + 10 }) }}
+              data-bead-card
+            >
+              <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
+                {k} · {nyClockOf(beadCard.time * 1000, { zone: true })}
+              </div>
+              <div className="font-mono text-[11px] text-textSecondary mt-0.5 tnum whitespace-nowrap">
+                Net {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book
+              </div>
+              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                Since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
+              </div>
+              <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">{kind}</div>
+            </div>
+          );
+        })()}
 
         {/* T-11's hover card — floats above the lane at the marker's x,
             flipping to the left of it near the right edge. */}
