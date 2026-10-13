@@ -180,8 +180,14 @@ try {
       const { client: c2, asked: asked2 } = fakeClient();
       const bf2 = createFieldBackfill(c2, { now, root: tapeRoot });
       const one = sym(600, 'C');
-      const built = await bf2.build('SPY', DAY, { [one]: [{ start_time: `${DAY}T13:30:00.000Z`, iv_low: '0.2', iv_high: '0.2' }, { start_time: `${DAY}T13:33:00.000Z`, iv_low: '0.24', iv_high: '0.26' }] });
+      const tapeDay = { day: DAY, contracts: { SPY: { [one]: [{ start_time: `${DAY}T13:30:00.000Z`, iv_low: '0.2', iv_high: '0.2' }, { start_time: `${DAY}T13:33:00.000Z`, iv_low: '0.24', iv_high: '0.26' }] }, SPX: { [one]: [{ start_time: `${DAY}T13:31:00.000Z`, iv_low: '0.3', iv_high: '0.3' }] } }, prices: { SPX: [[Date.parse(`${DAY}T13:30:00Z`), 600, 600.4, 599.8, 600.1, 40], [Date.parse(`${DAY}T13:31:00Z`), 600.1, 600.3, 599.9, 600.2, 35], [Date.parse(`${DAY}T19:59:00Z`), 601, 601.2, 600.8, 601.1, 20], [Date.parse(`${DAY}T20:10:00Z`), 601.1, 601.1, 601.1, 601.1, 2]] as [number, number, number, number, number, number][] }, prints: 0, kept: 0, canceled: 0, bytes: 0, seconds: 0 };
+      const built = await bf2.build('SPY', DAY, tapeDay);
       check('a session built from the tape says so, its ticks the tape’s, and asks no per-contract minutes of the vendor', built.vols === 'tape' && JSON.stringify(built.ticks[one]) === JSON.stringify([Date.parse(`${DAY}T13:30:00.000Z`), 0.2, Date.parse(`${DAY}T13:33:00.000Z`), 0.25]) && built.refused === 0 && !asked2.some(p => p.includes('/intraday')));
+      /* an index: no bars on the plan — its minutes are the tape's prints' underlying price, the regular session alone */
+      const before = asked2.length;
+      const spx = await bf2.build('SPX', DAY, tapeDay);
+      const askedBars = asked2.slice(before).some(p => p.includes('/ohlc/1m'));
+      check("an index's day is built on the tape's prices: three regular minutes as bars (the one past 4:00 pm left out), the open the first print's, no bar asked of the vendor", !askedBars && spx.bars.length === 3 && spx.bars[0].open === 600 && spx.bars[0].high === 600.4 && spx.bars[0].low === 599.8 && spx.bars[0].close === 600.1 && spx.bars.every(b => b.session === 'r') && spx.vols === 'tape');
     }
     check(`a day before ${TAPE_UNTIL} is the tape's, a day from it UW's minutes`, '2025-03-31' < TAPE_UNTIL && !('2025-04-01' < TAPE_UNTIL));
     const refused = await read('2023-01-03', ['SPY']);

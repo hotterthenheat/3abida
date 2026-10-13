@@ -43,7 +43,10 @@ const FRI = '2026-10-16';
 const at = (h: number, m: number, s = 0) => nyWallTime(2026, 10, 14, h, m) + s * 1000;
 const OPEN = at(9, 30);
 const STRIKES = [596, 597, 598, 599, 600, 601, 602, 603, 604];
-const occ = (exp: string, right: 'C' | 'P', k: number) => `SPY${exp.slice(2).replace(/-/g, '')}${right}${String(Math.round(k * 1000)).padStart(8, '0')}`;
+const occ = (exp: string, right: 'C' | 'P', k: number, root = 'SPY') => `${root}${exp.slice(2).replace(/-/g, '')}${right}${String(Math.round(k * 1000)).padStart(8, '0')}`;
+/** The name a path asks for — the fake answers that name's root, so an index watched beside SPY has contracts of its own */
+const rootOf = (path: string) => /\/api\/stock\/([A-Z]+)\//.exec(path)?.[1] ?? 'SPY';
+const withRoot = (sym: string, root: string) => root + sym.slice(3);
 const contracts = STRIKES.flatMap(k => [D, FRI].flatMap(exp => (['C', 'P'] as const).map(right => ({ sym: occ(exp, right, k), exp, right, k }))));
 const traded = (sym: string) => /C00(598|599|600|601|602)000$/.test(sym) || /P00(599|600|601)000$/.test(sym);
 /** The day's count: the calls heavier above 600, the puts below, so the column has a call wall and a put wall */
@@ -72,15 +75,26 @@ const client = {
       for (let k = 0; k < complete(); k++) rows.push({ start_time: iso(OPEN + k * 60_000), price: String(closeAt(k)), gamma_per_one_percent_move_oi: '1000000000', gamma_per_one_percent_move_vol: '200000000', gamma_per_one_percent_move_dir: '-300000000' });
       return ok(rows);
     }
+    /* the prints an index is priced off: the last three minutes' newest prints, newest first, the weekly root among them */
+    if (path.includes('/option-trades?')) {
+      const rows = [];
+      for (let k = complete() - 1; k >= Math.max(0, complete() - 3); k--) {
+        rows.push({ executed_at: iso(OPEN + k * 60_000 + 45_000), underlying_price: String(closeAt(k) + 0.05), underlying_symbol: 'SPXW' });
+        rows.push({ executed_at: iso(OPEN + k * 60_000 + 10_000), underlying_price: String(closeAt(k) - 0.05), underlying_symbol: 'SPX' });
+      }
+      return ok(rows);
+    }
     if (path.includes('/option-contracts?')) {
       const k = Math.max(0, complete() - 1);
-      return ok(page ? [] : contracts.map(c => ({ option_symbol: c.sym, open_interest: oiOf(c), implied_volatility: String(ivAt(c.sym, k)), last_tape_time: iso(now - 20_000), nbbo_bid: '1.00', nbbo_ask: '1.20', volume: traded(c.sym) ? complete() : 0 })));
+      const root = rootOf(path);
+      return ok(page ? [] : contracts.map(c => ({ option_symbol: withRoot(c.sym, root), open_interest: oiOf(c), implied_volatility: String(ivAt(c.sym, k)), last_tape_time: iso(now - 20_000), nbbo_bid: '1.00', nbbo_ask: '1.20', volume: traded(c.sym) ? complete() : 0 })));
     }
     if (path.includes('/option-chains?date=')) {
       const date = /date=([\d-]+)/.exec(path)![1];
       if (page) return ok([]);
-      if (date === D) return ok(contracts.map(c => ({ option_symbol: c.sym, expires: c.exp, strike: String(c.k), option_type: c.right === 'C' ? 'call' : 'put', implied_volatility: String(ivAt(c.sym, Math.max(0, complete() - 1))), open_interest: oiOf(c), volume: traded(c.sym) ? complete() : 0, last_tape_time: iso(now - 20_000) })));
-      if (date === SEED) return ok(contracts.map(c => ({ option_symbol: c.sym, expires: c.exp, strike: String(c.k), option_type: c.right === 'C' ? 'call' : 'put', implied_volatility: '0.20', open_interest: 100, volume: 50, last_tape_time: '2026-10-13T20:00:00Z' })));
+      const root = rootOf(path);
+      if (date === D) return ok(contracts.map(c => ({ option_symbol: withRoot(c.sym, root), expires: c.exp, strike: String(c.k), option_type: c.right === 'C' ? 'call' : 'put', implied_volatility: String(ivAt(c.sym, Math.max(0, complete() - 1))), open_interest: oiOf(c), volume: traded(c.sym) ? complete() : 0, last_tape_time: iso(now - 20_000) })));
+      if (date === SEED) return ok(contracts.map(c => ({ option_symbol: withRoot(c.sym, root), expires: c.exp, strike: String(c.k), option_type: c.right === 'C' ? 'call' : 'put', implied_volatility: '0.20', open_interest: 100, volume: 50, last_tape_time: '2026-10-13T20:00:00Z' })));
       return ok([]);
     }
     if (path.includes('/ohlc/1m')) {
@@ -92,7 +106,7 @@ const client = {
     }
     const intra = /\/option-contract\/([^/]+)\/intraday\?date=/.exec(path);
     if (intra) {
-      const sym = intra[1];
+      const sym = withRoot(intra[1], 'SPY');
       if (!traded(sym)) return ok([]);
       const rows = [];
       for (let k = 0; k < complete(); k++) rows.push({ start_time: iso(OPEN + k * 60_000), iv_low: String(ivAt(sym, k) - 0.001), iv_high: String(ivAt(sym, k) + 0.001) });
@@ -200,6 +214,25 @@ try {
   check("a row's reference is the renderer's for that column (beadScale.ts, one count)", shown2.every((r, i) => prim.columnAt(i).ref === r.ref));
   const scale = new RunningScale();
   check('and it runs forward: each row’s reference is the 85th percentile of the maxima up to it', shown2.every(r => scale.push(r.max) === r.ref));
+
+  /* AN INDEX ON ITS PRINTS (2026-10-13): the recorder builds SPX's minutes from its prints' underlying price — the
+     newest print's the close — and the final path takes those bars, UW serving none */
+  {
+    const recX = createFieldRecorder(client, { now: clock, root, backfill: bf, store });
+    now = at(9, 29, 30);
+    recX.serve('SPX');
+    await recX.settle();
+    for (let m = 31; m <= 51; m++) {
+      now = at(9, m, 10);
+      await recX.tick();
+      await recX.settle();
+    }
+    const shownX = store.readRows('SPX', D, 'shown');
+    const finalX = store.readRows('SPX', D, 'final');
+    const askedBarsX = asked.some(p => p.includes('/api/stock/SPX/ohlc'));
+    check(`an index's shown rows stand on its prints: ${shownX.length} minutes, each spot the minute's newest print (${shownX[0]?.spot}), no bar asked of the vendor`, shownX.length >= 18 && shownX.every(r => r.session === 'r' && Math.abs(r.spot - (closeAt(Math.round((r.m - OPEN) / 60_000)) + 0.05)) < 1e-9) && !askedBarsX);
+    check(`and its final rows come the same way (${finalX.length} minutes)`, finalX.length > 0 && finalX.every(r => Math.abs(r.spot - (closeAt(Math.round((r.m - OPEN) / 60_000)) + 0.05)) < 1e-9));
+  }
 
   /* 7 */
   const u = universeOf('SPY', D, store.inputsOf(past));

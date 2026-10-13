@@ -52,8 +52,7 @@ server.listen(port, lan ? '0.0.0.0' : '127.0.0.1', () => {
    up where it stopped (a session built is skipped). */
 const from = env.BACKFILL_FROM ?? '';
 if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
-  const INDICES = new Set(['SPX', 'SPXW', 'NDX', 'NDXP', 'RUT', 'RUTW', 'VIX', 'VIXW', 'XSP']);
-  const bnames = (env.BACKFILL_NAMES ?? names.filter(n => !INDICES.has(n)).join(','))
+  const bnames = (env.BACKFILL_NAMES ?? names.join(','))
     .split(',')
     .map(s => s.trim().toUpperCase())
     .filter(Boolean);
@@ -74,11 +73,9 @@ const nyMinuteNow = () => {
     if (x.type !== 'literal') p[x.type] = x.value;
   return { day: `${p.year}-${p.month}-${p.day}`, minute: (Number(p.hour) % 24) * 60 + Number(p.minute) };
 };
-const SCORED = new Set(['SPX', 'SPXW', 'NDX', 'NDXP', 'RUT', 'RUTW', 'VIX', 'VIXW', 'XSP']);
 let scoredDay = '';
 const score = async (why: string) => {
   for (const n of names) {
-    if (SCORED.has(n)) continue;
     try {
       const c = await handle.scorecard.run(n);
       console.log(`${stamp()} scorecard ${n} (${why}): ${c ? `${c.main.sessions} sessions, ${c.main.touches} touches; ${c.holdoutNote}` : 'nothing to score yet'}`);
@@ -87,7 +84,7 @@ const score = async (why: string) => {
     }
   }
 };
-for (const n of names) if (!SCORED.has(n) && !handle.scorecard.read(n)) void score('first run').then(() => undefined);
+for (const n of names) if (!handle.scorecard.read(n)) void score('first run').then(() => undefined);
 const nightly = setInterval(() => {
   const { day, minute } = nyMinuteNow();
   if (minute >= 16 * 60 + 5 && scoredDay !== day) {

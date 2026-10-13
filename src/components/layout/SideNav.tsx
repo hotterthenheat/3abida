@@ -49,6 +49,7 @@
 ==================================================
 */
 
+import { clock } from '../../core/nyTime';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation } from 'react-router-dom';
@@ -77,12 +78,13 @@ import { isCashIndex, useFeedBook } from '../../data/feed/levels';
    being asked it shows nothing. An index has no day state on UW's plan and is never asked (levels.ts isCashIndex): on
    every feed page it is the price its book was figured at, its change left off (2026-10-12 — the rail keeps a real price
    on every feed page; it read "—" off Pinpoint and Terrain). */
-function useRailQuote(ticker: string): { quote: { spot: number; changePct: number } | null; missing: boolean } {
+function useRailQuote(ticker: string): { quote: { spot: number; changePct: number; at?: number; source?: 'trade' | 'print'; stale?: boolean } | null; missing: boolean } {
   const path = useLocation().pathname;
   const src = pageSource(path, useFeedStatus());
   const house = useQuote();
   const index = isCashIndex(ticker);
-  const vendor = useFeedPrice(src === 'feed' && !index, ticker);
+  /* an index's price is the newest print's underlying (price.ts loadIndexPrint), its book's price the fallback */
+  const vendor = useFeedPrice(src === 'feed', ticker);
   const book = useFeedBook(src === 'feed' && (index || (vendor.answered && !vendor.price)), ticker);
   if (src === 'feed') {
     if (vendor.price) return { quote: vendor.price, missing: false };
@@ -195,6 +197,13 @@ const RailSubject = ({
       <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price title={missing ? NOT_IN_FEED : undefined}>
         {priceText}
       </span>
+      {quote?.source === 'print' && quote.at != null && (
+        /* THE PRINT'S TIME (the owner, 2026-10-13): an index is priced off its newest option print; older than two
+           minutes it is said stale */
+        <span className={`font-mono text-[11px] tnum ${quote.stale ? 'text-warn' : 'text-textMuted'}`} data-subject-print={quote.stale ? 'stale' : 'fresh'} title={quote.stale ? `From the newest print carrying a price, ${clock(quote.at)} — older than two minutes` : `From the newest print carrying a price, ${clock(quote.at)}`}>
+          {clock(quote.at)} print{quote.stale ? ' · stale' : ''}
+        </span>
+      )}
       {hasChange && (
         <span className={`font-mono text-[11px] tnum ${change >= 0 ? 'text-bull' : 'text-bear'}`} data-dir={dirOf(change)}>
           {changeText}

@@ -15,7 +15,7 @@ import {
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { useFeedPrice } from '../../data/feed/price';
-import { nyClock as nyClockAt } from '../../core/nyTime';
+import { nyClock as nyClockAt, clock as printClock } from '../../core/nyTime';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { expiryFor } from '../../core/calendar';
@@ -1184,7 +1184,7 @@ const Pane = ({
     return out;
   }, [onFeed, c0, c1, c2, c3, cb0, cb1, cb2, cb3, cd0, cd1, cd2, cd3]);
   /* the rail's own quote (one poll a name, price.ts) — the pane head, the ladder and the capsule print it (item 1) */
-  const fQuote = useFeedPrice(onFeed && !isCashIndex(ticker), ticker).price;
+  const fQuote = useFeedPrice(onFeed, ticker).price;
   const fDay = useMemo(() => (fQuote ? { price: fQuote.spot, changePct: fQuote.changePct } : null), [fQuote]);
   const fMoves = useFeedMoves(onFeed, ticker);
   const fDates = useFeedMaxPain(onFeed, ticker);
@@ -1932,6 +1932,11 @@ const Pane = ({
                   <span className="text-[11px] text-textMuted">{tf}</span>
                   <span className="text-[11px] text-textMuted" aria-hidden>·</span>
                   <SpotPrice value={levels.spot} className="font-mono text-[11px] font-semibold tnum text-textPrimary" />
+                  {fQuote?.source === 'print' && fQuote.at != null && (
+                    <span className={`text-[11px] tnum ${fQuote.stale ? 'text-warn' : 'text-textMuted'}`} data-pane-print={fQuote.stale ? 'stale' : 'fresh'} title={`The index is priced off its newest option print carrying a price, ${printClock(fQuote.at)}${fQuote.stale ? ' — older than two minutes' : ''}`}>
+                      {printClock(fQuote.at)} print{fQuote.stale ? ' · stale' : ''}
+                    </span>
+                  )}
                   {Number.isFinite(changePct) && (
                     <span className={`text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`}>
                       {up ? '+' : ''}

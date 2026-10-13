@@ -844,7 +844,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   BARE HELD RATE. How sure's "Track record" and the hover card on a wall or heaviest strike print the lines
   (levels.ts useTrackRecord, StrikeChart `recordLines`). SPX'S PRICE PASSED THE OWNER'S CHECK (six days, ≥ 99.23% of
   regular minutes within ±0.02% of the day's median SPX-tape ÷ SPY-close): SPX enters items 2 and 4 on the tape path,
-  and live its price is the newest SPX/SPXW print's underlying price with its print time, stale past two minutes.
+  and live its price is the newest SPX/SPXW print's underlying price with its print time, stale past two minutes —
+  built the same day: price.ts `loadIndexPrint` (the rail's and Terrain's head's "3:59 pm print · stale" label,
+  the alerts' watcher on the same price), the recorder's `readIndexBars` (an index's minutes off its prints, so the
+  store's rows stand for SPX), the backfill's bars from the tape's prints for an index on every day (`build(name,
+  day, tape)`), the tape reader keeping an index's contracts under the index. Terrain's SPX pane still draws no
+  candles (its bars are print-built on the server; drawing them on the pane is a follow-up).
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

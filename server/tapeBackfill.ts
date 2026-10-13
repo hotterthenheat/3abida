@@ -201,12 +201,12 @@ export function tapeReader(client: FeedClient, opts: { root?: string; log?: (lin
             bar[5]++;
           }
         }
-        if (index) continue;
         const iv = Number(f[ix.implied_volatility]);
         if (!Number.isFinite(iv) || !(iv > 0)) continue;
         const sym = f[ix.option_chain_id];
         const key = `${sym}|${m}`;
-        const mm = (byMinute[name] ??= new Map());
+        /* an index's contracts, its weekly root's too, under the index: the dated chain lists both roots */
+        const mm = (byMinute[index ?? name] ??= new Map());
         const cur = mm.get(key);
         if (!cur) mm.set(key, { lo: iv, hi: iv });
         else {

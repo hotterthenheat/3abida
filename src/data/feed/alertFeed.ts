@@ -39,7 +39,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Candle } from '../../types/market';
 import { noteRealPrice, REAL_PRICE_STALE_MS } from '../../components/gex/alertMarket';
 import { feedBookOnce, isCashIndex, type FeedBook } from './levels';
-import { isUnpriced, loadState } from './price';
+import { isUnpriced, loadIndexPrint, loadState, PRINT_STALE_MS } from './price';
 import { uwFlowRecent, uwNewsHeadlines, uwOhlc } from './uw';
 
 /** What one name's alerts read: which parts of the market to ask for */
@@ -118,6 +118,17 @@ async function round(needs: AlertNeeds[]): Promise<boolean> {
       if (r.ok && r.data.close !== null) {
         m.price = r.data.close;
         m.at = Date.now();
+        moved = true;
+      }
+    }
+    /* A CASH INDEX ON ITS PRINTS (2026-10-13): the newest print's underlying price (price.ts loadIndexPrint), the one
+       price the rail shows; the book's price stands only while no print within two minutes carries one */
+    if (isCashIndex(t) && due(`print:${t}`, PRICE_MS, now)) {
+      lastAsked.set(`print:${t}`, now);
+      const r = await loadIndexPrint(t);
+      if (r.ok && Date.now() - r.data.at <= PRINT_STALE_MS) {
+        m.price = r.data.spot;
+        m.at = r.data.at;
         moved = true;
       }
     }

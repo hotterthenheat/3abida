@@ -173,6 +173,8 @@ const occParts = (s: string) => {
 };
 
 const NAME_OK = /^[A-Z][A-Z0-9.]{0,9}$/;
+/** A cash index: no bars on the plan, its minutes off its prints */
+const INDEX_NAMES = new Set(['SPX', 'NDX', 'RUT', 'VIX']);
 /** The files gzipped in place as the day turns */
 const PRUNED = new Set(['books.jsonl', 'books60.jsonl', 'chain.jsonl', 'total.json', 'seed.json', 'shown.jsonl', 'final.jsonl']);
 /** Bars are read through the hours Terrain draws: 04:00 to 20:00 New York */
@@ -428,8 +430,34 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     }
   }
 
+  /** AN INDEX'S MINUTE OFF ITS PRINTS (2026-10-13 — the owner's check passed: the tape's per-print underlying against
+      SPY's bar close within ±0.02% of the day's median in 99.2% to 100% of regular minutes): UW serves no index bars,
+      so each minute's bar is the newest prints' underlying price — first, highest, lowest, last of the prints seen —
+      read every minute (the last five hundred prints, SPXW's among SPX's), the close the newest print's. */
+  async function readIndexBars(name: string, d: Day) {
+    const rows = await getRows(`/api/option-trades?ticker_symbol=${name}&limit=500`);
+    if (!rows) return;
+    for (const r of rows) {
+      const at = Date.parse(String(r.executed_at ?? ''));
+      const up = num(r.underlying_price);
+      if (!Number.isFinite(at) || up == null || !(up > 0)) continue;
+      const p = nyParts(at);
+      if (p.day !== d.day) continue;
+      const minute = Math.floor(at / 60_000) * 60;
+      const had = d.bars.get(minute);
+      const session: Bar['session'] = p.minute >= 9 * 60 + 30 && p.minute < 16 * 60 ? 'r' : p.minute < 9 * 60 + 30 ? 'pre' : 'post';
+      if (!had) d.bars.set(minute, { time: minute, close: up, open: up, high: up, low: up, session });
+      else {
+        had.high = Math.max(had.high ?? up, up);
+        had.low = Math.min(had.low ?? up, up);
+        /* the prints come newest first: the first seen of a minute is its newest */
+      }
+    }
+  }
+
   /** The day's minute bars, the last dozen — the store's shown rows stand on each minute's close as Terrain draws it */
   async function readBars(name: string, d: Day) {
+    if (INDEX_NAMES.has(name)) return readIndexBars(name, d);
     const rows = await getRows(`/api/stock/${name}/ohlc/1m?limit=12`);
     if (!rows) return;
     for (const r of rows) {
@@ -437,7 +465,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       const close = num(r.close);
       if (!Number.isFinite(t) || close == null || nyParts(t).day !== d.day) continue;
       const mt = String(r.market_time ?? 'r');
-      d.bars.set(t / 1000, { time: t / 1000, close, session: mt === 'r' ? 'r' : mt === 'pr' ? 'pre' : 'post' });
+      d.bars.set(t / 1000, { time: t / 1000, close, session: mt === 'r' ? 'r' : mt === 'pr' ? 'pre' : 'post', open: num(r.open) ?? undefined, high: num(r.high) ?? undefined, low: num(r.low) ?? undefined });
     }
   }
 
@@ -450,7 +478,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       d.today ??= opts.backfill.today(name, d.day);
       /* the day's bars come with the advance (the rebuild's own call), so a recorder started mid-session still
          writes the final rows for every minute from the open */
-      const past: (PastDay & { through: number; bars: MinuteBar[] }) | null = await d.today.advance();
+      const past: (PastDay & { through: number; bars: MinuteBar[] }) | null = await d.today.advance(INDEX_NAMES.has(name) ? [...d.bars.values()] : undefined);
       if (past) opts.store.final(name, d.day, past, past.bars);
     } finally {
       d.finalBusy = false;

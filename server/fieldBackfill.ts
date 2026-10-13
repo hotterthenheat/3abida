@@ -58,7 +58,20 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import type { FeedClient } from './feed';
-import { type TapeDay, type TapeReader, type TapeRow } from './tapeBackfill';
+import { INDEX_ROOTS, type TapeDay, type TapePriceBar, type TapeReader, type TapeRow } from './tapeBackfill';
+
+/** A cash index (no bars on the plan): its days are built from the tape, its minutes the prints' underlying price */
+const INDICES = new Set(['SPX', 'NDX', 'RUT', 'VIX', ...Object.keys(INDEX_ROOTS)]);
+export const isIndexName = (name: string) => INDICES.has(name.toUpperCase());
+/** The tape's per-minute underlying price as minute bars — the regular session alone */
+export function barsFromTape(prices: readonly TapePriceBar[]): MinuteBar[] {
+  return prices
+    .map(b => ({ time: b[0] / 1000, open: b[1], high: b[2], low: b[3], close: b[4], session: 'r' as const }))
+    .filter(b => {
+      const at = nyMinute(b.time * 1000);
+      return at.minute >= 9 * 60 + 30 && at.minute < 16 * 60;
+    });
+}
 
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 const FILE = 'past.json.gz';
@@ -69,7 +82,7 @@ const BARS = 'bars.json.gz';
 export const PAST_FORMAT = 2;
 const MAX_DTE = 60;
 const BAND = 0.15;
-const MAX_PAGES = 40;
+const MAX_PAGES = 80;
 /** Strikes asked each side of the session's range: the field's 30 and a margin */
 const STRIKES_EACH_SIDE = 35;
 /** A minute's vol is kept when it moved this much (a tenth of a vol point) from the last kept */
@@ -339,9 +352,25 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { calls, refused };
   }
 
-  async function build(name: string, day: string, tape?: Record<string, TapeRow[]>): Promise<PastDay & { bars: MinuteBar[] }> {
+  /** The session's range off bars given (an index's, from the tape) */
+  const rangeOf = (bars: MinuteBar[]) => {
+    const regular = [...bars].filter(b => b.session === 'r').sort((a, b) => a.time - b.time);
+    if (!regular.length) throw new Error('no session that day');
+    const open = regular[0].open ?? regular[0].close;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const r of regular) {
+      lo = Math.min(lo, r.low ?? r.close);
+      hi = Math.max(hi, r.high ?? r.close);
+    }
+    return { open, lo, hi, calls: 0, bars: regular };
+  };
+
+  async function build(name: string, day: string, tape?: TapeDay, givenBars?: MinuteBar[]): Promise<PastDay & { bars: MinuteBar[] }> {
     let calls = 0;
-    const b = await barsOf(name, day);
+    /* the minutes: UW's bars, or an index's off the tape's prints (the plan serves no index bars) */
+    const fromTape = tape?.prices[name]?.length ? barsFromTape(tape.prices[name]) : null;
+    const b = givenBars?.length ? rangeOf(givenBars) : fromTape?.length ? rangeOf(fromTape) : await barsOf(name, day);
     calls += b.calls;
 
     /* the positions at the open: open interest dated the session */
@@ -373,9 +402,10 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
        or the day's tape where it is given (the same compression, the same shape) */
     const ticks: Record<string, number[]> = {};
     if (tape) {
+      const rowsOf = tape.contracts[name] ?? {};
       let asked = 0;
       for (const r of kept) {
-        const rows = tape[String(r.option_symbol)];
+        const rows = rowsOf[String(r.option_symbol)];
         if (!rows?.length) continue;
         asked++;
         const out = compressTicks(rows, day);
@@ -406,14 +436,15 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     let calls = 0;
     let asked = 0;
     let refused = 0;
-    async function advance(): Promise<(PastDay & { through: number; bars: MinuteBar[] }) | null> {
+    async function advance(givenBars?: MinuteBar[]): Promise<(PastDay & { through: number; bars: MinuteBar[] }) | null> {
       const through = clock();
       const last = isoAdd(day, MAX_DTE);
       const chain = await chainOn(name, day, last);
       if (!chain) return null;
       calls += chain.calls;
-      /* the day's bars so far — the same call the rebuild makes, so the final rows stand on the same closes */
-      const b = await barsOf(name, day).catch(() => null);
+      /* the day's bars so far — the same call the rebuild makes, so the final rows stand on the same closes; an
+         index's are given by the recorder (its prints' underlying, UW serving none) */
+      const b = givenBars?.length ? (() => { try { return rangeOf(givenBars); } catch { return null; } })() : await barsOf(name, day).catch(() => null);
       if (!b) return null;
       calls += b.calls;
       bars = b.bars;
@@ -586,7 +617,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
            build, and each is built from its own prints — "tape vols" */
         let tape: TapeDay | null | undefined;
         const todo = list.filter(name => !has(name, d) && !noneOf(name, d));
-        if (tapeOf && d < TAPE_UNTIL && todo.length) {
+        if (tapeOf && todo.length && (d < TAPE_UNTIL || todo.some(isIndexName))) {
           job.current = `${todo.join(',')}|${d} (the tape)`;
           tape = await tapeOf(d, todo);
         }
@@ -605,7 +636,9 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
           job.current = key;
           try {
             if (tape === null) throw new Error('the tape was refused');
-            save(await build(name, d, tape ? (tape.contracts[name] ?? {}) : undefined));
+            /* an index's day stands on the tape alone; a stock's before the minute vols too */
+            if (isIndexName(name) && !tape) throw new Error('an index needs the tape');
+            save(await build(name, d, tape && (isIndexName(name) || d < TAPE_UNTIL) ? tape : undefined));
             failed.delete(key);
             job.built++;
           } catch (e) {

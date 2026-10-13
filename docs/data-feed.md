@@ -608,6 +608,24 @@ from the flow endpoint (`/api/option-trades?ticker_symbol=SPX` answers SPXW's pr
 time and shown stale once the newest print is older than two minutes. After the close the prints carry no
 underlying price (`null`, seen at 4:50 pm), so the last priced print stands, stale.
 
+**Built on the pass (the same day):**
+- **Live** (src/data/feed/price.ts `loadIndexPrint`, `useFeedPrice` for a cash index): the newest print carrying an
+  underlying price, asked every ten seconds; the rail and Terrain's pane head print the price with "3:59 pm print",
+  and "· stale" in the warning ink once the print is older than two minutes (`data-subject-print`, `data-pane-print`).
+  The alerts' watcher judges an index on the same price while a print within two minutes carries one, the book's
+  price only otherwise. On a fresh load after the close no recent print carries a price, so the rail shows the
+  book's price with no print label.
+- **The recorder** (server/fieldRecorder.ts `readIndexBars`): an index's minute bars are its prints' underlying
+  price — the newest five hundred prints read each minute, a bar's close the minute's newest print, high and low the
+  prints seen — so the store's shown rows and the final rows (fieldBackfill `today().advance(bars)`) stand for SPX
+  as they do for SPY. The index is recorded and scored with the rest (RECORD_NAMES may name it).
+- **The backfill** (server/fieldBackfill.ts `build(name, day, tape)`): an index's day is built from the tape alone —
+  its minutes the tape's per-print underlying (regular session), its vols the tape's, the dated chain's count — on
+  every day, not only before 2025-04-01; the tape reader keeps the index's contracts (SPXW's under SPX) with its
+  price series. The job routes an index through the tape whatever the day.
+- **Proofs**: field-backfill-proof builds an index's day on the tape's prices and asks no bar of the vendor;
+  field-store-proof records SPX from its prints and writes shown and final rows for it.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —
