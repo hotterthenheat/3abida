@@ -98,6 +98,9 @@ const REBUILT_HALO_H = 1.6;
    counted once the new strike has held three moments (a wall trading places with its neighbour for a moment is not a
    move), the newest few on screen. */
 const WALL_HOLD = 3;
+/** The wall chips keep this far in from the pane's left (the drawing rail) and right (the strength chips), CSS px */
+const CHIP_LEFT = 58;
+const CHIP_RIGHT = 96;
 const WALL_CHIPS = 3;
 
 /** What sits under the pointer on the field — the hover card's words come off it */
@@ -518,8 +521,14 @@ class TrailsPaneRenderer {
             const w = ctx.measureText(text).width;
             const padX = 4 * hr;
             const full = (px + 5) * vr;
+            /* clear of the drawing rail on the left and of the strength chips on the right: past the column when there is
+               room, else before it */
+            const leftMost = CHIP_LEFT * hr;
+            const rightMost = (wCss - CHIP_RIGHT) * hr;
             let l = xBar * hr + 3 * hr;
-            if (l + w + padX * 2 > (wCss - 4) * hr) l = xBar * hr - 3 * hr - w - padX * 2;
+            if (l + w + padX * 2 > rightMost) l = xBar * hr - 3 * hr - w - padX * 2;
+            l = Math.max(leftMost, Math.min(l, rightMost - w - padX * 2));
+            if (l + w + padX * 2 > rightMost) continue;
             /* above its line, off any chip placed already */
             let top = y * vr - full - 3 * vr;
             for (const b of boxes) if (l < b.r && l + w + padX * 2 > b.l && top < b.b && top + full > b.t) top = b.t - full - 2 * vr;

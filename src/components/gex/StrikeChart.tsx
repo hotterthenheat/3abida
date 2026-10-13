@@ -43,7 +43,7 @@ import {
   type Timeframe,
 } from '../../data/timeframe';
 import { GexTrailsPrimitive, trailPaperFrom, type BeadHit } from './gexNodesPrimitive';
-import { measuredAt, trailMeta } from '../../data/feed/trailField';
+import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
 import { isoDayLabel, pct, usdCompact, usdCompactSigned } from '../../core/format';
 import { nyClock as nyClockOf, nyIsoDate as nyIsoDateOf } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
@@ -5259,13 +5259,16 @@ const StrikeChart = ({
           const k = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
           /* the cell's provenance on the feed: priced on today's vols or carried from the session before's close, and how
              old the oldest vol it stands on is; the measured reference beside it, never blended in */
-          const prov = !meta
+          /* a cell of the feed's field — its own column, or the peak a folded bar kept (which carries its cell's
+             provenance but not the column's record) */
+          const feedCell = !!meta || !!lvl.prov;
+          const prov = !feedCell
             ? null
             : lvl.prov === 'carried'
-              ? `Carried · vols from ${meta.seedDate ? isoDayLabel(meta.seedDate) : 'the session before'}'s close`
-              : `Modeled · vols read ${meta.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
-          const stale = meta && lvl.staleSince ? `stale since ${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : null;
-          const measured = meta ? measuredAt(ticker, beadCard.strike, beadCard.time) : null;
+              ? `Carried · vols from ${meta?.seedDate ? isoDayLabel(meta.seedDate) : 'the session before'}'s close`
+              : `Modeled · vols read ${meta?.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
+          const stale = feedCell && lvl.staleSince ? `stale since ${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : null;
+          const measured = feedCell ? measuredAt(ticker, beadCard.strike, beadCard.time) : null;
           return (
             <div
               className="absolute z-30 pointer-events-none border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[300px]"
@@ -5289,12 +5292,12 @@ const StrikeChart = ({
                   {stale ? ` · ${stale}` : ''}
                 </div>
               )}
-              {meta && (
+              {feedCell && (
                 <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
                   {measured ? `Unusual Whales' book, ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : "No book of Unusual Whales' read by then"}
                 </div>
               )}
-              {meta && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta.model}</div>}
+              {feedCell && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta?.model ?? TRAIL_MODEL.version}</div>}
             </div>
           );
         })()}
