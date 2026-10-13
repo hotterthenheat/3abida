@@ -824,7 +824,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   4 until a price source exists (no SPX price on UW Basic or Massive Basic; UW's SPX series price is rounded to 5
   points; the tape's per-print underlying is the index level with cents — the candidate). THE TAPE'S MINUTE VOLS are
   the minute's midpoint of print vols (it equals UW's `intraday` midpoint to 0.00001), labelled "tape vols" on a
-  session built from it. WEB PUSH IS HELD until the owner decides; the in-app tiers come first. The backfill job
+  session built from it (server/tapeBackfill.ts: the archive's signed link through `client.redirectOf`, the zip
+  streamed and inflated in memory, never on disk, per contract-minute the lowest and highest print vol in /intraday's
+  shape so `compressTicks` is one function for both paths; the job routes every day before fieldBackfill TAPE_UNTIL,
+  2025-04-01, through it; an index's per-minute underlying price is kept as .feed-cache/field/<INDEX>/<day>/
+  tape-price.json, the one per-minute SPX level on this plan; checked on 2026-10-12: the tape-built columns differ
+  from the minute-vol rebuild's by 0.03% at the median, the walls agree in 389 of 390). WEB PUSH IS HELD until the owner decides; the in-app tiers come first. The backfill job
   (`npm run feed:backfill`, BACKFILL_FROM on the recorder) runs at home on the always-on machine — about 1,650 calls
   and 81 s a SPY session.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md

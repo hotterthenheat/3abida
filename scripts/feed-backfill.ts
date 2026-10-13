@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { createFeedClient } from '../server/feed';
 import { createFieldBackfill } from '../server/fieldBackfill';
+import { tapeReader } from '../server/tapeBackfill';
 
 const [rawNames = 'SPY,QQQ', from = '', to] = process.argv.slice(2);
 if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || (to && !/^\d{4}-\d{2}-\d{2}$/.test(to))) {
@@ -34,8 +35,9 @@ const names = rawNames
   .map(s => s.trim().toUpperCase())
   .filter(Boolean);
 const stamp = () => new Date().toISOString().slice(11, 19);
-const bf = createFieldBackfill(createFeedClient({ keys: { uw: key, massive: undefined } as never }));
-console.log(`${stamp()} backfill ${names.join(', ')} from ${from}${to ? ` to ${to}` : ''}, oldest first`);
+const client = createFeedClient({ keys: { uw: key, massive: undefined } as never });
+const bf = createFieldBackfill(client, { tape: tapeReader(client, { log: l => console.log(`${stamp()} ${l}`) }) });
+console.log(`${stamp()} backfill ${names.join(', ')} from ${from}${to ? ` to ${to}` : ''}, oldest first (a day before UW's minute vols from its tape)`);
 let seen = '';
 const progress = setInterval(() => {
   const j = bf.job();

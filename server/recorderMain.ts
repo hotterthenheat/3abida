@@ -16,6 +16,7 @@
 import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { feedMiddleware } from './feed';
+import { tapeReader } from './tapeBackfill';
 
 function parseEnv(path: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -56,7 +57,8 @@ if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
     .split(',')
     .map(s => s.trim().toUpperCase())
     .filter(Boolean);
-  console.log(`${stamp()} backfill ${bnames.join(', ')} from ${from}, oldest first`);
+  console.log(`${stamp()} backfill ${bnames.join(', ')} from ${from}, oldest first (a day before UW's minute vols from its tape)`);
+  handle.backfill.useTape(tapeReader(handle.client, { log: l => console.log(`${stamp()} ${l}`) }));
   void handle.backfill.runRange(bnames, from).then(j => console.log(`${stamp()} backfill done: built ${j.built}, skipped ${j.skipped}, failed ${j.failed} of ${j.days}`));
   const progress = setInterval(() => {
     const j = handle.backfill.job();

@@ -58,6 +58,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import type { FeedClient } from './feed';
+import { type TapeDay, type TapeReader, type TapeRow } from './tapeBackfill';
 
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 const FILE = 'past.json.gz';
@@ -162,6 +163,9 @@ const isoAdd = (iso: string, days: number) => {
 };
 const weekdayOf = (iso: string) => new Date(`${iso}T12:00:00Z`).getUTCDay();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+/** UW's per-contract minute vols begin about here (measured 2026-10-13: none on 2025-03-04, full on 2025-04-02); a
+    session before it is built from the day's tape where a tape reader is given (server/tapeBackfill.ts) */
+export const TAPE_UNTIL = '2025-04-01';
 const NAME_OK = /^[A-Z][A-Z0-9.]{0,9}$/;
 const nyMinute = (ms: number) => {
   const p: Record<string, string> = {};
@@ -175,8 +179,35 @@ const strikeOf = (s: string) => {
   return m ? Number(m[6]) / 1000 : NaN;
 };
 
-export function createFieldBackfill(client: FeedClient, opts: { now?: () => number; root?: string } = {}) {
+/** A contract's minute vols, compressed: [minute start (ms), vol, …] — the middle of UW's iv_low and iv_high (the
+    tape's own minute midpoint to 0.00001, measured 2026-10-13), the regular session's prints alone, a minute kept
+    when its vol moved VOL_STEP from the last kept. Empty with nothing to keep. */
+export function compressTicks(rows: readonly Pick<TapeRow, 'start_time' | 'iv_low' | 'iv_high'>[] | Row[], day: string): number[] {
+  const out: number[] = [];
+  let lastIv = NaN;
+  for (const x of [...rows].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))) {
+    const t = Date.parse(String(x.start_time));
+    const a = num(x.iv_low);
+    const b = num(x.iv_high);
+    if (!Number.isFinite(t) || a == null || b == null || !(a > 0) || !(b > 0)) continue;
+    const at = nyMinute(t);
+    /* the regular session's prints: 09:30 to the 16:15 close of index and fund options */
+    if (at.day !== day || at.minute < 9 * 60 + 30 || at.minute > 16 * 60 + 15) continue;
+    const iv = (a + b) / 2;
+    if (Number.isFinite(lastIv) && Math.abs(iv - lastIv) < VOL_STEP) continue;
+    lastIv = iv;
+    out.push(t, Math.round(iv * 1e5) / 1e5);
+  }
+  return out;
+}
+
+export function createFieldBackfill(client: FeedClient, opts: { now?: () => number; root?: string; tape?: TapeReader } = {}) {
   const clock = opts.now ?? Date.now;
+  let tapeOf: TapeReader | undefined = opts.tape;
+  /** The tape reader the job uses for days before TAPE_UNTIL (server/tapeBackfill.ts) */
+  const useTape = (reader: TapeReader | undefined) => {
+    tapeOf = reader;
+  };
   const root = opts.root ?? ROOT;
   const fileOf = (name: string, day: string) => join(root, name, day, FILE);
   /** Asked (name|day → when) */
@@ -281,28 +312,6 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return kept.filter(r => (num(r.volume) ?? 0) > 0 && (num(r.strike) ?? NaN) >= kLo && (num(r.strike) ?? NaN) <= kHi).map(r => String(r.option_symbol));
   }
 
-  /** A contract's minute vols, compressed: [minute start (ms), vol, …] — the middle of UW's iv_low and iv_high (the
-      tape's own minute midpoint to 0.00001, measured 2026-10-13), the regular session's prints alone, a minute kept
-      when its vol moved VOL_STEP from the last kept. Empty with nothing to keep. */
-  function compress(rows: Row[], day: string): number[] {
-    const out: number[] = [];
-    let lastIv = NaN;
-    for (const x of [...rows].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))) {
-      const t = Date.parse(String(x.start_time));
-      const a = num(x.iv_low);
-      const b = num(x.iv_high);
-      if (!Number.isFinite(t) || a == null || b == null || !(a > 0) || !(b > 0)) continue;
-      const at = nyMinute(t);
-      /* the regular session's prints: 09:30 to the 16:15 close of index and fund options */
-      if (at.day !== day || at.minute < 9 * 60 + 30 || at.minute > 16 * 60 + 15) continue;
-      const iv = (a + b) / 2;
-      if (Number.isFinite(lastIv) && Math.abs(iv - lastIv) < VOL_STEP) continue;
-      lastIv = iv;
-      out.push(t, Math.round(iv * 1e5) / 1e5);
-    }
-    return out;
-  }
-
   /** The vols through the session for these contracts, two in flight, into `ticks` (a contract asked again is replaced) */
   async function ticksFor(name: string, day: string, syms: string[], ticks: Record<string, number[]>): Promise<{ calls: number; refused: number }> {
     let calls = 0;
@@ -317,7 +326,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
           refused++;
           continue;
         }
-        const out = compress(r.rows, day);
+        const out = compressTicks(r.rows, day);
         if (out.length) ticks[sym] = out;
       }
     };
@@ -325,7 +334,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { calls, refused };
   }
 
-  async function build(name: string, day: string): Promise<PastDay> {
+  async function build(name: string, day: string, tape?: Record<string, TapeRow[]>): Promise<PastDay> {
     let calls = 0;
     const b = await barsOf(name, day);
     calls += b.calls;
@@ -355,9 +364,21 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
         }
       : null;
 
-    /* the vols through the session: the contracts that traded within the strikes the field can draw */
-    const ask = askOf(kept, b.lo, b.hi);
+    /* the vols through the session: the contracts that traded within the strikes the field can draw — UW's minutes,
+       or the day's tape where it is given (the same compression, the same shape) */
     const ticks: Record<string, number[]> = {};
+    if (tape) {
+      let asked = 0;
+      for (const r of kept) {
+        const rows = tape[String(r.option_symbol)];
+        if (!rows?.length) continue;
+        asked++;
+        const out = compressTicks(rows, day);
+        if (out.length) ticks[String(r.option_symbol)] = out;
+      }
+      return { format: PAST_FORMAT, name, day, builtAt: clock(), oi, seed: s.seed, ticks, total, calls, asked, refused: 0, vols: Object.keys(ticks).length ? 'tape' : 'close' };
+    }
+    const ask = askOf(kept, b.lo, b.hi);
     const t = await ticksFor(name, day, ask, ticks);
     calls += t.calls;
     if (ask.length && t.refused / ask.length > MAX_REFUSED) throw new Error(`${t.refused} of ${ask.length} contracts refused — tried again later`);
@@ -535,7 +556,15 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     for (let d = from; d <= to; d = isoAdd(d, 1)) if (weekdayOf(d) !== 0 && weekdayOf(d) !== 6) days.push(d);
     job.days = days.length * list.length;
     try {
-      for (const d of days)
+      for (const d of days) {
+        /* THE TAPE (server/tapeBackfill.ts): a day before UW's minute vols is streamed once for every name still to
+           build, and each is built from its own prints — "tape vols" */
+        let tape: TapeDay | null | undefined;
+        const todo = list.filter(name => !has(name, d) && !noneOf(name, d));
+        if (tapeOf && d < TAPE_UNTIL && todo.length) {
+          job.current = `${todo.join(',')}|${d} (the tape)`;
+          tape = await tapeOf(d, todo);
+        }
         for (const name of list) {
           if (has(name, d) || noneOf(name, d)) {
             job.skipped++;
@@ -550,7 +579,8 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
           await run();
           job.current = key;
           try {
-            save(await build(name, d));
+            if (tape === null) throw new Error('the tape was refused');
+            save(await build(name, d, tape ? (tape.contracts[name] ?? {}) : undefined));
             failed.delete(key);
             job.built++;
           } catch (e) {
@@ -566,6 +596,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
           }
           job.current = null;
         }
+      }
     } finally {
       job.running = false;
       job.current = null;
@@ -600,5 +631,5 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { status: 200, body: JSON.stringify(out) };
   }
 
-  return { ask, day, build, today, runRange, coverage, save, has, idle: () => !running && !job.running, job: () => ({ ...job }) };
+  return { ask, day, build, today, runRange, coverage, save, has, useTape, idle: () => !running && !job.running, job: () => ({ ...job }) };
 }

@@ -535,6 +535,21 @@ The owner's plan ("TERRAIN — NEXT BUILDS", item 1) with the decisions taken af
   0.00001, so a tape-built session uses the one definition the minute-vol path uses.
 - **SPX** has no price on this plan (stock-state, ohlc/1m and ohlc/1d answer 422, Massive 403), so it is out of
   items 2 and 4 until a price source exists; the tape's per-minute underlying is the candidate.
+- **The tape backfill** (server/tapeBackfill.ts, wired behind the job for every day before `TAPE_UNTIL`, 2025-04-01):
+  a day's archive is asked for its signed link (`client.redirectOf`, never cached, the key never in the answer) and
+  streamed once for every name still to build — the zip's local header skipped, the deflate stream inflated as it
+  comes, each line parsed (the tags field is quoted and holds commas), nothing written to disk. Per contract and
+  minute the lowest and highest print vol, in `/intraday`'s own shape, so `compressTicks` (one function for both
+  paths) gives the minute's midpoint exactly as it does for a minute-vol session; a canceled print is dropped. The
+  session built from it says `vols: 'tape'` and the coverage line counts it as "tape vols". Per index (SPX with
+  SPXW's prints, NDX with NDXP's …) the underlying price a minute — first, highest, lowest, last, how many prints —
+  is kept as `.feed-cache/field/<INDEX>/<day>/tape-price.json`: the one per-minute index level on this plan. A 429
+  on the archive's link (it has a tight limit of its own — met on 2026-10-13 after a handful of probes) leaves the
+  day for the next run. scripts/field-backfill-proof.ts streams a zip from a local server through the reader.
+  Checked on 2026-10-12 against the minute-vol rebuild of the same day: 1.5 GB streamed in 60 s, 9.2 M prints, SPY
+  built from the tape in 71 s on 27 calls (the minute path: 1,655 calls); at the kept minutes both hold, the vols
+  differ by 0.00002 at the median and 0.00005 at most; over the 390 columns the cells differ by 0.03% at the median
+  and 0.18% at the 90th percentile, the walls agree in 389 of 390 and the flip in 390 of 390.
 
 ## The Backtest reads real days (2026-10-12)
 

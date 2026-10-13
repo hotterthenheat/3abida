@@ -303,7 +303,29 @@ export function createFeedClient(opts: FeedClientOptions) {
     }
   }
 
-  return { get, bucket, uwGate, hasKey: (p: ProviderId) => !!keys[p] };
+  /** GET a vendor path and answer where it redirects to — the tape archive's signed link (server/tapeBackfill.ts) —
+      or null; never cached, never followed here, the key never in the answer */
+  async function redirectOf(p: ProviderId, pathAndQuery: string): Promise<{ status: number; location: string | null }> {
+    const path = pathAndQuery.split('?')[0];
+    const key = keys[p];
+    if (!PROVIDERS[p].pathOk.test(path) || path.includes('..') || !key) return { status: key ? 400 : 503, location: null };
+    const url = new URL(PROVIDERS[p].base + pathAndQuery);
+    const headers: Record<string, string> = {};
+    if (p === 'uw') headers.Authorization = `Bearer ${key}`;
+    else url.searchParams.set('apiKey', key);
+    try {
+      const go = () => fetch(url, { headers, redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
+      const res = p === 'uw' ? await uwGate.run(go) : await go();
+      const loc = res.headers.get('location');
+      /* the body is not read: a 302's is a line of HTML, a 200's could be the archive itself */
+      await res.body?.cancel().catch(() => undefined);
+      return { status: res.status, location: res.status >= 300 && res.status < 400 && loc ? loc : null };
+    } catch {
+      return { status: 502, location: null };
+    }
+  }
+
+  return { get, redirectOf, bucket, uwGate, hasKey: (p: ProviderId) => !!keys[p] };
 }
 export type FeedClient = ReturnType<typeof createFeedClient>;
 
@@ -419,5 +441,5 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     }
   };
   /* the standalone recorder (server/recorderMain.ts) reaches the job and the store through the handler */
-  return Object.assign(handler, { backfill, recorder, store });
+  return Object.assign(handler, { backfill, recorder, store, client });
 }

@@ -7,10 +7,13 @@
   3. A session with too many calls refused is not written; one before the plan's window says so
   4. The ask answers which sessions are ready, building and queued, and a built one is served whole
 */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createFieldBackfill, type PastDay } from '../server/fieldBackfill';
+import { compressTicks, createFieldBackfill, TAPE_UNTIL, type PastDay } from '../server/fieldBackfill';
+import { csvFields, tapeReader } from '../server/tapeBackfill';
+import { createServer } from 'node:http';
+import { deflateRawSync } from 'node:zlib';
 import type { FeedClient } from '../server/feed';
 
 let pass = 0, fail = 0;
@@ -117,6 +120,76 @@ try {
   }
 } finally {
   rmSync(root, { recursive: true, force: true });
+}
+
+
+/* ---- THE TAPE (server/tapeBackfill.ts, 2026-10-13): a day's prints streamed from a zip, into /intraday's shape ------- */
+{
+  check('csvFields: a quoted field keeps its commas, a doubled quote is one', JSON.stringify(csvFields('a,"{bid_side,bullish}",b,"x""y"')) === JSON.stringify(['a', '{bid_side,bullish}', 'b', 'x"y']) && csvFields('1,2,3').length === 3);
+  const D = '2024-06-12';
+  const header = 'id,underlying_symbol,executed_at,nbbo_bid,nbbo_ask,size,price,option_chain_id,tags,expiry,option_type,open_interest,strike,premium,volume,underlying_price,implied_volatility,canceled,trading_hours';
+  const row = (sym: string, at: string, chain: string, up: string, iv: string, canceled = 'f') => `x,${sym},${D} ${at}+00,1,1.2,1,1.1,${chain},"{bid_side,bullish}",2024-06-14,call,10,540,110,1,${up},${iv},${canceled},rth`;
+  const lines = [
+    header,
+    row('SPY', '13:30:00.100000', 'SPY240614C00540000', '540.10', '0.20'),
+    row('SPY', '13:30:30.100000', 'SPY240614C00540000', '540.20', '0.22'),
+    row('SPY', '13:31:00.100000', 'SPY240614C00540000', '540.30', '0.30', 't'),
+    row('SPY', '13:31:05.100000', 'SPY240614C00540000', '540.25', '0.25'),
+    row('SPXW', '13:30:01.000000', 'SPXW240614C05400000', '5401.5', '0.15'),
+    row('SPX', '13:30:40.000000', 'SPX240614C05400000', '5403.25', '0.16'),
+    row('SPXW', '13:31:20.000000', 'SPXW240614C05400000', '5399.75', '0.15'),
+    row('QQQ', '13:30:02.000000', 'QQQ240614C00460000', '460.1', '0.3'),
+    row('AAPL', '13:30:02.000000', 'AAPL240614C00200000', '200', '0.3'),
+  ];
+  const csv = Buffer.from(lines.join('\n') + '\n');
+  const deflated = deflateRawSync(csv);
+  const name = Buffer.from(`${D}-option_trades.csv`);
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt16LE(0, 6);
+  local.writeUInt16LE(8, 8);
+  local.writeUInt32LE(deflated.length, 18);
+  local.writeUInt32LE(csv.length, 22);
+  local.writeUInt16LE(name.length, 26);
+  local.writeUInt16LE(0, 28);
+  const central = Buffer.from('PK\x01\x02trailing bytes the reader never needs');
+  const zip = Buffer.concat([local, name, deflated, central]);
+  const server = createServer((_req, res) => {
+    res.setHeader('Content-Type', 'application/zip');
+    res.end(zip);
+  });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', () => r()));
+  const port = (server.address() as { port: number }).port;
+  const tapeClient = {
+    hasKey: () => true,
+    get: async () => ({ status: 404, contentType: 'application/json', body: '{}', from: 'upstream' as const }),
+    redirectOf: async (_p: string, path: string) => (path.includes(`/full-tape/${D}`) ? { status: 302, location: `http://127.0.0.1:${port}/${D}.zip` } : { status: 404, location: null }),
+  } as unknown as FeedClient;
+  const tapeRoot = mkdtempSync(join(tmpdir(), 'slayer-tape-'));
+  try {
+    const read = tapeReader(tapeClient, { root: tapeRoot });
+    const day = await read(D, ['SPY', 'SPX']);
+    check('the tape is streamed from the archive’s link: nine prints, the wanted names kept, the canceled one dropped, the other name left', day != null && day.prints === 9 && day.canceled === 1 && day.kept === 6 && !('QQQ' in day.contracts) && !('AAPL' in day.contracts));
+    const spy = day?.contracts.SPY?.['SPY240614C00540000'] ?? [];
+    check("a contract's minute is its lowest and highest print vol, in /intraday's shape", spy.length === 2 && spy[0].start_time === `${D}T13:30:00.000Z` && spy[0].iv_low === '0.2' && spy[0].iv_high === '0.22' && spy[1].iv_low === '0.25' && spy[1].iv_high === '0.25');
+    const spx = day?.prices.SPX ?? [];
+    check("an index's minute is its prints' underlying price — SPXW's and SPX's together: first, high, low, last, how many", spx.length === 2 && spx[0][1] === 5401.5 && spx[0][2] === 5403.25 && spx[0][3] === 5401.5 && spx[0][4] === 5403.25 && spx[0][5] === 2 && spx[1][4] === 5399.75 && existsSync(join(tapeRoot, 'SPX', D, 'tape-price.json')));
+    check('the same compression as the minute-vol path: the tape rows and /intraday rows alike give [minute, midpoint]', JSON.stringify(compressTicks(spy, D)) === JSON.stringify(compressTicks(spy.map(r => ({ ...r })), D)) && compressTicks(spy, D).length === 4 && Math.abs(compressTicks(spy, D)[1] - 0.21) < 1e-9);
+    {
+      const { client: c2, asked: asked2 } = fakeClient();
+      const bf2 = createFieldBackfill(c2, { now, root: tapeRoot });
+      const one = sym(600, 'C');
+      const built = await bf2.build('SPY', DAY, { [one]: [{ start_time: `${DAY}T13:30:00.000Z`, iv_low: '0.2', iv_high: '0.2' }, { start_time: `${DAY}T13:33:00.000Z`, iv_low: '0.24', iv_high: '0.26' }] });
+      check('a session built from the tape says so, its ticks the tape’s, and asks no per-contract minutes of the vendor', built.vols === 'tape' && JSON.stringify(built.ticks[one]) === JSON.stringify([Date.parse(`${DAY}T13:30:00.000Z`), 0.2, Date.parse(`${DAY}T13:33:00.000Z`), 0.25]) && built.refused === 0 && !asked2.some(p => p.includes('/intraday')));
+    }
+    check(`a day before ${TAPE_UNTIL} is the tape's, a day from it UW's minutes`, '2025-03-31' < TAPE_UNTIL && !('2025-04-01' < TAPE_UNTIL));
+    const refused = await read('2023-01-03', ['SPY']);
+    check('a day the archive refuses builds nothing', refused === null);
+  } finally {
+    server.close();
+    rmSync(tapeRoot, { recursive: true, force: true });
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
