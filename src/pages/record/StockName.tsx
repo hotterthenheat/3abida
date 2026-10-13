@@ -77,7 +77,7 @@ import RichRead from '../../components/ui/RichRead';
 import AnimatedNumber from '../../components/ui/AnimatedNumber';
 import Fold from '../../components/ui/Fold';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
-import { nyParts, nyWallTime } from '../../core/nyTime';
+import { nyMinutes, nyParts, nyWallTime } from '../../core/nyTime';
 import SessionsChart, { type ChartMark, type ChartPoint } from '../../components/record/SessionsChart';
 import type { UTCTimestamp } from 'lightweight-charts';
 import { fmtClockLocal, fmtDayLocal } from '../../components/gex/chartTime';
@@ -617,16 +617,18 @@ const StockNameBody = ({ fromFeed }: { fromFeed: boolean }) => {
   /* THE DARK PRINTS ON TODAY'S TAPE: the session minute by minute as the line, the off-exchange prints summed per minute as bars under
      it at their true minute (a print's clock matched to the bar of that minute), the biggest of each minute kept for the card */
   const todayPoints: ChartPoint[] = money.today.map(c => ({ time: c.time, value: c.close }));
-  const minuteOf = new Map(money.today.map(c => [clockOf(c.time), c.time]));
+  /* keyed on New York's minute of the day, a number — never on a printed clock (the printed one is the reader's, 12-hour,
+     since 2026-10-13; a print's `time` stays New York's wall clock, "14:03", for this) */
+  const minuteOf = new Map(money.today.map(c => [nyMinutes(c.time * 1000), c.time]));
   const darkMinutes = (() => {
     const byMin = new Map<string, { time: number; value: number; n: number; biggest: (typeof money.dark.prints)[number] }>();
     for (const p of money.dark.prints) {
-      let time = minuteOf.get(p.time);
+      const [h, m] = p.time.split(':').map(Number);
+      if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
+      let time = minuteOf.get(h * 60 + m);
       if (time == null) {
         /* a print's minute off the tape is New York's wall clock on the tape's day — read in the browser's zone, it
            landed on another minute's time and the chart refused the pair ("data must be asc ordered by time") */
-        const [h, m] = p.time.split(':').map(Number);
-        if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
         const day = nyParts(money.today[0] ? money.today[0].time * 1000 : Date.now());
         time = Math.floor(nyWallTime(day.year, day.month, day.day, h, m) / 1000);
       }

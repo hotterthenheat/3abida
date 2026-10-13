@@ -199,7 +199,7 @@ const NewsCalendar = ({ feed }: { feed?: CalEvent[] | null }) => {
               <div key={e.id} className="px-4 py-2 border-b border-borderSubtle/40" data-cal-event={e.id} data-kind={e.kind}>
                 <div className="flex items-center gap-2">
                   {e.kind === 'earnings' ? <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ background: SILVER }} /> : e.kind === 'market' ? <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ background: SUPREME }} /> : <ImpactMark tier={e.impact} />}
-                  <span className="font-mono text-[11px] tnum text-textSecondary w-[54px] shrink-0">{e.kind === 'earnings' ? (e.slot === 'BMO' ? 'pre' : 'post') : e.time}</span>
+                  <span className="font-mono text-[11px] tnum text-textSecondary w-[60px] shrink-0">{e.kind === 'earnings' ? (e.slot === 'BMO' ? 'pre' : 'post') : e.time}</span>
                   {e.kind === 'earnings' && e.ticker ? (
                     <span className="min-w-0 flex items-center gap-1.5 text-[12px] text-textPrimary">
                       <CompanyLogo ticker={e.ticker} size={14} />
@@ -210,7 +210,7 @@ const NewsCalendar = ({ feed }: { feed?: CalEvent[] | null }) => {
                   )}
                   {e.region && <span className="ml-auto font-mono text-[11px] uppercase tracking-widest text-textMuted">{e.region}</span>}
                 </div>
-                <div className="mt-1 pl-[72px] flex items-center gap-x-4 font-mono text-[11px] tnum text-textPrimary">
+                <div className="mt-1 pl-[78px] flex items-center gap-x-4 font-mono text-[11px] tnum text-textPrimary">
                   {e.kind === 'earnings' ? (
                     <>
                       {e.impliedMovePct != null && <span>±{e.impliedMovePct.toFixed(1)}% priced for the print</span>}

@@ -248,7 +248,7 @@ const TabsFigure = () => {
 const MonthFigure = () => {
   /* two cells a row at 11 px (three across left a pill nine letters), the third under them beside the inks' key */
   const cell = (w: number, x: number, y: number, day: string, today: boolean, pills: [string, string, string][], more?: number) => {
-    const budget = Math.floor((200 - 12 - 44) / (w * 0.6));
+    const budget = Math.floor((200 - 12 - 56) / (w * 0.6));
     const cut = (s: string) => (s.length > budget ? `${s.slice(0, budget - 1)}…` : s);
     const hgt = 30 + pills.length * 21 + (more ? 16 : 0);
     return (
@@ -283,18 +283,18 @@ const MonthFigure = () => {
       {({ w }) => (
         <>
           {cell(w, 6, 6, '15', false, [
-            ['Retail sales m/m', '08:30', IMPACT.high],
+            ['Retail sales m/m', '8:30 am', IMPACT.high],
             ['TSM', 'AMC', SILVER],
             ['WMT', 'AMC', SILVER],
           ])}
           {cell(w, 214, 6, '16', true, [
-            ['FOMC rate decision', '14:00', IMPACT.high],
-            ['UK CPI y/y', '02:00', IMPACT.medium],
-            ['Housing starts', '08:30', IMPACT.low],
+            ['FOMC rate decision', '2:00 pm', IMPACT.high],
+            ['UK CPI y/y', '2:00 am', IMPACT.medium],
+            ['Housing starts', '8:30 am', IMPACT.low],
           ], 2)}
           {cell(w, 6, 130, '18', false, [
             /* cut the way the calendar's pill cuts it */
-            ['Monthly options expiration', '16:00', SUPREME],
+            ['Monthly options expiration', '4:00 pm', SUPREME],
             ['TSLA', 'AMC', SILVER],
           ])}
           <text x={216} y={150} fontSize={w} fill={IMPACT.high} fontFamily={SANS}>

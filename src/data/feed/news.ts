@@ -34,7 +34,7 @@ import { useFeedPoll } from './poll';
 import { predict, type NewsCategory, type NewsItem } from '../news';
 import { geoOf, type EconEvent, type GeoNewsEvent } from '../newsroom';
 import { lookup } from '../universe';
-import { nyClock, nyParts } from '../../core/nyTime';
+import { clock, nyParts } from '../../core/nyTime';
 import { idNum } from './trace';
 import type { UwHeadline } from './uw';
 import type { CalEvent } from '../monthCalendar';
@@ -90,10 +90,10 @@ export function wireItem(h: UwHeadline, nowMs = Date.now()): NewsItem {
     })
     .filter(Boolean);
   /* what the wire carries beside the headline — where and when it ran, and the named names' prices; never written copy */
-  const body = [`${h.source || 'The wire'}, ${nyClock(h.createdAt)} New York${h.isMajor ? ' · marked major' : ''}.`, named.length ? `On the wire with it: ${named.join(' · ')}.` : 'No listed name rides with it.'];
+  const body = [`${h.source || 'The wire'}, ${clock(h.createdAt)}${h.isMajor ? ' · marked major' : ''}.`, named.length ? `On the wire with it: ${named.join(' · ')}.` : 'No listed name rides with it.'];
   return {
     id,
-    time: nyClock(h.createdAt),
+    time: clock(h.createdAt),
     minutesAgo: Math.max(0, Math.round((nowMs - h.createdAt) / 60_000)),
     atMs: h.createdAt,
     source: h.source || 'The wire',
@@ -154,7 +154,7 @@ export const econImpact = (e: UwEconEvent): EconEvent['impact'] => (HIGH.test(e.
 const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const two = (n: number) => String(n).padStart(2, '0');
 
-/** UW's calendar as the page's day ahead — New York's day and clock; a release earlier today keeps its place */
+/** UW's calendar as the page's day ahead — New York's day, the release on the reader's clock; a release earlier today keeps its place */
 export function econEvents(rows: UwEconEvent[], nowMs = Date.now()): EconEvent[] {
   return rows
     .filter(e => e.event && Number.isFinite(e.at) && e.at > 0)
@@ -167,7 +167,7 @@ export function econEvents(rows: UwEconEvent[], nowMs = Date.now()): EconEvent[]
         region: 'USD' as const,
         impact: econImpact(e),
         dayLabel: `${DAY[wd]} ${two(p.month)}-${two(p.day)}`,
-        timeLabel: nyClock(e.at),
+        timeLabel: clock(e.at),
         inMinutes: Math.round((e.at - nowMs) / 60_000),
         forecast: e.forecast ?? undefined,
         previous: e.prev ?? undefined,
@@ -187,7 +187,7 @@ export function econCalEvents(rows: UwEconEvent[]): CalEvent[] {
         id: `macro-uw-${i}-${e.at}`,
         kind: 'macro' as const,
         date: new Date(p.year, p.month - 1, p.day, p.hour, p.minute),
-        time: `${two(p.hour)}:${two(p.minute)}`,
+        time: clock(e.at),
         title: e.event,
         impact: econImpact(e),
         region: 'USD',
@@ -241,7 +241,7 @@ export function econMacro(rows: UwEconEvent[]): MacroDate[] {
       const lead = [...list].sort((a, b) => a.event.length - b.event.length)[0];
       const parts = list.map(e => {
         const figs = [e.forecast ? `forecast ${e.forecast}` : '', e.prev ? `prior ${e.prev}` : ''].filter(Boolean).join(', ');
-        return `${nyClock(e.at)} ET ${e.event}${figs ? ` (${figs})` : ''}`;
+        return `${clock(e.at)} ${e.event}${figs ? ` (${figs})` : ''}`;
       });
       return { iso, label: lead.event, detail: `${iso} · ${parts.join(' · ')}` };
     })

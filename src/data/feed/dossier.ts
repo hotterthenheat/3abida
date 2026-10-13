@@ -34,7 +34,7 @@
 ==================================================
 */
 
-import { nyIsoDate, nyParts } from '../../core/nyTime';
+import { clock, nyIsoDate } from '../../core/nyTime';
 import { AMOUNT_BRACKETS, STOCK_ACT_DEADLINE_DAYS, bracketOf } from '../congress';
 import { TX_CODES, flowFrom, isChosenBuy } from '../insiders';
 import type { BookContract } from '../../types/trace';
@@ -558,11 +558,8 @@ export const useFeedReports = (on: boolean, ticker: string) => useFeedPoll<UwEar
 /** The wire, newest first — every minute */
 export const useFeedNews = (on: boolean) => useFeedPoll<UwHeadline[]>(on && up() ? 'dossier:news' : null, () => uwNewsHeadlines({ limit: 100 }), MIN);
 
-/** The hour of the New York day a headline came at, "14:03" */
-export const headlineClock = (at: number): string => {
-  const p = nyParts(at);
-  return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`;
-};
+/** The moment a headline came at, on the reader's clock — "2:03 pm" (2026-10-13; it was New York's 24-hour "14:03") */
+export const headlineClock = (at: number): string => clock(at);
 
 export { AMOUNT_BRACKETS };
 

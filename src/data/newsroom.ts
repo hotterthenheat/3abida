@@ -21,6 +21,7 @@
 
 import { buildNewsFeed, type NewsItem } from './news';
 import { now } from '../core/clock';
+import { clock, nyParts, nyWallTime } from '../core/nyTime';
 
 export type NewsGrade = 'THREAT' | 'ALLY' | 'WATCH';
 
@@ -309,8 +310,13 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export function buildEconCalendar(): EconEvent[] {
   const t0 = now();
   const daySeed = t0.getFullYear() * 372 + (t0.getMonth() + 1) * 31 + t0.getDate();
+  /* the catalog's hours are New York's (a release's own clock): each is that New York wall-clock instant, its day said as
+     New York's and its time printed on the reader's clock, "8:30 am" (2026-10-13 — they were the machine's hours) */
+  const ny = nyParts(t0);
   return ECON_CATALOG.map((c, i) => {
-    const dt = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate() + c.dayOffset, c.hour, c.minute);
+    const at = nyWallTime(ny.year, ny.month, ny.day + c.dayOffset, c.hour, c.minute);
+    const p = nyParts(at);
+    const dt = new Date(p.year, p.month - 1, p.day);
     const h = Math.abs(Math.sin(daySeed * 7 + i * 13.7)) % 1;
     const fmt = (v: number) => (c.unit === 'K' ? `${Math.round(v)}K` : c.unit === '%' ? `${v.toFixed(1)}%` : v.toFixed(1));
     const prev = c.base != null ? c.base : undefined;
@@ -321,8 +327,8 @@ export function buildEconCalendar(): EconEvent[] {
       region: c.region,
       impact: c.impact,
       dayLabel: `${DAY_NAMES[dt.getDay()]} ${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`,
-      timeLabel: dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      inMinutes: Math.round((dt.getTime() - t0.getTime()) / 60_000),
+      timeLabel: clock(at),
+      inMinutes: Math.round((at - t0.getTime()) / 60_000),
       forecast: fcst != null ? fmt(fcst) : undefined,
       previous: prev != null ? fmt(prev) : undefined,
     };
