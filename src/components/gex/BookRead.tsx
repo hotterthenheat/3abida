@@ -43,6 +43,7 @@ import type { ExposureProfileData } from '../../types/gex';
 import type { MarketSnapshot } from '../../types/market';
 import { HEAT_MODE, heatLaneColor, type HeatMode } from './heatmap';
 import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
+import { nyTextClock } from '../../core/nyTime';
 
 const SILVER = 'rgb(var(--silver))';
 const MUTED = 'rgb(var(--text-muted))';
@@ -496,7 +497,7 @@ const BookRead = ({ surface, snapshot, greek, mode = HEAT_MODE, expiries, afterB
         <span>{surface.strikes.length} strikes · {shownIdx.length} {shownIdx.length === 1 ? 'expiry' : 'expiries'}</span>
         <span className="ml-auto inline-flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${clock.phase === 'OPEN' || clock.phase === 'AUCTION' ? 'bg-select' : 'bg-textMuted'}`} aria-hidden />
-          {clock.phase === 'OPEN' || clock.phase === 'AUCTION' ? 'live' : clock.label} · <span className="normal-case tracking-normal tnum" style={{ color: SILVER }}>{clock.etTime}</span>
+          {clock.phase === 'OPEN' || clock.phase === 'AUCTION' ? 'live' : clock.label} · <span className="normal-case tracking-normal tnum" style={{ color: SILVER }}>{nyTextClock(clock.etTime)}</span>
         </span>
       </div>
     </aside>

@@ -1,5 +1,6 @@
 import { FONT_SANS } from '../../theme/fonts';
 import { GuideSvg } from '../ui/GuideSvg';
+import { marketClock } from '../../core/nyTime';
 /*
 ==================================================
   SLAYER TERMINAL - HOW TO READ THE LEVEL REPORT
@@ -64,7 +65,7 @@ const RowFigure = () => {
           ))}
           <line x1={330} x2={330} y1={27} y2={46} stroke={SILVER} strokeOpacity="0.6" />
           <Label x={110} y={58} fill={INK_3} size={t} mono>
-            09:30
+            {marketClock(9, 30)}
           </Label>
           <Label x={330} y={58} anchor="end" fill={INK_3} size={t} mono>
             now
@@ -74,7 +75,7 @@ const RowFigure = () => {
             ['Tests', '4', INK],
             ['Held', '3', GREEN],
             ['Broke', '1', RED],
-            ['Last touched', '11:42', INK],
+            ['Last touched', '11:42 am', INK],
             ['Since the open', 'growing +12%', INK],
           ].map(([k, v, c], i) => (
             <g key={k}>
@@ -91,7 +92,7 @@ const RowFigure = () => {
           <Label x={27} y={116} size={w}>a green tick: price reached the level and held</Label>
           <circle cx={18} cy={131} r={3.5} fill={RED} />
           <Label x={27} y={131} size={w}>a red tick: price closed through it</Label>
-          <Label x={14} y={146} fill={INK_3} size={w}>the strip is the whole session, 9:30 to now</Label>
+          <Label x={14} y={146} fill={INK_3} size={w}>{`the strip is the whole session, ${marketClock(9, 30)} to now`}</Label>
           <Label x={14} y={160} fill={INK_3} size={w}>the chip sums the row up</Label>
           <Label x={14} y={174} fill={INK_3} size={w}>the facts count the ticks and the hedging since the open</Label>
         </>
@@ -166,7 +167,7 @@ const ReportGuide = ({ rows, bars, from }: ReportGuideProps) => {
       <div>
         <p className="text-[12px] font-semibold text-textPrimary">Each row · one of today's levels and how it did</p>
         <p className="mt-0.5 text-[11.5px] leading-relaxed text-textSecondary">
-          Every row is one of today's levels: the call wall, the put wall, the flip, the pin, the supreme. Its price is on the left with a chip that sums up its day. The strip is the whole session from 9:30 to now. Every time price reached the level in a one-minute bar, the strip gets a tick: green if the level held, red if price closed through it. The facts count those ticks and say how much hedging the level has gained or lost since the open.
+          Every row is one of today's levels: the call wall, the put wall, the flip, the pin, the supreme. Its price is on the left with a chip that sums up its day. The strip is the whole session from {marketClock(9, 30)} to now. Every time price reached the level in a one-minute bar, the strip gets a tick: green if the level held, red if price closed through it. The facts count those ticks and say how much hedging the level has gained or lost since the open.
         </p>
         <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
           <RowFigure />

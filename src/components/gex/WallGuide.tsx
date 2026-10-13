@@ -77,7 +77,7 @@ const ReasonsFigure = () => {
   const rows = [
     { label: 'Made of', fact: '$347M per 1% · 1.7× the market', push: 0.4, words: 'harder than the market pushes' },
     { label: 'Tested today', fact: '3× · held 3 · broke 0', push: 0.6, words: 'every touch held' },
-    { label: 'Expires at 4:00', fact: '24% of it · 1h 25m left', push: -0.25, words: 'thins into the close' },
+    { label: 'Expires 4:00 pm', fact: '24% of it · 1h 25m left', push: -0.25, words: 'thins into the close' },
   ];
   /* the fact and its clause in one lane, the meter in its own — two lines a reason, so 11 px words keep their lanes */
   const factX = 112;

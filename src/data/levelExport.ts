@@ -14,13 +14,14 @@
     prices   a plain list, a level a line
     CSV      ticker, level, price, the moment it was read
 
-  Each says when it was read (New York's clock) and what
+  Each says when it was read (the reader's clock — the
+  CSV's column keeps New York's, ISO) and what
   the dealer levels assume — a copied level carries its
   footing with it. Pure: the levels in, the text out.
 ==================================================
 */
 
-import { nyClock, nyDay, nyIsoDate } from '../core/nyTime';
+import { nyDay, nyIsoDate, nyParts, nyStamp } from '../core/nyTime';
 import { ASSUMPTION_WORDS } from './levelSureness';
 
 export interface DayLevels {
@@ -60,7 +61,8 @@ export function namedLevels(l: DayLevels): Named[] {
   return all.filter((x): x is [string, string, number] => real(x[2])).map(([key, name, price]) => ({ key, name, price })).sort((a, b) => b.price - a.price);
 }
 
-const when = (at: number) => `${nyDay(at)}, ${nyClock(at, { zone: true })}`;
+/** "Oct 10, 2:32 pm EDT" — the reader's day and clock, with the zone (2026-10-13) */
+const when = (at: number) => nyStamp(at, { zone: true });
 
 /** Pine's own string, quotes and backslashes escaped */
 const pineStr = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
@@ -98,8 +100,13 @@ export function priceList(l: DayLevels): string {
   return [`${l.ticker} levels · ${when(l.at)} · spot ${fmt(l.spot)}`, ...namedLevels(l).map(v => `${v.name} ${fmt(v.price)}`)].join('\n') + '\n';
 }
 
-/** "2026-10-10T14:32:00 New York" as an ISO date and clock — the moment the book was read */
-const isoNy = (at: number) => `${nyIsoDate(at)}T${nyClock(at, { seconds: true })}`;
+/** "2026-10-10T14:32:00" — New York's date and wall clock as ISO 8601, the moment the book was read. A machine's field in
+    a sheet (the column says New York), so it stays ISO's 24-hour clock; the words a reader reads are `when`'s */
+const two = (n: number) => String(n).padStart(2, '0');
+const isoNy = (at: number) => {
+  const p = nyParts(at);
+  return `${nyIsoDate(at)}T${two(p.hour)}:${two(p.minute)}:${two(p.second)}`;
+};
 
 export function levelsCsv(l: DayLevels): string {
   const stamp = isoNy(l.at);

@@ -57,7 +57,7 @@
 
 import { useMemo, useSyncExternalStore } from 'react';
 import { pickFlip, pickWalls } from '../../core/walls';
-import { nyDay, nyIsoDate, nyMinutes, nyWallTime } from '../../core/nyTime';
+import { clock, nyDay, nyIsoDate, nyMinutes, nyWallTime } from '../../core/nyTime';
 import { isTradingDay } from '../../core/calendar';
 import { useFeedPoll } from './poll';
 import { useRoomSource, type FeedRoom } from './rooms';
@@ -427,8 +427,8 @@ export const countClose = (oi: FeedOi | null): string => (oi?.date ? shortDay(se
 /** What a feed level stands on: UW's open interest count (once a day) and the price UW figured the hedging at */
 export function feedFreshness(book: FeedBook, oi: FeedOi | null): string {
   const count = oi?.date ? `${countClose(oi)}'s close — Unusual Whales' count dated ${shortDay(oi.date)}` : 'the last close';
-  const clock = new Date(book.at).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
-  return `Open interest as of ${count}; it is counted once a day · the hedging is figured by Unusual Whales at ${book.spot.toFixed(2)}, ${clock} ET`;
+  /* the moment on the reader's clock, with the reader's zone (2026-10-13) */
+  return `Open interest as of ${count}; it is counted once a day · the hedging is figured by Unusual Whales at ${book.spot.toFixed(2)}, ${clock(book.at, { zone: true })}`;
 }
 
 /** Every named level of the feed's book, with the side turned over beside it (data/levelSureness.ts) */

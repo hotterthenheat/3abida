@@ -53,6 +53,7 @@ import { GREEK_UNIT, type ExposureSurface, type Greek } from '../../data/exposur
 import { BULL, LONG_GAMMA, PUT_WALL, SHORT_GAMMA, SUPREME } from './paletteInk';
 import { afterGlide, onGlide, promisedWidth } from '../../core/glide';
 import type { SurfaceCell } from './exposureView';
+import { marketClock } from '../../core/nyTime';
 
 /** The net's ink per greek — gamma speaks regime, delta speaks direction, vega, vanna and charm stay plain. */
 const netInk = (greek: Greek, v: number): string =>
@@ -451,7 +452,7 @@ const ExposureLedger = ({ surface, liveSpot, greeks, expiries, rings, hoverStrik
       }
     return total > 0 ? Math.round((100 * dies) / total) : 0;
   })();
-  const bellWords = bell == null ? null : afterBell ? `after the close · today's ${bell}% has expired` : `${bell}% of this expires today at 4:00`;
+  const bellWords = bell == null ? null : afterBell ? `after the close · today's ${bell}% has expired` : `${bell}% of this expires today at ${marketClock(16, 0)}`;
   const verdict =
     focus.greek === 'gex'
       ? gexV >= 0

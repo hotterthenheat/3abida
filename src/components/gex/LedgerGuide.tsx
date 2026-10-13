@@ -22,6 +22,7 @@ import type { LedgerView } from './ledgerView';
 import type { MarketSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
 import { GuideSvg } from '../ui/GuideSvg';
+import { marketClock } from '../../core/nyTime';
 
 const INK = 'rgb(var(--text-primary))';
 const INK_2 = 'rgb(var(--text-secondary))';
@@ -163,7 +164,7 @@ const ReadFigure = ({ COLS }: { COLS: Col[] }) => (
         {/* The today column, bracketed */}
         <path d={`M${COLS[0].x} 128 v4 h${CELL_W} v-4`} fill="none" stroke={INK_2} />
         <Label x={50} y={141} fill={INK_2} size={w * 1.053}>
-          read down today's column → what expires at 4:00
+          {`read down today's column → what expires at ${marketClock(16, 0)}`}
         </Label>
       </>
     )}
@@ -291,7 +292,7 @@ const LedgerGuide = ({ surface, greek, view = 'calendar', snapshot }: LedgerGuid
       <div>
         <p className="text-[12px] font-semibold text-textPrimary">Reading it · across for how long, down for what expires</p>
         <p className="mt-0.5 text-[12px] leading-relaxed text-textSecondary">
-          Read across a row to see how long a level lasts. Heavy in every column means the level stays for weeks. Heavy today and empty after means it is a one-day wall that is gone at the bell. Read down today's column to see what expires at 4:00. The Show card's "After the close" takes today's contracts out of the book, as it will stand tomorrow morning.
+          Read across a row to see how long a level lasts. Heavy in every column means the level stays for weeks. Heavy today and empty after means it is a one-day wall that is gone at the bell. Read down today's column to see what expires at {marketClock(16, 0)}. The Show card's "After the close" takes today's contracts out of the book, as it will stand tomorrow morning.
         </p>
         <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
           <ReadFigure COLS={COLS} />
@@ -324,7 +325,7 @@ const LedgerGuide = ({ surface, greek, view = 'calendar', snapshot }: LedgerGuid
           </li>
           {share != null && (
             <li className="text-[12px] leading-relaxed text-textSecondary">
-              <span className="font-mono tnum text-textPrimary">{share}%</span> of the hedging on this calendar expires today at 4:00. The rest is still there tomorrow.
+              <span className="font-mono tnum text-textPrimary">{share}%</span> of the hedging on this calendar expires today at {marketClock(16, 0)}. The rest is still there tomorrow.
             </li>
           )}
           {wallIdx >= 0 && wallToday > 0 && (

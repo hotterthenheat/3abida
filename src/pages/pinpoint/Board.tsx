@@ -35,6 +35,7 @@ import { type ColDef, type ICellRendererParams, type IRowNode, type RowClickedEv
 import { AgGridProvider, AgGridReact } from 'ag-grid-react';
 import { GRID_MODULES, GRID_THEME, openRowOnEnter } from '../../components/ui/houseGrid';
 import { stampOf } from './usePinpoint';
+import { marketClock } from '../../core/nyTime';
 import HowSure from '../../components/levels/HowSure';
 import { useMarketData } from '../../context/MarketDataContext';
 import { bookMarket, useBookVersion } from '../../data/bookMarket';
@@ -403,7 +404,7 @@ const Board = () => {
            against the flip, so a name can read "absorbing" there and positive here. */
         headerTooltip: "Today's hedging on the whole book added up, per 1% move. In this terminal positive means put-heavy, where dealer hedging makes moves bigger, and negative call-heavy, where it softens them. Hedging today reads which side of the flip price is on, so the two can differ",
       },
-      { headerName: 'Expires today', field: 'bellShare', flex: 1, minWidth: 116, cellRenderer: BellCell, headerTooltip: "The share of the name's hedging sitting in contracts that expire at 4:00 today — it is gone at the close, and the walls it made go with it" },
+      { headerName: 'Expires today', field: 'bellShare', flex: 1, minWidth: 116, cellRenderer: BellCell, headerTooltip: `The share of the name's hedging sitting in contracts that expire at ${marketClock(16, 0)} today — it is gone at the close, and the walls it made go with it` },
     ],
     []
   );

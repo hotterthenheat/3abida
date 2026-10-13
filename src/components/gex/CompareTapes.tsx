@@ -332,7 +332,7 @@ const CompareTapes = ({ a, b, aInk, bInk, revision }: Props) => {
                 )}
               </span>
             )}
-            <span className="ml-auto text-textMuted">hover the chart for any minute · times New York</span>
+            <span className="ml-auto text-textMuted">hover the chart for any minute</span>
           </>
         ) : (
           <span className="text-textMuted">no session on the tape yet</span>

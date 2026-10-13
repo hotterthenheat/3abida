@@ -1,5 +1,6 @@
 import { FONT_SANS } from '../../theme/fonts';
 import { GuideSvg } from '../ui/GuideSvg';
+import { marketClock, minuteLabel } from '../../core/nyTime';
 /*
 ==================================================
   SLAYER TERMINAL - HOW TO READ THE TRADER'S CLOCK
@@ -44,14 +45,11 @@ const SPAN = 340;
 const BW = SPAN / BLOCKS;
 const bx = (i: number) => X0 + i * BW;
 const phaseOf = (i: number) => PHASES.find(p => i >= p.from && i < p.to) ?? PHASES[PHASES.length - 1];
-const HOURS = [
-  { i: 18, t: '11:00' },
-  { i: 30, t: '12:00' },
-  { i: 42, t: '13:00' },
-  { i: 54, t: '14:00' },
-  { i: 66, t: '15:00' },
-  { i: 78, t: '16:00' },
-];
+/* the hours under the strip, New York's, PRINTED on the reader's clock as the strip on the page prints them (12-hour,
+   2026-10-13); "4:00 pm" ends at the figure's edge, as the close's name does — centred on its block it ran off it */
+const OPEN_MIN = 9 * 60 + 30;
+const blockClock = (i: number) => minuteLabel(OPEN_MIN + i * 5);
+const HOURS = [18, 30, 42, 54, 66, 78];
 
 const Label = ({ x, y, children, anchor = 'start', fill = INK_2, size, mono = false, weight = 400 }: { x: number; y: number; children: string; anchor?: 'start' | 'middle' | 'end'; fill?: string; size: number; mono?: boolean; weight?: number }) => (
   <text x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontFamily={mono ? FIG : SANS} fontSize={size} fontWeight={weight} fill={fill}>
@@ -95,13 +93,13 @@ const StripFigure = ({ nowBlock }: { nowBlock: number | null }) => (
             </g>
           );
         })}
-        {HOURS.map(h => (
-          <Label key={h.t} x={bx(h.i)} y={63} anchor="middle" fill={INK_3} size={t} mono>
-            {h.t}
+        {HOURS.map(i => (
+          <Label key={i} x={i === BLOCKS ? 367 : bx(i)} y={63} anchor={i === BLOCKS ? 'end' : 'middle'} fill={INK_3} size={t} mono>
+            {blockClock(i)}
           </Label>
         ))}
         <Label x={bx(0)} y={63} fill={INK_3} size={t} mono>
-          09:30
+          {blockClock(0)}
         </Label>
         {/* What the shades mean */}
         <rect x={X0} y={80} width={10} height={10} rx={1.5} fill={SILVER} fillOpacity={0.4} />
@@ -138,10 +136,10 @@ const FocusFigure = () => {
           <path d={`M${bx(hov) + BW / 2} 72 v-10`} stroke={SILVER} strokeOpacity="0.6" />
           <rect x={CARD_X} y={6} width={248} height={56} rx={6} fill="rgb(var(--panel))" stroke="rgb(var(--border-muted))" />
           <Label x={CARD_X + 10} y={20} fill={INK} size={w} mono weight={700}>
-            15:10
+            {blockClock(hov)}
           </Label>
-          <Label x={CARD_X + 48} y={20} fill={INK_2} size={w}>
-            Charm window · 14:00 to 15:30
+          <Label x={CARD_X + 60} y={20} fill={INK_2} size={w}>
+            {`Charm window · ${blockClock(54)} to ${blockClock(72)}`}
           </Label>
           <circle cx={CARD_X + 15} cy={36} r={3.5} fill={EMBER} />
           <Label x={CARD_X + 23} y={36} fill={INK_2} size={w}>
@@ -179,7 +177,7 @@ const ClockGuide = ({ nowBlock, line, bellShare, pin, supreme, charmStrike }: Cl
     <div>
       <p className="text-[12px] font-semibold text-textPrimary">The strip · the trading day, five minutes at a time</p>
       <p className="mt-0.5 text-[11.5px] leading-relaxed text-textSecondary">
-        The strip runs from 9:30 to 4:00 New York time, one block per five minutes. Brighter blocks are the parts of the day when dealer hedging pushes hardest on price: the open, the last ninety minutes, the close. Dim blocks are the quiet middle, when price tends to sit still. The ringed block is right now. The names above are the day's phases, a rule of thumb; the numbers in them are today's.
+        The strip runs from {marketClock(9, 30)} to {marketClock(16, 0, { zone: true })}, one block per five minutes. Brighter blocks are the parts of the day when dealer hedging pushes hardest on price: the open, the last ninety minutes, the close. Dim blocks are the quiet middle, when price tends to sit still. The ringed block is right now. The names above are the day's phases, a rule of thumb; the numbers in them are today's.
       </p>
       <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
         <StripFigure nowBlock={nowBlock} />
@@ -200,7 +198,7 @@ const ClockGuide = ({ nowBlock, line, bellShare, pin, supreme, charmStrike }: Cl
         <li className="text-[11.5px] leading-relaxed text-textSecondary">{line}</li>
         {bellShare != null && (
           <li className="text-[11.5px] leading-relaxed text-textSecondary">
-            <span className="font-mono tnum text-textPrimary">{bellShare}%</span> of today's hedging expires at 4:00, which is why the close is the loudest block.
+            <span className="font-mono tnum text-textPrimary">{bellShare}%</span> of today's hedging expires at {marketClock(16, 0)}, which is why the close is the loudest block.
           </li>
         )}
         {(pin != null || supreme != null) && (
@@ -225,7 +223,7 @@ const ClockGuide = ({ nowBlock, line, bellShare, pin, supreme, charmStrike }: Cl
         )}
       </ul>
     </div>
-    <p className="text-[11px] text-textMuted">The clock is New York time, the real one, not the replayed day.</p>
+    <p className="text-[11px] text-textMuted">The clock is the real one, on your own time, not the replayed day.</p>
   </div>
 );
 

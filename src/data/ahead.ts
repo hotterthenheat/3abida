@@ -47,7 +47,7 @@ import { feedMarket, isFeedSnap } from './bookMarket';
 import { lensDate } from './exposure';
 import { lastSessionSupreme, moveIntoClose, ofLast, rangeFrom, recentSessions, sessionSoFar } from './aheadHistory';
 import { inCashSession, sessionBars } from './levelview';
-import { nyMinutes } from '../core/nyTime';
+import { minuteLabel, nyMinutes } from '../core/nyTime';
 import { buildExposureSurface, CALENDAR_DTES, type ExposureSurface } from './exposureSurface';
 import { buildVannaCharm } from './vannacharm';
 import type { SessionClock } from './sessionClock';
@@ -61,7 +61,9 @@ export const SESSION_MIN = CLOSE_MIN - OPEN_MIN; // 390
 
 export const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
 export const fmtPrice = (v: number) => (Number.isFinite(v) ? v.toFixed(2) : '—');
-export const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+/** A minute of New York's day (570 is the open) PRINTED on the reader's clock — "2:20 pm" (core/nyTime.ts minuteLabel;
+    the name is older than the rule, 2026-10-13). Display only: never parsed, compared or used as a key */
+export const hhmm = (m: number): string => minuteLabel(m);
 /** "$48.3M" / "$1.2B" — the schedule's dollars, unsigned (the sentence says buying or selling); the house's compact
     dollars (core/format.ts) */
 export const fmtDollars = (v: number): string => usdCompact(Math.abs(v));
@@ -598,7 +600,7 @@ export function buildSchedule(snapshot: MarketSnapshot, profile: ExposureProfile
     const avg = moves.reduce((a, m) => a + Math.abs(m), 0) / moves.length;
     record = ` In their last half hour the last ${moves.length} sessions ${fell > rose ? `fell ${fell} times and rose ${rose}` : rose > fell ? `rose ${rose} times and fell ${fell}` : `split ${rose} up and ${fell} down`}, moving ${fmtStrike(Number(avg.toFixed(2)))} on average.`;
   }
-  const sentence = `${clock.inSession ? 'Into the close' : 'Over the next session'} dealers must ${verb} about ${fmtDollars(toClose)} of stock to stay hedged${biggest ? `, most of it ${hhmm(biggest.from)} to ${hhmm(biggest.to)}` : ''}. ${lean}${record}${bellShare != null ? ` ${bellShare}% of the hedging expires at 4:00.` : ''}`;
+  const sentence = `${clock.inSession ? 'Into the close' : 'Over the next session'} dealers must ${verb} about ${fmtDollars(toClose)} of stock to stay hedged${biggest ? `, most of it ${hhmm(biggest.from)} to ${hhmm(biggest.to)}` : ''}. ${lean}${record}${bellShare != null ? ` ${bellShare}% of the hedging expires at ${hhmm(CLOSE_MIN)}.` : ''}`;
 
   return { blocks, toClose, biggest, bellShare, vol, sentence };
 }

@@ -55,6 +55,7 @@ import { CloseGuide } from './AheadGuide';
 import { CALL_WALL, PUT_WALL, SUPREME } from './paletteInk';
 import { fmtStrike, type AheadClock, type CloseOdd, type CloseOdds as CloseOddsData } from '../../data/ahead';
 import type { ExposureLevels } from '../../types/gex';
+import { marketClock } from '../../core/nyTime';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /** The unranked bars' ink — the page's own ink, faint */
@@ -163,7 +164,7 @@ const CloseOdds = ({ odds, spot, ticker, clock, levels, yours, focus, onPick, sc
               {scope}
               <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the runs and the slices mean" testId="close-guide" />
             </div>
-            <p className="mt-0.5 text-[11px] text-textMuted">One row per strike · the bar is the chance the 4:00 print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
+            <p className="mt-0.5 text-[11px] text-textMuted">One row per strike · the bar is the chance the {marketClock(16, 0)} print lands there · the three likeliest numbered · the 50% and 80% runs shaded</p>
           </div>
         )}
         <dl className={`grid grid-cols-4 gap-x-6 ${headless ? 'ml-auto' : ''}`}>
