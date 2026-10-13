@@ -158,6 +158,18 @@ export function marketClock(hour: number, minute = 0, opts: { zone?: boolean; on
   return clock(nyWallTime(p.year, p.month, p.day, hour, minute), { zone: opts.zone });
 }
 
+/** A DATA FIELD'S CLOCK TEXT, NEVER PRINTED AS IS: New York's "14:03" ("14:03:42" with seconds) — what a field that
+    other code parses or sorts keeps (a print's `time`); nyTextClock prints it */
+export function nyText(at?: At, opts: { seconds?: boolean } = {}): string {
+  const p = nyParts(at);
+  return `${two(p.hour)}:${two(p.minute)}${opts.seconds ? `:${two(p.second)}` : ''}`;
+}
+/** A New York minute of the day as a data field's clock text — "09:30" for 570 (never printed as is; see nyText) */
+export const nyMinuteText = (minuteOfDay: number): string => {
+  const m = ((Math.round(minuteOfDay) % 1440) + 1440) % 1440;
+  return `${two(Math.floor(m / 60))}:${two(m % 60)}`;
+};
+
 /** A NEW YORK WALL-CLOCK TEXT — a data field kept in the market's clock ("14:03", "14:03:42"; a print's `time`, a tape
     row's) — PRINTED on the reader's clock: "2:03 pm", "2:03:42 pm" (seconds kept when the text has them). `on` is the New
     York date it belongs to (today's by default). The field itself stays as it is — other code reads it in New York's

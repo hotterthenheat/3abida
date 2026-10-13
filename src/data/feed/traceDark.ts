@@ -26,7 +26,7 @@
 
 import { useMemo } from 'react';
 import { defendedCount, levelUsage, sectorOf } from '../darkpool';
-import { nyClock } from '../../core/nyTime';
+import { nyClock, nyText } from '../../core/nyTime';
 import type { DarkLeaderRow, DarkLeadersView, DarkPoolIntent, DarkPoolLevel, DarkPoolPrint, DarkPoolView, DarkSector, LevelRole, Posture } from '../../types/darkpool';
 import type { BookContract } from '../../types/trace';
 import { useFeedPoll } from './poll';
@@ -142,7 +142,8 @@ export function useFeedDarkView(on: boolean, ticker: string, spot: number | null
       const atLevel = levelsOut.some(l => Math.abs(p.price - l.price) / l.price < 0.001);
       return {
         id: idNum(`${base}-${n}`),
-        time: nyClock(p.executedAt),
+        /* New York's clock text, as the house's prints keep it — printed through nyTextClock */
+        time: nyText(p.executedAt, { seconds: true }),
         ticker: t,
         price: p.price,
         size: p.size,

@@ -60,7 +60,7 @@ import { sleeveForDte } from '../compass';
 import type { SleeveKey } from '../../types/compass';
 import { bookExpiryIso } from '../../components/trace/bookExpiry';
 import { isTradingDay, sessionsBetween } from '../../core/calendar';
-import { nyClock, nyParts, SESSION_CLOSE_MIN, SESSION_OPEN_MIN } from '../../core/nyTime';
+import { nyClock, nyParts, SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyText } from '../../core/nyTime';
 import type { BookContract, FlowPrint } from '../../types/trace';
 import { useFeedPoll } from './poll';
 import { NOT_IN_FEED, useFeedPrice } from './price';
@@ -308,7 +308,7 @@ export function printRow(t: UwOptionTrade, s: FeedSession): FeedPrint {
     id: idNum(t.id),
     at: t.executedAt,
     occ: t.chain,
-    time: nyClock(t.executedAt, { seconds: true }),
+    time: nyText(t.executedAt, { seconds: true }),
     ticker: t.ticker,
     /* a multi-leg order's print says it is one, not how many legs it had */
     legs: 1,
@@ -668,7 +668,7 @@ export function feedCatches(alerts: UwFlowAlert[], book: BookContract[], reasons
         rule,
         mine: rule !== house,
         minute,
-        time: nyClock(a.createdAt),
+        time: nyText(a.createdAt),
         clipSize: a.totalSize,
         clipFill: a.price ?? NaN,
         clipPremium: a.totalPremium,
@@ -1013,7 +1013,7 @@ export function spreadOf(m: UwMultiLeg, s: FeedSession): SpreadTrade {
   return {
     id: m.id || `${m.ticker}-${m.executedAt}`,
     minute: nyMinuteAt(m.executedAt),
-    time: nyClock(m.executedAt),
+    time: nyText(m.executedAt),
     ticker: m.ticker,
     kind: kindOfStrategy(m.strategy),
     strikesLabel: strikes.join(' / '),

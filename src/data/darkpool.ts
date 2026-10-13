@@ -13,7 +13,7 @@ import type { Grade } from './stockOverview';
 import Simulator from '../core/simulator';
 import { dayKey, h01, hPick, hRange } from '../core/rng';
 import { now } from '../core/clock';
-import { minuteLabel, nyClock, nyMinutes, nySessionPhase, SESSION_CLOSE_MIN, SESSION_OPEN_MIN } from '../core/nyTime';
+import { nyClock, nyMinuteText, nyMinutes, nySessionPhase, SESSION_CLOSE_MIN, SESSION_OPEN_MIN } from '../core/nyTime';
 import type { MarketSnapshot } from '../types/market';
 import type {
   DarkLeaderRow,
@@ -319,7 +319,8 @@ export function buildDarkPoolView(snapshot: MarketSnapshot): DarkPoolView {
     const at = Math.max(SESSION_OPEN_MIN, Math.min(sessionNow, sessionNow - minutesAgo));
     return {
       id: i,
-      time: minuteLabel(at),
+      /* a data field in New York's clock (StockName parses it, the list sorts on it) — printed through nyTextClock */
+      time: nyMinuteText(at),
       ticker,
       price: Number(price.toFixed(2)),
       size,

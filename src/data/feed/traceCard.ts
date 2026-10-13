@@ -27,7 +27,7 @@
 */
 
 import { useMemo } from 'react';
-import { nyClock, nyParts, nyWallTime } from '../../core/nyTime';
+import { nyClock, nyParts, nyWallTime, nyText } from '../../core/nyTime';
 import { sessionsBefore, SESSION_MIN, type ContractFlow, type FlowOptions, type FlowOrder, type FlowRange, type FlowSide, type VolOiDay } from '../contractflow';
 import type { FeedResult } from './client';
 import type { FlowPrint } from '../../types/trace';
@@ -157,7 +157,7 @@ export function buildCard(
     });
     orders.push({
       id: t.id,
-      time: nyClock(t.executedAt, { seconds: true }),
+      time: nyText(t.executedAt, { seconds: true }),
       session: i,
       price: t.price,
       size: t.size,

@@ -9,7 +9,7 @@
 
 import Simulator from '../core/simulator';
 import { now } from '../core/clock';
-import { nyClock, nyParts } from '../core/nyTime';
+import { nyClock, nyParts, nyText } from '../core/nyTime';
 import type { TapeOrder } from '../types/market';
 import type { BookContract, FlowPrint, PrintSentiment, StratTag, TapeSummary } from '../types/trace';
 
@@ -89,7 +89,7 @@ export function enrichPrint(order: TapeOrder, id: number): FlowPrint {
     id,
     /* NEW YORK'S CLOCK, 24-hour (the audit's X2.3 and X2.8): the feed stamps a print in the machine's own zone and
        12-hour words ("6:17:50 PM"); the tape, the card and the books speak New York's "14:03:42" */
-    time: nyClock(at, { seconds: true }),
+    time: nyText(at, { seconds: true }),
     ticker: order.ticker,
     legs,
     strike,
