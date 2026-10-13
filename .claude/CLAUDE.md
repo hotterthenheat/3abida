@@ -782,6 +782,23 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   provenance, knowable at that minute's end and never past the bar's; the card names the bar ("778 · 12:35–12:40 pm
   PDT") and the minute ("The bar's heaviest minute, 12:39 pm · knowable by 12:40 pm"). The chip counts the earlier
   sessions the PAGE has taken in (levels.ts `useServerPastSessions`).
+  THE DAY'S COUNT FROM ITS PUBLICATION (2026-10-13, the owner: "a column's open interest must switch to today's count
+  based on when UW publishes it, not when our server happened to read it … Live and rebuilt-from-history must produce
+  the same field for the same session"; model trail-2026-10-13.5): every column from 07:00 New York (`OI_PUBLISH_NY_MIN`,
+  a fixed conservative time — UW's lands about 06:45 — until the recorder's days from 04:00 measure it: the recorder
+  notes each day's switch in oi.json, `oiSwitch`) stands on the day's published count, carried by any chain read
+  received at or after 07:00 WHATEVER the hour (a read at 09:51 moves every column from 07:00: work()'s key carries
+  `oiTodayFrom`); before 07:00 the prior count (the seed's, or a read before 07:00), never reaching past it. The proof's
+  sections 10 and 12 (live and rebuilt agree) guard it. THE RECORDER RUNS ON ITS OWN, ALWAYS ON (the owner: "The
+  recorder must run on an always-on machine, not in a container that restarts"): `npm run feed:recorder`
+  (server/recorderMain.ts — the same feedMiddleware, RECORD_NAMES watched from the start and never dropped, RECORDER_PORT
+  5190, the keys from .env), under scripts/recorder.cmd (a restart loop, registered with Task Scheduler at startup on the
+  owner's Windows machine) or scripts/recorder.service (systemd); the dev server reads it through FEED_RECORDER_URL
+  (feedMiddleware `fieldUpstream`). THE PRIOR CLOSE IS THE OFFICIAL CLOSE: UW's prev_close equals Massive's daily close
+  (778.10 for Oct 12); the 3:59 pm bar (778.06) is not the close — never measure the day's change from it. THE NET
+  GAP'S SOURCE (docs/research-2026-10-13/uw-vol-convention.md): UW's book at a strike is the sum of its own per-contract
+  `gamma` × OI × price² exactly; the model prices afresh at one spot and clock, and differs by expiry (1.02 today's,
+  0.95 at seven weeks) — not the spot, not the stamps; stated, never calibrated.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

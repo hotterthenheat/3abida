@@ -1,0 +1,19 @@
+# The field's recorder as a systemd service on a Linux box that is always on (docs/data-feed.md "The recorder's home").
+# Copy to /etc/systemd/system/slayer-recorder.service, set the paths and the user, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now slayer-recorder
+[Unit]
+Description=Slayer field recorder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=slayer
+WorkingDirectory=/home/slayer/3abida
+ExecStart=/usr/bin/npm run -s feed:recorder
+Restart=always
+RestartSec=10
+# the keys come from the repo's .env (git-ignored); nothing is read from the environment here
+
+[Install]
+WantedBy=multi-user.target

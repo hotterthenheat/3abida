@@ -19,6 +19,7 @@
     "landing:session": "node scripts/make-landing-session.mjs",
     "logos:fetch": "node scripts/fetch-logos.mjs",
     "feed:check": "tsx scripts/feed-check.ts",
+    "feed:recorder": "tsx server/recorderMain.ts",
     "review:proof": "tsx scripts/review-engine-proof.ts && tsx scripts/review-journal-proof.ts && tsx scripts/paper-proof.ts"
   },
   "dependencies": {

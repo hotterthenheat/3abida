@@ -176,6 +176,14 @@ A figure the answers do not carry is `NaN` in the row and "—" on the page, tit
 quarter hour by quarter hour (Footprints' sparkline), a print's overnight change in open interest, the name's premium a
 minute (the card's dollar bars), a catch off the book's clip size. A floor a call needs is named on the page's line.
 
+## The prior close is the official close (2026-10-13)
+
+The rail's change stands on UW's stock-state `prev_close` — 778.10 for SPY on 2026-10-13. Checked against the other
+figures for Oct 12: Massive's daily bar closes at 778.10 (the SIP's official closing price, the closing auction);
+UW's and Massive's 15:59 minute bars close at 778.055 and 778.07; the 16:00 minute (after hours) at 777.99. So
+778.10 is the official close and 778.06 is the last regular minute's trade before the auction, not the close — the
+rail is right and keeps `prev_close`. A source showing −1.80 from 778.06 is measuring from the 3:59 bar.
+
 ## The rail's price follows the page's room (2026-10-12)
 
 The shell's subject — the name, its price and change on the rail and on the phone's strip — reads the price of the
@@ -353,14 +361,23 @@ the model, `src/data/feed/trailField.ts` (`TRAIL_MODEL`, its version on every co
 | The price | UW's 1-minute bars, each bar's close | the bar's end |
 | The measured reference | `/spot-exposures/strike` once a minute (each strike's own `time` and `price` kept) and `/spot-exposures` (the whole book a minute) | as received — never blended into the field |
 
-**The positions, as received (model trail-2026-10-13.4, the owner's second review of 2026-10-13).** A column's open
-interest is the count of the newest chain read RECEIVED at or before the column's end; before the day's first read it
-is the seed's — `/option-chains?date=<the session before>`, whose count is dated that session (the count after the
-session before IT closed), carried in the seed row's fourth element. UW publishes today's count about 06:45 New York
-(measured: the 00:27 read equalled the seed on every contract both held, 3,094 of 3,094; the 09:51 read changed 2,186
-of them), and the recorder reads the chain every ten minutes from 04:00, so a pre-market column stands on the prior
-count until the published one is in — never on a count received after the minute (`universeOf`, `oiAt`;
-`scripts/trail-field-proof.ts` section 10). A seed written without its count is read again.
+**The positions, from their publication (model trail-2026-10-13.5; the owner, 2026-10-13: "a column's open
+interest must switch to today's count based on when UW publishes it, not when our server happened to read it").**
+Every column from 07:00 New York stands on the day's published count — UW's count dated today, the positions at the
+session before's close — carried by any chain read received at or after 07:00, WHATEVER the hour it was received (a
+server that came up at 09:51 still gives the 09:30 column the day's count; the first such read is `oiTodayFrom`, and
+a late one moves every column from 07:00). A column before 07:00 stands on the prior count: the seed's
+(`/option-chains?date=<the session before>`, whose count is dated that session, the fourth element of a seed row;
+a seed written without it is read again) or a chain read received before 07:00. A count read before the publication
+never reaches a column after it. 07:00 is a fixed conservative time (UW's count lands about 06:45 — measured
+2026-10-13: the 00:27 read equalled the seed on 3,094 of 3,094 contracts both held, the 09:51 read changed 2,186);
+the recorder reads the chain every ten minutes from 04:00 and notes the day's switch — the first read whose count
+differs from the one before it on more than a quarter of the contracts — in `oi.json` (`oiSwitch` in the field's
+answer), so the publication time is measured from the days it runs from 04:00 and `OI_PUBLISH_NY_MIN` can be set
+from them. So a live day and one rebuilt from history stand on the same positions, and at the minutes of the live
+chain reads on the same vols: `scripts/trail-field-proof.ts` sections 10 and 12 (the second models one session from a
+live recording whose first read came at 09:51 and from the dated count with the minutes' vols, and finds the same
+cells).
 
 The pricer is `core/greeks.ts` `blackScholesGreeks` on the clock and carry UW solved its vols under, measured 2026-10-13
 (`research-2026-10-13/uw-vol-convention.md`): European, r 4.15%, no dividend; today's expiry on calendar time to its
@@ -409,6 +426,30 @@ ten sessions its minutes hold and draws each one's regular session; the trail ch
 while they come. How far back (measured 2026-10-13, Basic): the per-contract minutes from about 2025-04-01; the dated
 chains, minute bars and whole-book series about two years. A session before the minutes is modeled on the session
 before's close vols alone, every cell `carried`. `scripts/field-backfill-proof.ts` runs in `npm test`.
+
+**The recorder's home (2026-10-13 — the owner: "The recorder must run on an always-on machine, not in a container
+that restarts. Today only 98 minutes were recorded, and missed live minutes can't be recovered. Tell me where it will
+run and how it restarts itself").** It runs as its own process, `npm run feed:recorder` (server/recorderMain.ts): the
+same proxy and recorder as the dev server's, no Vite, on RECORDER_PORT (5190), recording RECORD_NAMES (.env; SPY,
+QQQ, IWM by default) from the moment it starts and never letting them go, the keys read from .env itself. It exits on
+an error it cannot handle, and the supervisor round it starts it again:
+
+- **On the owner's Windows machine** (where the terminal runs): `scripts\recorder.cmd` is a loop — it starts the
+  recorder, and ten seconds after the recorder stops for any reason starts it again, logging to
+  `.feed-cache\recorder.log`. Register the loop once with Task Scheduler so it runs at startup, logged on or not:
+  `schtasks /Create /TN "Slayer recorder" /TR "C:\path\to\3abida\scripts\recorder.cmd" /SC ONSTART /RU "%USERNAME%"`,
+  then in Task Scheduler's properties tick "Run whether user is logged on or not" and, under Settings, "If the task
+  fails, restart every 1 minute". A reboot starts the loop; the loop restarts the recorder; the files are append-only
+  and are read back on each start, so nothing recorded is lost. The machine must stay on and awake through 04:00–16:15
+  New York (Power & sleep: never sleep on mains power).
+- **On a Linux box that is always on** (a small VPS): `scripts/recorder.service`, a systemd unit with
+  `Restart=always`, `RestartSec=10`, started at boot — `systemctl enable --now slayer-recorder`.
+
+The dev server then reads THAT recorder: with `FEED_RECORDER_URL=http://127.0.0.1:5190` in .env, every `/feed/field/*`
+route is answered by it (server/feed.ts `fieldUpstream`), so the tabs and the always-on process agree and a dev server
+that comes and goes records nothing on its own. Without it, the dev server records as before. A day with holes is
+still a day with holes: a minute nobody recorded is not recovered — the backfill rebuilds a PAST session from UW's
+dated history (below), which is the same model on the same positions but the vols as traded, minute by minute.
 
 **The field's recorder (server/fieldRecorder.ts).** Mounted by the proxy: `GET /feed/field/<NAME>?since=<ms>` watches the
 name (six at most; two idle hours let it go) and answers what was received after `since` — the books, the chain reads,

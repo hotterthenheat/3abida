@@ -331,6 +331,38 @@ in the feed" mark, and the trend labels' words (the data, not the page).
 | Oct 12 card | `778 · 12:35–12:40 pm PDT … −$1.3B · 7.4% of the book … Change since the open (6:30 am): −$957M … Flip 777.12 … The bar's heaviest minute, 12:39 pm · knowable by 12:40 pm … Vols as traded to 12:39 pm` (`after2/07-oct12-session-hover.png`) | the bar, its minute, its knowledge time — item 6 answered on the card |
 | How sure | `… (within 60 days, 9 books read today): strike by strike it differs by 6.7% of the book's size at the median; summed over those strikes it has the same sign in 8 of 9, at 1.82× …` | like for like |
 
+## Step 6 — the four points after the live check (the owner, 2026-10-13)
+
+**1. Open interest switches on UW's publication, not the server's read.** Model `trail-2026-10-13.5`: every column
+from 07:00 New York stands on the day's published count whatever the hour the recorder received it; before 07:00 on
+the prior count. The 09:30–09:50 columns of today now stand on the day's count, and the "CW 785 → 780 · 6:50 am" chip
+that marked the server's restart is gone (the switch now stands at 7:00 am, the publication). 07:00 is a fixed
+conservative time until the recorder's days from 04:00 measure it: the recorder notes each day's switch in `oi.json`
+(`oiSwitch`). Live and rebuilt agree: proof sections 10 (seven checks) and 12 (four checks — one session modeled from
+a live recording whose first read came at 09:51 and from the dated count with the minutes' vols gives the same cells).
+`npm test` runs 47 checks on the field.
+
+**2. The recorder's home.** It is now its own always-on process, `npm run feed:recorder` (server/recorderMain.ts): the
+same proxy and recorder, no Vite, recording RECORD_NAMES from the start and never letting them go. Where: the owner's
+Windows machine, kept awake, with `scripts\recorder.cmd` — a loop that starts the recorder again ten seconds after it
+stops for any reason — registered with Task Scheduler at startup, logged on or not; or a small Linux box with
+`scripts/recorder.service` (systemd, `Restart=always`). The dev server reads that recorder through
+`FEED_RECORDER_URL`. Checked here: started on 5190, it served the day's record and began recording QQQ on its own with
+no tab asking; a POST is refused, a vendor route answers through it. docs/data-feed.md "The recorder's home".
+
+**3. The summed-net gap: one source, found.** Not the spot (≤ 0.16; re-pricing at UW's spot moves 10:40's gap from
+11.4% to 8.9% and the others not at all), not the stamps (within two minutes). UW's book at a strike is exactly the
+sum of each contract's own `gamma` on the chain × open interest × price² (772: 1,229M both; 780: −1,222M both); the
+model's pricer reproduces that sum within 0.3% over the chain but by expiry runs 1.02 on today's contracts to 0.95 at
+seven weeks, so every strike near the money comes out 30–100M more negative. UW figures each contract's gamma from
+something other than the chain's last-print vol at the current spot (its own vol, or an American model for the puts);
+the model prices every contract afresh at one spot and clock. docs/research-2026-10-13/uw-vol-convention.md.
+
+**4. The prior close.** The rail is right: UW's `prev_close` 778.10 equals Massive's daily close for Oct 12 (the
+official close, the closing auction). 778.06 is the 3:59 pm minute's close on both vendors (UW 778.055, Massive
+778.07), the last trade before the auction. The −1.80 figure measures from the 3:59 bar, not the close. Nothing
+changed.
+
 ### After hours
 
 Taken after 4:00 pm New York the same day (the market shut, the book's price frozen at the close): `after-close/` — the

@@ -330,11 +330,15 @@ const isLoopback = (addr: string | undefined) => !!addr && (addr === '::1' || ad
 /** What the client may not pass on: a key of its own */
 const STRIP = new Set(['apikey', 'apiKey', 'token', 'api_key']);
 
-export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean }) {
+export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; recordNames?: string[]; fieldUpstream?: string }) {
   const client = createFeedClient(opts);
-  /* THE FIELD'S RECORDER (server/fieldRecorder.ts): the names the terminal asked the field for, their book read once a
-     minute through this client while the session is open, whether or not a tab is */
-  const recorder = createFieldRecorder(client);
+  /* THE FIELD'S RECORDER (server/fieldRecorder.ts): the names the terminal asked the field for — and `recordNames`,
+     recorded whatever the tabs (the standalone recorder) — their book read once a minute through this client while
+     the session is open, whether or not a tab is. With `fieldUpstream` (FEED_RECORDER_URL) the field's routes are
+     answered by the always-on recorder there instead, so a dev server that comes and goes never records a day with
+     holes beside it (the owner, 2026-10-13: "The recorder must run on an always-on machine"). */
+  const upstream = opts.fieldUpstream?.replace(/\/+$/, '') || null;
+  const recorder = createFieldRecorder(client, { always: opts.recordNames });
   /* THE FIELD'S PAST SESSIONS (server/fieldBackfill.ts): a session before today rebuilt from UW's dated history, once */
   const backfill = createFieldBackfill(client);
   let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
@@ -366,6 +370,14 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean })
       if (url.pathname === '/feed/status') {
         const s = await status();
         return send(res, json(200, { uw: { key: client.hasKey('uw'), ...s.uw }, massive: { key: client.hasKey('massive'), ...s.massive } }));
+      }
+      if (upstream && url.pathname.startsWith('/feed/field/')) {
+        try {
+          const r = await fetch(upstream + raw, { signal: AbortSignal.timeout(20_000) });
+          return send(res, { status: r.status, contentType: r.headers.get('content-type') ?? 'application/json', body: await r.text(), from: 'proxy' });
+        } catch {
+          return send(res, json(502, { error: 'network', where: 'recorder' }));
+        }
       }
       const past = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/past$/.exec(url.pathname);
       if (past) {

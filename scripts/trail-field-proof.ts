@@ -14,10 +14,16 @@
   7. A vol stamped after the close is a bound: its print's time is said as "at or before", never as a time
   8. A PAST SESSION'S MINUTE VOLS (server/fieldBackfill.ts `ticks`): a minute's vol is the field's from that minute's
      end — never the minute before — and makes the cell 'modeled'; one in its expiry's last hour is not used
-  10. OPEN INTEREST AS RECEIVED (the owner's second review, 2026-10-13, item 4): a column stands on the count of the
-      newest chain read received at or before its end — before the day's first read, on the seed's count, dated the
-      session before; a count received after a minute never moves it; with no count received and no seed count there
-      is no cell
+  10. THE DAY'S COUNT FROM ITS PUBLICATION (the owner, 2026-10-13: "a column's open interest must switch to today's
+      count based on when UW publishes it, not when our server happened to read it"): every column from 07:00 New York
+      stands on the day's published count — a chain read received at or after 07:00 carries it, WHATEVER the hour it
+      was received, even 09:51 — and a column before 07:00 on the prior count (the seed's, dated the session before,
+      or a read before 07:00); a count read before the publication never reaches a column after it; with no count and
+      no seed there is no cell
+  12. LIVE AND REBUILT AGREE (the owner: "Live and rebuilt-from-history must produce the same field for the same
+      session"): a session modeled from a live recording whose first read came at 09:51, and from the dated count at
+      09:30 with the minutes' vols, gives the same cells — the pre-market on the prior count both ways, the session on
+      the day's count both ways, the vols equal at the reads' minutes
   11. A BAR'S CELL IS ITS PEAK MINUTE (item 6): on a five-minute texture each strike keeps the minute of the bar with
       the largest magnitude, with that minute's own time and vols — a minute past the bar's end belongs to the next bar
   9. THE TERRAIN AUDIT (2026-10-13): the flip is the linear zero crossing between the two strikes of opposite sign, never
@@ -235,23 +241,52 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
   setMeasuredSource(() => [], () => []);
 }
 
-/* 10. open interest as received */
+/* 10. the day's count from its publication */
 {
   const v600 = (c: GexSnapshot) => c.levels.find(l => l.strike === 600)?.value ?? NaN;
   const sameV = (a: GexSnapshot, b: GexSnapshot) => JSON.stringify(a.levels.map(l => [l.strike, l.value])) === JSON.stringify(b.levels.map(l => [l.strike, l.value]));
   const withSeed = (k: number): ServerInputs => ({ ...base, seed: { ...seed, rows: seed.rows.map(([s, iv, t]) => [s, iv, t, seedOi(s) * k] as SeedRow) } });
-  const u1 = universeOf('SPY', day, withSeed(1));
-  const u2 = universeOf('SPY', day, withSeed(2));
-  const e1 = modelColumn(u1, bar(9, 45, 600.2));
-  const e2 = modelColumn(u2, bar(9, 45, 600.2));
-  check("before the day's first chain read a column stands on the seed's count (twice the count, twice the cell)", Math.abs(v600(e2) / v600(e1) - 2) < 1e-9);
-  check("…and a column after the first read stands on the read's count, whatever the seed held", sameV(modelColumn(u1, bar(11, 0, 600.2)), modelColumn(u2, bar(11, 0, 600.2))));
-  const tripled = read(12, 0, 0.12);
-  tripled.rows = tripled.rows.map(r => [r[0], r[1] * 3, r[2], r[3]] as typeof r);
-  const ub = universeOf('SPY', day, { ...base, chains: [read(10, 0, 0.12), tripled] });
-  check('a count received at 12:00 never moves the 11:00 column', sameV(modelColumn(ub, bar(11, 0, 600.2)), mid));
-  check('…and the 12:30 column stands on it (three times the count, three times the cell)', Math.abs(v600(modelColumn(ub, bar(12, 30, 600.2))) / v600(late) - 3) < 1e-9);
+  const scaled = (r: ReturnType<typeof read>, k: number) => ({ ...r, rows: r.rows.map(x => [x[0], x[1] * k, x[2], x[3]] as (typeof r.rows)[number]) });
+  /* the published count at 09:51 (the server came up late), twice the seed's: 04:30 on the seed's, 07:00 on and 09:30 on the published */
+  const late: ServerInputs = { ...withSeed(1), chains: [scaled(read(9, 51, 0.15), 2)] };
+  const uLate = universeOf('SPY', day, late);
+  /* the contracts are the reads' (a seed alone names none): the same late read at the seed's own count, the seed doubled or not */
+  const uSeed2 = universeOf('SPY', day, { ...withSeed(2), chains: [read(9, 51, 0.15)] });
+  const uSeed1 = universeOf('SPY', day, { ...withSeed(1), chains: [read(9, 51, 0.15)] });
+  check("before the publication a column stands on the prior count (the seed's; twice the count, twice the cell)", Math.abs(v600(modelColumn(uSeed2, bar(4, 30, 600.2))) / v600(modelColumn(uSeed1, bar(4, 30, 600.2))) - 2) < 1e-9 && sameV(modelColumn(uLate, bar(4, 30, 600.2)), modelColumn(uSeed1, bar(4, 30, 600.2))));
+  check("from 07:00 a column stands on the day's published count, though the read came at 09:51 (twice the seed's: twice the cell)", Math.abs(v600(modelColumn(uLate, bar(7, 0, 600.2))) / v600(modelColumn(uSeed1, bar(7, 0, 600.2))) - 2) < 1e-9 && Math.abs(v600(modelColumn(uLate, bar(9, 30, 600.2))) / v600(modelColumn(uSeed1, bar(9, 30, 600.2))) - 2) < 1e-9);
+  check('…and the first read carrying it is named (oiTodayFrom; none without a read after the publication)', uLate.oiTodayFrom === at(9, 51) && universeOf('SPY', day, { ...withSeed(1), chains: [scaled(read(5, 0, 0.15), 1)] }).oiTodayFrom === 0);
+  /* a read before the publication carries the prior count: it stands before 07:00, never after */
+  const early: ServerInputs = { ...withSeed(1), chains: [scaled(read(5, 0, 0.15), 3), scaled(read(9, 51, 0.15), 2)] };
+  const uEarly = universeOf('SPY', day, early);
+  check('a count read before the publication stands before 07:00 (three times the seed: three times the cell at 06:00)', Math.abs(v600(modelColumn(uEarly, bar(6, 0, 600.2))) / v600(modelColumn(uSeed1, bar(6, 0, 600.2))) - 3) < 1e-9);
+  check('…and never reaches a column after it (the published count at 08:00)', sameV(modelColumn(uEarly, bar(8, 0, 600.2)), modelColumn(uLate, bar(8, 0, 600.2))));
+  /* the base fixture's reads at 10:00 and 12:00 both carry the published count: the same positions all session */
+  check('two reads after the publication with the same count are one count', sameV(modelColumn(u, bar(11, 0, 600.2)), modelColumn(universeOf('SPY', day, { ...base, chains: [read(10, 0, 0.12)] }), bar(11, 0, 600.2))));
   check('no count received yet and no seed count → no cell', modelColumn(universeOf('SPY', day, { ...base, seed: null }), bar(9, 45, 600.2)).levels.length === 0);
+}
+
+/* 12. live and rebuilt agree */
+{
+  const sameV = (a: GexSnapshot, b: GexSnapshot) => JSON.stringify(a.levels.map(l => [l.strike, l.value, l.prov])) === JSON.stringify(b.levels.map(l => [l.strike, l.value, l.prov]));
+  const seeded = { ...seed, rows: seed.rows.map(([s, iv, t]) => [s, iv, t, seedOi(s)] as SeedRow) };
+  const k = 2; // the day's count is twice the seed's
+  /* LIVE: the recorder's chain reads — the first after the publication at 09:51 (the server came up late), then 10:00
+     and 10:10, each the last print's vol: 0.12 at 09:51 and 10:00, 0.14 at 10:10 */
+  const liveRead = (h: number, m: number, iv: number) => ({ receivedAt: at(h, m), rows: syms.map(s => [s, seedOi(s) * k, noVol(s) ? null : iv, at(h, m) - 20_000] as [string, number, number | null, number | null]) });
+  const live: ServerInputs = { chains: [liveRead(9, 51, 0.12), liveRead(10, 0, 0.12), liveRead(10, 10, 0.14)], seed: seeded, total: null };
+  /* REBUILT (server/fieldBackfill.ts): the count dated the session at its open, the seed's close vols, and each
+     contract's minute vols — the same prints: 0.12 from the 09:51 minute, 0.14 from the 10:10 minute */
+  const open = { receivedAt: at(9, 30), rows: syms.map(s => [s, seedOi(s) * k, null, null] as [string, number, number | null, number | null]) };
+  const ticks: Record<string, number[]> = Object.fromEntries(syms.filter(s => !noVol(s)).map(s => [s, [at(9, 51) - 60_000, 0.12, at(10, 10) - 60_000, 0.14]]));
+  const rebuilt: ServerInputs = { chains: [open], seed: seeded, total: null, ticks };
+  const uL = universeOf('SPY', day, live);
+  const uR = universeOf('SPY', day, rebuilt);
+  const same = (h: number, m: number) => sameV(modelColumn(uL, bar(h, m, 600.2)), modelColumn(uR, bar(h, m, 600.2)));
+  check('the pre-market stands on the prior count both ways (04:30, the seed\'s close vols)', same(4, 30));
+  check("the session stands on the day's count both ways, though the live read came at 09:51 (09:30 before the first read)", same(9, 30));
+  check('at the reads\' minutes the cells are the same (09:51, 10:00, 10:10, 11:00)', same(9, 51) && same(10, 0) && same(10, 10) && same(11, 0));
+  check("the day's count differs from the prior (the session's cells are not the pre-market's)", !sameV(modelColumn(uL, bar(4, 30, 600.2)), modelColumn(uL, bar(9, 30, 600.2))));
 }
 
 /* 11. a bar's cell is its peak minute */

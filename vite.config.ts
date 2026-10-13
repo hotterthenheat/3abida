@@ -7,8 +7,8 @@ import { feedMiddleware } from './server/feed';
    prefix (every variable, not only VITE_ ones) — and handed to the middleware, never to `define` or import.meta.env, so
    the bundle never holds one. No key: the route answers 503 { error: 'no-key' } and every room keeps its own book. The
    proxy answers this machine alone (FEED_ALLOW_LAN=1 lets a phone on the network in). */
-function feedProxy(keys: { uw?: string; massive?: string }): Plugin {
-  const middleware = () => feedMiddleware({ keys, allowLan: process.env.FEED_ALLOW_LAN === '1' });
+function feedProxy(keys: { uw?: string; massive?: string }, fieldUpstream?: string): Plugin {
+  const middleware = () => feedMiddleware({ keys, allowLan: process.env.FEED_ALLOW_LAN === '1', fieldUpstream });
   return {
     name: 'slayer-feed-proxy',
     configureServer: server => {
@@ -24,7 +24,7 @@ function feedProxy(keys: { uw?: string; massive?: string }): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
-    plugins: [react(), feedProxy({ uw: env.UW_API_TOKEN || undefined, massive: env.MASSIVE_API_KEY || undefined })],
+    plugins: [react(), feedProxy({ uw: env.UW_API_TOKEN || undefined, massive: env.MASSIVE_API_KEY || undefined }, env.FEED_RECORDER_URL || undefined)],
     server: {
       /* THE FIRST LOAD AFTER `npm run dev` (Noah, 2026-09-20: "a white screen for about 5-7 seconds"). Measured: the very first
          visit painted at 4.2s, the second at 0.2s — the same page, the same browser. The dev server compiles nothing until it is

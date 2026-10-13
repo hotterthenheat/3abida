@@ -115,6 +115,16 @@ export interface RecordedTotal {
   /** [minute's start (ms), UW's price, whole book's gamma per 1% by open interest (UW's sign)] */
   rows: [number, number | null, number][];
 }
+/** The day's open-interest switch: the first chain read whose count differed from the read (or seed) before it on a
+    large share of the contracts — when UW's published count was received (the owner, 2026-10-13: "measure it from days
+    the recorder runs from 4:00 am") */
+export interface OiSwitch {
+  receivedAt: number;
+  /** The read before it (its receipt), 0 for the seed */
+  previousAt: number;
+  changed: number;
+  of: number;
+}
 interface Day {
   name: string;
   day: string;
@@ -123,6 +133,7 @@ interface Day {
   chains: RecordedChain[];
   seed: RecordedSeed | null;
   total: RecordedTotal | null;
+  oiSwitch: OiSwitch | null;
 }
 
 const nyParts = (ms: number) => {
@@ -149,7 +160,10 @@ const occParts = (s: string) => {
 
 const NAME_OK = /^[A-Z][A-Z0-9.]{0,9}$/;
 
-export function createFieldRecorder(client: FeedClient, opts: { now?: () => number } = {}) {
+export function createFieldRecorder(client: FeedClient, opts: { now?: () => number; always?: string[] } = {}) {
+  /* THE NAMES RECORDED WHATEVER THE TABS (the standalone recorder, server/recorderMain.ts): watched from the start and
+     never let go for idleness */
+  const always = new Set((opts.always ?? []).map(n => n.toUpperCase()).filter(n => NAME_OK.test(n)));
   const clock = opts.now ?? Date.now;
   const watched = new Map<string, number>();
   const days = new Map<string, Day>();
@@ -209,6 +223,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         /* a seed written before 2026-10-13 carries no count: read again, so the pre-market stands on the prior count */
         seed: (x => (x && x.rows.length && x.rows[0].length >= 4 ? x : null))(readJson<RecordedSeed>(join(dir, 'seed.json'))),
         total: readJson<RecordedTotal>(join(dir, 'total.json')),
+        oiSwitch: readJson<OiSwitch>(join(dir, 'oi.json')),
       };
       days.set(name, d);
     }
@@ -319,6 +334,25 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       if (got.length < 500) break;
     }
     const read: RecordedChain = { receivedAt: clock(), rows };
+    /* the day's switch: the first read whose count differs from the one before it (or the seed's) on more than a
+       quarter of the contracts both hold — UW's published count landing */
+    if (!d.oiSwitch) {
+      const before = d.chains.length ? new Map(d.chains[d.chains.length - 1].rows.map(r => [r[0], r[1]])) : d.seed ? new Map(d.seed.rows.map(r => [r[0], r[3]])) : null;
+      if (before) {
+        let changed = 0;
+        let of = 0;
+        for (const [sym, oi] of rows) {
+          const b = before.get(sym);
+          if (b === undefined) continue;
+          of++;
+          if (b !== oi) changed++;
+        }
+        if (of > 0 && changed > of / 4) {
+          d.oiSwitch = { receivedAt: read.receivedAt, previousAt: d.chains.length ? d.chains[d.chains.length - 1].receivedAt : 0, changed, of };
+          write(name, d.day, 'oi.json', JSON.stringify(d.oiSwitch), false);
+        }
+      }
+    }
     d.chains.push(read);
     write(name, d.day, 'chain.jsonl', JSON.stringify(read), true);
   }
@@ -386,7 +420,7 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
 
   async function tick() {
     const now = clock();
-    for (const [n, at] of watched) if (now - at > IDLE_MS) watched.delete(n);
+    for (const [n, at] of watched) if (!always.has(n) && now - at > IDLE_MS) watched.delete(n);
     if (!client.hasKey('uw') || !watched.size) return;
     const { day, minute, weekday } = nyParts(now);
     if (weekday === 'Sat' || weekday === 'Sun') return;
@@ -402,11 +436,11 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       let oldest = '';
       let t = Infinity;
       for (const [n, at] of watched)
-        if (at < t) {
+        if (!always.has(n) && at < t) {
           t = at;
           oldest = n;
         }
-      watched.delete(oldest);
+      if (oldest) watched.delete(oldest);
     }
     watched.set(name, clock());
     if (!timer) {
@@ -442,9 +476,13 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         chains: d.chains.filter(c => c.receivedAt > since),
         seed: newer(d.seed),
         total: newer(d.total),
+        oiSwitch: d.oiSwitch,
       }),
     };
   }
 
-  return { serve, tick, watched: () => [...watched.keys()] };
+  /* the always-on names start at once, whether or not a tab ever asks */
+  if (always.size && client.hasKey('uw')) for (const n of always) watch(n);
+
+  return { serve, tick, watched: () => [...watched.keys()], always: () => [...always] };
 }

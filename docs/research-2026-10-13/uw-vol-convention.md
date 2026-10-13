@@ -181,11 +181,36 @@ reference, fifteen read today) the per-strike gap is 7.1% at the median (4.7–1
 UW's −1.86B at 10:40; −1.36B against +0.35B at 11:58, the model crossing zero later than UW's book). That is a
 residual of the model stated in How sure, not calibrated away; the per-strike figure is the robust one.
 
-## What is still open
+### The summed net's bias, measured (the owner, 2026-10-13: "nearly every strike is off in the same direction. That's one
+systematic cause … compare the spot each side uses and UW's per-strike time stamps first")
 
-- **The summed net's bias:** the model's 60-strike net sits $1–2B below UW's 60-day book's through the morning while
-  the per-strike gap is 5–11%; which strikes carry it, and whether it is the American put gap (above) or the vols
-  carried from the session before on untraded contracts, is not measured.
+Measured at 13:31 New York on the live chain (4,010 contracts) and three of the day's 60-day books:
+
+- **Not the spot.** UW's book spot and the bar's close differ by 0.16 at most (10:40: 777.50 against 777.66; 11:36 and
+  12:20 within 0.01). Re-pricing the column at UW's own spot moves the 10:40 gap from 11.4% to 8.9% of the book's
+  size and the others not at all.
+- **Not the stamps.** The book's 188 rows are all stamped, within two minutes of the book's time (10:40:00–10:40:28;
+  12:18:16–12:20:33).
+- **It is in the per-contract gamma UW's chain carries.** UW's book at a strike IS the sum of each contract's own
+  `gamma` field on the chain × open interest × price² — to the dollar at every strike checked (772: 1,229M both; 778:
+  −603M both; 780: −1,222M both). The model's pricer — Black–Scholes at the chain's `implied_volatility`, at the
+  current spot and clock, UW's convention — reproduces that sum within 0.3% over the chain, but not evenly: by expiry
+  the ratio runs from 1.02 on today's contracts (the model's gamma 2% higher) through 1.00 for one to three weeks to
+  0.95–0.98 at six to seven weeks (Nov 20 0.98, Nov 27 0.95, Nov 30 0.98 — the model's lower). Near the money every
+  strike's net comes out 30–100M more negative than UW's (778: calls −2,472M against UW's −2,302M, puts +1,775M
+  against +1,699M; 775: puts +1,239M against +1,329M). Re-pricing today's contracts on the clock of each one's last
+  print makes the 0DTE ratio worse (1.03), so UW's per-contract gamma is not simply the print's gamma aged; it is a
+  gamma UW figures from something other than the chain's last-print vol at the current spot (its own mid vol, or an
+  American model — the far-dated puts' 2–5% is the American gap this note estimated), and the sum of them is what its
+  book carries.
+
+So the gap is systematic and has one source: UW's book sums UW's own per-contract gammas, the model prices every
+contract afresh at one spot, one clock and the last print's vol. The per-strike residual (5–11%) and the summed net's
+sign are stated in How sure as before; nothing is calibrated. What would close it is UW's per-contract gamma itself
+in the chain reads (the recorder drops it today) priced as UW's — a choice for the owner, since it trades the model's
+one clock for UW's undocumented one.
+
+## What is still open
 - **A half day** (13:00 close): today's τ is taken to the 13:00 close, unverified against UW.
 - **UW's rate is a constant here.** It is re-measured by the scripts in `tau/` and changed in `UW_VOL_CONVENTION` with a
   new model version if UW moves it.

@@ -167,9 +167,9 @@ function tradeTimeOf(tape: number | null, fallback: number): { trade: number; bo
 
 /** The field's model — its version is kept with every column (trailMeta) */
 export const TRAIL_MODEL = {
-  version: 'trail-2026-10-13.4',
+  version: 'trail-2026-10-13.5',
   what: 'estimated dealer gamma (assumed sign)',
-  openInterest: "as the recorder received it: a column's count is the newest chain read received at or before the column's end (UW publishes today's count — the positions at the session before's close — about 06:45 New York, and the chain is read every ten minutes from 04:00); before the day's first read, the session before's dated count (the seed) — never a count published after the minute",
+  openInterest: "the day's published count — UW's count dated today, the positions at the session before's close — for every column from its publication (07:00 New York, a conservative time until the recorder's days from 04:00 measure it; UW's lands about 06:45), WHATEVER THE HOUR the recorder received it, so a live day and a rebuilt one stand on the same positions; before the publication, the prior count (the seed's, dated the session before, or a chain read before it); never a count published after the minute",
   vol: "as of each minute: today, the newest chain read received at or before the minute's end; a past session, each contract's own minute vols as it traded (UW's per-contract minutes, the middle of the minute's range, knowable at the minute's end, kept when it moved a tenth of a vol point); before either, the session before's close (carried, fixed-strike); a vol read in its expiry's last hour is not used; no observation, no contract",
   price: "the minute bar's close; a column is knowable at its bar's end",
   pricer: "core/greeks.ts blackScholesGreeks on UW's convention (measured): European, r 4.15%, q 0; today's expiry on calendar time from the bar middle to its last-trading instant (16:00 New York, 13:00 on a half day), a later one on whole calendar days / 365",
@@ -248,8 +248,10 @@ export interface Universe {
   /** Contracts [start[i], start[i+1]) belong to strikes[i] */
   start: Int32Array;
   call: Uint8Array;
-  /** Each contract's open interest as it was received, oldest first — a column takes the newest at or before its end */
+  /** Each contract's open interest as it became knowable, oldest first — a column takes the newest at or before its end */
   oiObs: OiObs[][];
+  /** The receipt of the first chain read carrying the day's published count, 0 while none has come */
+  oiTodayFrom: number;
   expires: Float64Array;
   /** UW's whole-day clock for a later expiry, in years; 0 for today's (priced on the minutes left) */
   years: Float64Array;
@@ -261,32 +263,55 @@ export interface Universe {
   seedDate: string | null;
 }
 
-/** A count of open interest and the moment it was received */
+/** A count of open interest and the moment it became knowable: the day's published count from its publication, the
+    prior count from the session before's close */
 export interface OiObs {
   at: number;
   oi: number;
 }
 
+/** When UW publishes the day's open-interest count, New York minutes after midnight — a fixed conservative time (the
+    owner, 2026-10-13: "until then use a fixed conservative time, e.g. 7:00 am ET") until the recorder's days from 04:00
+    measure it; it lands about 06:45. The recorder notes each day's switch (oi.json) so it can be measured. */
+export const OI_PUBLISH_NY_MIN = 7 * 60;
+/** The instant the day's count is public, epoch ms */
+export function oiPublishedAt(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return nyWallTime(y, m, d, Math.floor(OI_PUBLISH_NY_MIN / 60), OI_PUBLISH_NY_MIN % 60);
+}
+
 /**
  * The universe of a name for a day from what the server recorded: the contracts the chain reads list (its own root
- * only — an adjusted root is another deliverable), each contract's open interest AS IT WAS RECEIVED (the owner's second
- * review, 2026-10-13: the count UW publishes about 06:45 New York is not knowable at 04:00 — a column takes the newest
- * count received at or before its end, and before the day's first read the seed's, dated the session before), and
- * every vol observation with the moment it became knowable.
+ * only — an adjusted root is another deliverable), each contract's open interest AS IT BECAME KNOWABLE (the owner,
+ * 2026-10-13: "a column's open interest must switch to today's count based on when UW publishes it, not when our
+ * server happened to read it … every RTH column uses today's dated count; pre-market columns use the prior count until
+ * UW's publish time"): a chain read received at or after the publication carries the day's count, knowable from the
+ * publication whatever the hour it was received; a read before it, and the seed, carry the prior count, knowable from
+ * the session before's close. So a live day and one rebuilt from history stand on the same positions. And every vol
+ * observation with the moment it became knowable.
  */
 export function universeOf(ticker: string, day: string, inputs: ServerInputs, cut: string | null = null): Universe {
   const t = ticker.toUpperCase();
   type C = { strike: number; expiry: string; call: boolean; oiObs: OiObs[]; obs: Obs[] };
   const bySym = new Map<string, C>();
   const reads = [...inputs.chains].sort((a, b) => a.receivedAt - b.receivedAt);
+  const publish = oiPublishedAt(day);
+  /* the prior count is knowable from the session before's close (the seed's instant); with no seed, from the day's start */
+  const [dy, dm, dd] = day.split('-').map(Number);
+  const priorAt = inputs.seed ? (([y, m, d]) => nyWallTime(y, m, d, 16, 0))(inputs.seed.date.split('-').map(Number)) : nyWallTime(dy, dm, dd, 0, 0);
+  let oiTodayFrom = 0;
   for (const read of reads) {
+    const todays = read.receivedAt >= publish;
+    if (todays && !oiTodayFrom) oiTodayFrom = read.receivedAt;
+    const at = todays ? publish : priorAt;
     for (const [sym, oi, iv, trade] of read.rows) {
       const p = parseOcc(sym);
       if (!p || p.root !== t || p.expiry < day || (cut && p.expiry !== cut) || !(p.strike > 0)) continue;
       let c = bySym.get(sym);
       if (!c) bySym.set(sym, (c = { strike: p.strike, expiry: p.expiry, call: p.right === 'C', oiObs: [], obs: [] }));
-      /* a count is noted when it changes — the same count read again is the same knowledge */
-      if (!c.oiObs.length || c.oiObs[c.oiObs.length - 1].oi !== oi) c.oiObs.push({ at: read.receivedAt, oi });
+      /* a count is noted when it changes — the same count read again is the same knowledge; the newest read of a kind
+         (prior or published) is the count of that kind */
+      if (!c.oiObs.length || c.oiObs[c.oiObs.length - 1].oi !== oi) c.oiObs.push({ at, oi });
       if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false });
     }
   }
@@ -313,7 +338,8 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     for (const [sym, iv, trade, oi] of seed.rows) {
       const c = bySym.get(sym);
       if (!c) continue;
-      /* the seed's count — dated the session before, public through it — stands before the day's first read */
+      /* the seed's count — dated the session before, public through it — stands before the day's publication, unless a
+         read before the publication already carried the prior count */
       if (oi != null && Number.isFinite(oi) && (!c.oiObs.length || c.oiObs[0].at > knowable)) c.oiObs.unshift({ at: knowable, oi });
       if (iv == null || !(iv > 0) || lastTradeOf(c.expiry) - knowable < LAST_HOUR_MS) continue;
       c.obs.unshift({ at: knowable, iv, ...tradeTimeOf(trade, knowable), carried: true });
@@ -335,6 +361,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     start: Int32Array.from(start),
     call: Uint8Array.from(kept.map(c => (c.call ? 1 : 0))),
     oiObs: kept.map(c => c.oiObs),
+    oiTodayFrom,
     expires: Float64Array.from(kept.map(c => lastTradeOf(c.expiry))),
     years: Float64Array.from(kept.map(c => (c.expiry > day ? uwYears(0, 0, c.expiry, day) : 0))),
     expiry: kept.map(c => c.expiry),
@@ -699,8 +726,10 @@ function work() {
       for (const b of dayBars(s.bars, day)) {
         if (b.time < from || b.time >= to) continue;
         const r = readAt(u, (b.time + 60) * 1000);
-        /* a minute is modeled once per set of inputs knowable at it: a new chain read moves only the minutes after it */
-        const inputs = `${b.close}|${r}|${u.seedDate ?? ''}|${inp.version}`;
+        /* a minute is modeled once per set of inputs knowable at it: a new chain read moves only the minutes after it —
+           but the day's published count, received late, moves every column from the publication (the owner, 2026-10-13) */
+        const oiTag = b.time * 1000 >= oiPublishedAt(day) ? u.oiTodayFrom : 'prior';
+        const inputs = `${b.close}|${r}|${oiTag}|${u.seedDate ?? ''}|${inp.version}`;
         if (s.cols.get(b.time)?.inputs === inputs) continue;
         const tS = performance.now();
         const snap = modelColumn(u, b);
