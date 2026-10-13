@@ -42,7 +42,10 @@ import {
   INTRADAY_MAX_MINUTES,
   type Timeframe,
 } from '../../data/timeframe';
-import { GexTrailsPrimitive, trailPaperFrom } from './gexNodesPrimitive';
+import { GexTrailsPrimitive, trailPaperFrom, type BeadHit } from './gexNodesPrimitive';
+import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
+import { isoDayLabel, pct, usdCompact, usdCompactSigned } from '../../core/format';
+import { nyClock as nyClockOf, nyIsoDate as nyIsoDateOf } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { alertMarket } from './alertMarket';
@@ -575,6 +578,9 @@ export interface ChartTape {
   compareBars?: Record<string, { bars: Candle[]; daily?: Candle[] | null }>;
   /** The name's next report for the events lane — undefined reads the house's calendar, null says there is none */
   earnings?: TapeEarnings | null;
+  /** The macro dates for the events lane — undefined reads the house's calendar (data/events.ts macroWindow); on the feed
+      UW's economic calendar (2026-10-13 — the owner: "nothing on terrain should be made up data") */
+  macro?: MacroDate[];
 }
 /** What a host's layer is handed: the chart, and the series that carries price NOW (a style swap replaces it — ask each
     time, never keep it) */
@@ -1232,6 +1238,9 @@ const StrikeChart = ({
   const eventsCalRef = useRef<{ key: string; earnings: TapeEarnings | null; macro: MacroDate[]; todayIso: string } | null>(null);
   /** The hovered marker's card. */
   const [eventCard, setEventCard] = useState<{ e: MarketEvent; x: number } | null>(null);
+  /* THE FIELD'S HOVER (2026-10-13): the bead under the pointer — its strike, New York's minute, its net, its share of
+     the moment's book, its change since the 09:30 moment, and whether the moment was measured or rebuilt */
+  const [beadCard, setBeadCard] = useState<BeadHit | null>(null);
   const levelRafRef = useRef(0);
   /** Time of that bar, and the seconds one bar covers — what the runway is
       built from, kept in refs so the time-scale subscription can read them
@@ -3358,12 +3367,13 @@ const StrikeChart = ({
     const key = `${ticker}|${todayIso}`;
     /* a host's tape brings the name's report itself (the feed's record); the house's calendar otherwise */
     const hostEarnings = tapeRef.current?.earnings;
-    const calKey = `${key}|${hostEarnings !== undefined ? 'host' : 'house'}`;
+    const hostMacro = tapeRef.current?.macro;
+    const calKey = `${key}|${hostEarnings !== undefined ? 'host' : 'house'}|${hostMacro ? hostMacro.length : 'house'}`;
     if (eventsCalRef.current?.key !== calKey) {
       eventsCalRef.current = {
         key: calKey,
         earnings: hostEarnings !== undefined ? null : buildEarningsCalendar().find(e => e.ticker === ticker.toUpperCase()) ?? null,
-        macro: macroWindow(now),
+        macro: hostMacro ?? macroWindow(now),
         todayIso,
       };
     }
@@ -4643,8 +4653,14 @@ const StrikeChart = ({
              cannot be hovered and the card wants real type. Cheap: one hit
              test per move, state written only when the answer changes. */
           const prim = eventsPrimRef.current;
-          if (!prim?.data) return;
           const rect = e.currentTarget.getBoundingClientRect();
+          /* the field's bead under the pointer — written only when the bead changes */
+          const tr = trailsRef.current;
+          const plotW = chartRef.current?.paneSize(0).width ?? rect.width;
+          const px = e.clientX - rect.left;
+          const bead = tr && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
+          setBeadCard(prev => (bead === null ? (prev === null ? prev : null) : prev && prev.strike === bead.strike && prev.time === bead.time ? prev : bead));
+          if (!prim?.data) return;
           const plotH = chartRef.current?.paneSize(0).height ?? rect.height;
           const hit = prim.eventAtX(e.clientX - rect.left, e.clientY - rect.top, plotH);
           prim.setHovered(hit);
@@ -4658,6 +4674,7 @@ const StrikeChart = ({
         onMouseLeave={() => {
           eventsPrimRef.current?.setHovered(null);
           setEventCard(null);
+          setBeadCard(null);
         }}
       >
         {picking && pickFade && (
@@ -5233,6 +5250,57 @@ const StrikeChart = ({
               : `live only · from ${new Date(liveFrom * 1000).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })}`}
           </span>
         )}
+
+        {/* THE FIELD'S HOVER CARD (2026-10-13) — the event card's own style, beside the bead */}
+        {beadCard && !eventCard && (() => {
+          const meta = trailMeta(beadCard.snap);
+          const lvl = beadCard.level;
+          const w = containerRef.current?.clientWidth ?? 400;
+          const k = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+          /* the cell's provenance on the feed: priced on today's vols or carried from the session before's close, and how
+             old the oldest vol it stands on is; the measured reference beside it, never blended in */
+          /* a cell of the feed's field — its own column, or the peak a folded bar kept (which carries its cell's
+             provenance but not the column's record) */
+          const feedCell = !!meta || !!lvl.prov;
+          const prov = !feedCell
+            ? null
+            : lvl.prov === 'carried'
+              ? `Carried · vols from ${meta?.seedDate ? isoDayLabel(meta.seedDate) : 'the session before'}'s close`
+              : `Modeled · vols read ${meta?.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
+          const stale = feedCell && lvl.staleSince ? `stale since ${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : null;
+          const measured = feedCell ? measuredAt(ticker, beadCard.strike, beadCard.time) : null;
+          return (
+            <div
+              className="absolute z-30 pointer-events-none border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[300px]"
+              style={{ top: Math.max(4, beadCard.y - 72), ...(beadCard.x > w - 310 ? { right: Math.max(4, w - beadCard.x + 10) } : { left: beadCard.x + 10 }) }}
+              data-bead-card
+            >
+              <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
+                {k(beadCard.strike)} · {nyClockOf(beadCard.time * 1000, { zone: true })}
+              </div>
+              <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
+              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
+              </div>
+              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
+                {beadCard.crossings.length ? ` · crossings near ${beadCard.crossings.map(k).join(', ')}` : ''}
+              </div>
+              {prov && (
+                <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">
+                  {prov}
+                  {stale ? ` · ${stale}` : ''}
+                </div>
+              )}
+              {feedCell && (
+                <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
+                  {measured ? `Unusual Whales' book, ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : "No book of Unusual Whales' read by then"}
+                </div>
+              )}
+              {feedCell && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta?.model ?? TRAIL_MODEL.version}</div>}
+            </div>
+          );
+        })()}
 
         {/* T-11's hover card — floats above the lane at the marker's x,
             flipping to the left of it near the right edge. */}

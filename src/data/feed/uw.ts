@@ -330,7 +330,7 @@ export interface UwStrikeExposure {
 }
 
 /** One row of a name's exposure by strike — the same row for the whole book and for one expiry */
-const strikeExposure = (r: Record<string, unknown>): UwStrikeExposure => ({
+export const strikeExposure = (r: Record<string, unknown>): UwStrikeExposure => ({
   strike: num0(r.strike),
   price: num(r.price),
   time: ms(r.time),
@@ -842,6 +842,47 @@ const contractDay = (r: Record<string, unknown>): UwContractDay => ({
  */
 export const uwContractScreener = (opts: { ticker?: string; limit?: number; date?: string } = {}): Promise<FeedResult<UwContractDay[]>> =>
   feedGet('uw', '/api/screener/option-contracts', { ticker_symbol: opts.ticker, limit: opts.limit ?? 500, date: opts.date }, body => rowsOf(body).map(contractDay));
+
+/* ---- A NAME'S CHAIN, CONTRACT BY CONTRACT (Terrain's strike field, 2026-10-13) ------------------------------------- */
+
+/** One listed contract of a name with its open interest and implied vol — the inputs the field is rebuilt from */
+export interface UwChainContract {
+  /** OCC style without the prefix: SPY261012P00777000 */
+  symbol: string;
+  /** Open interest as counted for today (the positions at the session before's close) */
+  openInterest: number;
+  /** The count before it — the session before's */
+  prevOi: number;
+  /** A fraction (0.142); null when UW carries none for the contract (about half the far strikes, seen) */
+  iv: number | null;
+  /** UW's own greeks for the contract, at the moment its row was figured */
+  gamma: number | null;
+  delta: number | null;
+  vega: number | null;
+  volume: number;
+}
+
+const chainContract = (r: Record<string, unknown>): UwChainContract => ({
+  symbol: str(r.option_symbol),
+  openInterest: num0(r.open_interest),
+  prevOi: num0(r.prev_oi),
+  iv: num(r.implied_volatility),
+  gamma: num(r.gamma),
+  delta: num(r.delta),
+  vega: num(r.vega),
+  volume: num0(r.volume),
+});
+
+/**
+ * A name's listed contracts, heaviest volume first, 500 a page (`page` from 0; a page short of 500 is the last).
+ * GET /api/stock/{ticker}/option-contracts (max_dte, exclude_zero_oi_chains, limit, page) — every row carries its open
+ * interest, the count before, implied vol and UW's greeks (no strike filter on the route). Seen live 2026-10-12: SPY
+ * 9,875 contracts with open interest, 4,236 within 60 days (nine pages).
+ */
+export const uwChainContracts = (ticker: string, opts: { maxDte?: number; page?: number } = {}): Promise<FeedResult<UwChainContract[]>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/option-contracts`, { max_dte: opts.maxDte, exclude_zero_oi_chains: true, limit: 500, page: opts.page ?? 0 }, body =>
+    rowsOf(body).map(chainContract)
+  );
 
 /** One contract's prints, newest first (500 a call at most). GET /api/option-contract/{id}/flow (limit, date) */
 export const uwContractFlow = (symbol: string, opts: { limit?: number; date?: string } = {}): Promise<FeedResult<UwOptionTrade[]>> =>

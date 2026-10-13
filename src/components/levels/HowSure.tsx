@@ -122,6 +122,12 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
           <p className="text-[11px] text-textMuted">How fresh</p>
           <p className="text-textSecondary">{first.freshness}</p>
         </div>
+        {first.field && (
+          <div data-how-sure-field>
+            <p className="text-[11px] text-textMuted">The field on the chart</p>
+            <p className="text-textSecondary">{first.field}</p>
+          </div>
+        )}
         <div>
           <p className="text-[11px] text-textMuted">If the side were the other way</p>
           <ul className="flex flex-col gap-1">

@@ -39,6 +39,7 @@
 */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { createFieldRecorder } from './fieldRecorder';
 
 export type ProviderId = 'uw' | 'massive';
 
@@ -73,6 +74,8 @@ const TTL: Record<ProviderId, [RegExp, number][]> = {
     [/\/screener\/option-contracts|\/ohlc\//, 20 * S],
     [/stock-volume-price-levels/, 60 * S],
     [/spot-exposures|greek-exposure|gex-levels/, 30 * S],
+    /* a name's chain contract by contract: its open interest is counted once a day, its vols move slowly (Terrain's field) */
+    [/^\/api\/stock\/[^/]+\/option-contracts$/, 10 * MIN],
     /* open interest is counted once a day; max pain and the implied moves move slowly (Pinpoint and Terrain, 2026-10-12) */
     [/oi-per-strike|max-pain|interpolated-iv/, 10 * MIN],
     [/flow-per-strike/, 30 * S],
@@ -328,6 +331,9 @@ const STRIP = new Set(['apikey', 'apiKey', 'token', 'api_key']);
 
 export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean }) {
   const client = createFeedClient(opts);
+  /* THE FIELD'S RECORDER (server/fieldRecorder.ts): the names the terminal asked the field for, their book read once a
+     minute through this client while the session is open, whether or not a tab is */
+  const recorder = createFieldRecorder(client);
   let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
   const PROBE_TTL = MIN;
 
@@ -357,6 +363,11 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean })
       if (url.pathname === '/feed/status') {
         const s = await status();
         return send(res, json(200, { uw: { key: client.hasKey('uw'), ...s.uw }, massive: { key: client.hasKey('massive'), ...s.massive } }));
+      }
+      const f = /^\/feed\/field\/([A-Za-z0-9.]{1,10})$/.exec(url.pathname);
+      if (f) {
+        const r = recorder.serve(f[1], Number(url.searchParams.get('since')) || 0);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
       const m = /^\/feed\/(uw|massive)(\/.*)$/.exec(url.pathname);
       if (!m) return send(res, json(404, { error: 'no-route' }));

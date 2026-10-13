@@ -678,12 +678,33 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   three largest crosses of the session; events its next report off UW's record; the walls through the day and the
   open's ghost off the books read today; the Vol switch and compares off the minutes. Massive is asked only while it is
   up and only for what a pane draws. 15 s stays, held, its title saying no plan carries seconds.
-  TERRAIN'S TRAIL ON THE FEED (2026-10-12 — the owner: "why does terrain exposure trails not work"): UW has no route for
-  the book by strike earlier in the day (/spot-exposures/strike takes a date, never a time), so the field is the books
-  this terminal read today — kept on this machine (IndexedDB slayer_field, a record a name a day, earlier days dropped,
-  levels.ts `useFeedField`) so a reload keeps it, and read on every page while the feed is up (layout/FieldRecorder.tsx,
-  the open name's book, the poll Terrain shares), so it fills while the terminal is open anywhere. The pane says where
-  it starts ("Trail from 15:06 ET · it fills while the terminal is open", `data-trail-since`). A hidden tab asks nothing.
+  TERRAIN'S TRAIL ON THE FEED, MODELED POINT IN TIME (2026-10-13 — the owner: "whats wrong with the exposure trails on
+  terrian, why doesnt it look like the UI mockup?"; the research, reports/Dealer exposure reconstruction.md §5 and §8).
+  No plan carries the book by strike for a time of day, so every minute of today is MODELED — estimated dealer gamma
+  (assumed sign), never "dealer positioning" — from what was knowable at it, in ONE module, data/feed/trailField.ts
+  (TRAIL_MODEL names every choice; its version rides on every column, `trailMeta`): today's open interest (UW's row
+  dated today, static all day) × the house's pricer (core/greeks.ts) at each minute bar's close, τ to each contract's
+  exact last-trading instant (expiryClass closeMinuteOn), each contract's vol the newest one RECEIVED at or before the
+  minute's end (the server's chain reads; before them the session before's close vol, carried fixed-strike); a contract
+  with no vol stays out (the strike's coverage drops), a strike with none is a gap. Units: OI × greek × price² (UW's
+  /spot-exposures/strike units); the house's sign. NO CALIBRATION: the books UW answered are a MEASURED REFERENCE (the
+  hover's readout) and their residual — per strike at the captured times, and against UW's whole-book series (the
+  model summed over every strike within 15% and 60 days, a minute a quarter hour) — is one line in the ladder's "How sure" (`fieldResidual`, Sureness `field`). Every cell carries `prov` ('modeled' |
+  'carried'), `staleSince` and `coverage` (GexLevel); carried beads draw a step quieter (gexNodesPrimitive REBUILT_*).
+  THE SCALE RUNS FORWARD: each column's beads against the 85th percentile of the maxima at or before it (a log-binned
+  running count) — nothing to the right changes the left. Each column draws its OWN flip (pickFlip, a gap where none,
+  never carried) and a chip where a wall moved and held three columns ("CW 780 → 785 · 11:42", the newest three); the
+  hover card (StrikeChart `beadCard`) names strike, New York time, the net, its share, the change since 09:30, the flip
+  and the crossings near, the cell's provenance and staleness, UW's own figure at the strike, the model version. An
+  expiry cut models that date's contracts alone. The sessions before today are not drawn on the feed (their inputs —
+  the full tape's vols, the close books — are a later step). THE RECORDER IS THE LOCAL SERVER (server/fieldRecorder.ts,
+  mounted by server/feed.ts): GET /feed/field/<NAME>?since= watches a name (six at most) and answers what was received
+  since; through the session it reads each name's book and UW's whole-book series once a minute, the chain every ten
+  minutes (and once on first watch), the session before's close chain once a day — through the proxy's client and
+  gate, append-only into .feed-cache/field/<NAME>/<day>/ (git-ignored, the days before deleted). The pane's line
+  ("Trail · it fills as the chain is read", `data-trail-since`) stands only while the field is empty. Pinpoint still
+  reads the books read (levels.ts `fieldSnaps`). The events lane's macro dates on the feed are UW's economic calendar
+  (news.ts `econMacro`, the high-impact releases, one mark a date), never the house's calendar rules.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

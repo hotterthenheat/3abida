@@ -296,6 +296,11 @@ const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
           <ul className="mt-1 flex flex-col gap-1.5">{examples}</ul>
         </div>
       )}
+      {/* THE FIELD ON THE CHART, one line (2026-10-13): which beads were read as they stood and which were rebuilt, and the
+          scale they share */}
+      <p className="text-[11px] text-textMuted" data-guide-field>
+        On the chart, each bead is estimated dealer gamma (assumed sign) at one strike and one minute. On the feed every minute is modeled from what was known by then; a bead priced on the session before's closing vols draws a step quieter — hover a bead for which, and for Unusual Whales' own figure beside it. Each column's grey ticks are its own flip, a gap where it has none; a wall's move comes from price, vol or time, never new positions. A bead's strength is measured against the columns at or before it.
+      </p>
       <p className="text-[11px] text-textMuted">Hover any strike to see both numbers in the line under the lanes · click to keep it there.</p>
     </div>
   );

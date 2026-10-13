@@ -544,6 +544,7 @@ const Simulator = (() => {
     let levels: GexSnapshot['levels'] | null = null;
     return {
       time,
+      spot,
       get levels() {
         return (levels ??= levelsOf(spot, step, iv, oi, at));
       },
@@ -581,7 +582,7 @@ const Simulator = (() => {
       const vex = (entry.callOI * -0.55 + entry.putOI * -0.53) * 100 * u.vega * spot;
       levels.push({ strike, value: callGex + putGex, dex, vex, callOI: entry.callOI, putOI: entry.putOI });
     }
-    return { time, levels };
+    return { time, levels, spot };
   }
 
   /*

@@ -4,7 +4,7 @@
   matching timestamps so the on-chart node overlay stays pinned to price/time.
 */
 
-import type { Candle, GexSnapshot } from '../types/market';
+import type { Candle, GexLevel, GexSnapshot } from '../types/market';
 
 export type Timeframe = '15s' | '1m' | '5m' | '15m' | '30m' | '1h' | '1D' | '1W';
 
@@ -131,9 +131,25 @@ interface Peaks {
      head's Greek), each keeping ITS OWN peak per strike */
   dex: number[];
   vex: number[];
+  /* the peak's own provenance on the feed (data/feed/trailField.ts) — it rides with the peak it belongs to */
+  prov: (GexLevel['prov'] | undefined)[];
+  stale: (number | undefined)[];
+  /* the bucket's last price, and whether every moment in it was rebuilt (one measured moment makes it measured) */
+  spot?: number;
+  rebuilt: boolean;
 }
-const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [] });
-const mergePeaks = (p: Peaks, levels: readonly { strike: number; value: number; dex?: number; vex?: number }[]): void => {
+const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], rebuilt: true });
+const markPeaks = (p: Peaks, snap: GexSnapshot) => {
+  if (snap.spot !== undefined) p.spot = snap.spot;
+  if (!snap.rebuilt) p.rebuilt = false;
+};
+const bucketOf = (time: number, p: Peaks): GexSnapshot => {
+  const out: GexSnapshot = { time, levels: peakLevels(p) };
+  if (p.spot !== undefined) out.spot = p.spot;
+  if (p.rebuilt) out.rebuilt = true;
+  return out;
+};
+const mergePeaks = (p: Peaks, levels: readonly GexLevel[]): void => {
   const ps = p.strikes;
   const pv = p.values;
   const pa = p.abs;
@@ -147,6 +163,8 @@ const mergePeaks = (p: Peaks, levels: readonly { strike: number; value: number; 
       pa.push(Math.abs(l.value));
       pd.push(l.dex ?? 0);
       px.push(l.vex ?? 0);
+      p.prov.push(l.prov);
+      p.stale.push(l.staleSince);
     }
     return;
   }
@@ -163,6 +181,8 @@ const mergePeaks = (p: Peaks, levels: readonly { strike: number; value: number; 
       if (a > pa[i]) {
         pv[i] = l.value;
         pa[i] = a;
+        p.prov[i] = l.prov;
+        p.stale[i] = l.staleSince;
       }
       const d = l.dex ?? 0;
       if (Math.abs(d) > Math.abs(pd[i])) pd[i] = d;
@@ -174,13 +194,20 @@ const mergePeaks = (p: Peaks, levels: readonly { strike: number; value: number; 
       pa.splice(i, 0, Math.abs(l.value));
       pd.splice(i, 0, l.dex ?? 0);
       px.splice(i, 0, l.vex ?? 0);
+      p.prov.splice(i, 0, l.prov);
+      p.stale.splice(i, 0, l.staleSince);
     }
     i++;
   }
 };
 const peakLevels = (p: Peaks) => {
-  const out = new Array<{ strike: number; value: number; dex: number; vex: number }>(p.strikes.length);
-  for (let k = 0; k < p.strikes.length; k++) out[k] = { strike: p.strikes[k], value: p.values[k], dex: p.dex[k], vex: p.vex[k] };
+  const out = new Array<GexLevel>(p.strikes.length);
+  for (let k = 0; k < p.strikes.length; k++) {
+    const l: GexLevel = { strike: p.strikes[k], value: p.values[k], dex: p.dex[k], vex: p.vex[k] };
+    if (p.prov[k]) l.prov = p.prov[k];
+    if (p.stale[k] !== undefined) l.staleSince = p.stale[k];
+    out[k] = l;
+  }
   return out;
 };
 const peaksMax = (p: Peaks) => {
@@ -229,7 +256,7 @@ export function foldSnapshotsSlice(base: GexSnapshot[], minutes: number, maxSnap
     const bucket = Math.floor(snap.time / bucketSec) * bucketSec;
     if (bucket !== curBucket) {
       if (curBucket >= 0) {
-        f.closed.push({ time: curBucket, levels: peakLevels(peaks) });
+        f.closed.push(bucketOf(curBucket, peaks));
         f.closedMax = Math.max(f.closedMax, peaksMax(peaks));
         f.folded = i;
         f.lastRef = base[i - 1];
@@ -239,6 +266,7 @@ export function foldSnapshotsSlice(base: GexSnapshot[], minutes: number, maxSnap
       start = i;
     }
     mergePeaks(peaks, snap.levels);
+    markPeaks(peaks, snap);
   }
   void start;
   /* The last bucket seen in this slice may continue past `stop`; it is left
@@ -263,7 +291,7 @@ export function aggregateSnapshots(base: GexSnapshot[], minutes: number): GexSna
     const bucket = Math.floor(snap.time / bucketSec) * bucketSec;
     if (bucket !== curBucket) {
       if (curBucket >= 0) {
-        f.closed.push({ time: curBucket, levels: peakLevels(peaks) });
+        f.closed.push(bucketOf(curBucket, peaks));
         f.closedMax = Math.max(f.closedMax, peaksMax(peaks));
         f.folded = i;
         f.lastRef = base[i - 1];
@@ -272,11 +300,12 @@ export function aggregateSnapshots(base: GexSnapshot[], minutes: number): GexSna
       peaks = newPeaks();
     }
     mergePeaks(peaks, snap.levels);
+    markPeaks(peaks, snap);
   }
   const out = f.closed.slice();
   let max = f.closedMax;
   if (curBucket >= 0) {
-    out.push({ time: curBucket, levels: peakLevels(peaks) });
+    out.push(bucketOf(curBucket, peaks));
     max = Math.max(max, peaksMax(peaks));
   }
   maxAbsOf.set(out, Math.max(1, max));

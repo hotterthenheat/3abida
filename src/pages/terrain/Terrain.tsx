@@ -60,6 +60,8 @@ import { flipRing, stepSymbol, stepTf } from './paneKeys';
 import TerrainLayers from '../../components/terrain/TerrainLayers';
 import { openPopOut } from '../../components/layout/deskChannel';
 import { WALLS_LENSES, type WallsLens } from '../../components/terrain/wallsHeatPrimitive';
+import { useFeedTrailField } from '../../data/feed/trailField';
+import { econMacro, useFeedEcon } from '../../data/feed/news';
 import {
   feedFreshness,
   feedOpenRatio,
@@ -73,6 +75,7 @@ import {
   useFeedDayState,
   useFeedEarnings,
   useFeedField,
+  useServerField,
   useFeedMaxPain,
   useFeedMoves,
   useFeedOi,
@@ -1137,12 +1140,18 @@ const Pane = ({
   const fBook = useFeedBook(onFeed, ticker).book;
   const fOi = useFeedOi(onFeed, ticker).today;
   const fBars = useFeedBars(onFeed, ticker, { history: true });
-  const fField = useFeedField(ticker);
+  const fFieldRead = useFeedField(ticker);
+  /* the server records this pane's name once a minute through the session (server/fieldRecorder.ts) — its day joins the field */
+  useServerField(onFeed && !isCashIndex(ticker), ticker);
   /* 1D and 1W read the day bars — asked only while the pane draws them */
   const wantsDaily = timeframe === '1D' || timeframe === '1W';
   const fDaily = useFeedDaily(onFeed && wantsDaily, ticker);
   const fDark = useFeedDarkLevels(onFeed && !!overlays.darkpool, ticker);
   const fEarnings = useFeedEarnings(onFeed && !!overlays.events, ticker);
+  /* THE MACRO DATES ON THE FEED (2026-10-13 — the owner: "nothing on terrain should be made up data"): UW's economic
+     calendar, its high-impact releases, in place of the house's calendar rules (data/feed/news.ts econMacro) */
+  const fEcon = useFeedEcon(onFeed && !!overlays.events);
+  const fMacro = useMemo(() => (fEcon ? econMacro(fEcon) : undefined), [fEcon]);
   /* the name's prints: the flow band, the net drift and the events lane's prints */
   const fPrints = useFeedNamePrints(onFeed && !!(overlays.flow || overlays.netDrift || overlays.events), isCashIndex(ticker) ? null : ticker);
   /* COMPARES ON THE FEED: each crossed name's minutes (and days for 1D and 1W) — four slots, the inks' count */
@@ -1171,6 +1180,13 @@ const Pane = ({
   const fListed = useMemo(() => listedDates(fDates), [fDates]);
   /* the desk's cut as one of UW's listed dates — a cut no listed date matches reads the whole book */
   const cutDate = onFeed && railCut !== 'book' ? fListed.find(d => calDaysTo(d) === railCut) ?? null : null;
+  /* THE FIELD, FULL (2026-10-13): today's minutes rebuilt from the chain on the house's pricer and calibrated to UW's
+     newest book, the sessions before off UW's own book for each date, the books this terminal read in their own minutes
+     (data/feed/trailField.ts) */
+  /* the field follows the pane's expiry card: one listed date's contracts alone, or every expiry */
+  const trailCut = cutDate;
+  const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, trailCut);
+  const fField = fTrail.snaps;
   const fByDate = useFeedByExpiry(onFeed && cutDate !== null, ticker, cutDate ? [cutDate] : []);
   const houseRail = useMemo(
     () => (offHouse ? null : railForCut(ticker, railCut)),
@@ -1204,9 +1220,9 @@ const Pane = ({
   const feedTape = useMemo(
     () =>
       onFeed && fBars.bars
-        ? { bars: fBars.bars, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, daily: fDaily ?? undefined, compareBars, earnings: fEarnings }
+        ? { bars: fBars.bars, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, daily: fDaily ?? undefined, compareBars, earnings: fEarnings, macro: fMacro ?? [] }
         : undefined,
-    [onFeed, fBars.bars, feedIv, ticker, fField, fDaily, compareBars, fEarnings]
+    [onFeed, fBars.bars, feedIv, ticker, fField, fDaily, compareBars, fEarnings, fMacro]
   );
   const feedRevision = useMemo(() => (feedRev += 1), [feedTape]); // eslint-disable-line react-hooks/exhaustive-deps
   /* no plan carries seconds: a pane kept on 15 s draws the minute until the reader picks again */
@@ -1219,8 +1235,8 @@ const Pane = ({
      on the book's own rows (bookProjection) */
   const noBars = onFeed && isCashIndex(ticker);
   const indexTape = useMemo(
-    () => (noBars ? { bars: EMPTY_BARS, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, earnings: null } : undefined),
-    [noBars, feedIv, ticker, fField]
+    () => (noBars ? { bars: EMPTY_BARS, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, earnings: null, macro: fMacro ?? [] } : undefined),
+    [noBars, feedIv, ticker, fField, fMacro]
   );
   const chartTape = noBars ? indexTape : feedTape;
   /* the walls through the day on the feed: the books this terminal read today, charm's template off the newest book */
@@ -1235,6 +1251,9 @@ const Pane = ({
      never name different strikes. Read even when the rail is hidden, because
      the header is not. */
   const rail = railData;
+  /* HOW SURE, WITH THE FIELD (2026-10-13): on the feed the ladder's "How sure" also says how far the modeled field stands
+     from Unusual Whales' own figures today — one line, no new panel */
+  const railSure = useMemo(() => (onFeed && fTrail.residual && rail.sure ? rail.sure.map(x => ({ ...x, field: fTrail.residual ?? undefined })) : rail.sure), [onFeed, fTrail.residual, rail.sure]);
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
 
@@ -1755,12 +1774,11 @@ const Pane = ({
               cannot reach. Keyboard focus brings the strip up exactly as the
               cursor does.
             */}
-            {/* WHERE THE TRAIL STARTS (2026-10-12): on the feed the field is the books this terminal read today — UW gives
-                the book as it stands, never its past by strike — so the pane says when it begins, and an empty field
-                never reads as a broken one */}
-            {onFeed && overlays.trails && (
+            {/* WHILE THE FIELD IS EMPTY on the feed (2026-10-13): the server has not read the chain yet, or there is no bar of
+                today — the line goes as the first modeled minute lands (the house's pane has no such line) */}
+            {onFeed && overlays.trails && !fTrail.full && !noBars && (
               <div className="absolute left-14 bottom-8 z-20 pointer-events-none select-none rounded bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textMuted" data-trail-since>
-                {fField.length ? `Trail from ${nyClockAt(fField[0].time * 1000, { zone: true })} · it fills while the terminal is open` : 'Trail · it fills from the first read while the terminal is open'}
+                Trail · it fills as the chain is read
               </div>
             )}
             {!expanded && !toolbarInline && (
@@ -2191,7 +2209,7 @@ const Pane = ({
               volBars={offHouse ? fBars.bars : undefined}
               rows={rail.rows}
               /* how sure the walls and the flip are — Pinpoint's read of the same book (components/levels/HowSure) */
-              sure={rail.sure}
+              sure={railSure}
               maxAbs={rail.maxAbs}
               legs={legs}
               openRatio={openRatio}

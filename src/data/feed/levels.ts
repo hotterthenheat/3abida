@@ -62,7 +62,7 @@ import { isTradingDay } from '../../core/calendar';
 import { useFeedPoll } from './poll';
 import { useRoomSource, type FeedRoom } from './rooms';
 import { useFeedStatus } from './status';
-import type { FeedFail, FeedResult } from './client';
+import { feedFetch, type FeedFail, type FeedResult } from './client';
 import {
   uwInterpolatedIv,
   uwMaxPain,
@@ -76,6 +76,7 @@ import {
   uwDailyBars,
   uwDarkpool,
   uwEarningsFor,
+  strikeExposure,
   type UwEarning,
   type UwImpliedMove,
   type UwMaxPain,
@@ -89,6 +90,7 @@ import { massiveBars } from './massive';
 import type { DarkPoolPrint } from '../../types/gex';
 import type { TapeEarnings } from '../events';
 import { bookSureness } from '../levelSureness';
+import { setMeasuredSource, takeServerInputs, type ChainRead, type SeedRead, type TotalRead } from './trailField';
 
 /* ---- the switch ------------------------------------------------------------------------------------------------ */
 
@@ -210,6 +212,8 @@ export interface FeedStrike {
   charm: GreekSplit;
   /** Gamma from today's volume — what today's trading put at the strike */
   gexVol: GreekSplit;
+  /** When UW last figured this strike (epoch ms) — strikes in one answer can be hours apart */
+  time?: number;
 }
 
 const split = (put: number, call: number): GreekSplit => ({ put, call, net: put + call });
@@ -223,6 +227,7 @@ export function feedStrike(r: UwStrikeExposure): FeedStrike {
     vanna: split(r.putVannaOi, -r.callVannaOi),
     charm: split(r.putCharmOi, -r.callCharmOi),
     gexVol: split(-r.putGammaVol, -r.callGammaVol),
+    time: Number.isFinite(r.time) ? r.time : undefined,
   };
 }
 
@@ -869,22 +874,79 @@ function saveField(t: string) {
   );
 }
 
+/* THE MEASURED BOOKS WITH THEIR LEGS (2026-10-13): every book read today, the calls' and puts' gamma and delta by strike
+   as UW answered them — what data/feed/trailField.ts measures its rebuilt minutes against (a column only against the
+   books read at or before it). Kept for the visit; the server's recorded day refills it on a reload. */
+const measured = new Map<string, { day: string; books: FeedBook[] }>();
+
 function noteField(book: FeedBook) {
   const t = book.ticker;
   loadField(t);
   const day = nyIsoDate(book.at);
+  let m = measured.get(t);
+  if (!m || m.day !== day) measured.set(t, (m = { day, books: [] }));
+  if (!m.books.some(b => b.at === book.at)) m.books = [...m.books, book].sort((a, b) => a.at - b.at);
   let f = field.get(t);
   if (!f || f.day !== day) {
     f = { day, snaps: [] };
     field.set(t, f);
   }
   const time = Math.floor(book.at / 1000);
-  const last = f.snaps[f.snaps.length - 1];
-  if (last && last.time >= time) return;
+  if (f.snaps.some(s => s.time === time)) return;
   const levels: GexLevel[] = book.rows.map(r => ({ strike: r.strike, value: r.gex.net, dex: r.dex.net }));
-  f.snaps = [...f.snaps, { time, levels }];
+  /* in its place by time — the server's day may hand in books older than the last one read here */
+  f.snaps = [...f.snaps, { time, levels, spot: book.spot }].sort((a, b) => a.time - b.time);
   fieldBell();
   saveField(t);
+}
+
+/** The books read today for a name with their legs, oldest first (outside a render) */
+export function measuredBooks(ticker: string): readonly FeedBook[] {
+  const t = ticker.toUpperCase();
+  const m = measured.get(t);
+  return m && m.day === nyIsoDate() ? m.books : EMPTY_BOOKS;
+}
+const EMPTY_BOOKS: FeedBook[] = [];
+/* the field's rebuild measures its minutes against these (data/feed/trailField.ts) */
+setMeasuredSource(measuredBooks);
+
+/* ---- THE SERVER'S DAY (2026-10-13): the local server reads each watched name's book once a minute through the session
+   (server/fieldRecorder.ts), tab or no tab; GET /feed/field/<NAME> watches the name and answers the day so far. Each
+   book it recorded joins the field here, as a book read in this page would. */
+interface ServerDay {
+  name: string;
+  day: string;
+  /** The newest moment anything in the answer was received — the next ask's `since` */
+  latest: number;
+  books: { receivedAt: number; rows: Record<string, unknown>[] }[];
+  chains: ChainRead[];
+  seed: SeedRead | null;
+  total: TotalRead | null;
+}
+const serverSeen = new Map<string, { day: string; since: number }>();
+async function loadServerDay(t: string): Promise<FeedResult<ServerDay>> {
+  const seen = serverSeen.get(t);
+  const since = seen && seen.day === nyIsoDate() ? seen.since : 0;
+  const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}?since=${since}`)) as FeedResult<ServerDay>;
+  if (r.ok && r.data && Array.isArray(r.data.books)) {
+    /* the books: the measured reference (and Pinpoint's field) */
+    for (const b of r.data.books) {
+      const book = bookFrom(t, b.rows.map(strikeExposure));
+      if (book) noteField(book);
+    }
+    /* the chain reads, the seed and UW's whole-book series: the field's inputs (data/feed/trailField.ts) */
+    takeServerInputs(t, r.data.day, { chains: r.data.chains ?? [], seed: r.data.seed ?? null, total: r.data.total ?? null });
+    serverSeen.set(t, { day: r.data.day, since: Math.max(since, r.data.latest ?? 0) });
+  }
+  return r;
+}
+
+/** Watch a name on the server's recorder and fold its recorded day into the field (every 15 s while on screen) */
+export function useServerField(on: boolean, ticker: string): void {
+  const t = ticker.toUpperCase();
+  const key = on && t ? `field:server:${t}` : null;
+  /* a local call, answered with what is new since the last — asked every 15 s so a read lands on the chart soon after */
+  useFeedPoll(key, () => loadServerDay(t), 15_000);
 }
 
 /** The books read so far today for a name, oldest first, outside a render (data/feed/pinpointMarket.ts) */

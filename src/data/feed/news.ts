@@ -38,6 +38,7 @@ import { nyClock, nyParts } from '../../core/nyTime';
 import { idNum } from './trace';
 import type { UwHeadline } from './uw';
 import type { CalEvent } from '../monthCalendar';
+import type { MacroDate } from '../events';
 import type { EarningsEvent } from '../earnings';
 
 /* ---- the kind of story, read off the headline in the house's seven words ------------------------------------ */
@@ -218,6 +219,33 @@ export function earningsCalEvents(rows: EarningsEvent[], days: { iso: string; we
       },
     ];
   });
+}
+
+/** UW's calendar as the events lane's macro dates (Terrain on the feed, 2026-10-13): the high-impact releases — the Fed's
+    decisions, CPI, payrolls, GDP and their peers — one mark a New York date (UW lists a release's parts as rows of their
+    own, some twice): the shortest name leads, every release of the day in the detail with its time and figures. The
+    calendar carries the weeks round today only, so the lane holds no macro date further back. */
+export function econMacro(rows: UwEconEvent[]): MacroDate[] {
+  const byDay = new Map<string, Map<string, UwEconEvent>>();
+  for (const e of rows) {
+    if (!e.event || !Number.isFinite(e.at) || !(e.at > 0) || econImpact(e) !== 'high') continue;
+    const p = nyParts(e.at);
+    const iso = `${p.year}-${two(p.month)}-${two(p.day)}`;
+    const day = byDay.get(iso) ?? new Map<string, UwEconEvent>();
+    day.set(`${e.event}|${e.at}`, e);
+    byDay.set(iso, day);
+  }
+  return [...byDay.entries()]
+    .map(([iso, day]) => {
+      const list = [...day.values()].sort((a, b) => a.at - b.at || a.event.length - b.event.length);
+      const lead = [...list].sort((a, b) => a.event.length - b.event.length)[0];
+      const parts = list.map(e => {
+        const figs = [e.forecast ? `forecast ${e.forecast}` : '', e.prev ? `prior ${e.prev}` : ''].filter(Boolean).join(', ');
+        return `${nyClock(e.at)} ET ${e.event}${figs ? ` (${figs})` : ''}`;
+      });
+      return { iso, label: lead.event, detail: `${iso} · ${parts.join(' · ')}` };
+    })
+    .sort((a, b) => (a.iso < b.iso ? -1 : 1));
 }
 
 /** The economic calendar, every ten minutes */
