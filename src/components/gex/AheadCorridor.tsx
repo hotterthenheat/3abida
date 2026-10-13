@@ -619,7 +619,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
         )}
         {bellShare != null && (
           <span className="text-textSecondary whitespace-nowrap">
-            expires at 4:00{' '}
+            expires at {hhmm(CLOSE_MIN)}{' '}
             <span className="text-textPrimary" data-flow-bell>
               {bellShare}%
             </span>
@@ -650,7 +650,7 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
             </span>
           )}
           <div className="absolute inset-x-12 top-3 bottom-8 flex items-stretch gap-[6px]">
-            {blocks.map(b => {
+            {blocks.map((b, i) => {
               const up = b.flow >= 0;
               const room = up ? zero - 6 : 100 - zero - 6;
               const h = (Math.abs(b.flow) / maxFlow) * room;
@@ -675,7 +675,9 @@ const AheadCorridor = ({ corridor, schedule, levels, ticker, clock, focus, onPic
                     </span>
                   )}
                   {b.past && <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[11px] text-textMuted" style={{ top: `calc(${zero}% - 16px)` }}>done</span>}
-                  <span className="absolute left-1/2 -translate-x-1/2 -bottom-[18px] font-mono text-[11px] tnum text-textSecondary">{hhmm(b.from)}</span>
+                  {/* the half hour on the reader's clock, 12-hour (2026-10-13): "10:30 am" is wider than a slot on a narrow
+                      pane, so every other one stands from xl up and every fourth on a phone */}
+                  <span className={`absolute left-1/2 -translate-x-1/2 -bottom-[18px] whitespace-nowrap font-mono text-[11px] tnum text-textSecondary ${i % 2 ? 'max-xl:hidden' : i % 4 ? 'max-sm:hidden' : ''}`}>{hhmm(b.from)}</span>
                 </div>
               );
             })}

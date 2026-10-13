@@ -35,6 +35,7 @@ import { rowProps } from '../ui/rowKeys';
 import { BOARD_COLUMNS as COLUMNS, boardRows } from './wallSkeletons';
 import { fmtDollars, fmtStrike, type AheadClock } from '../../data/ahead';
 import type { WallBoard as Board } from '../../data/wall';
+import { marketClock } from '../../core/nyTime';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -85,7 +86,7 @@ const WallBoard = ({ board, clock, focus, onPick, scope }: Props) => {
           <div className="text-[11px] text-textMuted text-right">Holds</div>
           <div className="text-[11px] text-textMuted">Made of · per 1% move</div>
           <div className="text-[11px] text-textMuted text-right">Tested today</div>
-          <div className="text-[11px] text-textMuted text-right">{clock.inSession ? 'Expires 4:00' : 'Expired 4:00'}</div>
+          <div className="text-[11px] text-textMuted text-right">{clock.inSession ? 'Expires' : 'Expired'} {marketClock(16, 0)}</div>
           <div className="text-[11px] text-textMuted">If it breaks</div>
           <div className="text-[11px] text-textMuted">If it holds</div>
           {board.walls.map(w => {

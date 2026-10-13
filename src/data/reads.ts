@@ -29,6 +29,7 @@ import { ASSUMPTION_WORDS } from './levelSureness';
 import type { WallBoard } from './wall';
 import type { Corridor, CloseOdds } from './ahead';
 import type { Agenda } from './agenda';
+import { marketClock } from '../core/nyTime';
 
 export interface Reading {
   /** What is on the panel now, in its own figures */
@@ -115,7 +116,7 @@ export function wallReading(board: WallBoard): Reading {
   const w = board.focus;
   const built = Math.abs(w.build) < 1 ? 'its size has not moved today' : `it has ${w.build > 0 ? 'grown' : 'shrunk'} by ${money(Math.abs(w.build))} today`;
   const pace = Number.isFinite(w.speed) && w.speed > 0 ? `the last half hour ran at ${w.speed.toFixed(1)}× the pace the options priced` : null;
-  const expiring = w.expiresToday > 0.05 ? `${pct(w.expiresToday)} of it expires at 4:00, so it thins as the clock runs` : null;
+  const expiring = w.expiresToday > 0.05 ? `${pct(w.expiresToday)} of it expires at ${marketClock(16, 0)}, so it thins as the clock runs` : null;
   return {
     observed: `${w.sentence} ${board.sentence}`.trim(),
     assumes: `${DEALER_ASSUMES} The odds are the expected move for the ${board.minutesLeft} minutes left, bent by the strikes’ pull — model odds, not a forecast.`,

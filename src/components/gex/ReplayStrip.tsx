@@ -105,6 +105,9 @@ export function candlePace(perSecond: number): { short: string; long: string } {
 }
 /** Under this the card sheds its two jump buttons, the marks' words and the door's words (a pane of a four-up desk) */
 const NARROW_W = 520;
+/** From this wide the hours under the track are named every hour; under it every other hour (2026-10-13: "10:00 am" on
+    the reader's 12-hour clock is wider than "10:00" was, and an hour's room ran the names together) */
+const HOURLY_W = 960;
 
 interface Props {
   phase: 'pick' | 'play';
@@ -187,10 +190,14 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
   /* THE CARD KNOWS ITS ROOM: a pane of a four-up desk is ~480px wide, and the full second row is ~520 */
   const roomRef = useRef<HTMLDivElement | null>(null);
   const [narrow, setNarrow] = useState(false);
+  const [wide, setWide] = useState(false);
   useLayoutEffect(() => {
     const el = roomRef.current;
     if (!el) return;
-    const read = () => setNarrow(el.clientWidth < NARROW_W);
+    const read = () => {
+      setNarrow(el.clientWidth < NARROW_W);
+      setWide(el.clientWidth >= HOURLY_W);
+    };
     read();
     const ro = new ResizeObserver(read);
     ro.observe(el);
@@ -203,7 +210,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
   const hours: number[] = [];
   const start = startMin ?? OPEN_MIN;
   for (let m = Math.ceil(start / 60) * 60; m <= start + spanMin && m <= CLOSE_MIN; m += 60) hours.push(m);
-  const ticks = marks ?? hours.map(m => ({ u: (m - start) / spanMin, label: hhmm(m) }));
+  const ticks = marks ?? hours.map((m, i) => ({ u: (m - start) / spanMin, label: hhmm(m), quiet: !wide && i % 2 === 1 }));
   const at = (p: number) => hhmm(start + Math.floor(p / 60));
   const when = words ?? `${day ? `${day} · ` : ''}${at(pos)}`;
   const sayAt = wordsAt ?? at;
@@ -239,7 +246,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
         <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[11px] h-[11px] rounded-full ring-2 ring-panel shadow-[0_0_0_3px_rgb(var(--silver)/0.18)]" style={{ left: `${played}%`, background: SILVER }} data-replay-handle />
       </div>
       {withMarks &&
-        ticks.map(t => (
+        ticks.filter(t => !('quiet' in t && t.quiet)).map(t => (
           <span key={`${t.u}-${t.label}`} className="absolute bottom-0 -translate-x-1/2 font-mono text-[11px] leading-none text-textMuted tnum whitespace-nowrap pointer-events-none" style={{ left: `${t.u * 100}%` }}>
             {t.label}
           </span>

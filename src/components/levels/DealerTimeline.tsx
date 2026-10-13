@@ -82,6 +82,8 @@ const DealerTimeline = ({ data, ticker, scope, feed = false }: Props) => {
   const x = (m: number) => M.l + ((m - lo) / (hi - lo)) * Math.max(1, w - M.l - M.r);
   const hours: number[] = [];
   for (let m = Math.ceil((lo + 1) / 60) * 60; m <= hi; m += 60) hours.push(m);
+  /* an hour named on the reader's 12-hour clock ("10:00 am") needs about 50 px; narrower, every other hour is named */
+  const nameEvery = (Math.max(1, w - M.l - M.r) * 60) / (hi - lo) < 50 ? 2 : 1;
   const gexMax = Math.max(1, ...pts.map(p => Math.abs(p.netGex)));
   const gexMid = M.t + GEX_H / 2;
   const yGex = (v: number) => gexMid - (v / gexMax) * (GEX_H / 2 - 2);
@@ -255,12 +257,14 @@ const DealerTimeline = ({ data, ticker, scope, feed = false }: Props) => {
                   </clipPath>
                 </defs>
                 {/* the hours */}
-                {hours.map(m => (
+                {hours.map((m, i) => (
                   <g key={m}>
                     <line x1={x(m)} x2={x(m)} y1={M.t} y2={flipTop + FLIP_H} stroke={WASH} strokeOpacity={0.05} />
-                    <text x={x(m)} y={H - 5} textAnchor="middle" fontSize={10} fill={MUTED} fontFamily={FONT_SANS}>
-                      {minuteLabel(m)}
-                    </text>
+                    {i % nameEvery === 0 && (
+                      <text x={x(m)} y={H - 5} textAnchor="middle" fontSize={10} fill={MUTED} fontFamily={FONT_SANS}>
+                        {minuteLabel(m)}
+                      </text>
+                    )}
                   </g>
                 ))}
                 {/* NET GEX — the middle line is nothing; put-heavy above in the amplifying ink, call-heavy below in the absorbing */}

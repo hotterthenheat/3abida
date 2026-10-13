@@ -250,7 +250,7 @@ const WallReportCard = ({ snapshot, focus, onPick, scope, bars: barsProp }: { sn
           <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the rows, the strips and the ticks mean" testId="report-guide" />
         </div>
         <p className="mt-0.5 text-[11px] text-textMuted">
-          {rows.length} strikes · {bars.length} one-minute bars{first != null && last != null ? ` from ${hhmm(first)} to ${hhmm(last)} New York` : ''} · a test is a visit — price reaching the level — held when it leaves back on its own side, broken by a close beyond it
+          {rows.length} strikes · {bars.length} one-minute bars{first != null && last != null ? ` from ${hhmm(first)} to ${hhmm(last)}` : ''} · a test is a visit — price reaching the level — held when it leaves back on its own side, broken by a close beyond it
         </p>
       </div>
       <ul className="flex flex-col" data-level-rows>

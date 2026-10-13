@@ -316,7 +316,7 @@ const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[]
   { key: 'events', label: 'Events', hint: 'Earnings, FOMC/CPI/NFP and the biggest option prints, marked on the tape' },
   { key: 'alerts', label: 'Alert lines', hint: 'A dotted line where each price alert waits — the bell tells you either way' },
   { key: 'walls', label: 'Walls through the day', hint: "Each strike's exposure through the session, drawn behind the candles — the lens is the pane's" },
-  { key: 'phases', label: 'Session phases', hint: 'The open, lunch and power hour as quiet bands on the tape, on New York time' },
+  { key: 'phases', label: 'Session phases', hint: 'The open, lunch and power hour as quiet bands on the tape, at the market’s own hours' },
 ];
 
 /* T-15 — the overlays a rule clock holds: each assumes a fixed bar interval

@@ -58,6 +58,7 @@ import { profileOf, surfaceOf } from '../../data/pinpointBook';
 import { bellShareOf } from '../../data/board';
 import { buildVannaCharm } from '../../data/vannacharm';
 import { readSessionClock } from '../../data/sessionClock';
+import { marketClock, minuteLabel } from '../../core/nyTime';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import ClockGuide from './ClockGuide';
 import type { MarketSnapshot } from '../../types/market';
@@ -71,7 +72,8 @@ const SPAN = CLOSE_MIN - OPEN_MIN; // 390 trading minutes
 const BLOCK_MIN = 5;
 const BLOCKS = SPAN / BLOCK_MIN; // 78
 const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+/* a New York minute PRINTED on the reader's clock, 12-hour (core/nyTime.ts — 2026-10-13); the strip keeps New York's minutes */
+const hhmm = (m: number) => minuteLabel(m);
 const pct = (min: number) => ((min - OPEN_MIN) / SPAN) * 100;
 
 interface Phase {
@@ -153,7 +155,7 @@ const PHASES: Phase[] = [
     name: 'The close',
     weight: 1,
     pressure: 'amplifies',
-    words: f => `the closing auction — ${f.bellShare != null ? `${f.bellShare}% of today's gamma expires at 4:00` : 'today’s gamma expires at 4:00'}`,
+    words: f => `the closing auction — ${f.bellShare != null ? `${f.bellShare}% of today's gamma expires at ${hhmm(CLOSE_MIN)}` : `today’s gamma expires at ${hhmm(CLOSE_MIN)}`}`,
   },
 ];
 
@@ -291,7 +293,7 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
             {scope}
             <GuideDoor open={guideOpen} onClick={() => setGuideOpen(v => !v)} title="What the strip and the phases mean" testId="clock-guide" />
           </div>
-          <p className="mt-0.5 text-[11px] text-textMuted">New York · 09:30 to 16:00 · the phases are a rule of thumb, the figures are today's numbers</p>
+          <p className="mt-0.5 text-[11px] text-textMuted">{hhmm(OPEN_MIN)} to {marketClock(16, 0, { zone: true })} · the phases are a rule of thumb, the figures are today's numbers</p>
         </div>
         <dl className="grid grid-cols-3 gap-x-6">
           {lookingAt ? (
@@ -316,12 +318,12 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
               </div>
               <div>
                 <dt className="text-[11px] text-textMuted">Next</dt>
-                <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{next ? `${next.name.toLowerCase()} in ${next.from - nowMin}m` : inSession ? 'the close' : `${PHASES[0].name.toLowerCase()} at 09:30`}</dd>
+                <dd className="mt-0.5 font-mono text-[12px] tnum text-textPrimary whitespace-nowrap">{next ? `${next.name.toLowerCase()} in ${next.from - nowMin}m` : inSession ? 'the close' : `${PHASES[0].name.toLowerCase()} at ${hhmm(OPEN_MIN)}`}</dd>
               </div>
             </>
           )}
           <div>
-            <dt className="text-[11px] text-textMuted">Expires at 4:00</dt>
+            <dt className="text-[11px] text-textMuted">Expires at {hhmm(CLOSE_MIN)}</dt>
             {/* in the page's ink — magenta is the supreme's alone (PP-23) */}
             <dd className="mt-0.5 font-mono text-[12px] tnum whitespace-nowrap text-textPrimary" data-clock-bell>
               {facts.bellShare != null ? `${facts.bellShare}% of today's gamma` : '—'}
@@ -436,12 +438,13 @@ const TraderClock = ({ snapshot, scope, at }: { snapshot: MarketSnapshot; scope?
               );
             })}
           </div>
-          {/* the hours under the strip */}
+          {/* the hours under the strip — on the reader's clock, 12-hour; 10:00 New York stands only on a wide strip, as
+              "10:00 am" half an hour from "9:30 am" ran into it on a narrow one (2026-10-13) */}
           <div className="relative h-4 mt-1">
             {[OPEN_MIN, 10 * 60, 11 * 60, 12 * 60, 13 * 60, 14 * 60, 15 * 60, CLOSE_MIN].map(t => (
               <span
                 key={t}
-                className={`absolute top-0 font-mono text-[11px] tnum text-textMuted ${t === OPEN_MIN || t === 12 * 60 || t === CLOSE_MIN ? '' : 'max-sm:hidden'}`}
+                className={`absolute top-0 font-mono text-[11px] tnum text-textMuted whitespace-nowrap ${t === OPEN_MIN || t === 12 * 60 || t === CLOSE_MIN ? '' : t === 10 * 60 ? 'max-xl:hidden' : 'max-sm:hidden'}`}
                 style={{ left: `${pct(t)}%`, transform: t === CLOSE_MIN ? 'translateX(-100%)' : t === OPEN_MIN ? undefined : 'translateX(-50%)' }}
               >
                 {hhmm(t)}

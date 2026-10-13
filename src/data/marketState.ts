@@ -5,10 +5,13 @@
   The Logo System's four market states (Web and App · Market states, 2026-09-30) — pre-market, closed, early close and
   a holiday — as one plain line each, for the band over every page of the demo and the status page:
 
-    Pre-market     "The market opens at 9:30 ET."
-    Closed         "The market is closed. It opens at 9:30 ET." (or Monday, or the day after a holiday)
-    Early close    "Early close today at 1:00 ET."
-    Holiday        "Closed for Thanksgiving. The market opens Friday at 9:30 ET and closes early at 1:00 ET."
+    Pre-market     "The market opens at 9:30 am EDT."
+    Closed         "The market is closed. It opens at 9:30 am EDT." (or Monday, or the day after a holiday)
+    Early close    "Early close today at 1:00 pm EDT."
+    Holiday        "Closed for Thanksgiving. The market opens Friday at 9:30 am EST and closes early at 1:00 pm EST."
+
+  The open and the early close are New York's 09:30 and 13:00, PRINTED on the reader's clock with the reader's zone
+  (core/nyTime.ts marketClock, 2026-10-13) — "6:30 am PDT" in Los Angeles; every test of them stays New York's.
 
   The New York clock is data/sessionClock.ts's; the holidays are core/calendar.ts's. The early closes are the
   exchange's published ones (the day after Thanksgiving, Christmas Eve, the day before Independence Day when it falls
@@ -18,7 +21,7 @@
 
 import { MARKET_HOLIDAYS, isTradingDay, isoDate } from '../core/calendar';
 import { readSessionClock } from './sessionClock';
-import { nyParts } from '../core/nyTime';
+import { marketClock, nyParts, nyWallTime } from '../core/nyTime';
 
 export const EARLY_CLOSES = new Set(['2024-07-03', '2024-11-29', '2024-12-24', '2025-07-03', '2025-11-28', '2025-12-24', '2026-11-27', '2026-12-24', '2027-11-26']);
 
@@ -64,11 +67,15 @@ export function holidayName(d: Date): string {
   return 'Christmas';
 }
 
+/** New York's h:mm on a market day (a local Date at midnight, as nyDate gives it) on the reader's clock, with the zone */
+const at = (day: Date, hour: number, minute = 0): string =>
+  marketClock(hour, minute, { zone: true, on: nyWallTime(day.getFullYear(), day.getMonth() + 1, day.getDate(), 12) });
+
 const opensWhen = (today: Date, next: Date): string => {
   const days = Math.round((next.getTime() - today.getTime()) / 86_400_000);
   const when = days <= 1 ? '' : `${WEEKDAY[next.getDay()]} `;
-  const early = EARLY_CLOSES.has(isoDate(next)) ? ' and closes early at 1:00 ET' : '';
-  return `It opens ${when}at 9:30 ET${early}.`;
+  const early = EARLY_CLOSES.has(isoDate(next)) ? ` and closes early at ${at(next, 13)}` : '';
+  return `It opens ${when}at ${at(next, 9, 30)}${early}.`;
 };
 
 /** Where the market is right now, as the brand says it */
@@ -81,14 +88,14 @@ export function readMarketState(now: Date = new Date()): MarketState {
     return { kind: 'holiday', word: 'closed', line: `Closed for ${holidayName(today)}. ${opensWhen(today, next).replace('It opens', 'The market opens')}` };
   }
   if (clock.phase === 'PREMARKET') {
-    const early = EARLY_CLOSES.has(key) ? ' Early close today at 1:00 ET.' : '';
-    return { kind: 'pre-market', word: 'closed', line: `Pre-market. The market opens at 9:30 ET.${early}` };
+    const early = EARLY_CLOSES.has(key) ? ` Early close today at ${at(today, 13)}.` : '';
+    return { kind: 'pre-market', word: 'closed', line: `Pre-market. The market opens at ${at(today, 9, 30)}.${early}` };
   }
   if (clock.phase === 'OPEN' || clock.phase === 'AUCTION') {
     if (EARLY_CLOSES.has(key)) {
       /* the session clock runs to 16:00; an early close stops at 13:00 */
-      if (Number(clock.etTime.slice(0, 2)) >= 13) return { kind: 'closed', word: 'closed', line: `The market closed early at 1:00 ET. ${opensWhen(today, nextTradingDay(today))}` };
-      return { kind: 'early-close', word: 'live', line: 'Early close today at 1:00 ET.' };
+      if (Number(clock.etTime.slice(0, 2)) >= 13) return { kind: 'closed', word: 'closed', line: `The market closed early at ${at(today, 13)}. ${opensWhen(today, nextTradingDay(today))}` };
+      return { kind: 'early-close', word: 'live', line: `Early close today at ${at(today, 13)}.` };
     }
     return { kind: 'open', word: 'live', line: 'The market is open.' };
   }

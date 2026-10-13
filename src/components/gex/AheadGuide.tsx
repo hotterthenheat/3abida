@@ -21,6 +21,7 @@ import { fmtDollars, fmtPrice, fmtStrike, hhmm, type AheadClock, type CloseOdds,
 import type { ExposureLevels } from '../../types/gex';
 import { FONT_SANS } from '../../theme/fonts';
 import { GuideSvg, type GuideType } from '../ui/GuideSvg';
+import { marketClock } from '../../core/nyTime';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 /* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
@@ -54,7 +55,7 @@ const ScaleFigure = () => {
   const posts = [
     { f: 0.22, name: 'put wall 109', ink: PUT_WALL, extra: '', anchor: 'middle' as const, dx: 0, dy: -30 },
     { f: 0.4, name: 'flip 109.50', ink: FLIP, extra: '', anchor: 'start' as const, dx: 3, dy: -30 },
-    { f: 0.78, name: 'call wall 111', ink: CALL_WALL, extra: 'in reach 14:20', anchor: 'middle' as const, dx: 0, dy: -44 },
+    { f: 0.78, name: 'call wall 111', ink: CALL_WALL, extra: 'in reach 2:20 pm', anchor: 'middle' as const, dx: 0, dy: -44 },
   ];
   return (
     <Figure label="One price scale: the faint track is two expected moves each side, dashed where moves run; the silver band is the likely range; the walls and the flip are posts named above; spot is the white rule; the bracket under is one expected move each side">
@@ -138,7 +139,8 @@ const ReachFigure = () => (
 /** The pane (2026-09-13 evening): a middle line, a plain bar per half hour from it — down in red, selling — the figure at its end, the hour under; the gone ones say done, the one under way wears the silver edge */
 const FlowFigure = () => {
   const blocks: (number | null)[] = [null, null, 0.2, 0.24, 0.29, 0.36, 0.45, 0.58, 0.76, 1];
-  const hours = ['09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00'];
+  /* every other half hour named (2026-10-13): "10:30 am" is wider than a slot, so the hours under the bars would run together */
+  const hours = ['9:30 am', '', '10:30 am', '', '11:30 am', '', '12:30 pm', '', '1:30 pm', ''];
   const x0 = 40;
   const slot = 37;
   const mid = 58;
@@ -172,9 +174,11 @@ const FlowFigure = () => {
                     </text>
                   </>
                 )}
-                <text x={cx} y={130} textAnchor="middle" fontSize={t} fill="#7c8290" fontFamily={FIG}>
-                  {hours[i]}
-                </text>
+                {hours[i] && (
+                  <text x={cx} y={130} textAnchor="middle" fontSize={t} fill="#7c8290" fontFamily={FIG}>
+                    {hours[i]}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -302,9 +306,9 @@ const PullFigure = () => (
   <Figure label="The same odds at three times of day: the bars narrow around the wall and its own bar grows as the close nears">
     {({ w }) =>
       [
-        { x: 30, t: '10:00', pull: 0.3, label: 'light' },
-        { x: 160, t: '13:00', pull: 0.6, label: 'building' },
-        { x: 290, t: '15:30', pull: 0.92, label: 'strong' },
+        { x: 30, t: '10:00 am', pull: 0.3, label: 'light' },
+        { x: 160, t: '1:00 pm', pull: 0.6, label: 'building' },
+        { x: 290, t: '3:30 pm', pull: 0.92, label: 'strong' },
       ].map(p => {
         const ys = [34, 50, 66, 82, 98, 114];
         const base = [0.15, 0.45, 0.85, 1, 0.6, 0.2];
@@ -332,7 +336,7 @@ const PullFigure = () => (
 export const CloseGuide = ({ odds, spot, clock }: { odds: CloseOdds; spot: number; clock: AheadClock }) => (
   <div data-close-guide>
     <Section title="The rows">
-      <p>Start with the expected move: the close is most likely near spot, less likely further out. Then the strikes pull it: the ones that hold price pull the close toward them, the ones that move price push it away. Each strike is a row — its bar the chance the 4:00 print lands there, the odds at the right. The three likeliest are numbered and their bars are silver: the bar's ink says the rank alone, and the role — call wall, put wall, supreme, pin — is the small tag beside the strike. The thin tick on every bar is what the expected move alone would give it. Hover a row and the read line says what the strikes did to it; click keeps it.</p>
+      <p>Start with the expected move: the close is most likely near spot, less likely further out. Then the strikes pull it: the ones that hold price pull the close toward them, the ones that move price push it away. Each strike is a row — its bar the chance the {marketClock(16, 0)} print lands there, the odds at the right. The three likeliest are numbered and their bars are silver: the bar's ink says the rank alone, and the role — call wall, put wall, supreme, pin — is the small tag beside the strike. The thin tick on every bar is what the expected move alone would give it. Hover a row and the read line says what the strikes did to it; click keeps it.</p>
       <RowsFigure />
     </Section>
     <Section title="The runs">
