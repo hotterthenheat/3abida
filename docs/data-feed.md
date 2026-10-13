@@ -358,7 +358,12 @@ half day); a leg is OI × greek × price² (UW's per-1% units — summed over UW
 `/spot-exposures/strike` to the dollar, checked 2026-10-12); the house's sign. A vol read in its expiry's last hour is not
 used (UW figures far strikes at 500% and more after the close). A contract with no vol stays out and its strike's
 coverage drops; a strike with none is a gap. No magnitude is rescaled to UW: the residual against UW's books (per
-strike, at the captured times) and UW's whole-book series (sign agreement, ratio) is one line in the ladder's "How sure".
+strike, at the captured times: the gap summed over the strikes both hold, against the book's size) and UW's whole-book
+series (the model summed over every strike within 15% and 60 days, a minute every quarter hour: sign agreement and the
+median ratio) is one line in the ladder's "How sure". Seen on SPY, 2026-10-12, read after the close: 35.6% per strike
+against UW's one after-close book (which still carries the day's expired contracts at the money), the same sign 94% of
+32 minutes at 2.29× UW's whole-book figure — every vol that day carried from Oct 9's close, as nothing was read in the
+session.
 Each cell keeps `prov` (`modeled` when half its gamma or more stands on today's vols, `carried` otherwise), `staleSince`
 and `coverage`; the hover card shows them with UW's own figure for the strike. The bead scale runs forward (each column
 against the columns at or before it). The sessions before today are not drawn on the feed yet (the full tape's vols and

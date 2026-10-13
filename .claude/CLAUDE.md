@@ -688,8 +688,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   minute's end (the server's chain reads; before them the session before's close vol, carried fixed-strike); a contract
   with no vol stays out (the strike's coverage drops), a strike with none is a gap. Units: OI × greek × price² (UW's
   /spot-exposures/strike units); the house's sign. NO CALIBRATION: the books UW answered are a MEASURED REFERENCE (the
-  hover's readout) and their residual — per strike at the captured times, and against UW's whole-book series a minute —
-  is one line in the ladder's "How sure" (`fieldResidual`, Sureness `field`). Every cell carries `prov` ('modeled' |
+  hover's readout) and their residual — per strike at the captured times, and against UW's whole-book series (the
+  model summed over every strike within 15% and 60 days, a minute a quarter hour) — is one line in the ladder's "How sure" (`fieldResidual`, Sureness `field`). Every cell carries `prov` ('modeled' |
   'carried'), `staleSince` and `coverage` (GexLevel); carried beads draw a step quieter (gexNodesPrimitive REBUILT_*).
   THE SCALE RUNS FORWARD: each column's beads against the 85th percentile of the maxima at or before it (a log-binned
   running count) — nothing to the right changes the left. Each column draws its OWN flip (pickFlip, a gap where none,
