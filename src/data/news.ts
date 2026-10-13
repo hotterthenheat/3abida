@@ -9,7 +9,7 @@
 ==================================================
 */
 
-import { nyMinutes, nyParts, nyWallTime } from '../core/nyTime';
+import { clock, nyMinutes, nyParts, nyWallTime } from '../core/nyTime';
 import type { Grade } from './stockOverview';
 import { dayKey, h01, hPick, hRange } from '../core/rng';
 import { now } from '../core/clock';
@@ -43,6 +43,7 @@ export interface NewsPrediction {
 
 export interface NewsItem {
   id: string;
+  /** "2:03 pm" — the release on the reader's clock, display only (atMs is the instant) */
   time: string;
   minutesAgo: number;
   /** Release timestamp, epoch ms — the drip's clock and the alert's ref. */
@@ -395,7 +396,8 @@ let feedCache: { key: string; items: NewsItem[] } | null = null;
 export function buildNewsFeed(): NewsItem[] {
   const day = dayKey();
   const t0 = now();
-  /* NEW YORK'S DAY AND CLOCK, whatever the machine's zone (the audit's X2): a story's "14:03" is New York's 14:03 */
+  /* NEW YORK'S DAY AND CLOCK, whatever the machine's zone (the audit's X2): a story's release minute is New York's; its
+     printed time is that instant on the reader's clock, "2:03 pm" (2026-10-13) */
   const nowMin = nyMinutes(t0);
   const cacheKey = `${day}-${nowMin}`;
   if (feedCache?.key === cacheKey) return feedCache.items;
@@ -411,7 +413,7 @@ export function buildNewsFeed(): NewsItem[] {
     if (releaseMin > nowMin) continue; // not landed yet — the drip
     const minutesAgo = nowMin - releaseMin;
     const atMs = dayStartMs + releaseMin * 60000;
-    const time = `${String(Math.floor(releaseMin / 60)).padStart(2, '0')}:${String(releaseMin % 60).padStart(2, '0')}`;
+    const time = clock(atMs);
     const source = hPick(`${seed}-src`, SOURCES);
     const weekday = new Date(dayStartMs).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'America/New_York' });
 

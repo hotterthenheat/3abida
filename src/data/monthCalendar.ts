@@ -27,6 +27,7 @@
 
 import { h01 } from '../core/rng';
 import { now } from '../core/clock';
+import { marketClock, nyWallTime } from '../core/nyTime';
 import { UNIVERSE } from './universe';
 import { buildEarningsCalendar, type ReportSlot } from './earnings';
 
@@ -37,7 +38,8 @@ export interface CalEvent {
   id: string;
   kind: CalKind;
   date: Date;
-  /** "08:30" — New York; an earnings report says its slot in words */
+  /** "8:30 am" — a New York release printed on the reader's clock, display only (2026-10-13); an earnings report says
+      its slot in words */
   time: string;
   title: string;
   impact: CalImpact;
@@ -70,8 +72,8 @@ export interface MonthCalendar {
 
 export const dayKeyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const pad = (n: number) => String(n).padStart(2, '0');
-const hhmm = (h: number, m = 0) => `${pad(h)}:${pad(m)}`;
+/** New York's h:mm on a date, printed on the reader's clock — "8:30 am" in New York, "5:30 am" in Los Angeles */
+const nyAt = (d: Date, h: number, m = 0) => marketClock(h, m, { on: nyWallTime(d.getFullYear(), d.getMonth() + 1, d.getDate(), 12) });
 
 /** The nth weekday of a month: nth 1.. of weekday 0..6 */
 const nthWeekday = (year: number, month: number, weekday: number, nth: number): Date => {
@@ -172,7 +174,7 @@ function macroEvents(year: number, month: number): CalEvent[] {
         id: `macro-${seed}`,
         kind: 'macro',
         date: new Date(d.getFullYear(), d.getMonth(), d.getDate(), r.hour, r.minute ?? 0),
-        time: hhmm(r.hour, r.minute ?? 0),
+        time: nyAt(d, r.hour, r.minute ?? 0),
         title: r.title,
         impact: r.impact,
         region: r.region,
@@ -182,10 +184,10 @@ function macroEvents(year: number, month: number): CalEvent[] {
     });
   });
   const opex = nthWeekday(year, month, 5, 3);
-  out.push({ id: `market-opex-${year}-${month}`, kind: 'market', date: new Date(year, month, opex.getDate(), 16, 0), time: '16:00', title: 'Monthly options expiration', impact: 'medium', region: 'USD' });
+  out.push({ id: `market-opex-${year}-${month}`, kind: 'market', date: new Date(year, month, opex.getDate(), 16, 0), time: nyAt(opex, 16), title: 'Monthly options expiration', impact: 'medium', region: 'USD' });
   const lastDay = new Date(year, month + 1, 0);
   const eom = lastDay.getDay() === 0 ? new Date(year, month, lastDay.getDate() - 2) : lastDay.getDay() === 6 ? new Date(year, month, lastDay.getDate() - 1) : lastDay;
-  out.push({ id: `market-eom-${year}-${month}`, kind: 'market', date: new Date(year, month, eom.getDate(), 16, 0), time: '16:00', title: 'Month-end rebalancing', impact: 'low', region: 'USD' });
+  out.push({ id: `market-eom-${year}-${month}`, kind: 'market', date: new Date(year, month, eom.getDate(), 16, 0), time: nyAt(eom, 16), title: 'Month-end rebalancing', impact: 'low', region: 'USD' });
   return out;
 }
 

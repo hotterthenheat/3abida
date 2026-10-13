@@ -178,7 +178,7 @@ export interface Source {
   key: string;
   label: string;
   status: SourceStatus;
-  /** "live · 21:14" · "the last report" · "22 sessions on hand" */
+  /** "live · 9:14 pm" · "the last report" · "22 sessions on hand" */
   stamp: string;
 }
 
