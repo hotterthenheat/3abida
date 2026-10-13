@@ -447,7 +447,8 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   time is the reader's own zone (the browser's, VIEWER_TZ), 12-hour, "3:35 pm" — clock(at, {seconds, zone}),
   marketClock(16, 0) (a New York time of day on the reader's clock), minuteLabel (a minute of New York's day),
   nyTextClock (a data field kept as New York "14:03:42" text, printed — the field itself stays New York, code parses
-  it), viewerDay; nyClock, nyStamp and the chart formatters print through clock() (their names are older than the
+  and sorts it; a producer writes it with nyText / nyMinuteText, NEVER with a printer: a print's `time`, a catch's,
+  sessionClock.etTime), viewerDay; nyClock, nyStamp and the chart formatters print through clock() (their names are older than the
   rule). NEVER a 24-hour time, never " ET" glued to a reader's time, never a printed time parsed. nyDay names a market
   day (New York's date). The rail's clock is the reader's with its zone (SessionStrip `railClock`). StrikeChart takes
   `nyClock` (legacy: the axis and crosshair, now the reader's clock) and `historyShare` (how much of the opening view the bars fill,

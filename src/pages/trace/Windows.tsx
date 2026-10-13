@@ -52,6 +52,13 @@ import { contractKey, watchContract } from '../../context/WatchContext';
 import LeanCell from '../../components/trace/LeanCell';
 import { num as fmtNum, pctSigned } from '../../core/format';
 
+/** A window's chip label said in a sentence, each end with its am/pm — "12:30–12:45 pm" → "12:30 pm and 12:45 pm" */
+const spanWords = (label: string): string => {
+  const [a, b = ''] = label.split('–');
+  const half = / (am|pm)$/.exec(b)?.[0] ?? '';
+  return b ? `${/ (am|pm)$/.test(a) ? a : a + half} and ${b}` : label;
+};
+
 const num = (v: number) => fmtNum(v);
 
 type CutKey = 'all' | 'bursts' | 'ask' | 'bid';
@@ -190,14 +197,14 @@ const Windows = () => {
   /* ReactNode: the loudest slice's contract is a door into its card. */
   const read = useMemo<ReactNode>(() => {
     if (!win || slices.length === 0)
-      return <RichRead text={`Nothing traded between ${win ? win.label.replace('–', ' and ') : 'these minutes'} on this cut.`} />;
+      return <RichRead text={`Nothing traded between ${win ? spanWords(win.label) : 'these minutes'} on this cut.`} />;
     const total = slices.reduce((a, s) => a + s.vol, 0);
     const names = new Set(slices.map(s => s.row.ticker)).size;
     const loud = slices[0];
     return (
       <>
         <RichRead
-          text={`Between ${win.label.replace('–', ' and ')} ${onFeed ? `prints of $${WINDOW_FLOOR / 1000}K and up carried` : 'the book traded'} ${num(total)} contracts across ${names} names. The loudest: `}
+          text={`Between ${spanWords(win.label)} ${onFeed ? `prints of $${WINDOW_FLOOR / 1000}K and up carried` : 'the book traded'} ${num(total)} contracts across ${names} names. The loudest: `}
         />
         <ReadDoor onOpen={() => setOpenKey(loud.row.key)}>
           {loud.row.ticker} {loud.row.strike}
