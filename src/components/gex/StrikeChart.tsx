@@ -5262,11 +5262,16 @@ const StrikeChart = ({
           /* a cell of the feed's field — its own column, or the peak a folded bar kept (which carries its cell's
              provenance but not the column's record) */
           const feedCell = !!meta || !!lvl.prov;
+          /* a session before today (server/fieldBackfill.ts): its vols are the ones traded through it, minute by minute */
+          const beadDay = nyIsoDateOf(beadCard.time * 1000);
+          const pastDay = beadDay < nyIsoDateOf(Date.now());
           const prov = !feedCell
             ? null
             : lvl.prov === 'carried'
               ? `Carried · vols from ${meta?.seedDate ? isoDayLabel(meta.seedDate) : 'the session before'}'s close`
-              : `Modeled · vols read ${meta?.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
+              : pastDay
+                ? `Modeled · vols as traded ${meta?.readAt ? `by ${nyClockOf(meta.readAt)}` : `on ${isoDayLabel(beadDay)}`}`
+                : `Modeled · vols read ${meta?.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
           const staleAt = lvl.staleSince ? `${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : '';
           /* a bound: the vendor stamped the vol's print with a later batch time, so its own time is known only to be at or
              before this */
@@ -5282,7 +5287,7 @@ const StrikeChart = ({
                 {k(beadCard.strike)} · {nyClockOf(beadCard.time * 1000, { zone: true })}
               </div>
               <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
-              {feedCell && <div className="text-[11px] text-textMuted">Today's opening positions re-priced along the price path, each contract on its latest traded vol</div>}
+              {feedCell && <div className="text-[11px] text-textMuted">{pastDay ? `${isoDayLabel(beadDay)}'s` : "Today's"} opening positions re-priced along the price path, each contract on its latest traded vol</div>}
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
                 {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
               </div>
@@ -5294,7 +5299,7 @@ const StrikeChart = ({
               {prov && stale && <div className="font-mono text-[11px] text-textMuted">{stale[0].toUpperCase() + stale.slice(1)}</div>}
               {feedCell && (
                 <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
-                  {measured ? `Unusual Whales' book, ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : "No book of Unusual Whales' read by then"}
+                  {measured ? `Unusual Whales' book, ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : pastDay ? 'Unusual Whales serves no book by strike for a past minute' : "No book of Unusual Whales' read by then"}
                 </div>
               )}
               {feedCell && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta?.model ?? TRAIL_MODEL.version}</div>}

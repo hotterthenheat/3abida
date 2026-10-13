@@ -370,8 +370,28 @@ against UW's one after-close book (which still carries the day's expired contrac
 session.
 Each cell keeps `prov` (`modeled` when half its gamma or more stands on today's vols, `carried` otherwise), `staleSince`
 and `coverage`; the hover card shows them with UW's own figure for the strike. The bead scale runs forward (each column
-against the columns at or before it). The sessions before today are not drawn on the feed yet (the full tape's vols and
-the close books are a later step).
+against the columns at or before it). The sessions before today are drawn, rebuilt by the server on the same model (below).
+
+**The sessions before today (server/fieldBackfill.ts, 2026-10-13).** UW answers no book by strike for a past minute, but
+for a past date it answers every input the model takes, so a past session is modeled as today is:
+
+| Input | Route | Note |
+|---|---|---|
+| The positions | `/stock/{t}/option-chains?date=D&greeks=true` | open interest dated D (the session before's close), within 60 days and 15% of the open |
+| The vols at the open | the same, dated the session before | carried, as today's seed |
+| The vols through the session | `/option-contract/{id}/intraday?date=D` | per contract, per minute, UW's `iv_low`–`iv_high` of its prints; the middle is the minute's vol, knowable at the minute's end, kept when it moved 0.001; only contracts that traded (the dated chain's `volume`) within 35 strikes of the session's range |
+| The range | `/stock/{t}/ohlc/1m?date=D` | the regular minutes; the field is priced on the chart's own minutes |
+| The validation series | `/stock/{t}/spot-exposures?date=D` | UW's whole book a minute |
+
+A SPY session is about 1,700 calls (1,741 contracts asked for 2026-10-12, none refused) and three minutes, two calls in
+flight so the pages keep a slot of the gate; it is written once, `.feed-cache/field/<NAME>/<D>/past.json.gz` (about
+200 KB), and never asked again. More than 2% of a session's calls refused and it is not written (tried again in half an
+hour). `GET /feed/field/<NAME>/past?days=D1,D2…` asks (the weekdays before today, thirty at most) and answers
+`{ ready, working, queued, failed }`; `GET /feed/field/<NAME>/day/<D>` serves a built one. Terrain asks for the newest
+ten sessions its minutes hold and draws each one's regular session; the trail chip says "earlier sessions N of M in"
+while they come. How far back (measured 2026-10-13, Basic): the per-contract minutes from about 2025-04-01; the dated
+chains, minute bars and whole-book series about two years. A session before the minutes is modeled on the session
+before's close vols alone, every cell `carried`. `scripts/field-backfill-proof.ts` runs in `npm test`.
 
 **The field's recorder (server/fieldRecorder.ts).** Mounted by the proxy: `GET /feed/field/<NAME>?since=<ms>` watches the
 name (six at most; two idle hours let it go) and answers what was received after `since` — the books, the chain reads,

@@ -57,7 +57,7 @@
 
 import { useMemo, useSyncExternalStore } from 'react';
 import { pickFlip, pickWalls } from '../../core/walls';
-import { nyDay, nyIsoDate, nyMinutes } from '../../core/nyTime';
+import { nyDay, nyIsoDate, nyMinutes, nyWallTime } from '../../core/nyTime';
 import { isTradingDay } from '../../core/calendar';
 import { useFeedPoll } from './poll';
 import { useRoomSource, type FeedRoom } from './rooms';
@@ -90,7 +90,7 @@ import { massiveBars } from './massive';
 import type { DarkPoolPrint } from '../../types/gex';
 import type { TapeEarnings } from '../events';
 import { bookSureness } from '../levelSureness';
-import { setMeasuredSource, takeServerInputs, type ChainRead, type SeedRead, type TotalRead } from './trailField';
+import { setMeasuredSource, takePastSession, takeServerInputs, type ChainRead, type SeedRead, type TotalRead } from './trailField';
 
 /* ---- the switch ------------------------------------------------------------------------------------------------ */
 
@@ -947,6 +947,92 @@ export function useServerField(on: boolean, ticker: string): void {
   const key = on && t ? `field:server:${t}` : null;
   /* a local call, answered with what is new since the last — asked every 15 s so a read lands on the chart soon after */
   useFeedPoll(key, () => loadServerDay(t), 15_000);
+}
+
+/* ---- THE SESSIONS BEFORE TODAY (2026-10-13 — the owner: "but why cant we see the exposure nodes on yesterdays data or
+   the day befores that … we need to plug it in"): the server rebuilds a past session from UW's dated history
+   (server/fieldBackfill.ts — the open interest dated the session, the session before's close vols, every contract's
+   vols minute by minute as it traded) and keeps it for good; here each built session joins the field, modeled on the
+   chart's own minutes as today's is. The newest PAST_SESSIONS the chart holds are asked, newest first. */
+export const PAST_SESSIONS = 10;
+interface PastAnswer {
+  ready: string[];
+  working: string | null;
+  queued: string[];
+  failed: Record<string, string>;
+}
+interface PastDayAnswer {
+  day: string;
+  oi: [string, number][];
+  seed: SeedRead | null;
+  ticks: Record<string, number[]>;
+  total: TotalRead | null;
+}
+const pastLoaded = new Set<string>();
+const pastLoading = new Set<string>();
+async function loadPastDay(t: string, day: string): Promise<void> {
+  const key = `${t}|${day}`;
+  if (pastLoaded.has(key) || pastLoading.has(key)) return;
+  pastLoading.add(key);
+  try {
+    const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/day/${day}`)) as FeedResult<PastDayAnswer>;
+    if (!r.ok || !r.data || !Array.isArray(r.data.oi)) return;
+    const [y, m, d] = day.split('-').map(Number);
+    /* the positions dated the session are knowable at its open; no vol comes with them */
+    const open: ChainRead = { receivedAt: nyWallTime(y, m, d, 9, 30), rows: r.data.oi.map(([sym, oi]) => [sym, oi, null, null]) };
+    takePastSession(t, day, { chains: [open], seed: r.data.seed, total: r.data.total, ticks: r.data.ticks ?? {} });
+    pastLoaded.add(key);
+  } finally {
+    pastLoading.delete(key);
+  }
+}
+
+/** The sessions before today a chart's minutes hold, newest first — the ones the field asks the server for */
+export function pastSessionsOf(bars: readonly Candle[] | null): string[] {
+  if (!bars?.length) return [];
+  const today = nyIsoDate();
+  const out: string[] = [];
+  let last = '';
+  let hour = NaN;
+  for (let i = bars.length - 1; i >= 0 && out.length < PAST_SESSIONS; i--) {
+    /* New York's date changes on the hour at most: read it once an hour of bars */
+    const h = Math.floor(bars[i].time / 3600);
+    if (h === hour) continue;
+    hour = h;
+    const d = nyIsoDate(h * 3600_000);
+    if (d === last) continue;
+    last = d;
+    if (d < today) out.push(d);
+  }
+  return out;
+}
+
+export interface PastSessions {
+  /** Sessions asked, ready, and the one being built */
+  asked: number;
+  ready: number;
+  working: string | null;
+}
+/**
+ * Ask the server for the sessions before today the chart holds, and fold each built one into the field. Asked every
+ * 15 s while any is still being built (an ask nobody repeats in five minutes is dropped there); null before an answer.
+ */
+export function useServerPastSessions(on: boolean, ticker: string, bars: readonly Candle[] | null): PastSessions | null {
+  const t = ticker.toUpperCase();
+  const days = useMemo(() => pastSessionsOf(bars), [bars]);
+  const list = days.join(',');
+  const key = on && t && list ? `field:past:${t}:${list}` : null;
+  const r = useFeedPoll(
+    key,
+    async () => {
+      const a = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/past?days=${list}`)) as FeedResult<PastAnswer>;
+      if (a.ok && a.data) for (const d of a.data.ready) void loadPastDay(t, d);
+      return a;
+    },
+    15_000
+  );
+  const a = r?.ok ? (r.data as PastAnswer) : null;
+  return a ? { asked: days.length, ready: a.ready.length, working: a.working } : null;
 }
 
 /** The books read so far today for a name, oldest first, outside a render (data/feed/pinpointMarket.ts) */

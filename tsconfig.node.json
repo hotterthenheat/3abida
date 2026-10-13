@@ -10,5 +10,5 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "tailwind.config.ts", "server", "scripts/feed-check.ts", "scripts/feed-proof.ts"]
+  "include": ["vite.config.ts", "tailwind.config.ts", "server", "scripts/feed-check.ts", "scripts/feed-proof.ts", "scripts/field-backfill-proof.ts"]
 }

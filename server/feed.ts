@@ -40,6 +40,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createFieldRecorder } from './fieldRecorder';
+import { createFieldBackfill } from './fieldBackfill';
 
 export type ProviderId = 'uw' | 'massive';
 
@@ -334,6 +335,8 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean })
   /* THE FIELD'S RECORDER (server/fieldRecorder.ts): the names the terminal asked the field for, their book read once a
      minute through this client while the session is open, whether or not a tab is */
   const recorder = createFieldRecorder(client);
+  /* THE FIELD'S PAST SESSIONS (server/fieldBackfill.ts): a session before today rebuilt from UW's dated history, once */
+  const backfill = createFieldBackfill(client);
   let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
   const PROBE_TTL = MIN;
 
@@ -363,6 +366,16 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean })
       if (url.pathname === '/feed/status') {
         const s = await status();
         return send(res, json(200, { uw: { key: client.hasKey('uw'), ...s.uw }, massive: { key: client.hasKey('massive'), ...s.massive } }));
+      }
+      const past = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/past$/.exec(url.pathname);
+      if (past) {
+        const r = backfill.ask(past[1], url.searchParams.get('days') ?? '');
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
+      const pd = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/day\/(\d{4}-\d{2}-\d{2})$/.exec(url.pathname);
+      if (pd) {
+        const r = backfill.day(pd[1], pd[2]);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
       const f = /^\/feed\/field\/([A-Za-z0-9.]{1,10})$/.exec(url.pathname);
       if (f) {

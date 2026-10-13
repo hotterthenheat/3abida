@@ -700,8 +700,19 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   never carried) and a chip where a wall moved and held three columns ("CW 780 → 785 · 11:42", the newest three); the
   hover card (StrikeChart `beadCard`) names strike, New York time, the net, its share, the change since 09:30, the flip
   and the crossings near, the cell's provenance and staleness (a vol stamped after the close — UW's `last_tape_time` then is a batch time, not the print's — is said as "from a print at or before 16:15", `staleBound`), UW's own figure at the strike, the model version; its second line, "Today's opening positions re-priced along the price path, each contract on its latest traded vol". An
-  expiry cut models that date's contracts alone. The sessions before today are not drawn on the feed (their inputs —
-  the full tape's vols, the close books — are a later step). THE RECORDER IS THE LOCAL SERVER (server/fieldRecorder.ts,
+  expiry cut models that date's contracts alone. THE SESSIONS BEFORE TODAY ARE DRAWN (2026-10-13 — the owner: "but
+  why cant we see the exposure nodes on yesterdays data or the day befores that … we need to plug it in"): the server
+  rebuilds a past session from UW's dated history on the same model (server/fieldBackfill.ts — the open interest dated
+  the session, the session before's close vols, every traded contract's vols minute by minute from /option-contract/
+  {id}/intraday?date=, each knowable at its minute's end, kept when it moved a tenth of a vol point; UW's whole book a
+  minute that day), ~1,700 calls and ~3 minutes a SPY session, two calls in flight, the name asked last first, its newest
+  session first; kept for good as .feed-cache/field/<NAME>/<D>/past.json.gz (~200 KB). GET /feed/field/<NAME>/past?days=
+  asks (answers ready, working, queued, failed), /day/<D> serves one. Terrain asks for the newest ten sessions its minutes
+  hold (levels.ts useServerPastSessions, PAST_SESSIONS) and draws each one's regular minutes (09:30–16:00); its trail chip
+  says "earlier sessions N of M in" while they come. How far: per-contract minute vols from about 2025-04-01, dated
+  chains, minute bars and the whole-book series about two years (measured 2026-10-13); a session older than the minute
+  vols is modeled on the session before's close vols alone (every cell 'carried'). The bead card on a past session names
+  its date, says its vols were "as traded", and that UW serves no book by strike for a past minute. THE RECORDER IS THE LOCAL SERVER (server/fieldRecorder.ts,
   mounted by server/feed.ts): GET /feed/field/<NAME>?since= watches a name (six at most) and answers what was received
   since; through the session it reads each name's book and UW's whole-book series once a minute, the chain every ten
   minutes (and once on first watch), the session before's close chain once a day — through the proxy's client and

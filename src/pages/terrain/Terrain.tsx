@@ -76,6 +76,7 @@ import {
   useFeedEarnings,
   useFeedField,
   useServerField,
+  useServerPastSessions,
   useFeedMaxPain,
   useFeedMoves,
   useFeedOi,
@@ -1186,6 +1187,8 @@ const Pane = ({
   /* the field follows the pane's expiry card: one listed date's contracts alone, or every expiry */
   const trailCut = cutDate;
   const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, trailCut);
+  /* the sessions before today the chart holds, rebuilt by the server from UW's dated history (server/fieldBackfill.ts) */
+  const fPast = useServerPastSessions(onFeed && !isCashIndex(ticker) && overlays.trails, ticker, fBars.bars);
   const fField = fTrail.snaps;
   const fByDate = useFeedByExpiry(onFeed && cutDate !== null, ticker, cutDate ? [cutDate] : []);
   const houseRail = useMemo(
@@ -1776,9 +1779,9 @@ const Pane = ({
             */}
             {/* WHILE THE FIELD IS EMPTY on the feed (2026-10-13): the server has not read the chain yet, or there is no bar of
                 today — the line goes as the first modeled minute lands (the house's pane has no such line) */}
-            {onFeed && overlays.trails && !fTrail.full && !noBars && (
+            {onFeed && overlays.trails && !noBars && (!fTrail.full || (fPast && fPast.ready < fPast.asked)) && (
               <div className="absolute left-14 bottom-8 z-20 pointer-events-none select-none rounded bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textMuted" data-trail-since>
-                Trail · it fills as the chain is read
+                Trail · {[!fTrail.full ? 'it fills as the chain is read' : '', fPast && fPast.ready < fPast.asked ? `earlier sessions ${fPast.ready} of ${fPast.asked} in` : ''].filter(Boolean).join(' · ')}
               </div>
             )}
             {!expanded && !toolbarInline && (

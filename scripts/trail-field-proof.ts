@@ -12,6 +12,8 @@
      UW's own — checked on four real SPY prints of 2026-10-12 (UW's /option-trades: price, vol, gamma as UW answered);
      on calendar time to the close the day-after contract misses by more, so the check tells the two apart
   7. A vol stamped after the close is a bound: its print's time is said as "at or before", never as a time
+  8. A PAST SESSION'S MINUTE VOLS (server/fieldBackfill.ts `ticks`): a minute's vol is the field's from that minute's
+     end — never the minute before — and makes the cell 'modeled'; one in its expiry's last hour is not used
 */
 import { modelColumn, universeOf, uwYears, UW_VOL_CONVENTION, type ServerInputs } from '../src/data/feed/trailField';
 import { blackScholesGreeks } from '../src/core/greeks';
@@ -140,6 +142,22 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
   const c = modelColumn(u4, bar(11, 0, 600.2)).levels.find(l => l.strike === 600);
   check('a vol stamped after the close is a bound at the session\'s last print, never the stamp', !!c && c.staleBound === true && c.staleSince === at(16, 15));
   check('a vol with its own print time is not a bound', mid.levels.every(l => !l.staleBound));
+}
+
+/* 8. a past session's minute vols */
+{
+  const positions: ServerInputs = { chains: [{ receivedAt: at(9, 30), rows: syms.map(s => [s, s.includes('C0') ? 1000 : 1500, null, null] as [string, number, number | null, number | null]) }], seed, total: null };
+  const ticks: Record<string, number[]> = {};
+  /* every contract traded at 10:42 at 30% vol; today's expiry also at 15:30, inside its last hour, at 500% */
+  for (const sym of syms) ticks[sym] = sym.startsWith('SPY261012') ? [at(10, 42), 0.3, at(15, 30), 5] : [at(10, 42), 0.3];
+  const withTicks = universeOf('SPY', day, { ...positions, ticks });
+  const without = universeOf('SPY', day, positions);
+  const same = (a: GexSnapshot, b: GexSnapshot) => JSON.stringify(a.levels.map(l => [l.strike, l.value])) === JSON.stringify(b.levels.map(l => [l.strike, l.value]));
+  check("a past minute's vol is not the minute before's", same(modelColumn(withTicks, bar(10, 41, 600.2)), modelColumn(without, bar(10, 41, 600.2))));
+  const m42 = modelColumn(withTicks, bar(10, 42, 600.2));
+  check("…it is that minute's own (knowable at its end), and the cell is 'modeled'", !same(m42, modelColumn(without, bar(10, 42, 600.2))) && m42.levels.every(l => l.prov === 'modeled'));
+  const only1042: Record<string, number[]> = Object.fromEntries(syms.map(s => [s, [at(10, 42), 0.3]]));
+  check("a past minute's vol in its expiry's last hour is not used", same(modelColumn(withTicks, bar(15, 40, 600.2)), modelColumn(universeOf('SPY', day, { ...positions, ticks: only1042 }), bar(15, 40, 600.2))));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

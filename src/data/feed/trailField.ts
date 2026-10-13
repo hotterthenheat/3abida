@@ -92,10 +92,16 @@
   AN EXPIRY CUT (the pane's expiry card on one listed
   date): the same model on that date's contracts alone.
 
-  THE SESSIONS BEFORE TODAY are not drawn on the feed —
-  their inputs (the full tape's vols, the close books
-  as the check) are a later step; the module takes them
-  as more observations when they come.
+  THE SESSIONS BEFORE TODAY (2026-10-13 — the owner:
+  "we need to plug it in"): the server rebuilds each
+  from UW's dated history (server/fieldBackfill.ts) —
+  the open interest dated the session, the session
+  before's close vols, and every contract's vols minute
+  by minute as it traded (`ticks`, each knowable at its
+  minute's end) — and the SAME model prices it on the
+  chart's own minutes, its regular session alone. UW
+  serves no book by strike for a past minute, so a past
+  session has no measured reference beside it.
 
   DISCRETE: a bead is one strike at one minute — no
   smoothing between strikes or minutes; a minute with
@@ -158,7 +164,7 @@ export const TRAIL_MODEL = {
   version: 'trail-2026-10-13.3',
   what: 'estimated dealer gamma (assumed sign)',
   openInterest: "today's count — UW's row dated today, the positions at the session before's close; static all day",
-  vol: "as of each minute: the newest chain read received at or before the minute's end; before the first, the session before's close (carried, fixed-strike); a vol read in its expiry's last hour is not used; no observation, no contract",
+  vol: "as of each minute: today, the newest chain read received at or before the minute's end; a past session, each contract's own minute vols as it traded (UW's per-contract minutes, the middle of the minute's range, knowable at the minute's end, kept when it moved a tenth of a vol point); before either, the session before's close (carried, fixed-strike); a vol read in its expiry's last hour is not used; no observation, no contract",
   price: "the minute bar's close; a column is knowable at its bar's end",
   pricer: "core/greeks.ts blackScholesGreeks on UW's convention (measured): European, r 4.15%, q 0; today's expiry on calendar time from the bar middle to its last-trading instant (16:00 New York, 13:00 on a half day), a later one on whole calendar days / 365",
   universe: `contracts listed within ${CHAIN_MAX_DTE} days with open interest, 30 strikes each side of the price`,
@@ -190,6 +196,9 @@ export interface ServerInputs {
   chains: ChainRead[];
   seed: SeedRead | null;
   total: TotalRead | null;
+  /** A past session's vols as each contract traded (server/fieldBackfill.ts): flattened [minute start (ms), vol, …] —
+      a minute's vol knowable at the minute's end */
+  ticks?: Record<string, number[]>;
 }
 
 /* ---- the pure part ---------------------------------------------------------------------------------------------- */
@@ -263,6 +272,21 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
       if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false });
     }
   }
+  /* a past session's vols minute by minute: each knowable at its minute's end, its print within the minute */
+  const tickEnds = new Set<number>();
+  for (const [sym, arr] of Object.entries(inputs.ticks ?? {})) {
+    const c = bySym.get(sym);
+    if (!c) continue;
+    const last = lastTradeOf(c.expiry);
+    for (let i = 0; i + 1 < arr.length; i += 2) {
+      const at = arr[i] + 60_000;
+      const iv = arr[i + 1];
+      if (!(iv > 0) || last - at < LAST_HOUR_MS) continue;
+      c.obs.push({ at, iv, trade: arr[i], bound: false, carried: false });
+      tickEnds.add(at);
+    }
+  }
+  if (tickEnds.size) for (const c of bySym.values()) c.obs.sort((a, b) => a.at - b.at);
   /* the session before's close: knowable from that close on (before today's open), carried */
   const seed = inputs.seed;
   if (seed) {
@@ -294,7 +318,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     years: Float64Array.from(kept.map(c => (c.expiry > day ? uwYears(0, 0, c.expiry, day) : 0))),
     expiry: kept.map(c => c.expiry),
     obs: kept.map(c => c.obs),
-    reads: reads.map(r => r.receivedAt),
+    reads: [...new Set([...reads.map(r => r.receivedAt), ...tickEnds])].sort((a, b) => a - b),
     seedDate: seed?.date ?? null,
   };
 }
@@ -444,15 +468,21 @@ export const trailMeta = (snap: GexSnapshot): TrailMeta | null => metas.get(snap
 
 /* ---- the store: a name's field, built in slices -------------------------------------------------------------- */
 
-/** What the server recorded for a name today */
-const inputsByName = new Map<string, { day: string; inputs: ServerInputs; version: number }>();
+/** What the server recorded or rebuilt for a name, by New York date — today's as it comes, a past session's whole */
+const inputsByName = new Map<string, Map<string, { inputs: ServerInputs; version: number }>>();
 const subs = new Map<string, Set<() => void>>();
+const daysOf = (t: string) => {
+  let m = inputsByName.get(t);
+  if (!m) inputsByName.set(t, (m = new Map()));
+  return m;
+};
 
-/** levels.ts hands in what the server recorded (its chain reads, its seed, UW's whole-book series) */
+/** levels.ts hands in what the server recorded today (its chain reads, its seed, UW's whole-book series) */
 export function takeServerInputs(ticker: string, day: string, part: Partial<ServerInputs>): void {
   const t = ticker.toUpperCase();
-  let cur = inputsByName.get(t);
-  if (!cur || cur.day !== day) inputsByName.set(t, (cur = { day, inputs: { chains: [], seed: null, total: null }, version: 0 }));
+  const days = daysOf(t);
+  let cur = days.get(day);
+  if (!cur) days.set(day, (cur = { inputs: { chains: [], seed: null, total: null }, version: 0 }));
   let changed = false;
   for (const c of part.chains ?? [])
     if (!cur.inputs.chains.some(x => x.receivedAt === c.receivedAt)) {
@@ -471,6 +501,18 @@ export function takeServerInputs(ticker: string, day: string, part: Partial<Serv
   cur.version++;
   for (const s of trails.values()) if (s.t === t) schedule();
 }
+
+/** levels.ts hands in a past session the server rebuilt (server/fieldBackfill.ts), whole and final */
+export function takePastSession(ticker: string, day: string, inputs: ServerInputs): void {
+  const t = ticker.toUpperCase();
+  const days = daysOf(t);
+  if (days.has(day)) return;
+  days.set(day, { inputs, version: 1 });
+  for (const s of trails.values()) if (s.t === t) schedule();
+}
+
+/** The sessions whose inputs are in for a name, New York dates */
+export const sessionsIn = (ticker: string): string[] => [...(inputsByName.get(ticker.toUpperCase())?.keys() ?? [])];
 
 /** The books read today for a name, with their legs — the measured reference (levels.ts hands them in) */
 let booksOf: (t: string) => readonly FeedBook[] = () => [];
@@ -497,9 +539,9 @@ interface NameTrail {
   day: string;
   cut: string | null;
   bars: readonly Candle[];
-  u: Universe | null;
-  uVersion: number;
-  /** Today's columns, by bar time, with the inputs they were made on */
+  /** Each session's universe, with the inputs' version it was built on */
+  us: Map<string, { u: Universe; version: number }>;
+  /** The columns, every session's, by bar time, with the inputs they were made on */
   cols: Map<number, { snap: GexSnapshot; inputs: string }>;
   out: GexSnapshot[];
   residual: string | null;
@@ -550,32 +592,46 @@ function work() {
   let more = false;
   for (const s of trails.values()) {
     if (!subs.get(s.key)?.size) continue;
-    const inp = inputsByName.get(s.t);
-    if (!inp || inp.day !== s.day || !inp.inputs.chains.length) continue;
-    if (!s.u || s.uVersion !== inp.version) {
-      const tS = performance.now();
-      s.u = universeOf(s.t, s.day, inp.inputs, s.cut);
-      s.uVersion = inp.version;
-      s.cost.ms += performance.now() - tS;
-    }
-    const u = s.u;
+    const days = inputsByName.get(s.t);
+    if (!days) continue;
     let did = false;
-    for (const b of dayBars(s.bars, s.day)) {
-      const r = readAt(u, (b.time + 60) * 1000);
-      /* a minute is modeled once per set of inputs knowable at it: a new chain read moves only the minutes after it */
-      const inputs = `${b.close}|${r}|${u.seedDate ?? ''}`;
-      if (s.cols.get(b.time)?.inputs === inputs) continue;
-      const tS = performance.now();
-      const snap = modelColumn(u, b);
-      metas.set(snap, { kind: 'modeled', model: TRAIL_MODEL.version, readAt: r, seedDate: u.seedDate });
-      s.cols.set(b.time, { snap, inputs });
-      s.cost.minutes++;
-      s.cost.ms += performance.now() - tS;
-      did = true;
-      if (performance.now() - t0 > SLICE_MS) {
-        more = true;
-        break;
+    /* today first, then the sessions before, newest first */
+    for (const day of [...days.keys()].sort().reverse()) {
+      if (day > s.day) continue;
+      const inp = days.get(day)!;
+      if (!inp.inputs.chains.length) continue;
+      let built = s.us.get(day);
+      if (!built || built.version !== inp.version) {
+        const tS = performance.now();
+        built = { u: universeOf(s.t, day, inp.inputs, s.cut), version: inp.version };
+        s.us.set(day, built);
+        s.cost.ms += performance.now() - tS;
       }
+      const u = built.u;
+      /* a past session draws its regular minutes alone (09:30–16:00): its hours outside them would hold only the
+         session before's close vols, and ten sessions of every minute weigh too much */
+      const [y, m, d] = day.split('-').map(Number);
+      const from = day === s.day ? -Infinity : nyWallTime(y, m, d, 9, 30) / 1000;
+      const to = day === s.day ? Infinity : nyWallTime(y, m, d, 16, 0) / 1000;
+      for (const b of dayBars(s.bars, day)) {
+        if (b.time < from || b.time >= to) continue;
+        const r = readAt(u, (b.time + 60) * 1000);
+        /* a minute is modeled once per set of inputs knowable at it: a new chain read moves only the minutes after it */
+        const inputs = `${b.close}|${r}|${u.seedDate ?? ''}|${inp.version}`;
+        if (s.cols.get(b.time)?.inputs === inputs) continue;
+        const tS = performance.now();
+        const snap = modelColumn(u, b);
+        metas.set(snap, { kind: 'modeled', model: TRAIL_MODEL.version, readAt: r, seedDate: u.seedDate });
+        s.cols.set(b.time, { snap, inputs });
+        s.cost.minutes++;
+        s.cost.ms += performance.now() - tS;
+        did = true;
+        if (performance.now() - t0 > SLICE_MS) {
+          more = true;
+          break;
+        }
+      }
+      if (more) break;
     }
     if (did) publish(s);
     if (more) break;
@@ -588,14 +644,15 @@ function work() {
 const WHOLE_EVERY_MIN = 15;
 function wholeSums(s: NameTrail): Map<number, number> {
   const out = new Map<number, number>();
-  if (!s.u) return out;
+  const today = s.us.get(s.day);
+  if (!today) return out;
   for (const c of s.cols.values()) {
     const minute = Math.floor(c.snap.time / 60);
-    if (minute % WHOLE_EVERY_MIN) continue;
-    const key = `${c.inputs}|${s.uVersion}`;
+    if (minute % WHOLE_EVERY_MIN || barDay(c.snap.time) !== s.day) continue;
+    const key = `${c.inputs}|${today.version}`;
     let had = s.whole.get(minute);
     if (!had || had.key !== key) {
-      const col = modelColumn(s.u, { time: c.snap.time, close: c.snap.spot ?? 0 }, 1e9);
+      const col = modelColumn(today.u, { time: c.snap.time, close: c.snap.spot ?? 0 }, 1e9);
       had = { key, sum: col.levels.reduce((x, l) => x + l.value, 0) };
       s.whole.set(minute, had);
     }
@@ -607,7 +664,9 @@ function wholeSums(s: NameTrail): Map<number, number> {
 function publish(s: NameTrail) {
   s.out = [...s.cols.values()].map(c => c.snap).sort((a, b) => a.time - b.time);
   const t0 = performance.now();
-  s.residual = s.cut ? null : fieldResidual(s.out, booksOf(s.t), inputsByName.get(s.t)?.inputs.total ?? null, wholeSums(s));
+  /* the residual is today's: the books this terminal read, and UW's whole book a minute against today's columns */
+  const todays = s.out.filter(c => barDay(c.time) === s.day);
+  s.residual = s.cut ? null : fieldResidual(todays, booksOf(s.t), inputsByName.get(s.t)?.get(s.day)?.inputs.total ?? null, wholeSums(s));
   s.cost.ms += performance.now() - t0;
   ring(s.key);
 }
@@ -617,7 +676,7 @@ function stateOf(t: string, cut: string | null): NameTrail {
   const key = `${t}|${cut ?? 'all'}`;
   let s = trails.get(key);
   if (!s || s.day !== day) {
-    s = { key, t, day, cut, bars: [], u: null, uVersion: -1, cols: new Map(), out: [], residual: null, whole: new Map(), cost: { ms: 0, minutes: 0 } };
+    s = { key, t, day, cut, bars: [], us: new Map(), cols: new Map(), out: [], residual: null, whole: new Map(), cost: { ms: 0, minutes: 0 } };
     trails.set(key, s);
   }
   return s;
@@ -627,7 +686,7 @@ const EMPTY: GexSnapshot[] = [];
 
 export interface TrailField {
   snaps: GexSnapshot[];
-  /** Today's minutes are modeled */
+  /** Today's minutes are modeled (the sessions before may be, while today's are not yet) */
   full: boolean;
   /** One line for "How sure": the field against UW's own figures, or null */
   residual: string | null;
@@ -666,7 +725,9 @@ export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Ca
     () => (live ? trails.get(key)?.out ?? EMPTY : EMPTY)
   );
   const s = live ? trails.get(key) : undefined;
-  return { snaps, full: snaps.length > 0, residual: s?.residual ?? null };
+  const day = s?.day ?? '';
+  const full = snaps.length > 0 && barDay(snaps[snaps.length - 1].time) === day;
+  return { snaps, full, residual: s?.residual ?? null };
 }
 
 if (typeof window !== 'undefined')
