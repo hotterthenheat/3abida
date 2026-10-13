@@ -42,6 +42,7 @@
 ==================================================
 */
 
+import { marketClock } from '../core/nyTime';
 import Simulator from '../core/simulator';
 import { bookMarket } from './bookMarket';
 import { impliedDaySigma } from './atr';
@@ -394,7 +395,7 @@ function wallOdds(K: number, ctx: Ctx): WallOdds {
     },
     {
       key: 'expiry',
-      label: clock.inSession ? 'Expires at 4:00 · charm' : 'Expired at 4:00 · charm',
+      label: `${clock.inSession ? 'Expires' : 'Expired'} at ${marketClock(16, 0)} · charm`,
       fact: `${pct(expiresToday)} of it${clock.inSession ? ` · ${Math.floor(clock.minutesLeft / 60)}h ${String(clock.minutesLeft % 60).padStart(2, '0')}m left` : ''}`,
       push: -clamp(expiresToday * (1 - fade) * 2, 0, 1),
       words: clock.inSession

@@ -57,7 +57,7 @@
 ==================================================
 */
 
-import { nyClock } from '../core/nyTime';
+import { nyClock, nyTextClock } from '../core/nyTime';
 import Simulator from '../core/simulator';
 import { now } from '../core/clock';
 import { readSessionClock } from './sessionClock';
@@ -712,7 +712,7 @@ export function buildStockOverview(tickerRaw: string, tape: readonly FlowPrint[]
       { key: 'price', label: 'Price', status: 'live', stamp: `live · ${stamp}` },
       { key: 'book', label: 'The options book', status: 'live', stamp: `live · ${stamp}` },
       { key: 'flow', label: 'The flow book', status: 'live', stamp: `live · ${stamp}` },
-      { key: 'tape', label: 'The tape', status: own.length ? 'live' : 'thin', stamp: own.length ? `live · the newest print ${own[0].time}` : 'no rich prints on the name yet' },
+      { key: 'tape', label: 'The tape', status: own.length ? 'live' : 'thin', stamp: own.length ? `live · the newest print ${nyTextClock(own[0].time)}` : 'no rich prints on the name yet' },
       { key: 'dark', label: 'Dark pool', status: 'live', stamp: `live · ${stamp}` },
       { key: 'news', label: 'The wire', status: 'live', stamp: news.stories.length ? `live · the newest story ${news.stories[0].item.time}` : `live · ${stamp}` },
       { key: 'sessions', label: 'Sessions', status: sessions >= 20 ? 'live' : 'thin', stamp: `${sessions} on hand · the 50- and 200-day averages need more` },

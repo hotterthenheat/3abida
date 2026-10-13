@@ -77,7 +77,7 @@ import RichRead from '../../components/ui/RichRead';
 import AnimatedNumber from '../../components/ui/AnimatedNumber';
 import Fold from '../../components/ui/Fold';
 import GuideFocus, { GuideDoor } from '../../components/ui/GuideFocus';
-import { nyMinutes, nyParts, nyWallTime } from '../../core/nyTime';
+import { nyMinutes, nyParts, nyWallTime, nyTextClock } from '../../core/nyTime';
 import SessionsChart, { type ChartMark, type ChartPoint } from '../../components/record/SessionsChart';
 import type { UTCTimestamp } from 'lightweight-charts';
 import { fmtClockLocal, fmtDayLocal } from '../../components/gex/chartTime';
@@ -459,7 +459,7 @@ const PrintRow = ({ p, maxPrem, onOpen, onWarm }: { p: FlowPrint; maxPrem: numbe
   <button type="button" onClick={onOpen} onMouseEnter={onWarm} onFocus={onWarm} title="Weigh this contract" className="hit group/door w-full text-left px-3 sm:px-5 h-[34px] border-t border-borderSubtle/40 grid grid-cols-[88px_minmax(0,1fr)_64px_12px] sm:grid-cols-[44px_112px_minmax(0,1fr)_72px_48px_24px] items-center gap-x-2 sm:gap-x-3 hover:bg-ink/[0.03] focus-visible:bg-ink/[0.03] outline-none transition-colors" data-stock-print={p.id} data-print-side={p.side}>
     {/* on a phone the row is the contract, its size and its money — the time and the sweep mark come back at 640px (its
         fixed columns alone were 400px) */}
-    <span className="max-sm:hidden font-mono text-[11px] tnum text-textMuted">{p.time}</span>
+    <span className="max-sm:hidden font-mono text-[11px] tnum text-textMuted whitespace-nowrap">{nyTextClock(p.time)}</span>
     <span className="font-mono text-[11px] font-bold text-textPrimary group-hover/door:text-silver transition-colors">
       {p.strike}
       {p.right} <span className="text-[11px] font-normal text-textMuted">· {p.dte}d</span>

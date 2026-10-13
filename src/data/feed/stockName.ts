@@ -38,7 +38,7 @@ import type { Fundamentals } from '../fundamentals';
 import { moneyFactors, newsPart, numbersFactors, overviewFrom, type MoneyRead, type StockOverview } from '../stockOverview';
 import { lookup } from '../universe';
 import { tickerName } from '../tickers';
-import { nyClock, nyIsoDate, nyParts, nySessionPhase } from '../../core/nyTime';
+import { nyClock, nyIsoDate, nyParts, nySessionPhase, nyTextClock } from '../../core/nyTime';
 import { useFeedPoll } from './poll';
 import { useFeedPrice } from './price';
 import { useFeedBook as useLevelsBook, useFeedOi, type FeedBook, type FeedOi } from './levels';
@@ -254,7 +254,7 @@ export function useFeedOverview(on: boolean, ticker: string): StockOverview | nu
         { key: 'price', label: 'Price', status: 'live', stamp: `UW · ${stamp}` },
         { key: 'book', label: 'The options book', status: book ? 'live' : 'thin', stamp: book ? `UW · figured ${nyClock(book.at)}` : 'not in yet' },
         { key: 'flow', label: 'The flow book', status: name?.rows.length ? 'live' : 'thin', stamp: name?.rows.length ? `UW · ${name.rows.length} contracts${name.complete ? '' : ', the heaviest'}` : 'not in yet' },
-        { key: 'tape', label: 'The tape', status: own.length ? 'live' : 'thin', stamp: own.length ? `UW · the newest print ${own[0].time}` : 'no prints on the name yet' },
+        { key: 'tape', label: 'The tape', status: own.length ? 'live' : 'thin', stamp: own.length ? `UW · the newest print ${nyTextClock(own[0].time)}` : 'no prints on the name yet' },
         { key: 'dark', label: 'Dark pool', status: dark?.prints.length ? 'live' : 'thin', stamp: dark?.prints.length ? `UW · ${dark.prints.length} crosses` : 'no crosses yet' },
         { key: 'news', label: 'The wire', status: 'live', stamp: nr.stories.length ? `UW · the newest story ${nr.stories[0].item.time}` : `UW · nothing on the name in the latest hundred` },
         { key: 'sessions', label: 'Sessions', status: sessions >= 200 ? 'live' : 'thin', stamp: `${sessions} on hand` },
