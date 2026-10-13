@@ -369,8 +369,8 @@ against UW's one after-close book (which still carries the day's expired contrac
 32 minutes at 2.29× UW's whole-book figure — every vol that day carried from Oct 9's close, as nothing was read in the
 session.
 Each cell keeps `prov` (`modeled` when half its gamma or more stands on today's vols, `carried` otherwise), `staleSince`
-and `coverage`; the hover card shows them with UW's own figure for the strike. The bead scale runs forward (each column
-against the columns at or before it). The sessions before today are drawn, rebuilt by the server on the same model (below).
+and `coverage`; the hover card shows them with UW's own figure for the strike. The bead scale runs forward, per session, on a square root (each column's beads
+are √(size ÷ the 85th percentile of the column peaks at or before it in its own session), stated in Terrain's legend). The sessions before today are drawn, rebuilt by the server on the same model (below).
 
 **The sessions before today (server/fieldBackfill.ts, 2026-10-13).** UW answers no book by strike for a past minute, but
 for a past date it answers every input the model takes, so a past session is modeled as today is:

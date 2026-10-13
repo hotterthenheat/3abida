@@ -436,12 +436,21 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   ui/svgFloor.ts `useSvgFloor` (in pixels off its own width); past 1.25× it keeps a minimum width and scrolls sideways,
   opened on the spot (`useCentredScroll`). The "How to read" guides' drawings set their words through `ui/GuideSvg.tsx` (useSvgFloor: words 11, ticks 10; on a phone they scroll sideways in the card).
 - ONE WAY TO SAY A FIGURE (core/format.ts): the true minus, a sign on a change, prices to the cent, big dollars to three
-  figures, percent to one decimal (two under 1%), the greeks, IV, "Oct 9" and "14:03 ET" — every figure goes through it,
+  figures, percent to one decimal (two under 1%), the greeks, IV, "Oct 9" and "2:03 pm" — every figure goes through it,
   and the rooms' formatters are built on it. Never a toFixed of your own on screen.
-- NEW YORK'S CLOCK (core/nyTime.ts — the one module for it): a time of the MARKET's day is New York's whatever the
-  reader chose (Trace's book, Pinpoint's session, the Weigher's and Terrain's charts, Compass's dates, the Tracker); the
-  rail's clock follows Settings › The desk › Clock and names its zone (SessionStrip `railClock`). StrikeChart takes
-  `nyClock` (the axis and crosshair on New York's clock) and `historyShare` (how much of the opening view the bars fill,
+- READ IN NEW YORK, PRINTED ON THE READER'S CLOCK (core/nyTime.ts — the one module for it; 2026-10-13 — the owner:
+  "show every time on screen (axis, hover cards, labels, wall-move times like "12:25") in the viewer's own timezone,
+  detected from their browser, in 12-hour format with am/pm. Never use 24-hour format anywhere in the UI. Change display
+  only: all calculations (session open/close, expiry times, UW's time-to-expiry rule) must stay in New York time
+  internally, or the pricing breaks"). Every CALCULATION reads the market's day in New York's time (nyParts, nyMinutes,
+  nyIsoDate, nyWallTime, nySession — Trace's book, Pinpoint's session, the expiry clock, the field's τ). Every PRINTED
+  time is the reader's own zone (the browser's, VIEWER_TZ), 12-hour, "3:35 pm" — clock(at, {seconds, zone}),
+  marketClock(16, 0) (a New York time of day on the reader's clock), minuteLabel (a minute of New York's day),
+  nyTextClock (a data field kept as New York "14:03:42" text, printed — the field itself stays New York, code parses
+  it), viewerDay; nyClock, nyStamp and the chart formatters print through clock() (their names are older than the
+  rule). NEVER a 24-hour time, never " ET" glued to a reader's time, never a printed time parsed. nyDay names a market
+  day (New York's date). The rail's clock is the reader's with its zone (SessionStrip `railClock`). StrikeChart takes
+  `nyClock` (legacy: the axis and crosshair, now the reader's clock) and `historyShare` (how much of the opening view the bars fill,
   0.64 by default; Pulse's chart, the four charts, Terrain, Paper and the Backtest 0.88, the Weigher 0.9, so the tape
   runs near the right edge); every one of those passes `nyClock`, and so does the Journal's trade tape. The chart's
   Reset pill stands at the bottom middle, clear of the level tags; the exposure ledger fades where it goes on.
@@ -695,10 +704,15 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   hover's readout) and their residual — per strike at the captured times, and against UW's whole-book series (the
   model summed over every strike within 15% and 60 days, a minute a quarter hour) — is one line in the ladder's "How sure" (`fieldResidual`, Sureness `field`). Every cell carries `prov` ('modeled' |
   'carried'), `staleSince` and `coverage` (GexLevel); carried beads draw a step quieter (gexNodesPrimitive REBUILT_*).
-  THE SCALE RUNS FORWARD: each column's beads against the 85th percentile of the maxima at or before it (a log-binned
-  running count) — nothing to the right changes the left. Each column draws its OWN flip (pickFlip, a gap where none,
+  THE SCALE RUNS FORWARD, PER SESSION, SQUARE-ROOT (2026-10-13 — the owner: "Use a square-root scale on magnitude
+  instead, keep the scale computed per session as of the replay clock, and state the scale in the legend"): a bead's
+  strength is √(|value| ÷ the 85th percentile of the column maxima at or before it IN ITS OWN SESSION, New York's
+  date — a log-binned running count), drawn as is (height and light follow it; no further curve), and the Heaviest
+  row says so (gexNodesPrimitive BEAD_SCALE) — nothing to the right changes the left, and a loud session does not dim
+  the next. TERRAIN'S PRICE AXIS FITS THE CANDLES (the owner, the same day: StrikeChart `fitCandles` — no wall,
+  supreme, spot or layer widens it; a focused strike still does). Each column draws its OWN flip (pickFlip, a gap where none,
   never carried) and a chip where a wall moved and held three columns ("CW 780 → 785 · 11:42", the newest three); the
-  hover card (StrikeChart `beadCard`) names strike, New York time, the net, its share, the change since 09:30, the flip
+  hover card (StrikeChart `beadCard`) names strike, the time on the reader's clock, the net, its share, the change since the open, the flip
   and the crossings near, the cell's provenance and staleness (a vol stamped after the close — UW's `last_tape_time` then is a batch time, not the print's — is said as "from a print at or before 16:15", `staleBound`), UW's own figure at the strike, the model version; its second line, "Today's opening positions re-priced along the price path, each contract on its latest traded vol". An
   expiry cut models that date's contracts alone. THE SESSIONS BEFORE TODAY ARE DRAWN (2026-10-13 — the owner: "but
   why cant we see the exposure nodes on yesterdays data or the day befores that … we need to plug it in"): the server

@@ -45,7 +45,7 @@ import {
 import { GexTrailsPrimitive, trailPaperFrom, type BeadHit } from './gexNodesPrimitive';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
 import { isoDayLabel, pct, usdCompact, usdCompactSigned } from '../../core/format';
-import { nyClock as nyClockOf, nyIsoDate as nyIsoDateOf } from '../../core/nyTime';
+import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { alertMarket } from './alertMarket';
@@ -439,16 +439,9 @@ export const priceScaleLockedBy = (compares: readonly CompareEntry[]): { mode: P
   volume bars fold the same live-only seconds tape by RULE instead of by
   clock (data/altBars.ts), so they inherit T-14's honesty and its chip.
 */
-/** A bar's own day and minute, the way the axis prints them ("Sep 8 · 11:59") */
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const dayWords = (t: number) => {
-  const d = new Date(t * 1000);
-  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
-};
-const timeWords = (t: number) => {
-  const d = new Date(t * 1000);
-  return `${dayWords(t)} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
+/** A bar's own day and minute on the reader's clock, the way the axis prints them ("Sep 8 · 11:59 am") */
+const dayWords = (t: number) => viewerDay(t * 1000);
+const timeWords = (t: number) => `${dayWords(t)} · ${readerClock(t * 1000)}`;
 
 /** A host's day bars as weeks — Monday to Friday, each week's bar on its Monday (the day bars sit at noon UTC, so the
     date reads the same on New York's clock) */
@@ -5254,7 +5247,7 @@ const StrikeChart = ({
           <span className="absolute bottom-12 left-2 z-10 pointer-events-none font-mono text-[11px] uppercase tracking-wider text-textMuted bg-canvas/60 border border-borderSubtle/60 rounded px-1.5 py-0.5">
             {liveFrom === 0
               ? 'live only · awaiting first prints'
-              : `live only · from ${new Date(liveFrom * 1000).toLocaleTimeString('en-GB', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })}`}
+              : `live only · from ${readerClock(liveFrom * 1000)}`}
           </span>
         )}
 
@@ -5296,7 +5289,7 @@ const StrikeChart = ({
               <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
               {feedCell && <div className="text-[11px] text-textMuted">{pastDay ? `${isoDayLabel(beadDay)}'s` : "Today's"} opening positions re-priced along the price path, each contract on its latest traded vol</div>}
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-                {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
+                {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since {marketClock(9, 30, { on: beadCard.time * 1000 })} {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
               </div>
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
                 Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
