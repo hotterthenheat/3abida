@@ -60,6 +60,7 @@ import { flipRing, stepSymbol, stepTf } from './paneKeys';
 import TerrainLayers from '../../components/terrain/TerrainLayers';
 import { openPopOut } from '../../components/layout/deskChannel';
 import { WALLS_LENSES, type WallsLens } from '../../components/terrain/wallsHeatPrimitive';
+import { useFeedTrailField } from '../../data/feed/trailField';
 import {
   feedFreshness,
   feedOpenRatio,
@@ -1137,7 +1138,12 @@ const Pane = ({
   const fBook = useFeedBook(onFeed, ticker).book;
   const fOi = useFeedOi(onFeed, ticker).today;
   const fBars = useFeedBars(onFeed, ticker, { history: true });
-  const fField = useFeedField(ticker);
+  const fFieldRead = useFeedField(ticker);
+  /* THE FIELD, FULL (2026-10-13): today's minutes rebuilt from the chain on the house's pricer and calibrated to UW's
+     newest book, the sessions before off UW's own book for each date, the books this terminal read in their own minutes
+     (data/feed/trailField.ts) */
+  const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, fBook);
+  const fField = fTrail.snaps;
   /* 1D and 1W read the day bars — asked only while the pane draws them */
   const wantsDaily = timeframe === '1D' || timeframe === '1W';
   const fDaily = useFeedDaily(onFeed && wantsDaily, ticker);
@@ -1755,10 +1761,10 @@ const Pane = ({
               cannot reach. Keyboard focus brings the strip up exactly as the
               cursor does.
             */}
-            {/* WHERE THE TRAIL STARTS (2026-10-12): on the feed the field is the books this terminal read today — UW gives
-                the book as it stands, never its past by strike — so the pane says when it begins, and an empty field
-                never reads as a broken one */}
-            {onFeed && overlays.trails && (
+            {/* WHERE THE TRAIL STARTS — only when the chain could not be read (2026-10-13): the field is rebuilt from the
+                chain (data/feed/trailField.ts) and the house's pane has no such line; without the chain the field is the
+                books this terminal read, and the pane says when they begin */}
+            {onFeed && overlays.trails && fTrail.chainFailed && !fTrail.full && (
               <div className="absolute left-14 bottom-8 z-20 pointer-events-none select-none rounded bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textMuted" data-trail-since>
                 {fField.length ? `Trail from ${nyClockAt(fField[0].time * 1000, { zone: true })} · it fills while the terminal is open` : 'Trail · it fills from the first read while the terminal is open'}
               </div>
