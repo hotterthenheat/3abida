@@ -116,10 +116,11 @@ const paneInks = (from: Element | null): PaneInks => ({
   label: readToken('--border-muted', undefined, from),
 });
 /* THE SESSION, FRAMED WITH A MARGIN EACH SIDE (the audit's X2.7): fitted edge to edge, the first label ("09:30") and the
-   last ("16:00") stood half off the pane, cut to "30" and "16:0" */
+   last ("16:00") stood half off the pane, cut to "30" and "16:0" — half again as wide since the axis prints the reader's
+   12-hour clock ("9:30 am", 2026-10-13) */
 const frame = (chart: IChartApi) => {
   const n = Math.max(0, ...(chart.panes()[0]?.getSeries() ?? []).map(s => s.data().length));
-  if (n > 0) chart.timeScale().setVisibleLogicalRange({ from: -Math.max(3, n * 0.03), to: n - 1 + Math.max(4, n * 0.04) });
+  if (n > 0) chart.timeScale().setVisibleLogicalRange({ from: -Math.max(3, n * 0.045), to: n - 1 + Math.max(4, n * 0.06) });
   else chart.timeScale().fitContent();
 };
 const volInk = (v: number, m: InkMarks, k: PaneInks) => (v >= m.top ? k.volSupreme : v >= m.bar ? k.volLoud : k.volQuiet);
@@ -385,7 +386,7 @@ const NetFlowPane = ({
         fontSize: 10,
         attributionLogo: false,
       },
-      // One session per pane, so the crosshair wears New York's bare clock — the market's day (core/nyTime).
+      // One session per pane, so the crosshair wears the bare clock — the market's minute on the reader's clock (core/nyTime).
       localization: { timeFormatter: (t: Time) => (typeof t === 'number' ? nyClock(t * 1000) : nyTimeFormatter(t)) },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       /* Data as ink — no axis borders, the numbers float on the canvas.

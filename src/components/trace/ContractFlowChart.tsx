@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import Chip from '../ui/Chip';
 import RichRead from '../ui/RichRead';
-import { flowAxisLabel, flowClock, sessionDate, type ContractFlow, type ContractPrintPoint } from '../../data/contractflow';
+import { flowAxisLabel, flowTime, sessionDate, type ContractFlow, type ContractPrintPoint } from '../../data/contractflow';
 import { fmtUsd } from '../../data/gex';
 import { BULL, SUPREME } from '../gex/paletteInk';
 import { Name } from '../ui/Name';
@@ -342,7 +342,7 @@ const LedgerTooltip = ({ active, payload }: LedgerTipProps) => {
   return (
     <Box>
       <div className="text-textMuted">
-        {flowClock(p.min as number)} ET · {p.count} print{p.count === 1 ? '' : 's'}
+        {flowTime(p.min as number)} · {p.count} print{p.count === 1 ? '' : 's'}
       </div>
       {(p.up ?? 0) > 0 && <div style={{ color: ASK }}>paid the offer {fmtUsd(p.up as number)}</div>}
       {(p.down ?? 0) > 0 && <div style={{ color: BID }}>hit the bid {fmtUsd(p.down as number)}</div>}
@@ -535,7 +535,7 @@ const NetTooltip = ({ active, payload }: NetTipProps) => {
   return (
     <Box>
       <div className="text-textMuted">
-        {Number.isFinite(p.min) ? `${flowClock(p.min as number)} ET` : ''}
+        {Number.isFinite(p.min) ? flowTime(p.min as number) : ''}
         {Number.isFinite(p.price) ? ` · $${(p.price as number).toFixed(2)}` : ''}
       </div>
       {Number.isFinite(p.netCall) && <div style={{ color: ASK }}>net calls {fmtUsd(p.netCall as number)}</div>}
@@ -623,7 +623,7 @@ const BarTooltip = ({ active, payload, isUsd }: BarTipProps) => {
   return (
     <Box>
       <div className="text-textMuted">
-        {Number.isFinite(p.min) ? `${flowClock(p.min as number)} ET` : ''}
+        {Number.isFinite(p.min) ? flowTime(p.min as number) : ''}
         {Number.isFinite(p.price) ? ` · $${(p.price as number).toFixed(2)}` : ''}
       </div>
       {Number.isFinite(call) && <div style={{ color: ASK }}>calls {fmt(call as number)}</div>}

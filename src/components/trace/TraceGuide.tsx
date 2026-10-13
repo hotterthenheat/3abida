@@ -15,6 +15,7 @@
 import type { ReactNode } from 'react';
 import { FONT_SANS } from '../../theme/fonts';
 import { GuideSvg, type GuideType } from '../ui/GuideSvg';
+import { marketClock } from '../../core/nyTime';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const SUPREME = 'rgb(var(--supreme))';
@@ -434,7 +435,7 @@ export const WatchersGuide = () => (
 
 /** The day as quarter hours, one lit */
 export const DayStripFigure = () => (
-  <Figure label="A row of small bars for the day's quarter hours, one lit in silver with its label 22:45–23:00, the newest bar marked now" h={76}>
+  <Figure label="A row of small bars for the day's quarter hours, one lit in silver with its label 2:45–3:00 pm, the newest bar marked now" h={76}>
     {({ w }) => (
       <>
         {Array.from({ length: 30 }, (_, i) => {
@@ -444,7 +445,7 @@ export const DayStripFigure = () => (
           return <rect key={i} x={14 + i * 12} y={40 - h} width={8} height={h} rx={1} fill={live ? 'rgb(var(--select))' : lit ? SILVER : '#ffffff'} fillOpacity={live || lit ? 0.9 : 0.14} />;
         })}
         <text x={14 + 22 * 12 + 4} y={54} textAnchor="middle" fontSize={w} fill={SILVER} fontFamily={FIG}>
-          22:45–23:00
+          2:45–3:00 pm
         </text>
         <text x={14 + 29 * 12 + 4} y={54} textAnchor="middle" fontSize={w} fill="rgb(var(--select))" fontFamily={FIG}>
           now
@@ -483,7 +484,7 @@ export const ShareFigure = () => (
 export const WindowsGuide = () => (
   <div data-trace-guide="windows">
     <Section title="A window">
-      <p>The session cut into quarter hours, 09:30 to 16:00 New York; pick one and the box shows what traded inside it, heaviest first. ← and → walk the windows.</p>
+      <p>The session cut into quarter hours, {marketClock(9, 30)} to {marketClock(16, 0, { zone: true })}; pick one and the box shows what traded inside it, heaviest first. ← and → walk the windows.</p>
       <DayStripFigure />
     </Section>
     <Section title="Share of the day">
@@ -663,7 +664,7 @@ export const NetFlowGuide = () => (
       <BoardRowFigure />
     </Section>
     <Section title="The pane">
-      <p>The picked name through the session, New York's 09:30 to now: its spot, its net calls and puts, the volume on the floor — cut by moneyness and by tenor in the cards. Net puts bought lean bearish and wear red; sold, they lean bullish and wear green.</p>
+      <p>The picked name through the session, from the open at {marketClock(9, 30)} to now: its spot, its net calls and puts, the volume on the floor — cut by moneyness and by tenor in the cards. Net puts bought lean bearish and wear red; sold, they lean bullish and wear green.</p>
       <PaneLinesFigure />
     </Section>
     <Section title="The inks">
@@ -717,43 +718,43 @@ export const OdteGuide = () => (
 
 /** One row of the tape: when, the name, the contract, size at the fill, the dollars, the tag */
 export const TapeRowFigure = () => (
-  <Figure label="One tape row: 18:16:04 · NVDA · 120C 19 Sep · 850 @ $1.24 · $105.4K in bold · Sweep in amber" h={54}>
+  <Figure label="One tape row: 2:16:04 pm · NVDA · 120C 19 Sep · 850 @ $1.24 · $105.4K in bold · Sweep in amber" h={54}>
     {({ w }) => (
       <>
         <Head x={14} y={14} s={w}>
           Time
         </Head>
-        <Head x={74} y={14} s={w}>
+        <Head x={86} y={14} s={w}>
           Ticker
         </Head>
-        <Head x={126} y={14} s={w}>
+        <Head x={136} y={14} s={w}>
           Contract
         </Head>
-        <Head x={222} y={14} s={w}>
+        <Head x={228} y={14} s={w}>
           Size · fill
         </Head>
-        <Head x={306} y={14} s={w}>
+        <Head x={312} y={14} s={w}>
           Prem
         </Head>
-        <Head x={368} y={14} s={w}>
+        <Head x={372} y={14} s={w}>
           Tag
         </Head>
         <text x={14} y={36} fontSize={w} fill={SECOND} fontFamily={FIG}>
-          18:16:04
+          2:16:04 pm
         </text>
-        <text x={74} y={36} fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
+        <text x={86} y={36} fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
           NVDA
         </text>
-        <text x={126} y={36} fontSize={w} fill={INK} fontFamily={FIG}>
+        <text x={136} y={36} fontSize={w} fill={INK} fontFamily={FIG}>
           120<tspan fill={BULL}>C</tspan> <tspan fill={SECOND}>19 Sep</tspan>
         </text>
-        <text x={222} y={36} fontSize={w} fill={INK} fontFamily={FIG}>
+        <text x={228} y={36} fontSize={w} fill={INK} fontFamily={FIG}>
           850 <tspan fill={SECOND}>@ $1.24</tspan>
         </text>
-        <text x={306} y={36} fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
+        <text x={312} y={36} fontSize={w} fontWeight={700} fill={INK} fontFamily={FIG}>
           $105.4K
         </text>
-        <text x={368} y={36} fontSize={w} fontWeight={600} fill={WARN} fontFamily={FIG}>
+        <text x={372} y={36} fontSize={w} fontWeight={600} fill={WARN} fontFamily={FIG}>
           Sweep
         </text>
       </>
@@ -821,7 +822,7 @@ export const ConvictionFigure = () => (
 export const LiveTapeGuide = () => (
   <div data-trace-guide="live-tape">
     <Section title="A print">
-      <p>One contract traded once — when (New York), the name, the contract, how many at what price, the dollars, and its kind: a sweep across exchanges, a block (one leg, 100 contracts or $250K and up), a multi-leg print, or a single print under block size. P/C is put premium over call premium.</p>
+      <p>One contract traded once — when (on your clock), the name, the contract, how many at what price, the dollars, and its kind: a sweep across exchanges, a block (one leg, 100 contracts or $250K and up), a multi-leg print, or a single print under block size. P/C is put premium over call premium.</p>
       <TapeRowFigure />
     </Section>
     <Section title="Fill &amp; market">
@@ -956,7 +957,7 @@ export const CrossFigure = () => (
         <Head x={12} y={14} s={w}>
           Time
         </Head>
-        <Head x={56} y={14} s={w}>
+        <Head x={66} y={14} s={w}>
           Price
         </Head>
         <Head x={124} y={14} s={w}>
@@ -969,14 +970,14 @@ export const CrossFigure = () => (
           Conviction
         </Head>
         {[
-          { y: 38, t: '14:12', px: '499.12', sh: '640,000', read: 'Accumulation', ink: BULL, c: 84 },
-          { y: 62, t: '13:47', px: '507.36', sh: '210,000', read: 'Hedge flow', ink: WARN, c: 56 },
+          { y: 38, t: '2:12 pm', px: '499.12', sh: '640,000', read: 'Accumulation', ink: BULL, c: 84 },
+          { y: 62, t: '1:47 pm', px: '507.36', sh: '210,000', read: 'Hedge flow', ink: WARN, c: 56 },
         ].map(r => (
           <g key={r.t}>
             <text x={12} y={r.y} fontSize={w} fontFamily={FIG} fill={INK}>
               {r.t}
             </text>
-            <text x={56} y={r.y} fontSize={w} fontFamily={FIG} fontWeight={700} fill={INK}>
+            <text x={66} y={r.y} fontSize={w} fontFamily={FIG} fontWeight={700} fill={INK}>
               ${r.px}
             </text>
             <text x={124} y={r.y} fontSize={w} fontFamily={FIG} fill={INK}>

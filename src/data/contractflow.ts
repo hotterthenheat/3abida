@@ -26,6 +26,7 @@
 import { dayKey, h01, hGauss, hRange } from '../core/rng';
 import { now } from '../core/clock';
 import { isTradingDay } from '../core/calendar';
+import { minuteLabel, SESSION_OPEN_MIN } from '../core/nyTime';
 
 export type FlowSide = 'BID' | 'MID' | 'ASK';
 /*
@@ -240,7 +241,8 @@ export function sessionsBefore(end: Date, n: number): Date {
   return d;
 }
 
-/** Minutes-since-open -> "HH:MM" wall clock (within one session). */
+/** Minutes-since-open -> New York's "HH:MM" wall clock (within one session) — the TEXT an order keeps as data; a page
+    prints it with flowTime */
 export function flowClock(min: number): string {
   const inSession = ((min % SESSION_MIN) + SESSION_MIN) % SESSION_MIN;
   const total = 9 * 60 + 30 + Math.round(inSession);
@@ -249,9 +251,16 @@ export function flowClock(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/** Axis label for a window position — clock intraday, date across sessions. */
+/** Minutes-since-open PRINTED on the reader's clock — "2:03 pm" (minuteLabel); `on` picks the session's New York date */
+export function flowTime(min: number, on?: Date | number): string {
+  const inSession = ((min % SESSION_MIN) + SESSION_MIN) % SESSION_MIN;
+  return minuteLabel(SESSION_OPEN_MIN + Math.round(inSession), on);
+}
+
+/** Axis label for a window position — the reader's clock intraday, date across sessions. */
 export function flowAxisLabel(min: number, sessions: number, endDate: Date): string {
-  if (sessions <= 1) return flowClock(min);
+  /* one session's right edge is its close, never the open again (390 wrapped to "09:30") */
+  if (sessions <= 1) return min >= SESSION_MIN ? minuteLabel(SESSION_OPEN_MIN + SESSION_MIN, endDate) : flowTime(min, endDate);
   const sessionIdx = Math.floor(min / SESSION_MIN);
   const back = sessions - 1 - sessionIdx;
   const d = sessionsBefore(endDate, back);

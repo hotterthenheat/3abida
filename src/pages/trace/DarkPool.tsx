@@ -48,6 +48,7 @@ import TraceBox, { Champion, Fact, TraceGrid } from '../../components/trace/Trac
 import { DarkPoolGuide } from '../../components/trace/TraceGuide';
 import { Name } from '../../components/ui/Name';
 import { num as fmtNum, pctSigned } from '../../core/format';
+import { nyTextClock } from '../../core/nyTime';
 import { DARK_LEADER_FLOOR, useFeedDarkMarket, useFeedQuote, useTraceSource } from '../../data/feed/trace';
 import { feedDarkLeaders, useFeedDarkView } from '../../data/feed/traceDark';
 import { useFeedStockDays } from '../../data/feed/stockDay';
@@ -107,7 +108,7 @@ const POSTURE_WORD = { ACCUMULATING: 'Accumulating', DISTRIBUTING: 'Distributing
 const onShelf = (p: DarkPoolPrint, l: DarkPoolLevel) => Math.abs(p.price - l.price) / l.price < 0.0015;
 
 /* Time at 76: at 64 its head read "TI…" beside the sort arrow (the audit's TR-69) */
-const WIDTHS: Record<string, number> = { time: 76, price: 84, vs: 80, size: 88, notional: 92, venue: 100, shelf: 84, intent: 124, conviction: 120 };
+const WIDTHS: Record<string, number> = { time: 84, price: 84, vs: 80, size: 88, notional: 92, venue: 100, shelf: 84, intent: 124, conviction: 120 };
 const PIN_LEFT = ['time', 'price'];
 const PIN_RIGHT = ['intent'];
 const FLEXES: Record<string, number> = { read: 1 };
@@ -228,7 +229,7 @@ const DarkPool = () => {
 
   const columns = useMemo<Column<DarkPoolPrint>[]>(
     () => [
-      { key: 'time', header: 'Time', sortValue: p => p.time, render: p => <span className="text-[11px] text-textPrimary tnum">{p.time}</span> },
+      { key: 'time', header: 'Time', sortValue: p => p.time, render: p => <span className="text-[11px] text-textPrimary tnum">{nyTextClock(p.time)}</span> },
       { key: 'price', header: 'Price', align: 'right', sortValue: p => p.price, render: p => <span className="text-textPrimary font-semibold">${p.price.toFixed(2)}</span> },
       {
         key: 'vs',
@@ -513,7 +514,7 @@ const DarkPool = () => {
                     <span className="font-mono text-[11px] tnum text-textPrimary">
                       {num(open.size)} @ ${open.price.toFixed(2)}
                     </span>
-                    <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{open.time}</span>
+                    <span className="ml-auto font-mono text-[11px] tnum text-textPrimary">{nyTextClock(open.time)}</span>
                   </div>
                   <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                     <span className={`font-mono text-[11px] font-semibold uppercase tracking-wider ${INTENT_INK[open.intent]}`}>{INTENT_WORD[open.intent]}</span>
