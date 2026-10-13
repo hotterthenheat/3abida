@@ -314,7 +314,8 @@ What each reads on the feed (`pages/terrain/Terrain.tsx`, `data/feed/levels.ts`)
 | 1D, 1W | UW's day bars (`/ohlc/1d`, the regular-session row of each date, about a year, every 5 min) over Massive's two years of day bars (asked once while Massive is up); a bar a New York date at noon UTC; 1W folds them Monday to Friday |
 | 15 s | **held** — no plan carries seconds; the button stays, disabled, its title saying so (a pane kept on 15 s draws 1m) |
 | Range and volume bars | the same rule as the house (`data/altBars.ts`) folding the one-minute bars — a minute is the cut's grain, as a quarter is on the house's seconds |
-| Exposure trails, walls through the day | the books this terminal read today (`useFeedField`); the walls' charm lens scales today's charm by each minute's share of the strike's gamma, the house's rule, off the newest book |
+| Exposure trails, walls through the day | today's minutes MODELED point in time (`data/feed/trailField.ts` — see "Terrain's field, modeled point in time" below); the walls' charm lens scales today's charm by each minute's share of the strike's gamma, the house's rule, off the newest book |
+| The events lane's macro dates | UW's economic calendar (`/api/market/economic-calendar`, `news.ts econMacro`): the high-impact releases, one mark a New York date, the day's releases with their times and figures in the detail — the calendar carries the weeks round today only |
 | Key levels | the book's walls, flip and supreme |
 | Dark pool | the name's three largest off-exchange crosses of the session, $1M and up (`/darkpool/{t}`) |
 | Flow, Net drift, the events lane's prints | the name's prints of $25K and up (`/option-trades?ticker_symbol=`, walked back to the open once, then the newest every 20 s — data/feed/trace.ts `useFeedNamePrints`), through the house's `bucketFlow` and `cumulativeDrift` |
@@ -338,14 +339,41 @@ alerts, the expiry card, the ladder's switches) — the same items in the same o
 line ("Trail from …") and the index's bars line; the expiry calendar's enabled days are UW's listed dates; no console
 errors. Screenshots: `docs/data-feed/terrain-filled-2026-10-12-*.png`.
 
-**Terrain's trail (the strike field) on the feed.** UW gives the book as it stands; no route gives it strike by strike
-for earlier in the day (`/spot-exposures/strike` takes a `date`, never a time — UW's spec, checked 2026-10-12; the
-per-minute `/spot-exposures` carries the whole book, not strikes). So the field is the books this terminal read today:
-written to IndexedDB (`slayer_field`, one record a name a day, earlier days dropped) and read back as a name is first
-drawn, so a reload keeps it; and the shell reads the open name's book every half minute on every page while UW is up
-(`components/layout/FieldRecorder.tsx` — the same poll key Terrain and Pinpoint use, never a second call), so it fills
-while the terminal is open anywhere. A pane says where its trail starts. A hidden tab asks nothing, so a closed or
-hidden terminal leaves a gap.
+**Terrain's field, modeled point in time (2026-10-13).** No route on either plan gives the book by strike for a time of
+day (`/spot-exposures/strike` takes a `date`; a past date is that day's close), and UW's own strikes in one answer can be
+hours apart. So the field is MODELED for every minute of today — estimated dealer gamma under an assumed sign — from what
+was knowable at that minute, after the research (`reports/Dealer exposure reconstruction.md` §5 and §8). One module holds
+the model, `src/data/feed/trailField.ts` (`TRAIL_MODEL`, its version on every column):
+
+| Input | Source | Knowable from |
+|---|---|---|
+| The universe and open interest | `/api/stock/{t}/option-contracts?max_dte=60&exclude_zero_oi_chains=true` (500 a page; `open_interest` is today's count — the positions at the session before's close) | the day's first read; static all day |
+| Each contract's vol | the same reads' `implied_volatility` (the vol of its last trade, `last_tape_time`), read by the server every ten minutes through the session | the moment the server received the read |
+| The vol before the first read | `/api/stock/{t}/option-chains?date=<session before>&greeks=true` (sorted by expiry; read to 60 days out) — carried, fixed-strike | that session's close |
+| The price | UW's 1-minute bars, each bar's close | the bar's end |
+| The measured reference | `/spot-exposures/strike` once a minute (each strike's own `time` and `price` kept) and `/spot-exposures` (the whole book a minute) | as received — never blended into the field |
+
+The pricer is `core/greeks.ts` `blackScholesGreeks`, τ to each contract's last-trading instant (16:00 New York, 13:00 on a
+half day); a leg is OI × greek × price² (UW's per-1% units — summed over UW's own per-contract gamma it reproduces
+`/spot-exposures/strike` to the dollar, checked 2026-10-12); the house's sign. A vol read in its expiry's last hour is not
+used (UW figures far strikes at 500% and more after the close). A contract with no vol stays out and its strike's
+coverage drops; a strike with none is a gap. No magnitude is rescaled to UW: the residual against UW's books (per
+strike, at the captured times) and UW's whole-book series (sign agreement, ratio) is one line in the ladder's "How sure".
+Each cell keeps `prov` (`modeled` when half its gamma or more stands on today's vols, `carried` otherwise), `staleSince`
+and `coverage`; the hover card shows them with UW's own figure for the strike. The bead scale runs forward (each column
+against the columns at or before it). The sessions before today are not drawn on the feed yet (the full tape's vols and
+the close books are a later step).
+
+**The field's recorder (server/fieldRecorder.ts).** Mounted by the proxy: `GET /feed/field/<NAME>?since=<ms>` watches the
+name (six at most; two idle hours let it go) and answers what was received after `since` — the books, the chain reads,
+the seed, UW's whole-book series. Through the session (09:30–16:00 New York, a weekday) it reads, through the proxy's
+own client, cache and UW gate (three at once): each name's book and whole-book series once a minute, its chain every ten
+minutes (and once on first watch, whatever the hour), the session before's close chain once a day. Append-only files in
+`.feed-cache/field/<NAME>/<YYYY-MM-DD>/` (`books.jsonl`, `chain.jsonl`, `seed.json`, `total.json`; git-ignored, the days
+before deleted). The shell's `FieldRecorder` and each Terrain pane ask it every 15 s (a local call). Measured on SPY,
+2026-10-12 after the close: a first watch costs about 4 s and ~21 UW calls (one book, the series, nine chain pages, ten
+seed pages); the first answer is ~460 KB, a `since` answer a few hundred bytes; modeling 755 minutes costs ~320 ms of
+main-thread work in 8 ms slices.
 
 The fallback was checked with the keys blanked (`env UW_API_TOKEN= MASSIVE_API_KEY= node node_modules/vite/bin/vite.js`
 — an empty variable in the process wins over `.env` in `loadEnv`; `npx` drops empty variables, so call Vite directly):

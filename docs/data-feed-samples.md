@@ -908,6 +908,48 @@ data: array[40]
   2026-10-26 for SPY (33 dates), AAPL (25) and NVDA (26) where UW's listed 32, 24 and 25; TSLA agreed at 22. No other
   date differed. Massive's rows carry `exercise_style` ("american" on SPY).
 
+### `GET /api/stock/SPY/option-contracts?limit=3&exclude_zero_oi_chains=true&max_dte=3` — 200 (Terrain's field, 2026-10-12, 21:55 ET)
+
+Heaviest volume first; no strike filter on the route. SPY: 9,875 contracts with open interest, 4,236 within 60 days (nine
+pages of 500). About half the rows carry no `implied_volatility` (5,047 of 9,875), one in nine within 30 strikes of the
+price. Summed over the rows, `open_interest × gamma × price²` reproduces `/spot-exposures/strike`'s `call_gamma_oi` and
+`put_gamma_oi` to the dollar; `open_interest × delta × price²` its `*_delta_oi`.
+
+```json
+{"data":[{"option_symbol":"SPY261012P00777000","open_interest":7854,"prev_oi":1515,"implied_volatility":"0.1422381590989433",
+"gamma":0.158493642973325,"delta":-0.0529345720934598,"vega":0.0016266522633744,"theta":-0.0152058877721058,
+"rho":-1.54610171878022e-06,"volume":820880,"ask_volume":399242,"bid_volume":417272,"mid_volume":4352,"no_side_volume":14,
+"sweep_volume":16791,"multi_leg_volume":23950,"floor_volume":0,"stock_multi_leg_volume":1,"last_price":"0.01",
+"avg_price":"0.2376321752265861027190332387","high_price":"0.62","low_price":"0.01","nbbo_ask":"0.02","nbbo_bid":"0.01",
+"total_premium":"19506750.00","last_tape_time":"2026-10-12T21:42:39Z"}]}
+```
+
+Read by the field: `option_symbol`, `open_interest`, `implied_volatility`, `last_tape_time`.
+
+### `GET /api/stock/SPY/option-chains?date=2026-10-09&greeks=true&limit=2&page=40` — 200 (the field's seed, 2026-10-13)
+
+Rows sorted by `expires`, then `strike`; 500 a page. A contract that expired that day reads a vol in the hundreds of
+percent after its close (`16.53` for the 700 call) — the field never uses a vol read in its expiry's last hour.
+
+```json
+{"data":[{"option_symbol":"SPY261009C00700000","expires":"2026-10-09","strike":"700","option_type":"call",
+"implied_volatility":"16.53371339044865","open_interest":574,"volume":210,"delta":"0.998742609314483",
+"gamma":"0.0001504521931821805","theta":"-34.23884000212112","vega":"0.0000693467407009377",
+"rho":"0.00003213996176575287","nbbo_ask":"78.83","nbbo_bid":"78.49","last_tape_time":"2026-10-09T21:39:10Z"}]}
+```
+
+Read by the field: `option_symbol`, `expires`, `strike`, `implied_volatility`, `last_tape_time`.
+
+### `GET /api/market/economic-calendar` — 200 (Terrain's events lane, 2026-10-13, 22:30 ET)
+
+40 rows, 2026-10-13 to 2026-10-16 — the weeks round today only; a release's parts are rows of their own, some listed
+twice (CPI, CPI Y/Y%, Core CPI M/M%, CPI Core Y/Y% at 08:30 on Oct 14, each twice).
+
+```json
+{"data":[{"type":"report","time":"2026-10-16T13:15:00Z","event":"Capacity Utilization %","prev":"76.3%","forecast":null,
+"reported_period":"September"}]}
+```
+
 ## Massive (Basic) — base `https://api.massive.com`, `apiKey` query parameter
 
 ### `GET /v1/marketstatus/now` — 200
