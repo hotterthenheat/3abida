@@ -770,6 +770,10 @@ interface StrikeChartProps {
       default). A host whose tape should run near its right edge passes more (the audit's X11: a third to half of the
       chart stood empty past the last candle). */
   historyShare?: number;
+  /** THE PRICE AXIS FITS THE CANDLES (2026-10-13 — the owner, of Terrain: "Price axis: yes, fit it to the candles"): the
+      scale takes the bars in view alone — no wall, supreme, spot or layer's room widens it; a strike sent here to be
+      seen (the focus) still is. */
+  fitCandles?: boolean;
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -1039,6 +1043,7 @@ const StrikeChart = ({
   exportRef,
   nyClock = false,
   historyShare,
+  fitCandles = false,
 }: StrikeChartProps) => {
   const historyShareRef = useRef(historyShare);
   historyShareRef.current = historyShare;
@@ -1265,6 +1270,8 @@ const StrikeChart = ({
   const levelsRef = useRef<KeyLevels>(levels);
   /** What a host's layer asked the scale to keep in view (ChartLayerApi.room) */
   const roomRef = useRef<number[]>([]);
+  const fitCandlesRef = useRef(fitCandles);
+  fitCandlesRef.current = fitCandles;
   const layerRoom = useCallback((prices: number[]) => {
     roomRef.current = prices;
     /* fitted again with what it now has to hold — only a scale that is fitting itself; one set by hand is the reader's */
@@ -1797,7 +1804,7 @@ const StrikeChart = ({
     (original: () => { priceRange: { minValue: number; maxValue: number } | null } | null) => {
       const base = original();
       const lv = levelsRef.current;
-      const extras = [lv.putWall, lv.callWall, lv.supreme, lv.spot, focusPriceRef.current ?? NaN, ...roomRef.current].filter(v =>
+      const extras = (fitCandlesRef.current ? [focusPriceRef.current ?? NaN] : [lv.putWall, lv.callWall, lv.supreme, lv.spot, focusPriceRef.current ?? NaN, ...roomRef.current]).filter(v =>
         Number.isFinite(v)
       );
       const range = base?.priceRange ?? null;

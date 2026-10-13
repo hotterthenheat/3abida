@@ -15,16 +15,20 @@
   a chart that formats its own time is a chart that
   will drift from the rest of the site.
 
-  A chart of the MARKET'S day (a session, a tape)
-  speaks New York's clock whatever the reader chose:
-  core/nyTime.ts — nyTickMarks, nyTimeFormatter,
-  NY_CHART_TIME — is the one module for that.
+  EVERY CHART PRINTS THE READER'S CLOCK, 12-HOUR
+  (2026-10-13 — the owner: every time on screen in
+  the viewer's own timezone, "3:35 pm", never
+  24-hour; display only). The 'ny' clock below and
+  Settings' New York choice no longer move what is
+  printed — the market's own day is still READ in
+  New York's time wherever it is computed
+  (core/nyTime.ts).
 ==================================================
 */
 
 import { TickMarkType, type Time, type TickMarkFormatter } from 'lightweight-charts';
 import { readDeskPrefs } from '../../data/deskPrefs';
-import { nyParts } from '../../core/nyTime';
+import { clock as readerClock } from '../../core/nyTime';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const two = (n: number) => String(n).padStart(2, '0');
@@ -34,11 +38,6 @@ const two = (n: number) => String(n).padStart(2, '0');
    New York comes back as a Date whose fields READ as New York's wall clock
    (built from Intl's parts), so every formatter below keeps its getters;
    only these labels use it, never any arithmetic. */
-function inNewYork(d: Date): Date {
-  /* New York's wall clock off core/nyTime.ts, the one place the terminal reads it */
-  const p = nyParts(d);
-  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-}
 
 /**
  * Every `Time` shape the library accepts, resolved to a Date in the reader's
@@ -57,11 +56,9 @@ function inNewYork(d: Date): Date {
    settles at 16:00 New York, and a replay whose axis says 08:30 beside a bar that says 09:30 is two clocks for one minute. */
 export type ChartClock = 'reader' | 'ny';
 
-export function chartDate(t: Time, clock: ChartClock = 'reader'): Date {
-  if (typeof t === 'number') {
-    const d = new Date(t * 1000);
-    return clock === 'ny' || readDeskPrefs().clock === 'ny' ? inNewYork(d) : d;
-  }
+export function chartDate(t: Time, _clock: ChartClock = 'reader'): Date {
+  /* the reader's own clock always (2026-10-13) — a Date's getters read the machine's zone, the browser's own */
+  if (typeof t === 'number') return new Date(t * 1000);
   if (typeof t === 'string') {
     const [y, m, d] = t.split('-').map(Number);
     return new Date(y, (m || 1) - 1, d || 1);
@@ -69,11 +66,8 @@ export function chartDate(t: Time, clock: ChartClock = 'reader'): Date {
   return new Date(t.year, t.month - 1, t.day);
 }
 
-/** `14:50` — the clock the cards, the wire and the tape all speak. */
-export const fmtClockLocal = (t: Time, clock?: ChartClock): string => {
-  const d = chartDate(t, clock);
-  return `${two(d.getHours())}:${two(d.getMinutes())}`;
-};
+/** `2:50 pm` — the clock the cards, the wire and the tape all speak, the reader's own */
+export const fmtClockLocal = (t: Time, clock?: ChartClock): string => readerClock(chartDate(t, clock).getTime());
 
 /** `Aug 30` */
 export const fmtDayLocal = (t: Time, clock?: ChartClock): string => {
@@ -105,7 +99,7 @@ const tickMarks = (time: Time, type: TickMarkType, clock: ChartClock): string =>
     case TickMarkType.DayOfMonth:
       return String(d.getDate());
     case TickMarkType.TimeWithSeconds:
-      return `${fmtClockLocal(time, clock)}:${two(d.getSeconds())}`;
+      return readerClock(d.getTime(), { seconds: true });
     default:
       return fmtClockLocal(time, clock);
   }

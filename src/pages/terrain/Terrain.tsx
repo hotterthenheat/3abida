@@ -34,6 +34,7 @@ import StrikeChart, {
   type PriceProjection,
   type PriceScale,
 } from '../../components/gex/StrikeChart';
+import { BEAD_SCALE } from '../../components/gex/gexNodesPrimitive';
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import { useFadeClose } from '../../components/ui/useFadeClose';
 import CompareControl from '../../components/gex/CompareControl';
@@ -1727,6 +1728,8 @@ const Pane = ({
                  not a third of the chart (X11) */
               nyClock
               historyShare={0.88}
+              /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the tape */
+              fitCandles
               frameless
               /* WALLS THROUGH THE DAY and THE SESSION'S PHASES (the ideas report, 2026-10-09) — drawn behind the candles
                  through the chart's own layer, off until the Overlays menu turns them on */
@@ -2113,6 +2116,8 @@ const Pane = ({
                     {showHeavyKey && (
                       <span className="shrink-0 text-[11px] text-textMuted" data-heaviest-key>
                         <span className="text-[rgb(var(--ember))]">+</span> amplifies · <span className="text-[rgb(var(--glacier))]">−</span> absorbs
+                        {/* the beads' scale, stated (the owner, 2026-10-13: "state the scale in the legend") */}
+                        {overlays.trails && <span data-bead-scale> · {BEAD_SCALE}</span>}
                       </span>
                     )}
                   </span>

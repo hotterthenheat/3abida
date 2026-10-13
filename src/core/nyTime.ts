@@ -23,8 +23,20 @@
     nyTickMarks / nyTimeFormatter / NY_CHART_TIME   lightweight-charts on New York's clock
 
   `at` is a Date or epoch milliseconds, and defaults to the engine clock (core/clock.ts), so a replay that pins the
-  clock reads its own moment. Only the reader's choice in Settings › The desk (components/gex/chartTime.ts, 'reader')
-  prints the machine's own zone; everything that is the market's day is New York's.
+  clock reads its own moment.
+
+  READ IN NEW YORK, PRINTED ON THE READER'S CLOCK (2026-10-13 — the owner: "show every time on screen (axis, hover
+  cards, labels, wall-move times like "12:25") in the viewer's own timezone, detected from their browser, in 12-hour
+  format with am/pm. Never use 24-hour format anywhere in the UI. Change display only: all calculations (session
+  open/close, expiry times, UW's time-to-expiry rule) must stay in New York time internally, or the pricing breaks").
+  Two halves, never mixed:
+    · THE MARKET'S CLOCK, for every calculation — nyParts, nyMinutes, nyIsoDate, nyWallTime, nySession,
+      nySessionPhase, SESSION_*: New York's, whatever the machine's zone.
+    · THE READER'S CLOCK, for every time a reader sees — clock(), viewerDay(), marketClock(); nyClock, nyStamp,
+      minuteLabel, nyTickMarks and nyTimeFormatter print through it (their names are older than the rule — they READ
+      New York's instant and PRINT it on the reader's clock). 12-hour, "3:35 pm", never 24-hour. A printed time is never
+      parsed, compared or used as a key.
+    nyDay(at) stays New York's date: it names a market day (a session, an expiry), not a moment.
 ==================================================
 */
 
@@ -83,11 +95,84 @@ export const nyMinutes = (at?: At): number => {
   return p.hour * 60 + p.minute;
 };
 
-/** "14:03", "14:03:42" with seconds, "14:03 ET" with the zone — 24-hour, as the tape and the cards speak */
+/* ── THE READER'S CLOCK — display only ──────────────────────────────────────────────────────────────────────────── */
+
+/** The zone the reader's browser keeps — every printed time is in it */
+export const VIEWER_TZ: string = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || NY_TZ;
+  } catch {
+    return NY_TZ;
+  }
+})();
+
+interface ViewerParts {
+  year: number;
+  month: number;
+  day: number;
+  /** 1–12 */
+  h12: number;
+  minute: number;
+  pm: boolean;
+  /** "EDT", "PDT", "GMT+1" … */
+  zone: string;
+}
+let vfmt: Intl.DateTimeFormat | null = null;
+const vByMinute = new Map<number, ViewerParts>();
+function viewerParts(t: number): ViewerParts {
+  const minute = Math.floor(t / 60_000);
+  let p = vByMinute.get(minute);
+  if (!p) {
+    vfmt ??= new Intl.DateTimeFormat('en-US', { timeZone: VIEWER_TZ, hour12: true, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', timeZoneName: 'short' });
+    const r: Record<string, string> = {};
+    for (const x of vfmt.formatToParts(new Date(minute * 60_000))) if (x.type !== 'literal') r[x.type] = x.value;
+    p = { year: Number(r.year), month: Number(r.month), day: Number(r.day), h12: Number(r.hour) % 12 || 12, minute: Number(r.minute), pm: /p/i.test(r.dayPeriod ?? ''), zone: r.timeZoneName ?? '' };
+    if (vByMinute.size > 5000) vByMinute.clear();
+    vByMinute.set(minute, p);
+  }
+  return p;
+}
+
+/** "3:35 pm", "3:35:42 pm" with seconds, "3:35 pm EDT" with the reader's zone — the one way a time is printed */
+export function clock(at?: At, opts: { seconds?: boolean; zone?: boolean } = {}): string {
+  const t = ms(at);
+  const p = viewerParts(t);
+  const sec = opts.seconds ? `:${two(Math.floor((t - Math.floor(t / 60_000) * 60_000) / 1000))}` : '';
+  const s = `${p.h12}:${two(p.minute)}${sec} ${p.pm ? 'pm' : 'am'}`;
+  return opts.zone && p.zone ? `${s} ${p.zone}` : s;
+}
+
+/** "Oct 12" — the reader's calendar date of a moment (beside its printed time, so the two agree) */
+export function viewerDay(at?: At): string {
+  const p = viewerParts(ms(at));
+  return `${MONTHS[p.month - 1]} ${p.day}`;
+}
+
+/** The reader's zone, short — "EDT", "PDT" */
+export const viewerZone = (at?: At): string => viewerParts(ms(at)).zone;
+
+/** THE MARKET'S h:mm ON THE READER'S CLOCK — marketClock(16, 0) is today's New York close as the reader's clock shows it
+    ("4:00 pm" in New York, "1:00 pm" in Los Angeles); `on` picks the New York date (today's by default) */
+export function marketClock(hour: number, minute = 0, opts: { zone?: boolean; on?: At } = {}): string {
+  const p = nyParts(opts.on);
+  return clock(nyWallTime(p.year, p.month, p.day, hour, minute), { zone: opts.zone });
+}
+
+/** A NEW YORK WALL-CLOCK TEXT — a data field kept in the market's clock ("14:03", "14:03:42"; a print's `time`, a tape
+    row's) — PRINTED on the reader's clock: "2:03 pm", "2:03:42 pm" (seconds kept when the text has them). `on` is the New
+    York date it belongs to (today's by default). The field itself stays as it is — other code reads it in New York's
+    time; only what is printed changes. A text that is not a clock comes back as it is. */
+export function nyTextClock(text: string, on?: At, opts: { zone?: boolean } = {}): string {
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(text.trim());
+  if (!m) return text;
+  const p = nyParts(on);
+  const t = nyWallTime(p.year, p.month, p.day, Number(m[1]), Number(m[2])) + (m[3] ? Number(m[3]) * 1000 : 0);
+  return clock(t, { seconds: m[3] !== undefined, zone: opts.zone });
+}
+
+/** PRINTS an instant on the reader's clock — "3:35 pm" (see clock; the name is older than the rule) */
 export function nyClock(at?: At, opts: { seconds?: boolean; zone?: boolean } = {}): string {
-  const p = nyParts(at);
-  const s = `${two(p.hour)}:${two(p.minute)}${opts.seconds ? `:${two(p.second)}` : ''}`;
-  return opts.zone ? `${s} ET` : s;
+  return clock(at, opts);
 }
 
 /** "Oct 9", or "Fri Oct 9" with the weekday — the one date style (the audit's X2.9) */
@@ -97,8 +182,8 @@ export function nyDay(at?: At, opts: { weekday?: boolean } = {}): string {
   return opts.weekday ? `${WEEKDAYS[p.weekday]} ${s}` : s;
 }
 
-/** "Oct 9, 14:03" — where a bare clock would leave the reader asking "which day's 14:03?" */
-export const nyStamp = (at?: At, opts: { seconds?: boolean; zone?: boolean } = {}): string => `${nyDay(at)}, ${nyClock(at, opts)}`;
+/** "Oct 9, 2:03 pm" on the reader's clock and calendar — where a bare clock would leave the reader asking "which day's?" */
+export const nyStamp = (at?: At, opts: { seconds?: boolean; zone?: boolean } = {}): string => `${viewerDay(at)}, ${clock(at, opts)}`;
 
 /** "2026-10-09" — New York's calendar date, the key a day is stored under */
 export function nyIsoDate(at?: At): string {
@@ -106,10 +191,11 @@ export function nyIsoDate(at?: At): string {
   return `${p.year}-${two(p.month)}-${two(p.day)}`;
 }
 
-/** "09:30" for 570 — a minute-of-the-day index (Trace's windows, a session's minute bars), labelled */
-export const minuteLabel = (minuteOfDay: number): string => {
+/** A minute of New York's day (570 is the open) PRINTED on the reader's clock — "9:30 am" in New York, "6:30 am" in Los
+    Angeles (Trace's windows, a session's minute bars); `on` picks the New York date (today's by default) */
+export const minuteLabel = (minuteOfDay: number, on?: At): string => {
   const m = ((Math.round(minuteOfDay) % 1440) + 1440) % 1440;
-  return `${two(Math.floor(m / 60))}:${two(m % 60)}`;
+  return marketClock(Math.floor(m / 60), m % 60, { on });
 };
 
 /** The instant (epoch ms) at which New York's wall clock reads y-m-d h:mi — DST included */
@@ -141,19 +227,22 @@ export const nySessionPhase = (at?: At): 'before' | 'open' | 'after' => {
   return m < SESSION_OPEN_MIN ? 'before' : m < SESSION_CLOSE_MIN ? 'open' : 'after';
 };
 
-/* ── lightweight-charts on New York's clock ──────────────────────────────────────────────────────────────────────────
-   The library stamps an epoch axis in UTC and has no zone option. These say each tick in New York's time. A business
-   day ({ year, month, day } or 'YYYY-MM-DD') is a calendar date with no instant behind it and is printed as it is.
-   TickMarkType is the library's enum: 0 year, 1 month, 2 day of the month, 3 time, 4 time with seconds (written as
+/* ── lightweight-charts: the market's instants, PRINTED on the reader's clock ────────────────────────────────────────
+   The library stamps an epoch axis in UTC and has no zone option. These say each tick on the reader's clock, 12-hour.
+   A business day ({ year, month, day } or 'YYYY-MM-DD') is a calendar date with no instant behind it and is printed as
+   it is. TickMarkType is the library's enum: 0 year, 1 month, 2 day of the month, 3 time, 4 time with seconds (written as
    numbers so this module does not pull the chart library into every page that reads the clock). */
-const timeParts = (t: Time): NyParts => {
-  if (typeof t === 'number') return nyParts(t * 1000);
+const dayOfTime = (t: Time): { year: number; month: number; day: number } => {
+  if (typeof t === 'number') {
+    const p = viewerParts(t * 1000);
+    return { year: p.year, month: p.month, day: p.day };
+  }
   const [y, m, d] = typeof t === 'string' ? t.split('-').map(Number) : [t.year, t.month, t.day];
-  return { year: y, month: m || 1, day: d || 1, hour: 0, minute: 0, second: 0, weekday: new Date(Date.UTC(y, (m || 1) - 1, d || 1)).getUTCDay() };
+  return { year: y, month: m || 1, day: d || 1 };
 };
 
 export const nyTickMarks: TickMarkFormatter = (time, type) => {
-  const p = timeParts(time);
+  const p = dayOfTime(time);
   switch (type as number) {
     case 0:
       return String(p.year);
@@ -162,21 +251,19 @@ export const nyTickMarks: TickMarkFormatter = (time, type) => {
     case 2:
       return String(p.day);
     case 4:
-      return `${two(p.hour)}:${two(p.minute)}:${two(p.second)}`;
+      return typeof time === 'number' ? clock(time * 1000, { seconds: true }) : String(p.day);
     default:
-      return `${two(p.hour)}:${two(p.minute)}`;
+      return typeof time === 'number' ? clock(time * 1000) : String(p.day);
   }
 };
 
-/** The crosshair's label: "Oct 9, 14:03" for an instant, "Oct 9" for a business day */
+/** The crosshair's label: "Oct 9, 2:03 pm" for an instant, "Oct 9" for a business day */
 export const nyTimeFormatter = (time: Time): string => {
-  const p = timeParts(time);
-  const day = `${MONTHS[p.month - 1]} ${p.day}`;
-  return typeof time === 'number' ? `${day}, ${two(p.hour)}:${two(p.minute)}` : day;
+  if (typeof time === 'number') return nyStamp(time * 1000);
+  const p = dayOfTime(time);
+  return `${MONTHS[p.month - 1]} ${p.day}`;
 };
 
-/** Spread into createChart's options (or applyOptions): `createChart(el, { ...NY_CHART_TIME, ... })`. A chart that sets
-    its own `localization` or `timeScale` merges these into them instead. */
 export const NY_CHART_TIME = {
   localization: { timeFormatter: nyTimeFormatter },
   timeScale: { tickMarkFormatter: nyTickMarks },

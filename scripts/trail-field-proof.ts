@@ -100,6 +100,21 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
   const refsB = (prim as unknown as { refs: number[] }).refs;
   check('columns added on the right never rescale those on the left', refsA.every((r, i) => r === refsB[i]) && refsB[19] > refsA[9]);
 }
+/* 5b. the scale is per session, and square-root on magnitude (the owner, 2026-10-13) */
+{
+  const mon = (i: number) => nyWallTime(2026, 10, 12, 10, i) / 1000;
+  const tue = (i: number) => nyWallTime(2026, 10, 13, 10, i) / 1000;
+  const loud = Array.from({ length: 10 }, (_, i) => ({ time: mon(i), levels: [{ strike: 600, value: 1e10 }, { strike: 601, value: -1e9 }] }));
+  const quiet = Array.from({ length: 10 }, (_, i) => ({ time: tue(i), levels: [{ strike: 600, value: 1e8 }, { strike: 601, value: -2.5e7 }] }));
+  const prim = new GexTrailsPrimitive();
+  prim.setData([...loud, ...quiet], 1, true, 60, 'gex');
+  const refs = (prim as unknown as { refs: number[] }).refs;
+  check("a session's scale is its own — a loud session before it does not dim it", refs[10] < 2e8 && refs[9] > 5e9);
+  const col = prim.columnAt(15);
+  const t600 = col.all.get(600)!.t;
+  const t601 = col.all.get(601)!.t;
+  check('brightness is the square root of size against the reference', Math.abs(t601 / t600 - Math.sqrt(2.5e7 / 1e8)) < 1e-9);
+}
 
 /* 6. UW's convention, on real prints (SPY, 2026-10-12, 09:59:5x New York: [symbol, expiry, print time, price, strike,
    vol, gamma] as UW answered) */

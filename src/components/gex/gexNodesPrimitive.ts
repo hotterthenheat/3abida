@@ -54,6 +54,9 @@ const FLIP_RGBA = 'rgba(156,163,175,0.8)'; // indecision gray — the regime bor
    The band belongs to the crown. */
 const FLIPK_RGBA = 'rgba(234,0,255,0.85)'; // the supreme outranks the flip on a shared strike too
 
+/** What a bead's brightness says — the legend prints it (Terrain's Heaviest row) */
+export const BEAD_SCALE = "Bead light: √(size ÷ this session's 85th-percentile peak so far)";
+
 /* A dozen strikes per column, steep falloff; below the floor, nothing. The
    ranking happens ONCE, when the data arrives — a frame must never sort. */
 const TOP_N = 12;
@@ -248,8 +251,8 @@ class TrailsPaneRenderer {
        wider, fainter halo under a soft core) so candles show through it. */
     /* Amplitude follows the BAR WIDTH, not a fixed pixel count, so 15m/1h
        ribbons sit in proportion to their candles: the heaviest rail is
-       ~60% of a bar tall, a hairline is under a pixel. t^1.6 keeps the
-       weak field thin without crushing the mid-rails to nothing. */
+       ~60% of a bar tall, a hairline is under a pixel. The strength is t, √(size ÷ the session's reference) — the scale
+       the legend states (BEAD_SCALE). */
     const A_MIN = 0.45;
     const A_MAX = Math.max(3, Math.min(barSpacing * 0.6, 9));
     const focus = src.focusStrike;
@@ -347,9 +350,11 @@ class TrailsPaneRenderer {
           const y = yOf(bead.strike);
           if (y === null) continue;
 
-          // t^1.6 — the amplitude; weak strikes stay hairlines, rails swell
+          /* THE DRAWN STRENGTH IS THE STATED ONE (2026-10-13): t is already √(size ÷ reference) — the legend's scale
+             (BEAD_SCALE) — so height and light follow t itself; the old t^1.6 on top of it would have drawn another scale
+             than the one the legend states */
           const t = Math.max(isFocus ? 0.08 : 0, bead.t);
-          const s = Math.pow(t, 1.6);
+          const s = t;
           const ry = (A_MIN + s * (A_MAX - A_MIN)) * vr;
           const yc = y * vr;
           // Translucent on purpose — the tape reads THROUGH the ribbon
@@ -764,19 +769,36 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     let k = 0;
     if (greek === this.runGreek) while (k < this.runIds.length && k < snapshots.length && this.runIds[k] === snapshots[k]) k++;
     else this.runGreek = greek;
-    /* roll back what changed */
-    for (let i = this.runIds.length - 1; i >= k; i--) {
-      const m = this.runMax[i];
-      if (m > 0) {
-        this.runHist[binOf(m)]--;
-        this.runCount--;
-      }
-    }
     this.runIds.length = k;
     this.runMax.length = k;
     this.refs.length = k;
+    /* PER SESSION (2026-10-13 — the owner: "keep the scale computed per session as of the replay clock"): the count
+       holds the session's columns up to the one being scaled, so rolling back to k rebuilds it from the first column
+       of k's session — a session is at most a few hundred columns */
+    this.runHist.fill(0);
+    this.runCount = 0;
+    let day = '';
+    if (k > 0) {
+      day = nyDayKey(this.runIds[k - 1].time);
+      let first = k - 1;
+      while (first > 0 && nyDayKey(this.runIds[first - 1].time) === day) first--;
+      for (let i = first; i < k; i++) {
+        const m = this.runMax[i];
+        if (m > 0) {
+          this.runHist[binOf(m)]++;
+          this.runCount++;
+        }
+      }
+    }
     for (let i = k; i < snapshots.length; i++) {
       const snap = snapshots[i];
+      const d = nyDayKey(snap.time);
+      if (d !== day) {
+        /* a new session starts its own scale */
+        day = d;
+        this.runHist.fill(0);
+        this.runCount = 0;
+      }
       let m = memo.get(snap);
       if (m === undefined) {
         m = 0;
@@ -823,8 +845,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     this.stepSec = Number.isFinite(step) ? step : barSec;
     /* THE SCALE RUNS FORWARD (2026-10-13, the research's look-ahead rule): strength is ABSOLUTE against a stable
        reference — the 85th percentile of the per-moment maxima — but each column's reference is taken over the columns
-       AT OR BEFORE it, so nothing to its right changes what is drawn on its left (it was the whole loaded field: a later
-       column resized every earlier one). Kept incrementally: the maxima go into a log-binned count (1/32 of a decade a
+       AT OR BEFORE it IN ITS OWN SESSION (New York's date), so nothing to its right changes what is drawn on its left (it
+       was the whole loaded field: a later column resized every earlier one), and a quiet session is not dimmed by a loud
+       one before it. Kept incrementally: the maxima go into a log-binned count (1/32 of a decade a
        bin), so a tick that replaces the live last snapshot re-reads one column, and a store whose front moved
        starts over in a few milliseconds. */
     this.runFrom(snapshots, greek);
@@ -844,7 +867,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       const all = new Map<number, Bead>();
       for (const l of snap.levels) {
         const v = this.valueOf(l);
-        all.set(l.strike, { strike: l.strike, t: Math.min(1, Math.abs(v) / ref), put: v >= 0, quiet: l.prov === 'carried' });
+        /* A SQUARE-ROOT SCALE ON MAGNITUDE (2026-10-13 — the owner: "Use a square-root scale on magnitude"): one strike
+           holding a third of the book no longer leaves the rest unlit — a strike at a quarter of the reference draws at
+           half strength (BEAD_SCALE says it in the legend) */
+        all.set(l.strike, { strike: l.strike, t: Math.min(1, Math.sqrt(Math.abs(v) / ref)), put: v >= 0, quiet: l.prov === 'carried' });
       }
       const top = [...snap.levels]
         .sort((a, b) => Math.abs(this.valueOf(b)) - Math.abs(this.valueOf(a)))
