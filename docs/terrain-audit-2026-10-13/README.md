@@ -205,7 +205,7 @@ item 1, is `after-close/` (taken after 4:00 pm New York; the row below is filled
 | 14 | Last-price capsule | `777.00` | StrikeChart `quote` (the rail's price) | the same price as the rail and the head | **pass** (was fail, item 1) |
 | 15 | Capsule countdown | `01:18 → 01:03 → 00:48 → 00:33` (15 s apart) | `barCountdown 'grid'`: the bar's end on the 5m grid | time to the bar's end | **pass** (was fail) |
 | 16 | Time axis | `11:00 am · 2:00 pm · 13 · 3:00 am · 5:00 am · 8:00 am` | chartTime `tickMarks` + `localCalendarBehavior` | the reader's clock | pass |
-| 17 | The day tick `13` | at the 1:00 am PDT bar — the first bar of the viewer's Oct 13 (the overnight gap holds midnight) | `localCalendarBehavior` re-weights day ticks by the viewer's calendar | a day tick at the viewer's midnight, labelled with the day beginning | **pass** (was fail, item 5); the 8 pm case is checked in `after-close/` |
+| 17 | The day tick `13` | at the 1:00 am PDT bar — the first bar of the viewer's Oct 13 (the overnight gap holds midnight) | `localCalendarBehavior` re-weights day ticks by the viewer's calendar | a day tick at the viewer's midnight, labelled with the day beginning | **pass** (was fail, item 5); the 8 pm case is checked in `after-close/` once a shot after 8 pm New York is taken (the 4:17 pm one shows `13` as live) |
 | 18 | Wall-move chips | `CW 780 → 785 · 9:25 am`, `CW 785 → 780 · 8:45 am`, `CW 785 → 780 · 1:00 am` | gexNodesPrimitive, the column's call wall held three columns | — | pass (the 1:00 am one is a modeled re-pricing on the pre-market price; by design) |
 | 19 | Wall-move chip placement | clear of the tabs: the 785 chip at the top of the plot under the band, the two 780 chips one above the other | the chips clamp under the chrome and stack | clear of the head's chrome | **pass** (was fail) |
 | 20 | Strength chip | `785 · 8%` | the newest column's heaviest strike | the Heaviest row's 785 | pass |
@@ -370,5 +370,13 @@ changed.
 
 ### After hours
 
-Taken after 4:00 pm New York the same day (the market shut, the book's price frozen at the close): `after-close/` — the
-row is written there once taken.
+Taken after 4:00 pm New York the same day (the market shut, the book's price frozen at the close): `after-close/`,
+shot at 4:17 pm New York (1:17 pm PDT on the page), the same desk and scan as `after/`.
+
+| # | Element | After hours | Source | Should be | Status |
+|---|---|---|---|---|---|
+| 1 / 5 | Rail price, pane head price, the chart's capsule | `$777.92` · `$777.92` · `777.92` in the one scan (`texts-now.json`); five minutes on, read in one instant with the ladder's spot pill: rail `$777.82`, head `$777.82`, capsule `777.82`, ladder `777.82` | one poll a name (price.ts `useFeedPrice`, UW's stock-state `close`, the after-hours trade); the ladder's pill is `levels.spot`, the same value as the head (ProfilePanel, `ctx.fillText(levels.spot.toFixed(2))`) | one current price on the four | **pass** — the owner's 778.10 against 777.29 (the book's price beside the trade's) does not recur; the book's own price stands in How sure alone |
+| 17 | The day tick | `13` at the first bar of the viewer's Oct 13, as live | `localCalendarBehavior` | the 8 pm case — the last bar after 8 pm New York wearing the ending day's number — needs a shot after 8 pm New York; this one was 4:17 pm | checked again after 8 pm |
+
+The field after the close: 4,546 columns on the page, the residual against the 60-day books 8.7% at the median, the
+same sign in 21 of 25; no page error. The countdown read `02:37` on the 5-minute bar (after-hours bars run to 8 pm).

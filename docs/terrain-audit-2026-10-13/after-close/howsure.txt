@@ -1,0 +1,19 @@
+How sure are the walls and the flip
+
+What they assume
+
+Assumes customers sold the calls and bought the puts, so dealers hold the other side — open interest does not say who did.
+
+How fresh
+
+Open interest as of Oct 12's close — Unusual Whales' count dated Oct 13; it is counted once a day · the hedging is figured by Unusual Whales at 778.12, 1:14 pm PDT
+
+The field on the chart
+
+The field is modeled, never rescaled to the vendor. Against Unusual Whales' book on the same strikes and expiries (within 60 days, 25 books read today): strike by strike it differs by 8.7% of the book's size at the median; summed over those strikes it has the same sign in 21 of 25, at 1.98× the book's size at the median. Earlier sessions rebuilt from the vendor's dated history: Apr 2 to Oct 12, 12 sessions (UW's minute vols 12).
+
+If the side were the other way
+
+Call wall 778 · With the side turned over there would be no wall above spot.
+Put wall 772 · With the side turned over the wall below spot would sit at 775, not 772.
+Flip 777.27 · With the side turned over the flip stays at 777.27, but its sides swap: above it hedging would amplify moves, below it absorb them.
