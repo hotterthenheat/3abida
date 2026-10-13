@@ -48,12 +48,24 @@
       zero-filled or borrowed from a neighbour.
     · THE PRICE: the minute bar's close (UW's 1-minute
       bars). A column is knowable at its bar's end.
-  THE PRICER: core/greeks.ts blackScholesGreeks (the
-  simulator's own; carry from core/carry.ts) at the
-  bar's close, τ to the contract's exact last-trading
-  instant (16:00 New York on its date, 13:00 on a half
-  day — data/expiryClass.ts closeMinuteOn) from the
-  bar's middle; a contract past it holds nothing.
+  THE PRICER: core/greeks.ts blackScholesGreeks at the
+  bar's close, ON THE CLOCK AND CARRY UW SOLVED ITS
+  VOLS UNDER (UW_VOL_CONVENTION — measured 2026-10-13
+  on 8,096 in-session prints of six names, docs/
+  research-2026-10-13/uw-vol-convention.md): a vol is
+  only right on the τ it was inverted with, and UW's
+  is European Black–Scholes at r 4.15% and no dividend,
+  a contract expiring today on the calendar time from
+  the bar's middle to its last-trading instant (16:00
+  New York, 13:00 on a half day — data/expiryClass.ts
+  closeMinuteOn), a later one on WHOLE calendar days
+  (its date less today's) over 365, the same all
+  session. Priced so, a contract's gamma at UW's vol is
+  UW's own (median 0.002–0.04% through 60 days); on
+  calendar time to the close with the house's carry it
+  was 2–4% off the day after tomorrow's and nearer
+  contracts', 8% at the open. A contract past its
+  last-trading instant holds nothing.
   THE UNITS: open interest × greek × price² — dollars
   per 1% (× 100 shares × 1% of the price), UW's own
   /spot-exposures/strike units. THE SIGN (assumed —
@@ -113,15 +125,42 @@ export const TRAIL_HALF = 30;
 export const CHAIN_MAX_DTE = 60;
 /** A vol read this close to its expiry is not used */
 const LAST_HOUR_MS = 3600_000;
+const YEAR_MS = 365 * 864e5;
+
+/** UW's carry: the rate and yield its vols are solved under (fitted on six names, one figure for all of them) */
+export const UW_VOL_CONVENTION = { r: 0.0415, q: 0 } as const;
+
+/** UW's clock for a contract, in years: today's expiry on the calendar time to its last-trading instant, a later one on
+    whole calendar days — its date less `today` (New York's) — over 365, the same all session */
+export function uwYears(clock: number, expires: number, expiry: string, today: string): number {
+  if (expiry <= today) return (expires - clock) / YEAR_MS;
+  const ymd = (iso: string) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
+  return (ymd(expiry) - ymd(today)) / YEAR_MS;
+}
+
+/** The last print a regular session can hold on a New York date: 16:15 (index and fund options trade to it; a stock's
+    to 16:00, so this is a bound, never early) */
+const tapeEndOn = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return nyWallTime(y, m, d, 16, 15);
+};
+/** A vol's trade time as UW stamps it (`last_tape_time`): after the close it is a later batch stamp, not the print's
+    (2026-10-13: 16 of 16 SPY contracts carried their last print's vol under a stamp of 17:10–17:42 New York, the print
+    itself 10:40–16:14) — then the print's time is known only to be at or before the close, and is kept as that bound */
+function tradeTimeOf(tape: number | null, fallback: number): { trade: number; bound: boolean } {
+  const t = tape ?? fallback;
+  const end = tapeEndOn(nyIsoDate(t));
+  return t > end ? { trade: end, bound: true } : { trade: t, bound: tape == null };
+}
 
 /** The field's model — its version is kept with every column (trailMeta) */
 export const TRAIL_MODEL = {
-  version: 'trail-2026-10-13.2',
+  version: 'trail-2026-10-13.3',
   what: 'estimated dealer gamma (assumed sign)',
   openInterest: "today's count — UW's row dated today, the positions at the session before's close; static all day",
   vol: "as of each minute: the newest chain read received at or before the minute's end; before the first, the session before's close (carried, fixed-strike); a vol read in its expiry's last hour is not used; no observation, no contract",
   price: "the minute bar's close; a column is knowable at its bar's end",
-  pricer: 'core/greeks.ts blackScholesGreeks; τ from the bar middle to the last-trading instant (16:00 New York, 13:00 on a half day)',
+  pricer: "core/greeks.ts blackScholesGreeks on UW's convention (measured): European, r 4.15%, q 0; today's expiry on calendar time from the bar middle to its last-trading instant (16:00 New York, 13:00 on a half day), a later one on whole calendar days / 365",
   universe: `contracts listed within ${CHAIN_MAX_DTE} days with open interest, 30 strikes each side of the price`,
   units: 'open interest × greek × price² (dollars per 1%, UW /spot-exposures/strike units)',
   sign: "assumed: the house's — the calls' gamma negative, the puts' positive, delta turned over",
@@ -175,11 +214,13 @@ export function lastTradeOf(iso: string): number {
   return t;
 }
 
-/** One vol observation: knowable at `at`, from a trade at `trade`, `carried` when it is the session before's close */
+/** One vol observation: knowable at `at`, from a trade at `trade` (`bound`: at or before it, the print's own time not
+    known), `carried` when it is the session before's close */
 interface Obs {
   at: number;
   iv: number;
   trade: number;
+  bound: boolean;
   carried: boolean;
 }
 
@@ -192,6 +233,8 @@ export interface Universe {
   call: Uint8Array;
   oi: Float64Array;
   expires: Float64Array;
+  /** UW's whole-day clock for a later expiry, in years; 0 for today's (priced on the minutes left) */
+  years: Float64Array;
   expiry: string[];
   /** Each contract's observations, oldest first */
   obs: Obs[][];
@@ -217,7 +260,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
       let c = bySym.get(sym);
       if (!c) bySym.set(sym, (c = { strike: p.strike, expiry: p.expiry, call: p.right === 'C', oi, obs: [] }));
       c.oi = oi;
-      if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) c.obs.push({ at: read.receivedAt, iv, trade: trade ?? read.receivedAt, carried: false });
+      if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false });
     }
   }
   /* the session before's close: knowable from that close on (before today's open), carried */
@@ -228,7 +271,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     for (const [sym, iv, trade] of seed.rows) {
       const c = bySym.get(sym);
       if (!c || iv == null || !(iv > 0) || lastTradeOf(c.expiry) - knowable < LAST_HOUR_MS) continue;
-      c.obs.unshift({ at: knowable, iv, trade: trade ?? knowable, carried: true });
+      c.obs.unshift({ at: knowable, iv, ...tradeTimeOf(trade, knowable), carried: true });
     }
   }
   const kept = [...bySym.values()].filter(c => c.oi > 0).sort((a, b) => a.strike - b.strike);
@@ -248,6 +291,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     call: Uint8Array.from(kept.map(c => (c.call ? 1 : 0))),
     oi: Float64Array.from(kept.map(c => c.oi)),
     expires: Float64Array.from(kept.map(c => lastTradeOf(c.expiry))),
+    years: Float64Array.from(kept.map(c => (c.expiry > day ? uwYears(0, 0, c.expiry, day) : 0))),
     expiry: kept.map(c => c.expiry),
     obs: kept.map(c => c.obs),
     reads: reads.map(r => r.receivedAt),
@@ -307,11 +351,12 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
     let fresh = 0;
     let all = 0;
     let stale = Infinity;
+    let staleBound = false;
     for (let j = u.start[i]; j < u.start[i + 1]; j++) {
       if (u.expires[j] <= clock) continue;
       const o = obsAt(u.obs[j], knowBy);
       if (!o) continue;
-      const g = blackScholesGreeks(spot, k, (u.expires[j] - clock) / (365 * 864e5), o.iv);
+      const g = blackScholesGreeks(spot, k, u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS, o.iv, UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
       const w = u.oi[j] * s2;
       const gw = w * g.gamma;
       if (u.call[j]) {
@@ -323,12 +368,15 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
       }
       all += gw;
       if (!o.carried) fresh += gw;
-      if (o.trade < stale) stale = o.trade;
+      if (o.trade < stale) {
+        stale = o.trade;
+        staleBound = o.bound;
+      }
     }
     if (all <= 0) continue;
     const coverage = fresh / all;
     /* the house's sign (levels.ts feedStrike): the calls' gamma and every delta turned over, the puts' gamma as is */
-    levels.push({ strike: k, value: -gc + gp, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, coverage });
+    levels.push({ strike: k, value: -gc + gp, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), coverage });
   }
   return { time: bar.time, levels, spot, rebuilt: true };
 }

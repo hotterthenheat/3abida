@@ -683,8 +683,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   No plan carries the book by strike for a time of day, so every minute of today is MODELED — estimated dealer gamma
   (assumed sign), never "dealer positioning" — from what was knowable at it, in ONE module, data/feed/trailField.ts
   (TRAIL_MODEL names every choice; its version rides on every column, `trailMeta`): today's open interest (UW's row
-  dated today, static all day) × the house's pricer (core/greeks.ts) at each minute bar's close, τ to each contract's
-  exact last-trading instant (expiryClass closeMinuteOn), each contract's vol the newest one RECEIVED at or before the
+  dated today, static all day) × core/greeks.ts at each minute bar's close ON THE CLOCK AND CARRY UW SOLVED ITS VOLS
+  UNDER (2026-10-13, measured on 8,096 prints of six names — docs/research-2026-10-13/uw-vol-convention.md, scripts in
+  its tau/; `UW_VOL_CONVENTION`, `uwYears`): European, r 4.15%, q 0; today's expiry on calendar time to its last-trading
+  instant (expiryClass closeMinuteOn), a later one on WHOLE calendar days ÷ 365, the same all session — a vol is only
+  right on the τ it was inverted with (calendar time to the close missed the next day's gamma by 2–8%; never price
+  UW's vols on another clock or carry, and a change of UW's is a new model version), each contract's vol the newest one RECEIVED at or before the
   minute's end (the server's chain reads; before them the session before's close vol, carried fixed-strike); a contract
   with no vol stays out (the strike's coverage drops), a strike with none is a gap. Units: OI × greek × price² (UW's
   /spot-exposures/strike units); the house's sign. NO CALIBRATION: the books UW answered are a MEASURED REFERENCE (the
@@ -695,7 +699,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   running count) — nothing to the right changes the left. Each column draws its OWN flip (pickFlip, a gap where none,
   never carried) and a chip where a wall moved and held three columns ("CW 780 → 785 · 11:42", the newest three); the
   hover card (StrikeChart `beadCard`) names strike, New York time, the net, its share, the change since 09:30, the flip
-  and the crossings near, the cell's provenance and staleness, UW's own figure at the strike, the model version. An
+  and the crossings near, the cell's provenance and staleness (a vol stamped after the close — UW's `last_tape_time` then is a batch time, not the print's — is said as "from a print at or before 16:15", `staleBound`), UW's own figure at the strike, the model version; its second line, "Today's opening positions re-priced along the price path, each contract on its latest traded vol". An
   expiry cut models that date's contracts alone. The sessions before today are not drawn on the feed (their inputs —
   the full tape's vols, the close books — are a later step). THE RECORDER IS THE LOCAL SERVER (server/fieldRecorder.ts,
   mounted by server/feed.ts): GET /feed/field/<NAME>?since= watches a name (six at most) and answers what was received

@@ -5267,7 +5267,10 @@ const StrikeChart = ({
             : lvl.prov === 'carried'
               ? `Carried · vols from ${meta?.seedDate ? isoDayLabel(meta.seedDate) : 'the session before'}'s close`
               : `Modeled · vols read ${meta?.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
-          const stale = feedCell && lvl.staleSince ? `stale since ${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : null;
+          const staleAt = lvl.staleSince ? `${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : '';
+          /* a bound: the vendor stamped the vol's print with a later batch time, so its own time is known only to be at or
+             before this */
+          const stale = feedCell && lvl.staleSince ? (lvl.staleBound ? `oldest vol from a print at or before ${staleAt}` : `stale since ${staleAt}`) : null;
           const measured = feedCell ? measuredAt(ticker, beadCard.strike, beadCard.time) : null;
           return (
             <div
@@ -5279,7 +5282,7 @@ const StrikeChart = ({
                 {k(beadCard.strike)} · {nyClockOf(beadCard.time * 1000, { zone: true })}
               </div>
               <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
-              {feedCell && <div className="text-[11px] text-textMuted">Today's opening book re-evaluated along the price path</div>}
+              {feedCell && <div className="text-[11px] text-textMuted">Today's opening positions re-priced along the price path, each contract on its latest traded vol</div>}
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
                 {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book · since 09:30 {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
               </div>
@@ -5287,12 +5290,8 @@ const StrikeChart = ({
                 Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
                 {beadCard.crossings.length ? ` · crossings near ${beadCard.crossings.map(k).join(', ')}` : ''}
               </div>
-              {prov && (
-                <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">
-                  {prov}
-                  {stale ? ` · ${stale}` : ''}
-                </div>
-              )}
+              {prov && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">{prov}</div>}
+              {prov && stale && <div className="font-mono text-[11px] text-textMuted">{stale[0].toUpperCase() + stale.slice(1)}</div>}
               {feedCell && (
                 <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
                   {measured ? `Unusual Whales' book, ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : "No book of Unusual Whales' read by then"}

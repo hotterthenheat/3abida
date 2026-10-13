@@ -178,7 +178,7 @@ The model below is a proposal (**Inference**) built on those principles and on I
 
 Three conventions turn this into correct numbers.
 
-**The τ convention.** τ must run to each contract's exact last-trading instant, in fractions of a year: 16:00 ET for PM contracts, 13:00 on half days, and the prior session for AM-settled SPX. The whole-day floor in common code (Perfiliev's 1/262; jensolson simply drops 0DTE) understates late-session 0DTE ATM gamma by an order of magnitude: with 15 minutes left the exact-τ gamma is 0.0996, while the 1/262-year floor gives 0.0086 — about 11.6× lower — at the same 15% IV (**Established** arithmetic, recomputed; corrected 2026-10-13 — an earlier version compared 0.0996 with 0.0195, which is the exact-τ value at 6.5 hours, not the floor). Slayer's `data/expiryClass.ts` already encodes AM settlement and half days and should be the single source.
+**The τ convention.** τ must run to each contract's exact last-trading instant, in fractions of a year: 16:00 ET for PM contracts, 13:00 on half days, and the prior session for AM-settled SPX. The whole-day floor in common code (Perfiliev's 1/262; jensolson simply drops 0DTE) understates late-session 0DTE ATM gamma by an order of magnitude: with 15 minutes left the exact-τ gamma is 0.0996, while the 1/262-year floor gives 0.0086 — about 11.6× lower — at the same 15% IV (**Established** arithmetic, recomputed; corrected 2026-10-13 — an earlier version compared 0.0996 with 0.0195, which is the exact-τ value at 6.5 hours, not the floor). Slayer's `data/expiryClass.ts` already encodes AM settlement and half days and should be the single source. **A contract on a later day is priced on whole calendar days.** That is the τ UW's vols are inverted under, measured 2026-10-13, and a vol must be priced on its own τ (Review corrections, below). The exact instant governs today's contracts.
 
 **The minute's spot.** It is the bar's close, so a column's knowledge time is the bar's end. The column should be drawn at the candle it describes, and the hover should say so.
 
@@ -265,7 +265,7 @@ Massive Basic adds little here. Its option minute bars are trade-derived OHLCV w
 |---|---|---|---|
 | Field built from UW `/spot-exposures/strike` books captured while the browser was open | **Change** | Keep capturing, in the server recorder. Store each strike's own `time` and `price`, not only the receipt time. Draw the books as a *measured reference* (hover readout, optional dots like TRACE's 10/30/60-minute history marks), not as the field | Per-strike staleness of hours; gaps whenever no tab is open; whole-origin eviction ([UW OpenAPI](https://api.unusualwhales.com/api/openapi); [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria); [TRACE manual](https://spotgamma.com/wp-content/uploads/2025/07/TRACE-User-Manual-Final-Version.pdf)) |
 | Rebuild from `/option-contracts` (current OI + IV) × UW 1-minute bars | **Keep the structure, change the IV** | OI from `/option-contracts` is correct for today's minutes (prior-close count, static intraday). Its IV is the latest trade's, so applying it to earlier minutes is look-ahead. Use IV known at or before each minute. In order of preference: the recorder's own reads of `/option-contracts`, then `option-contract/{id}/intraday` minute IV for minutes before recording began, then the prior close's IV from `option-chains?date=D−1`, carried sticky-strike with `stale_since` | OI timing ([OIC](https://www.optionseducation.org/news/open-interest-why-it-matters)); "a later IV snapshot applied to earlier minutes" is look-ahead ([reconstruction notes](https://pypi.org/project/ere/)) |
-| Calibration restricted to readings at or before each minute | **Keep the causal rule; change what is calibrated** | Fix τ from first principles (calendar time to each contract's exact last-trading instant — see the τ section; never fitted to UW, since fitting could select the day floor that understates late 0DTE gamma ~11.6×). Fit *only* what cannot be derived — UW's charm and vanna scale and its sign mapping — offline against captured UW books, and freeze them in `model_version`. Do not rescale modeled magnitudes to UW's readings minute by minute. One scalar total cannot correct a 400-strike profile, and it imports UW's stale-strike artefacts and undisclosed model into every cell. Show the residual against `/spot-exposures` instead | Hybrids must not blend silently. Comparisons need matched conventions or "the errors measure conventions, not reconstruction quality" (reconstruction notes, after [IvyDB](https://lib.tsinghua.edu.cn/PDF/OptionMetricsshiyongzhinan.pdf)) |
+| Calibration restricted to readings at or before each minute | **Keep the causal rule; change what is calibrated** | Take τ as the vols' own: the clock UW inverted them under, measured directly (the τ section — today's expiry on calendar time to its exact last-trading instant with no floor, a later one on whole calendar days), never a free parameter fitted to UW's books, since a fit could select the day floor that understates late 0DTE gamma ~11.6×. Fit *only* what cannot be derived — UW's charm and vanna scale and its sign mapping — offline against captured UW books, and freeze them in `model_version`. Do not rescale modeled magnitudes to UW's readings minute by minute. One scalar total cannot correct a 400-strike profile, and it imports UW's stale-strike artefacts and undisclosed model into every cell. Show the residual against `/spot-exposures` instead | Hybrids must not blend silently. Comparisons need matched conventions or "the errors measure conventions, not reconstruction quality" (reconstruction notes, after [IvyDB](https://lib.tsinghua.edu.cn/PDF/OptionMetricsshiyongzhinan.pdf)) |
 | Per-column flip with gaps | **Keep** | Keep `pickFlip` (the sign-change midpoint nearest spot, or `null`) per column, so Terrain and Pinpoint read one rule. Draw a gap on `null`, never a carried value. Add the other crossings near spot to the hover, as UW's `nearby_flips` does. If a profile-sweep zero-gamma is wanted, add it to `core/walls.ts` for every room at once, with a stated band, a bracketing root search and `null` outside it | [UW GEX Levels](https://api.unusualwhales.com/docs/api/gexgreeks/gex-levels.md); [FlashAlpha](https://flashalpha.com/articles/gamma-flip-methodology-stable-zero-gamma-level); sweep practice ([Perfiliev](https://perfiliev.com/blog/how-to-calculate-gamma-exposure-and-zero-gamma-level/)) |
 | Discrete beads | **Keep, fix the scale** | One bead per listed strike per actual column, no interpolation. `gexNodesPrimitive.ts` sizes beads against the 85th percentile of per-moment maxima over **the whole loaded field** (lines 649–669). A later column therefore resizes earlier ones, so in replay compute that reference from columns at or before the clock, or from the prior session. State the scale in the legend | [Matplotlib](https://matplotlib.org/stable/gallery/images_contours_and_fields/interpolation_methods.html); fixed or as-of-t scaling ([Bookmap](https://bookmap.com/knowledgebase/docs/KB-SettingUpAndOperating-HeatmapSettings); [Volfix](https://help.volfix.net/hc/en-us/articles/35575448049565)) |
 | Planned server-side recorder | **Keep and build first** | The recorder sits in the proxy's process beside `server/feed.ts`'s `Gate` and writes append-only files per name-session. Every minute it records `/spot-exposures/strike`, `/spot-exposures` and `/gex-levels?source=oi`. Every few minutes it records `/option-contracts`, which makes today's IV point-in-time. Each row carries `received_at`. Live capture is the only way to hold the vendor's number at t, and archiving beats the 730-day roll-off | Method (a) (reconstruction notes); live probe of the 2023-11-10 limit |
@@ -325,21 +325,111 @@ The reconstruction checks then run against captured books at matching instants, 
 
 An independent review re-derived the math and checked this report against itself. Every point below was re-checked here before it was accepted; the corrections are applied in place above and listed here.
 
-**Errors corrected.** (1) The hedging direction in the worked example was backwards: a short-gamma book's delta falls as price rises, so re-hedging means **buying** into a rise (about 9,733 shares, ≈$48.7m, for +1% in the example) and selling into a fall. (2) The τ-floor comparison quoted the wrong figure: at 15% IV with 15 minutes left the exact-τ ATM gamma is 0.0996 and the 1/262-year floor gives 0.0086, an understatement of about **11.6×** (not ~5×; 0.0195 is the exact value at 6.5 hours). Both recomputed here. (3) The data model merged two times: a cell's look-ahead rule uses `knowable_at` (a print's execution time, a bar's end, a live read's receipt, the prior close for a carried close vol, the publication morning for OI), never `pulled_at`, which is kept only to audit vendor revisions. (4) τ was listed among the conventions to fit against UW; it is not — τ is fixed from first principles (below), because fitting could select exactly the day floor that understates late 0DTE gamma.
+**Errors corrected.** (1) The hedging direction in the worked example was backwards: a short-gamma book's delta falls as price rises, so re-hedging means **buying** into a rise (about 9,733 shares, ≈$48.7m, for +1% in the example) and selling into a fall. (2) The τ-floor comparison quoted the wrong figure: at 15% IV with 15 minutes left the exact-τ ATM gamma is 0.0996 and the 1/262-year floor gives 0.0086, an understatement of about **11.6×** (not ~5×; 0.0195 is the exact value at 6.5 hours). Both recomputed here. (3) The data model merged two times: a cell's look-ahead rule uses `knowable_at` (a print's execution time, a bar's end, a live read's receipt, the prior close for a carried close vol, the publication morning for OI), never `pulled_at`, which is kept only to audit vendor revisions. (4) τ was listed among the conventions to fit against UW; it is not a fitted parameter. It must be the τ the vols were inverted under, measured directly (below). For today's contracts that is exact calendar time with no floor, so the late-0DTE understatement a fitted day floor would cause does not arise.
 
-**The τ basis must match the IV's.** Only total variance σ²τ is pinned by an option's price, so an IV is only meaningful with the τ it was inverted under; calendar and trading-time τ differ by ~5.4× with 6.5 hours left (≈2.3× in gamma). Slayer's build uses **calendar time** (milliseconds to each contract's exact last-trading instant ÷ 365 days, no floor). A live check (2026-10-12 evening, New York): repricing UW's own `/option-contracts` rows for SPY with UW's IV under calendar τ, and fitting only the unknown spot, reproduced UW's per-contract gamma to within about 2–15% for expiries 2–9 days out (median ratio 1.02–1.15; mean |log error| ≈ 0.05), which is consistent with UW inverting under calendar time (**Vendor-inferred**, partial). Same-day and next-day contracts could not be pinned from an after-hours snapshot (UW's greek timestamps were 17:42 ET). **Open:** confirm during a session with the live spot, and through `greeks?date=&expiry=`; until then, re-inverting IV from UW's mid/theo under the house τ is the fallback if the check fails.
+**The τ basis must match the IV's — measured.** Only total variance σ²τ is pinned by an option's price, so an IV is meaningful only with the τ it was inverted under. Calendar and trading-time τ differ by ~5.4× with 6.5 hours left (≈2.3× in gamma).
 
-**A European pricer on American contracts.** SPY and single-name options are American and carry discrete dividends; the house pricer is Black–Scholes with no dividend. For near-the-money, short-dated contracts — where the field's gamma lives — the gamma difference is small (the live check above, which mixes both, sits within the band quoted), but deep in-the-money puts and any expiry spanning an ex-dividend date are mispriced. Disclose it; a binomial or Barone-Adesi–Whaley pricer for those contracts is the upgrade. Put–call parity (validation layer 3) applies to European SPX only.
+An earlier version of this section called an after-hours repricing "consistent with calendar time". A second review pointed out that the check could not tell the conventions apart, and that claim is withdrawn.
+
+The discriminating test is in `docs/research-2026-10-13/uw-vol-convention.md`. UW's `theo` equals each print's price, so UW solved its vol from that price. Re-inverting the same price under each candidate clock and carry gives UW's vol back only under UW's own. On 8,096 in-session prints of six names on 2026-10-12, UW's convention is:
+
+- European Black–Scholes at r 4.15% and no dividend;
+- **today's expiry on calendar time to its 16:00 close;**
+- **a later expiry on whole calendar days ÷ 365, held all session.** The next day's contract implies 24.00 hours both at 09:59 and at 15:44.
+
+Under UW's convention, UW's vol comes back within a median 0.001–0.006 vol points, and UW's gamma within 0.001–0.03%, through 60 days. Under the alternatives, a 1-day contract misses:
+
+- calendar time to the close: by 0.53 vol points and 2.7% in gamma (1.3 points and 4.7% at the open);
+- trading time: by 2.9 points and 18% (today's contracts by 5.5 points and 53%).
+
+The field now prices each contract on UW's clock and carry (`trailField.ts` `UW_VOL_CONVENTION`, model `trail-2026-10-13.3`). There is no floor on today's contracts. **Established** for the 2026-10-12 prints of these six names. A half day's 13:00 close and a second session are checked live (Tuesday 2026-10-13, 11:30 New York).
+
+**A European pricer on American contracts — measured.** SPY and single-name options are American. UW's vols and gammas are European Black–Scholes (above), and so is the field's pricer, at UW's carry: r 4.15%, q 0. The house's greeks elsewhere use r 4.2% and q 1.2% (`core/carry.ts`).
+
+An earlier version cited the τ check as evidence that the gap is small. That check did not measure it, and the claim is withdrawn.
+
+Measured on 48 near-the-money SPY prints, with each style's vol inverted from the same price on the same CRR tree (`docs/research-2026-10-13/uw-vol-convention.md`):
+
+- calls: no gap, since no dividend falls before expiry;
+- puts at 1–11 days: 0.6% median;
+- puts at 12–60 days: 5.4% median, 7.6% max, the American gamma higher.
+
+Weighted by where SPY's 2026-10-12 book holds its gamma, the gap moves a near-money strike's gamma by an estimated 0.1–1.3%. Not measured: single names with an ex-dividend date inside 60 days (an American call's early exercise), and deep in-the-money puts. The gap is disclosed. An American pricer would need every vol re-inverted under it each minute. Put–call parity (validation layer 3) applies to European SPX only.
 
 **SPX and the other indices.** For SPX the minute spot path does not exist on these plans, and UW's "price" for an index is the at-the-money strike. With 15 minutes left, 1σ of SPX's remaining move is about 4 points while the ATM-strike proxy can be off by up to 2.5 points (half the 5-point spacing) — about 0.6σ, enough to put spot on the wrong side of the heaviest strike. A "lower-confidence flag" undersells this: **a late-session SPX 0DTE field is not usable without a real index level.** Slayer therefore draws no field for an index until a defensible level exists (candidates: an implied forward from SPXW put–call parity on the tape; SPY scaled — both untested).
 
-**What the field actually is.** With OI fixed all day and IV sticky-strike between observations, the trail is a deterministic function of spot and time applied to the morning's book; only new IV observations add information. It is, honestly labelled, **"today's opening book re-evaluated along the price path"** — and its level moves come from spot, IV or time, never from positioning. The hover and guide should say this.
+**What the field actually is.** With open interest fixed all day, the trail is the morning's positions re-priced minute by minute:
+
+- spot and time move it every minute;
+- each chain read, every ten minutes, replaces the vols of the contracts that traded;
+- between reads, each contract keeps its last vol (sticky-strike).
+
+An earlier label, "today's opening book re-evaluated along the price path", fitted only a field whose vols never change, and it is replaced. The bead card now reads **"Today's opening positions re-priced along the price path, each contract on its latest traded vol"**. The level moves come from spot, vol or time, never from positioning.
 
 **The Cboe evidence cuts both ways.** Cboe's finding that net market-maker 0DTE gamma is small argues against the flow lens, and also means stale OI costs less than it seems — and that intraday hedging pressure is itself small. The field shows where exposure would sit under the assumed sign, not that it moves the market.
 
-**Request volume and storage (estimates, to be measured).** Recorder, per watched name and session (390 minutes): the strike book and the whole-book series once a minute (2 × 390), the chain every 10 minutes (SPY ≈ 9 pages × 39), the prior close's chain once (≈10 pages): **≈1,150 calls a day for SPY**; six names ≈ 6,900 calls (≈18 a minute, well within three concurrent requests). SPX's chain is several times SPY's, so its chain pages dominate. Intraday IV backfill through `/option-contract/{id}/intraday` is one call per contract — thousands a day — so it is practical only for the strikes near the money. The full tape is ≈1–2 GB zipped a day; × 730 sessions is ~1 TB, so it must be reduced server-side to per-contract-minute IV for the watched names and discarded. Stored raw, the recorder's reads are of the order of tens of MB a name a day; compacted to the fields the model uses, far less. **The recorder must keep its history** (compacted), not delete earlier days — every unrecorded or deleted minute is irreversibly lost.
+**Request volume and storage, measured on the recorder as built.** An earlier version described "three endpoints a minute"; the recorder reads two a minute and the chain every ten. Per watched name and 390-minute session:
+
+| Read | SPY calls | AAPL calls |
+|---|---|---|
+| Strike book and UW's whole-book series, once a minute each (2 × 390) | 780 | 780 |
+| Chain every ten minutes: 39 reads a session plus one on first watch (SPY 9 pages of 500, AAPL 3) | ≈ 360 | ≈ 120 |
+| The session before's close chain, once (SPY 13 pages, AAPL 4) | 13 | 4 |
+| One price read | 1 | 1 |
+| **Total a session** | **≈ 1,155** | **≈ 905** |
+
+Six SPY-sized names come to ≈ 6,900 calls a session. SPX's chain is several times SPY's, so its pages would dominate.
+
+**UW Basic's limits, as observed:**
+
+- requests a day are unlimited (UW's pricing page);
+- the per-minute header reads 1,000,000;
+- **three requests at once** is the limit that binds: the fourth of a burst is refused with a 429.
+
+Six names add ≈ 12 calls a minute, plus 54 chain pages every ten minutes, through the proxy's gate of three. The gate is shared with the terminal's own pages, and it queues rather than fails.
+
+Intraday IV backfill through `/option-contract/{id}/intraday` is one call per contract, so it is practical only near the money. The full tape is ≈ 1–2 GB zipped a day; × 730 sessions is ~1 TB, so it must be reduced server-side and discarded.
+
+**The recorder's own archive**, measured on 2026-10-12's reads:
+
+| One read | SPY raw | SPY gzipped | AAPL raw | AAPL gzipped |
+|---|---|---|---|---|
+| Book | 46 KB | 10 KB | 10 KB | 2 KB |
+| Chain | 188 KB | 46 KB | 33 KB | 9 KB |
+
+The close chain is 0.2 MB.
+
+- **While the day is live:** a session's raw files come to ≈ 26 MB for SPY.
+- **Gzipped as the day turns:** at most ≈ 6 MB for SPY and ≈ 1.3 MB for AAPL. These bounds gzip each read alone; a day's file compresses better, and the real figure is measured after a whole session.
+- **Six SPY-sized names:** at most ≈ 36 MB a session, ≈ 9 GB a year.
+
+**The recorder keeps its history**, gzipped, and never deletes earlier days. Every minute not recorded, or recorded and deleted, is lost for good.
 
 **Tags.** Three design choices were tagged Established and are Inference by this report's own definitions (the three-part architecture, the validation layers, "vendor history is revised" beyond IvyDB); they are re-tagged above. The worked table now states the sign convention of every row.
+
+### The second review (2026-10-13)
+
+A second independent review checked the corrections above. Each point, and what was done:
+
+1. **Accuracy figures that contradicted each other.** One basis now holds throughout: median |IV re-inverted − UW's IV| and median |gamma ÷ UW's gamma − 1|, per expiry, under every convention side by side, at UW's measured carry (`uw-vol-convention.md`).
+2. **The calendar-time conclusion was not established.** It was not, and it was wrong for every expiry after today. The discriminating test the review proposed was run (above), and the code was changed to match.
+3. **"Confirmed" was premature.** Withdrawn. What is established is stated as established for the 2026-10-12 prints; the rest is open until the live check.
+4. **The American-exercise claim cited the wrong evidence.** Withdrawn and measured (above).
+5. **The cost figure did not match the design.** It is recounted from the recorder as built, with UW Basic's actual limits named (above).
+6. **The two look-ahead bugs.** Both are fixed, in `bd21ad8`:
+   - each minute's vol is the newest received at or before the minute's end;
+   - the bead scale runs forward (`gexNodesPrimitive.ts`, the running 85th percentile).
+
+   `scripts/trail-field-proof.ts` checks both and runs in `npm test`: "a later read never moves an earlier minute", "a read received after a bar ends is not that bar's" and "columns added on the right never rescale those on the left" (17 of 17 pass with the checks added today).
+7. **The label held only with the vol fixed.** Rewritten (above).
+8. **The archive size was not estimated.** Measured per read and bounded per session (above).
+9. **"11:30 ET today".** That is Tuesday, October 13, 2026, 11:30 New York (15:30 UTC). It is a scheduled live check, not yet run.
+
+Evidence for the points the review could not verify from the report:
+
+- an index draws no field: `trailField.ts`, "An index has no bars on these plans: nothing is asked" (`bd21ad8`);
+- the recorder keeps every day, gzipped: `server/fieldRecorder.ts` `prune` (`accf460`);
+- the label: `StrikeChart.tsx`, the bead card (`accf460`, rewritten today).
 
 ## Unresolved questions
 

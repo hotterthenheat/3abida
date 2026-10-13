@@ -353,8 +353,12 @@ the model, `src/data/feed/trailField.ts` (`TRAIL_MODEL`, its version on every co
 | The price | UW's 1-minute bars, each bar's close | the bar's end |
 | The measured reference | `/spot-exposures/strike` once a minute (each strike's own `time` and `price` kept) and `/spot-exposures` (the whole book a minute) | as received — never blended into the field |
 
-The pricer is `core/greeks.ts` `blackScholesGreeks`, τ to each contract's last-trading instant (16:00 New York, 13:00 on a
-half day); a leg is OI × greek × price² (UW's per-1% units — summed over UW's own per-contract gamma it reproduces
+The pricer is `core/greeks.ts` `blackScholesGreeks` on the clock and carry UW solved its vols under, measured 2026-10-13
+(`research-2026-10-13/uw-vol-convention.md`): European, r 4.15%, no dividend; today's expiry on calendar time to its
+last-trading instant (16:00 New York, 13:00 on a half day), a later one on whole calendar days ÷ 365, held all session —
+priced so, a contract's gamma at UW's vol is UW's own (median ≤ 0.03% through 60 days). The chain's vol is the contract's
+last print's; its `last_tape_time` after the close is a batch stamp, so a vol stamped after 16:15 is kept as "from a print
+at or before 16:15" (`staleBound`). A leg is OI × greek × price² (UW's per-1% units — summed over UW's own per-contract gamma it reproduces
 `/spot-exposures/strike` to the dollar, checked 2026-10-12); the house's sign. A vol read in its expiry's last hour is not
 used (UW figures far strikes at 500% and more after the close). A contract with no vol stays out and its strike's
 coverage drops; a strike with none is a gap. No magnitude is rescaled to UW: the residual against UW's books (per

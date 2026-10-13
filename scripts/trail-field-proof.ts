@@ -8,8 +8,13 @@
   3. A contract with no vol stays out (its strike's coverage drops, nothing zero-filled); a strike with none is a gap
   4. A vol read in its expiry's last hour is not used; a contract past its last-trading instant holds nothing
   5. The bead scale runs forward: columns added to the right never change a column's reference on the left
+  6. UW'S CONVENTION: a contract is priced on the clock and carry UW solved its vol under, so its gamma at UW's vol is
+     UW's own — checked on four real SPY prints of 2026-10-12 (UW's /option-trades: price, vol, gamma as UW answered);
+     on calendar time to the close the day-after contract misses by more, so the check tells the two apart
+  7. A vol stamped after the close is a bound: its print's time is said as "at or before", never as a time
 */
-import { modelColumn, universeOf, type ServerInputs } from '../src/data/feed/trailField';
+import { modelColumn, universeOf, uwYears, UW_VOL_CONVENTION, type ServerInputs } from '../src/data/feed/trailField';
+import { blackScholesGreeks } from '../src/core/greeks';
 import { nyWallTime } from '../src/core/nyTime';
 import { GexTrailsPrimitive } from '../src/components/gex/gexNodesPrimitive';
 import type { GexSnapshot } from '../src/types/market';
@@ -92,6 +97,49 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
   prim.setData([...a, ...snaps(20, 1e9).slice(10)], 1, true, 60, 'gex');
   const refsB = (prim as unknown as { refs: number[] }).refs;
   check('columns added on the right never rescale those on the left', refsA.every((r, i) => r === refsB[i]) && refsB[19] > refsA[9]);
+}
+
+/* 6. UW's convention, on real prints (SPY, 2026-10-12, 09:59:5x New York: [symbol, expiry, print time, price, strike,
+   vol, gamma] as UW answered) */
+{
+  const prints: [string, string, string, number, number, number, number][] = [
+    ['SPY261012P00777000', '2026-10-12', '2026-10-12T13:59:59.880Z', 778.54, 777, 0.1144769715320563, 0.1364808588349014],
+    ['SPY261013P00772000', '2026-10-13', '2026-10-12T13:59:59.799Z', 778.54, 772, 0.128168583568504, 0.03376845975134069],
+    ['SPY261016P00782000', '2026-10-16', '2026-10-12T13:59:59.440Z', 778.5542, 782, 0.1093515573612423, 0.04224104173145146],
+    ['SPY261106P00775000', '2026-11-06', '2026-10-12T13:59:55.865Z', 778.5401, 775, 0.1283530614439347, 0.01483321462715531],
+  ];
+  const close = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return nyWallTime(y, m, d, 16, 0);
+  };
+  let worst = 0;
+  let calMiss = 0;
+  for (const [, exp, when, S, K, iv, g] of prints) {
+    const t = Date.parse(when);
+    const mine = blackScholesGreeks(S, K, uwYears(t, close(exp), exp, day), iv, UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q).gamma;
+    worst = Math.max(worst, Math.abs(mine / g - 1));
+    if (exp === '2026-10-13') calMiss = Math.abs(blackScholesGreeks(S, K, (close(exp) - t) / (365 * 864e5), iv).gamma / g - 1);
+  }
+  check(`a contract's gamma at UW's vol is UW's own (worst of four ${(worst * 100).toFixed(3)}%)`, worst < 0.001);
+  check(`…where calendar time to the close and the house's carry miss the next day's by ${(calMiss * 100).toFixed(1)}%`, calMiss > 0.03);
+  /* a later expiry's clock is whole days, the same all session; today's runs down */
+  const fri = (h: number) => modelColumn(universeOf('SPY', day, { ...base, chains: [read(9, 30, 0.12)], seed: null }), bar(h, 0, 600.2));
+  const tue = (s: GexSnapshot) => s.levels.find(l => l.strike === 600)?.value ?? 0;
+  const friOnly = (h: number) => {
+    const inputs: ServerInputs = { chains: [{ ...read(9, 30, 0.12), rows: read(9, 30, 0.12).rows.filter(r => r[0].startsWith('SPY261016')) }], seed: null, total: null };
+    return tue(modelColumn(universeOf('SPY', day, inputs), bar(h, 0, 600.2)));
+  };
+  check("a later expiry's clock is the same all session (whole days)", friOnly(10) === friOnly(15));
+  check("today's expiry's clock runs down through the session", tue(fri(10)) !== tue(fri(15)));
+}
+/* 7. a vol stamped after the close: a bound, its time the close's last print at the latest */
+{
+  const stamp = at(17, 42);
+  const r = read(10, 0, 0.12);
+  const u4 = universeOf('SPY', day, { chains: [{ ...r, rows: r.rows.map(x => [x[0], x[1], x[2], stamp] as [string, number, number | null, number | null]) }], seed: null, total: null });
+  const c = modelColumn(u4, bar(11, 0, 600.2)).levels.find(l => l.strike === 600);
+  check('a vol stamped after the close is a bound at the session\'s last print, never the stamp', !!c && c.staleBound === true && c.staleSince === at(16, 15));
+  check('a vol with its own print time is not a bound', mid.levels.every(l => !l.staleBound));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

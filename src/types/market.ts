@@ -42,10 +42,13 @@ export interface GexLevel {
   strike: number;
   /* THE FIELD'S PROVENANCE (data/feed/trailField.ts, 2026-10-13) — a modeled cell on the feed: 'modeled' when at least
      half its gamma was priced on a vol read today, 'carried' when most of it stood on the session before's close vol;
-     `staleSince` the oldest trade (epoch ms) a vol it used came from; `coverage` the share priced on today's vols.
-     Absent on the house's own field and on a book read as it stood. */
+     `staleSince` the oldest trade (epoch ms) a vol it used came from — `staleBound` when that trade's own time is not
+     known and `staleSince` is the latest it can be (UW stamps a contract after the close with a batch time, not its
+     print's); `coverage` the share priced on today's vols. Absent on the house's own field and on a book read as it
+     stood. */
   prov?: 'modeled' | 'carried';
   staleSince?: number;
+  staleBound?: boolean;
   coverage?: number;
   /** Net GEX at this strike (summed across expiries), signed dollars */
   value: number;
