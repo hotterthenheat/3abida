@@ -8,7 +8,8 @@
   record's definitions — and the owner's acceptance on the sessions this machine has rebuilt:
   (i)   replaying the 10 sessions with the most flip crossings: no 15 minutes hold more than the cap of Tier-1 alerts,
         and no two alerts with one tag fall inside one cooldown (the same minute, or before price moved the re-arm
-        distance away); the alerts of each session by tier are printed
+        distance away); the alerts of each session by tier are printed (a new heavy strike is Tier 3 since the owner's
+        third rule of 2026-10-14: "Move 'new top-3' to Tier 3 (log only). Keep wall moves and flip crosses at Tier 2")
   (ii)  a 3-minute gap in the data drops a Tier-1 alert to Tier 2, said "stale"
   (iii) every alert old enough joins its +15 and +30 minute outcome
 */
@@ -71,7 +72,7 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
 {
   const e = new LevelAlertEngine('SPY', ['top3']);
   const ev = run(e, Array.from({ length: 8 }, () => 600), i => lv({ top: i < 2 ? [600, 605, 595] : [600, 610, 605] }));
-  check(`a strike entering the three heaviest and holding three minutes: Tier 2 (${ev.map(x => x.price).join(', ')})`, ev.length === 1 && ev[0].price === 610 && ev[0].tier === 2);
+  check(`a strike entering the three heaviest and holding three minutes: Tier 3, the log alone (${ev.map(x => `${x.price} T${x.tier}`).join(', ')})`, ev.length === 1 && ev[0].price === 610 && ev[0].tier === 3);
   const s = new LevelAlertEngine('SPY', ['sigma']);
   const evs = run(s, [600, 602, 604.1, 603, 601], () => lv({ sigma: { prevClose: 600, s: 2 } }));
   check(`±σ: +1σ at 602 and +2σ at 604 touched, each once (${evs.map(x => x.tag).join(', ')})`, evs.length === 2 && evs.every(x => x.tier === 2) && evs[0].tag === 'SPY-sigmaup1' && evs[1].tag === 'SPY-sigmaup2');
@@ -159,7 +160,7 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
       /* the session's alerts by tier (the owner, 2026-10-14: "report alerts per session by tier") */
       const n = (f: (x: LevelEvent) => boolean) => out.filter(f).length;
       table.push(
-        `  ${s.name} ${s.day}  crossings ${String(s.crossings).padStart(2)} · alerts ${String(out.length).padStart(3)} · tier 1 ${String(n(x => x.tier === 1)).padStart(2)} (wall touches) · tier 2 ${String(n(x => x.tier === 2)).padStart(3)} (flip crosses ${n(x => x.kind === 'flip-cross')}, wall moves ${n(x => x.kind === 'wall-move')}, new top-3 ${n(x => x.kind === 'new-top3')}, capped ${n(x => x.capped)}, stale ${n(x => x.stale)}) · tier 3 ${String(n(x => x.tier === 3)).padStart(2)}`
+        `  ${s.name} ${s.day}  crossings ${String(s.crossings).padStart(2)} · alerts ${String(out.length).padStart(3)} · tier 1 ${String(n(x => x.tier === 1)).padStart(2)} (wall touches) · tier 2 ${String(n(x => x.tier === 2)).padStart(3)} (flip crosses ${n(x => x.kind === 'flip-cross')}, wall moves ${n(x => x.kind === 'wall-move')}, capped ${n(x => x.capped)}, stale ${n(x => x.stale)}) · tier 3 ${String(n(x => x.tier === 3)).padStart(3)} (new top-3 ${n(x => x.kind === 'new-top3')}, wall re-keys ${n(x => x.kind === 'wall-rekey')})`
       );
       /* the cap: no 15 minutes hold more than three Tier-1 alerts */
       const t1 = out.filter(x => x.tier === 1).map(x => x.at).sort((a, b) => a - b);
@@ -215,7 +216,7 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
       }
       return `${n} minute${n === 1 ? '' : 's'}: ${crosses} (${(crosses / picked.length).toFixed(1)} a session)`;
     });
-    console.log('NOTE  the ten sessions, by tier (flip crosses at the default three closed minutes; Tier 1 is a wall touch alone):');
+    console.log('NOTE  the ten sessions, by tier (flip crosses at the default three closed minutes; Tier 1 a wall touch alone; a new heavy strike Tier 3, the log alone):');
     for (const l of table) console.log(l);
     console.log(`NOTE  flip crosses called, by confirmation minutes — ${byN.join('; ')}`);
     console.log(`NOTE  ${picked.length} sessions (${picked.map(s => `${s.name} ${s.day} ${s.crossings}`).join(', ')}), ${events} alerts: ${Object.entries(kinds).map(([k, n]) => `${k} ${n}`).join(', ')}`);

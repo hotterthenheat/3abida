@@ -983,9 +983,11 @@ level type's track record.
   picked follows the default). It was Tier 1 at one closed minute until 2026-10-14, when the replay below showed the
   flip as the loudest trigger by far and the owner moved it: "make a flip cross Tier 2 with 3 closed-minute
   confirmation (default)". Also a wall moving two strikes or more (once the new strike has held three minutes — the
-  field's wall-chip rule — and the watch follows it), a strike entering the three heaviest and holding three minutes,
-  a touch of ±1σ or ±2σ.
-- **Tier 3** (the log alone): a wall moving under two strikes.
+  field's wall-chip rule — and the watch follows it), and a touch of ±1σ or ±2σ.
+- **Tier 3** (the log alone): a strike entering the three heaviest and holding three minutes — **the log since the
+  owner's third rule of 2026-10-14** ("Tier 2 is too noisy: 371 in 10 sessions (up to 109/day), 178 of them 'new
+  top-3 strike'. Move 'new top-3' to Tier 3 (log only). Keep wall moves and flip crosses at Tier 2") — and a wall
+  moving under two strikes.
 - **Cooldown**: a level fires at most once a minute, and again only after price, in a later minute, has moved half a
   strike step away from where it stood. **The cap is global**: three Tier-1 alerts in 15 minutes across every name; a
   fourth drops to Tier 2, said "capped". **Stale**: inputs older than two minutes at the trigger drop Tier 1 to Tier 2,
@@ -1012,27 +1014,30 @@ Oct 5 with 10; the first run's ten, before AAPL's sessions were rebuilt, ran dow
 - (iii) every alert with half an hour of its session after it joined its +15 and +30 outcomes: 321 of 321.
 
 **The ten sessions by tier** (the owner, 2026-10-14: "Re-run the 10-session replay and report alerts per session by
-tier" — flip crosses at the default three closed minutes, Tier 1 a wall touch alone; "crossings" is the raw count of
-minutes the price changed sides of the flip, before any confirmation):
+tier", twice — after the flip moved to Tier 2, and again after the new heavy strike moved to Tier 3; flip crosses at
+the default three closed minutes, Tier 1 a wall touch alone; "crossings" is the raw count of minutes the price changed
+sides of the flip, before any confirmation):
 
-| Session | Crossings | Alerts | Tier 1 (wall touches) | Tier 2 | of which flip crosses · wall moves · new top-3 | Tier 3 |
-|---|---|---|---|---|---|---|
-| SPY Apr 2 2025 | 88 | 104 | 5 | 99 | 30 · 27 · 42 | 0 |
-| QQQ Apr 2 2025 | 69 | 109 | 0 | 109 | 19 · 32 · 58 | 0 |
-| QQQ Oct 1 2026 | 31 | 31 | 0 | 31 | 5 · 13 · 13 | 0 |
-| QQQ Sep 29 2026 | 30 | 26 | 0 | 26 | 5 · 7 · 14 | 0 |
-| AAPL Sep 29 2026 | 25 | 11 | 1 | 9 | 6 · 0 · 3 | 1 |
-| SPY Oct 13 2026 | 23 | 29 | 0 | 29 | 4 · 11 · 14 | 0 |
-| SPY Oct 1 2026 | 20 | 29 | 0 | 29 | 3 · 0 · 26 | 0 |
-| QQQ Oct 7 2026 | 13 | 12 | 0 | 12 | 4 · 5 · 3 | 0 |
-| SPY Oct 12 2026 | 12 | 12 | 0 | 12 | 1 · 9 · 2 | 0 |
-| AAPL Oct 5 2026 | 10 | 16 | 0 | 15 | 1 · 11 · 3 | 1 |
-| **All ten** | 321 | 379 | 6 | 371 | 78 · 115 · 178 | 2 |
+| Session | Crossings | Alerts | Tier 1 (wall touches) | Tier 2 | of which flip crosses · wall moves | Tier 3 | of which new top-3 · wall re-keys |
+|---|---|---|---|---|---|---|---|
+| SPY Apr 2 2025 | 88 | 104 | 5 | 57 | 30 · 27 | 42 | 42 · 0 |
+| QQQ Apr 2 2025 | 69 | 109 | 0 | 51 | 19 · 32 | 58 | 58 · 0 |
+| QQQ Oct 1 2026 | 31 | 31 | 0 | 18 | 5 · 13 | 13 | 13 · 0 |
+| QQQ Sep 29 2026 | 30 | 26 | 0 | 12 | 5 · 7 | 14 | 14 · 0 |
+| AAPL Sep 29 2026 | 25 | 11 | 1 | 6 | 6 · 0 | 4 | 3 · 1 |
+| SPY Oct 13 2026 | 23 | 29 | 0 | 15 | 4 · 11 | 14 | 14 · 0 |
+| SPY Oct 1 2026 | 20 | 29 | 0 | 3 | 3 · 0 | 26 | 26 · 0 |
+| QQQ Oct 7 2026 | 13 | 12 | 0 | 9 | 4 · 5 | 3 | 3 · 0 |
+| SPY Oct 12 2026 | 12 | 12 | 0 | 10 | 1 · 9 | 2 | 2 · 0 |
+| AAPL Oct 5 2026 | 10 | 16 | 0 | 12 | 1 · 11 | 4 | 3 · 1 |
+| **All ten** | 321 | 379 | 6 | 193 | 78 · 115 | 180 | 178 · 2 |
 
 None capped, none stale: the cap and the stale guard act on Tier 1, which is now six wall touches in ten of the
-busiest sessions. Flip crosses on the same sessions by confirmation minutes: 237 (23.7 a session) at one, 116 (11.6)
-at two, 78 (7.8) at three, the default. The first run (the earlier ten, one closed minute, the flip at Tier 1) had
-rung 145 Tier-1 alerts and capped 83 more — nearly all of them flip crosses; the replay is why the flip moved down.
+busiest sessions. Before the heavy strikes moved down, Tier 2 held 371 of the 379 (up to 109 a session), 178 of them a
+new heavy strike — the owner's reason: "Tier 2 is too noisy". Flip crosses on the same sessions by confirmation
+minutes: 237 (23.7 a session) at one, 116 (11.6) at two, 78 (7.8) at three, the default. The first run (the earlier
+ten, one closed minute, the flip at Tier 1) had rung 145 Tier-1 alerts and capped 83 more — nearly all of them flip
+crosses; the replay is why the flip moved down.
 
 **Shots** (the two events in them were written into the log by the check, to show the delivery):
 docs/next-builds-2026-10-13/level-alert-card.png (the right-click on +1σ), level-alert-chips.png, level-alert-drawer.png.

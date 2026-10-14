@@ -282,7 +282,7 @@ const Empty = ({ icon: Icon, children }: { icon: LucideIcon; children: React.Rea
 /* THE LEVELS (the owner's item 7): the levels each name's watch follows — set from Terrain's chart, a right-click on a
    level — and what they raised, by tier: 1 rang (the chime, the voice when it is on, the machine's notice while the tab
    is hidden — a wall touch alone since 2026-10-14), 2 showed as a chip (a flip cross after its closed minutes, a wall's
-   move, a new heavy strike, ±σ), 3 was written here alone */
+   move of two strikes or more, ±σ), 3 was written here alone (a new heavy strike, a wall's smaller move) */
 const TIER_INK: Record<1 | 2 | 3, string> = { 1: ALERT, 2: 'rgb(var(--silver))', 3: 'rgb(var(--text-muted))' };
 const LevelShelf = ({ pick, go }: { pick: string | null; go: (ticker: string, to: string) => void }) => {
   const watches = useLevelWatches();

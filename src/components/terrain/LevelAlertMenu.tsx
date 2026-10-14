@@ -122,7 +122,7 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
               : open.id === 'callWall' || open.id === 'putWall'
                 ? 'Rings when price touches the wall once it has stood 15 minutes; a move of two strikes or more is a notice'
                 : open.id === 'top3'
-                  ? 'A notice when a strike enters the three heaviest and holds'
+                  ? 'Written to the log when a strike enters the three heaviest and holds — no chime, no chip'
                   : 'A notice when price touches ±1σ or ±2σ',
             () => setLevelWatch(t, open.id, true),
             'level-alert-on'

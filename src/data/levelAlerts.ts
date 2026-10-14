@@ -30,7 +30,13 @@
   minutes in a row have closed beyond the flip (1 to 5,
   the reader's pick, 3 by default), and Tier 1 — the
   chime, the global cap and the stale guard — is a wall
-  touch alone.
+  touch alone. THE HEAVY STRIKES MOVED DOWN TOO (the
+  owner, the same day, of the replay's 371 Tier-2
+  notices in ten sessions, 178 of them a new top-3
+  strike: "Move 'new top-3' to Tier 3 (log only). Keep
+  wall moves and flip crosses at Tier 2"): a strike
+  entering the three heaviest is written to the log and
+  never shown as a chip.
 
   PURE: the shell's watcher (components/alerts/
   LevelAlertWatcher.tsx) and the proofs step the same
@@ -321,7 +327,8 @@ export class LevelAlertEngine {
       }
     }
 
-    /* THE THREE HEAVIEST: a strike that enters them and holds; one that leaves them is let go */
+    /* THE THREE HEAVIEST: a strike that enters them and holds — the log alone (Tier 3; the owner, 2026-10-14: "Move
+       'new top-3' to Tier 3 (log only)"); one that leaves them is let go */
     if (lv.top.length) {
       const top3 = lv.top.slice(0, 3);
       if (this.top == null) this.top = [...top3];
@@ -341,7 +348,7 @@ export class LevelAlertEngine {
           this.topCand.delete(k);
           const key = `top3:${fmt(k)}`;
           if (this.watch.has('top3') && free(key))
-            emit(key, { tag: tagOf(t, 'top3'), tier: 2, level: 'top3', kind: 'new-top3', price: k, spot: bar.close, words: `${t}: ${fmt(k)} is among the three heaviest strikes now` });
+            emit(key, { tag: tagOf(t, 'top3'), tier: 3, level: 'top3', kind: 'new-top3', price: k, spot: bar.close, words: `${t}: ${fmt(k)} is among the three heaviest strikes now` });
         }
       }
     }

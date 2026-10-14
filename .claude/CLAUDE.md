@@ -936,8 +936,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   owner, 2026-10-14, after the ten-session replay showed the flip the loudest trigger by far: "make a flip cross Tier 2
   with 3 closed-minute confirmation (default). Tier 1 = wall touches only"). Tier 2 (chip): THE FLIP CROSSED and N closed
   minutes beyond — DEFAULT 3 since 2026-10-14 (1 to 5, the reader's pick; a watch that never picked follows the default,
-  LevelWatch `chosen`), a wall moving ≥ 2 strikes once held three minutes, a new top-3 strike held three minutes,
-  ±1σ/±2σ touched. Tier 3 (log): a wall moving under two strikes. Once a minute a level; re-armed after
+  LevelWatch `chosen`), a wall moving ≥ 2 strikes once held three minutes, ±1σ/±2σ touched. Tier 3 (log): a new top-3
+  strike held three minutes (the owner's third rule the same day — "Tier 2 is too noisy … Move 'new top-3' to Tier 3
+  (log only). Keep wall moves and flip crosses at Tier 2"), a wall moving under two strikes. Once a minute a level; re-armed after
   half a strike away in a later minute; three Tier-1 in 15 minutes across every name (global), the rest "capped"; inputs
   over two minutes old drop Tier 1 to Tier 2 "stale". Outcomes at +15/+30 on the track record's rules (How sure). A
   replay writes to its own log. Never a trade call in the words.
