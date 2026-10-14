@@ -1,4 +1,4 @@
-import { coneOf, readoutOf, readoutWords, SESSION_MINUTES } from '../../data/feed/pricedMove';
+import { coneOf, readoutOf, readoutWords, remLine, SESSION_MINUTES, sigmaRemOf } from '../../data/feed/pricedMove';
 import { alpha } from './paletteInk';
 import { netOf, ordinal, regimeBucketOf, regimeBucketsFor, regimePercentile, type RegimeReference } from '../../data/feed/trailModel';
 import { nyMinuteOf } from '../../data/feed/trackRecord';
@@ -2673,8 +2673,10 @@ const StrikeChart = ({
       if (!cur || snap.time >= cur.at) byBar.set(t, { net: netOf(snap.levels), at: snap.time });
     }
     const el = boxElRef.current ?? undefined;
-    const callInk = readToken('--bull', undefined, el);
-    const putInk = readToken('--bear', undefined, el);
+    /* THE GAMMA PAIR, as everywhere gamma is drawn (the owner, 2026-10-14: "Puts/calls use the existing ember-gold /
+       glacier-ice tokens everywhere gamma appears, including the regime strip (replace its bull/bear red/green)") */
+    const callInk = readToken('--glacier', undefined, el);
+    const putInk = readToken('--ember', undefined, el);
     const bars = [...byBar.entries()].sort((a, b) => a[0] - b[0]);
     let lastPct: number | null = null;
     let lastNet: number | null = null;
@@ -2708,7 +2710,9 @@ const StrikeChart = ({
     const atNow: number | null = lastAt;
     if (netNow == null) setRegimeWords('');
     else {
-      const sign = netNow < 0 ? 'negative' : 'positive';
+      /* the meaning, never the bare sign (the owner, 2026-10-14: "Labels say the meaning, not the bare sign ('calls absorb
+         −$2.1B')") — in the house's sign a negative net is the calls' */
+      const sign = `${netNow < 0 ? 'calls absorb' : 'puts amplify'} ${usdCompactSigned(netNow)}`;
       /* the sessions the percentile stands on — a dozen is not 250, and the chip says so */
       const refSessions = regimeRef ? (today === regimeRef.through ? Math.max(0, regimeRef.sessions - 1) : regimeRef.sessions) : 0;
       const pctWords = (pctNow == null ? (buckets ? 'no reference for this half-hour' : 'no reference yet') : `${ordinal(pctNow)} pct of ${refSessions} session${refSessions === 1 ? '' : 's'}`) + (newestOutside && atNow != null ? ` at the ${readerClock(atNow * 1000)} bar` : '');
@@ -3620,12 +3624,15 @@ const StrikeChart = ({
       const lastBar = bars[bars.length - 1];
       if (first) {
         const now = Math.max(0, Math.min(SESSION_MINUTES, nyMinuteOf(lastBar.time * 1000) + mins - (9 * 60 + 30)));
-        const cone = pricedMove.rem && now < SESSION_MINUTES ? coneOf(pricedMove.rem.sigma, now, pricedMove.profile, Math.max(1, mins)) : [];
         /* after the close the move is the session's own, close to close as the budget is: its official close once the
            vendor has it (the 3:59 pm bar is not the close), the last regular bar's until then — never the evening's */
         const lastReg = now >= SESSION_MINUTES ? [...bars].reverse().find(b => nyIsoDateOf(b.time * 1000) === today && nyMinuteOf(b.time * 1000) < 16 * 60) : undefined;
         const r = readoutOf(lastReg ? (pricedMove.close ?? lastReg.close) : lastBar.close, pricedMove.prevClose, pricedMove.sigma, now, pricedMove.profile);
-        const remWords = pricedMove.rem && now < SESSION_MINUTES ? ` · left to the close ±${pricedMove.rem.sigma.toFixed(2)} (${pricedMove.rem.src === 'nbbo' ? 'quotes' : 'model'})` : '';
+        /* ONE σ_remaining (the owner, 2026-10-14): the live straddle's, else the budget's leftover said as the budget's —
+           the cone spreads that one, and the readout names it */
+        const sr = now < SESSION_MINUTES ? sigmaRemOf(pricedMove.rem, pricedMove.sigma, r?.used ?? null) : null;
+        const cone = sr ? coneOf(sr.sigma, now, pricedMove.profile, Math.max(1, mins)) : [];
+        const remWords = sr ? ` · ${remLine(sr)}` : '';
         prim.setData({
           kind: 'priced',
           barTimes: bars.map(b => b.time),

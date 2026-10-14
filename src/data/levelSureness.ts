@@ -61,8 +61,10 @@ export interface Sureness {
   /** The track record (data/feed/trackRecord.ts, the owner's item 2): one line a level type, scored against the
       strike-matched baseline, and the hold-out's standing — Terrain's How sure alone */
   record?: { lines: string[]; note: string; scope: string };
-  /** The priced move's calibration (data/feed/pricedMove.ts, the owner's item 4): its lines, beside theory */
-  move?: { lines: string[] };
+  /** THE PRICED MOVE (data/feed/pricedMove.ts, the owner's item 4 and the UI pass of 2026-10-14): `lines` are the
+      box's two — "Market now ±$X to the close" (the straddle) and "Budget left ±$Y" (σ_day × √(1 − used)), each its own
+      number; `calibration` the rates beside theory (never in a replay) */
+  move?: { lines: string[]; calibration?: string[] };
   /** The level alerts today (the owner's item 7): each with its +15 and +30 minute outcome */
   alerts?: { lines: string[] };
   /** The expiry window (the owner's item 6): the header's badge, and what the field and the ladder read in it */

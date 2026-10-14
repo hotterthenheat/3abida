@@ -16,6 +16,7 @@ import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } fr
 import { pickFlip, pickWalls } from '../../core/walls';
 import { useFeedPrice } from '../../data/feed/price';
 import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes } from '../../core/nyTime';
+import { remLines, SESSION_MINUTES, shareBetween, sigmaRemOf, type SigmaRem } from '../../data/feed/pricedMove';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { expiryFor } from '../../core/calendar';
@@ -1463,7 +1464,27 @@ const Pane = ({
         : undefined,
     [fRecord]
   );
-  const moveSure = useMemo(() => (fMove?.calibration?.length ? { lines: fMove.calibration } : undefined), [fMove?.calibration]);
+  /* ONE σ_remaining FOR THE PANE (the owner, 2026-10-14): the live straddle's 1σ to the close — in a replay the one read
+     at the cursor — else the budget's leftover σ_day × √(1 − used), said as the budget's. The strip's distances, the axis
+     chips, the ladder's σ column and the hover cards all read this one; null once the session is over. */
+  const moveNow = rp.active ? rpMove : fMove;
+  const moveAt = rp.active ? (rp.frame?.bar ? rp.frame.bar.time * 1000 + 60_000 : null) : Date.now();
+  const sessionMinute = moveAt == null ? null : Math.max(0, Math.min(SESSION_MINUTES, nyMinutes(moveAt) - (9 * 60 + 30)));
+  const sigmaRem = useMemo<SigmaRem | null>(() => {
+    if (!onFeed || !moveNow || sessionMinute == null || sessionMinute >= SESSION_MINUTES) return null;
+    return sigmaRemOf(moveNow.rem, moveNow.sigma, shareBetween(moveNow.profile, 0, sessionMinute));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFeed, moveNow, sessionMinute, revision]);
+  /* THE PRICED MOVE BOX'S LINES in How sure: the straddle's and the budget's, two numbers, never one — the calibration
+     under them live (a replay stands on sessions before its moment: no calibration there) */
+  const moveSure = useMemo(() => {
+    if (!onFeed || !moveNow || sessionMinute == null) return undefined;
+    const over = sessionMinute >= SESSION_MINUTES;
+    const lines = over ? ['The session is over: nothing left to the close.'] : remLines(moveNow.rem, moveNow.sigma, shareBetween(moveNow.profile, 0, sessionMinute), ms => printClock(ms));
+    return { lines, ...(!rp.active && moveNow.calibration?.length ? { calibration: moveNow.calibration } : {}) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFeed, moveNow, sessionMinute, rp.active, revision]);
+  void sigmaRem;
   /* THE LEVELS A RIGHT-CLICK CAN FOLLOW (item 7): the book's walls and flip, and its three heaviest strikes */
   const axisLevels = useMemo(() => {
     const fin = (v: number) => (Number.isFinite(v) && v > 0 ? v : null);
@@ -1540,7 +1561,7 @@ const Pane = ({
   const railSure = useMemo(
     () =>
       replaySure
-        ? rail.sure.map(x => ({ ...x, freshness: replaySure.source, ...(windowSure ? { window: windowSure } : {}), ...(driftSure ? { drift: driftSure } : {}), replay: { badge: replaySure.badge, lines: replaySure.lines } }))
+        ? rail.sure.map(x => ({ ...x, freshness: replaySure.source, ...(windowSure ? { window: windowSure } : {}), ...(moveSure ? { move: { lines: moveSure.lines } } : {}), ...(driftSure ? { drift: driftSure } : {}), replay: { badge: replaySure.badge, lines: replaySure.lines } }))
         : ((onFeed && (fieldLine || recordSure || moveSure || windowSure || driftSure)) || alertSure) && rail.sure
           ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(onFeed && driftSure ? { drift: driftSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
           : rail.sure,

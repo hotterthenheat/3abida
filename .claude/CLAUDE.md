@@ -982,6 +982,22 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   unvalidated" — live off the newest column, in a replay off the cursor's. Never a forecast, never more space than that
   until the track record earns it. scripts/charm-drift-proof.ts (full repricing of every contract, gap 0) runs in
   `npm test`.
+- THE TERRAIN UI PASS (2026-10-14 — the owner's prompt: "a trader answers five questions in under 2 seconds without
+  hovering: regime, nearest levels, how much of the priced move is used, the level's track record, and data age"; the
+  decisions after the code was read, docs/terrain-ui-2026-10-14/README.md). ONE σ_remaining: THE LIVE STRADDLE's 1σ to
+  the close (pricedMove `sigmaRemOf` — the store's shown rows' straddle, in a replay the cursor's; the strip's distances,
+  the axis chips, the ladder's σ column, the hover cards and the cone all read it); the formula σ_day × √(1 − used)
+  (`budgetLeftOf`) stands in ONLY where no straddle has been read, said as the budget's; the Priced move box prints both
+  as two lines (`remLines`: "Market now ±$X to the close", "Budget left ±$Y") — NEVER ONE NUMBER MADE FROM BOTH. THE
+  GAMMA PAIR IS EMBER/GLACIER EVERYWHERE gamma is drawn, the regime strip included (its bars were bull/bear); candles keep
+  bull/bear, magenta stays the supreme's, the flip its own; no new hex values. A LABEL SAYS THE MEANING, never the bare
+  sign ("calls absorb −$2.1B", never "negative" — in the house's sign a negative net is the calls'). THE KEYS stay the
+  house's (P replay, R rail, 1–4 chart count, [ ] walk charts, G go-to, J/K rows) plus T jump to date, W cycle the
+  expiry window, L the legend. Bead density: non-level strikes dim to ~25% past one session on screen, walls, flip and
+  the heaviest full at any zoom, every strike still drawn. The drawing toolbar shows on hover, on focus-within and
+  always on a coarse pointer. The ladder has a Net / Sides toggle, Net by default. The phone keeps the shell's top
+  strip. On 1D a bar's cell stays its peak minute; the day panel shows the modeled close column with UW's end-of-day
+  book beside it. The coverage bar, blocked ranges and year-long speed budgets wait for the Theta task's Phase 1.
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

@@ -27,7 +27,14 @@
   THE REMAINING MOVE is the live straddle on today's
   expiry (the NBBO mids at a chain read, the model's price
   between — labelled), t to the close, never mixed with
-  the day's budget in one number.
+  the day's budget in one number. IT IS THE ONE σ_remaining
+  (the owner, 2026-10-14, the Terrain UI pass: "σ_remaining
+  = the store's live straddle … Use it in the strip
+  distances, axis chips, ladder σ column, hover cards and
+  the cone. The formula σ_day × √(1 − used) is a fallback
+  only when no straddle exists, labelled 'budget' when
+  used … Never one number made from both"): sigmaRemOf
+  below, and the Priced move box's two lines, remLines.
 
   THE CONE spreads the remaining variance over the minutes
   left by a TIME-OF-DAY PROFILE — the mean squared 1-minute
@@ -45,6 +52,7 @@
   provisional under 60 sessions.
 ==================================================
 */
+import { usd } from '../../core/format';
 
 /** The regular session's minutes */
 export const SESSION_MINUTES = 390;
@@ -160,6 +168,50 @@ export function readoutWords(r: Readout | null): string {
   const shown = Math.abs(r.sigmas).toFixed(1);
   const sign = Number(shown) === 0 ? '' : r.sigmas > 0 ? '+' : '−';
   return `${sign}${shown}σ · ${Math.round(r.used * 100)}% of the day's variance used${r.pace != null ? ` · pace ${r.pace.toFixed(1)}×` : ''}`;
+}
+
+/* ---- THE ONE σ_remaining (the owner, 2026-10-14) ----------------------------------------------------------------- */
+
+export interface SigmaRem {
+  /** Dollars of 1σ left to the close */
+  sigma: number;
+  /** 'straddle': the live straddle's (the owner's Oct 13 rule); 'budget': σ_day × √(1 − used), standing in only where no
+      straddle has been read, and said so */
+  src: 'straddle' | 'budget';
+  /** The straddle's own source and minute, where it is one */
+  from?: 'nbbo' | 'model';
+  at?: number;
+}
+/** THE BUDGET'S LEFTOVER: σ_day × √(1 − the share of the session's variance the profile puts before now) — the fallback,
+    and the Priced move box's second line; never added to or averaged with the straddle's */
+export const budgetLeftOf = (sigmaDay: number, used: number): number => (sigmaDay > 0 && Number.isFinite(used) ? sigmaDay * Math.sqrt(Math.max(0, 1 - Math.min(1, used))) : NaN);
+/** The one σ_remaining every distance reads: the straddle's where one stands, else the budget's leftover; null with
+    neither (the session over, or nothing priced) */
+export function sigmaRemOf(rem: { sigma: number; src: 'nbbo' | 'model'; at: number } | null | undefined, sigmaDay: number, used: number | null): SigmaRem | null {
+  if (rem && rem.sigma > 0) return { sigma: rem.sigma, src: 'straddle', from: rem.src, at: rem.at };
+  if (used != null && sigmaDay > 0) {
+    const b = budgetLeftOf(sigmaDay, used);
+    return b > 0 ? { sigma: b, src: 'budget' } : null;
+  }
+  return null;
+}
+/** A level's distance from the price in σ_remaining — signed, the level's side; null without one */
+export const sigmasAway = (level: number, price: number, rem: SigmaRem | null | undefined): number | null => (rem && rem.sigma > 0 && Number.isFinite(level) && Number.isFinite(price) ? (level - price) / rem.sigma : null);
+/** the house's own dollars (core/format): "$1,234.56" — never a formatter of this module's */
+const dollars = (v: number): string => usd(v);
+/** The chart readout's own line for the σ it draws the cone from */
+export const remLine = (sr: SigmaRem): string => (sr.src === 'straddle' ? `market now ±${dollars(sr.sigma)} to the close (${sr.from === 'nbbo' ? 'quotes' : 'the model'})` : `budget left ±${dollars(sr.sigma)} (no straddle read)`);
+/** THE PRICED MOVE BOX'S TWO LINES — "Market now ±$X to the close" (the straddle) and "Budget left ±$Y" (the formula),
+    each its own number, never one made from both. `at` prints the straddle's minute on the reader's clock. */
+export function remLines(rem: { sigma: number; src: 'nbbo' | 'model'; at: number } | null | undefined, sigmaDay: number, used: number | null, at?: (ms: number) => string): string[] {
+  const out: string[] = [];
+  if (rem && rem.sigma > 0) out.push(`Market now ±${dollars(rem.sigma)} to the close — the straddle on today's expiry (${rem.src === 'nbbo' ? 'quotes' : 'the model'}${at ? `, ${at(rem.at)}` : ''})`);
+  else out.push('Market now: no straddle read for today’s expiry yet');
+  if (used != null && sigmaDay > 0) {
+    const b = budgetLeftOf(sigmaDay, used);
+    if (Number.isFinite(b)) out.push(`Budget left ±${dollars(b)} — σ_day ${dollars(sigmaDay)} × √(1 − ${Math.round(Math.min(1, used) * 100)}% of the day’s variance used)`);
+  }
+  return out;
 }
 
 /* ---- the calibration -------------------------------------------------------------------------------------------- */

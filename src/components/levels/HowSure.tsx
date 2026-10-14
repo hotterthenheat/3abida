@@ -191,14 +191,26 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
         )}
         {first.move && (
           <div data-how-sure-move>
-            <p className="text-[11px] text-textMuted">Expected move · calibration</p>
+            <p className="text-[11px] text-textMuted">Priced move · σ to the close</p>
             <ul className="flex flex-col gap-1">
               {first.move.lines.map(l => (
-                <li key={l} className="text-textSecondary">
+                <li key={l} className="text-textSecondary tnum">
                   {l}
                 </li>
               ))}
             </ul>
+            {first.move.calibration && first.move.calibration.length > 0 && (
+              <>
+                <p className="text-[11px] text-textMuted mt-1">Calibration</p>
+                <ul className="flex flex-col gap-1">
+                  {first.move.calibration.map(l => (
+                    <li key={l} className="text-textSecondary">
+                      {l}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         )}
         <div>
