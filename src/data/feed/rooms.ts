@@ -19,7 +19,7 @@
   To move a
   room, set its `wired` to true and have its pages read
   `useRoomSource('<room>')` — 'feed' means read
-  data/feed/uw.ts and massive.ts, 'stand-in' means read
+  data/feed/uw.ts and theta.ts, 'stand-in' means read
   what the room reads today.
 
   `needs` is what the room would read; Settings › Data
@@ -53,12 +53,14 @@ export const ROOM_FEEDS: Record<FeedRoom, RoomFeed> = {
   pulse: { name: 'Pulse', needs: ['uw'], reads: 'Market tide, net premium, flow alerts and prices', wired: false },
   terrain: { name: 'Terrain', needs: ['uw'], reads: 'Exposure by strike and by expiry; the minute bars of the last four sessions', wired: true },
   trace: { name: 'Trace', needs: ['uw'], reads: 'The option tape, the day per contract, flow alerts, multi-leg orders, dark pool prints, net premium and Market Tide', wired: true },
-  dossier: { name: 'Dossier', needs: ['uw', 'massive'], reads: 'Congress and insider filings, earnings, the wire and prices; the company record', wired: true },
+  /* the company record is Unusual Whales' own since 2026-10-14 (Massive's before): the Dossier needs it alone */
+  dossier: { name: 'Dossier', needs: ['uw'], reads: 'Congress and insider filings, earnings, the wire and prices; the company record', wired: true },
   pinpoint: { name: 'Pinpoint', needs: ['uw'], reads: 'Exposure by strike and by expiry, open interest by strike, max pain, the implied move and the book through the day', wired: true },
-  compass: { name: 'Compass', needs: ['uw', 'massive'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
-  weigher: { name: 'Weigher', needs: ['uw', 'massive'], reads: "The name's price; the listed contracts and their bars", wired: false },
-  /* THE BACKTEST'S REAL DAYS (2026-10-12, data/feed/backtest.ts): Massive alone — the record of a past session */
-  backtest: { name: 'Backtest', needs: ['massive'], reads: "Real past sessions: a name's minute bars, the contracts listed that day and each opened contract's own trades", wired: true },
+  compass: { name: 'Compass', needs: ['uw', 'theta'], reads: 'Flow alerts and prices; the listed contracts', wired: false },
+  weigher: { name: 'Weigher', needs: ['uw', 'theta'], reads: "The name's price; the listed contracts and their bars", wired: false },
+  /* THE BACKTEST'S REAL DAYS (2026-10-12, data/feed/backtest.ts): Theta Data alone (Massive's until 2026-10-14) — the
+     record of a past session */
+  backtest: { name: 'Backtest', needs: ['theta'], reads: "Real past sessions: a name's minute bars, the contracts that quoted that day and each opened contract's own trades", wired: true },
 };
 
 export const FEED_ROOMS = Object.keys(ROOM_FEEDS) as FeedRoom[];

@@ -40,7 +40,7 @@ const ContractDrill = ({ contract, quote: q, day: d }: { contract: ContractId; q
         <Stat label="Last trade" value={or(d.last, v => `$${v.toFixed(2)}`)} why={noTrade} />
         <Stat label="Prev close" value={or(d.prevClose, v => `$${v.toFixed(2)}`)} why="No trade in it on the session before, on the record this session holds" />
         <Stat label="Volume" term="Volume" value={or(d.volume, count)} why={noTrade} />
-        <Stat label="Open interest" term="Open interest" value={or(d.oi, count)} why="Not in the record — Massive's minute bars carry trades, not open interest" />
+        <Stat label="Open interest" term="Open interest" value={or(d.oi, count)} why="Not in the record — the contract's own trades carry no open interest" />
         <Stat label="IV" term="IV" value={or(q.iv, v => `${est}${(v * 100).toFixed(2)}%`)} />
         <Stat label="Breakeven" term="Breakeven" value={or(d.breakeven, v => `$${v.toFixed(2)}`)} />
         <Stat label="Name must move" value={or(d.toBreakevenPct, v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`)} ink={d.toBreakevenPct >= 0 ? 'text-bull' : 'text-bear'} />

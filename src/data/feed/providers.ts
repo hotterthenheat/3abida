@@ -30,6 +30,22 @@ export const PROVIDER_INFO: Record<FeedProvider, ProviderInfo> = {
     ],
     leavesOut: ["SPX's market-maker exposure by the minute", 'Streaming (every room asks on a timer)', 'The premium routes', 'CME futures'],
   },
+  theta: {
+    name: 'Theta Data',
+    plan: 'Professional — stocks, options and indices, through the Theta Terminal on this machine',
+    carries: [
+      "A name's minute bars, the consolidated tape with extended hours — a month a call",
+      'Day bars, years back (its own end-of-day report)',
+      'Every contract that quoted on a date, and each contract’s own trades',
+      'Index values (SPX, VIX, NDX)',
+      'Greeks, implied volatility and open interest by contract',
+    ],
+    leavesOut: [
+      'Company records',
+      'Anything while the Theta Terminal is not running on this machine (npm run theta:terminal)',
+      'The consolidated tape in real time (fifteen minutes late; Nasdaq Basic is real time)',
+    ],
+  },
   massive: {
     name: 'Massive',
     plan: 'Basic — Stocks, Options, Indices, Currencies',

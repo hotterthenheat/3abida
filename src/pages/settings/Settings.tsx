@@ -979,6 +979,7 @@ const SOURCE_WORDS: Record<ProviderState, (s: ProviderStatus) => [string, string
   rate: s => ['Asked to wait', `Too many calls (${s.status || 429}) — the server queues them; check again in a minute`],
   upstream: s => ['Vendor error', `The vendor answered ${s.status || 'with an error'}`],
   absent: () => ['No server', 'This page was opened without the terminal’s own server, which holds the keys — open it with npm run dev'],
+  'no-terminal': () => ['Terminal not running', 'The Theta Terminal on this machine is not running or not signed in — start it with npm run theta:terminal'],
 };
 
 const SourceBlock = ({ p }: { p: FeedProvider }) => {
@@ -1049,7 +1050,7 @@ const SourcesBox = () => {
     <Section
       id="sources"
       title="Data sources"
-      line="The two vendors behind the market data — whether each answers, what its plan carries, and the rooms that read it"
+      line="The vendors behind the market data — whether each answers, what its plan carries, and the rooms that read it"
       aside={
         <Door onClick={() => probeFeeds()} title="Ask each vendor again through the terminal's server" testId="sources-check">
           Check again
@@ -1057,12 +1058,13 @@ const SourcesBox = () => {
       }
     >
       <SourceBlock p="uw" />
-      <SourceBlock p="massive" />
+      {/* Theta Data in Massive's place (2026-10-14 — the owner: "you can disable the massive ones and use this one") */}
+      <SourceBlock p="theta" />
       <Row name="All or nothing, a room at a time" line="A room reads the vendors only when every one it needs is connected — never one vendor's figures beside the terminal's own on one screen" testId="sources-rooms" />
       <div className="px-5 py-3 border-t border-borderSubtle/60" data-settings-row="sources-connect">
         <div className="text-[12px] text-textPrimary">To connect</div>
         <p className="mt-0.5 text-[11px] text-textMuted">
-          Add <Code>UW_API_TOKEN</Code> and <Code>MASSIVE_API_KEY</Code> to the <Code>.env</Code> at the repo root, then restart <Code>npm run dev</Code>. <Code>npm run feed:check</Code> says whether they work. The keys stay on this machine’s server: the page never sees them.
+          Add <Code>UW_API_TOKEN</Code> and <Code>THETADATA_API_KEY</Code> to the <Code>.env</Code> at the repo root, start the Theta Terminal with <Code>npm run theta:terminal</Code> (it needs Java 21), then restart <Code>npm run dev</Code>. <Code>npm run feed:check</Code> says whether they work. The keys stay on this machine: the page never sees them.
         </p>
       </div>
     </Section>

@@ -37,7 +37,7 @@
   the vendors (data/feed/rooms.ts), the next report and
   the last eight are UW's record of the name — the
   estimate, the actual, the session's move after each
-  — the price is UW's, the company's name Massive's,
+  — the price is UW's, the company's name UW's /info,
   and the insiders and Congress rows are filed rows
   (data/feed/dossier.ts). The usual move, the pricing
   and the beat count are worked from those rows; the
@@ -286,7 +286,7 @@ const EarningsName = () => {
   /* ALL OR NOTHING (data/feed/rooms.ts): UW's record of the name when the Dossier reads the feed, else the house's */
   const fromFeed = useDossierFeed();
   const fedName = useFeedEarningsFor(fromFeed, T);
-  /* the company's name, asked of Massive only for a name the record knows */
+  /* the company's name (UW's record of the company), asked only for a name the record knows */
   const fedRecord = useFeedNameRecord(fromFeed && !!fedName?.ok && fedName.data.rows > 0, T);
   const fedInsiders = useFeedInsidersFor(fromFeed, T);
   const fedDay = useFeedStockDays(fromFeed, [T]);
@@ -299,7 +299,7 @@ const EarningsName = () => {
     if (!raw) return null;
     /* the page's every figure the answers carry: the priced move, the IV rank, the record's odds, the busiest contracts */
     const d = fillDossier(raw, fedDay?.get(T), fedRows?.rows ?? []);
-    /* the company's name as Massive files it (the earnings rows carry none for one name) */
+    /* the company's name as Unusual Whales keeps it (the earnings rows carry none for one name) */
     const name = fedRecord?.ok && fedRecord.data.details?.name ? fedRecord.data.details.name : d.event.name;
     return { ...d, event: { ...d.event, name } };
   }, [fromFeed, houseDossier, fedName, fedRecord, fedDay, fedRows, T]);

@@ -26,6 +26,8 @@ build/
 
 # Local env files
 .env
+# The Theta Terminal: its program, its config and its logs (scripts/theta-terminal.mjs)
+.theta/
 .env.local
 .env.development.local
 .env.test.local

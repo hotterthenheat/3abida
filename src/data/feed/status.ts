@@ -29,6 +29,7 @@ export type ProviderState =
   | 'plan' // 403
   | 'rate' // 429
   | 'upstream' // another error from the vendor
+  | 'no-terminal' // Theta Data: the Theta Terminal on this machine is not running, or not signed in
   | 'absent'; // no proxy here (the terminal served without its dev server)
 
 export interface ProviderStatus {
@@ -44,7 +45,7 @@ export interface ProviderStatus {
 export type FeedStatus = Record<FeedProvider, ProviderStatus>;
 
 const blank = (): ProviderStatus => ({ state: 'unknown', key: false, status: 0, at: 0 });
-let state: FeedStatus = { uw: blank(), massive: blank() };
+let state: FeedStatus = { uw: blank(), massive: blank(), theta: blank() };
 const fns = new Set<() => void>();
 const publish = (next: FeedStatus) => {
   state = next;
@@ -63,7 +64,7 @@ export const subscribeFeedStatus = (fn: () => void): (() => void) => subscribe(f
 /** Is a vendor reachable */
 export const isUp = (s: FeedStatus, p: FeedProvider): boolean => s[p].state === 'ok';
 
-const STATES = new Set<ProviderState>(['ok', 'no-key', 'network', 'timeout', 'key-refused', 'plan', 'rate', 'upstream']);
+const STATES = new Set<ProviderState>(['ok', 'no-key', 'network', 'timeout', 'key-refused', 'plan', 'rate', 'upstream', 'no-terminal']);
 const readOne = (v: unknown): ProviderStatus => {
   const o = (v ?? {}) as { state?: unknown; key?: unknown; status?: unknown; at?: unknown };
   const st = typeof o.state === 'string' && STATES.has(o.state as ProviderState) ? (o.state as ProviderState) : 'upstream';
@@ -81,10 +82,10 @@ export function probeFeeds(): Promise<FeedStatus> {
       const res = await fetch('/feed/status', { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
       if (!res.ok || !(res.headers.get('content-type') ?? '').includes('json')) throw new Error('absent');
       const body = (await res.json()) as Record<string, unknown>;
-      next = { uw: readOne(body.uw), massive: readOne(body.massive) };
+      next = { uw: readOne(body.uw), massive: readOne(body.massive), theta: readOne(body.theta) };
     } catch {
       const now = Date.now();
-      next = { uw: { ...blank(), state: 'absent', at: now }, massive: { ...blank(), state: 'absent', at: now } };
+      next = { uw: { ...blank(), state: 'absent', at: now }, massive: { ...blank(), state: 'absent', at: now }, theta: { ...blank(), state: 'absent', at: now } };
     }
     publish(next);
     return next;
@@ -104,7 +105,7 @@ export function startFeedProbe(): () => void {
   void probeFeeds();
   const onShow = () => {
     if (document.visibilityState !== 'visible') return;
-    const last = Math.max(state.uw.at, state.massive.at);
+    const last = Math.max(state.uw.at, state.massive.at, state.theta.at);
     if (Date.now() - last > STALE_MS) void probeFeeds();
   };
   document.addEventListener('visibilitychange', onShow);

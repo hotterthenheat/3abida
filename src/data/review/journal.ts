@@ -118,7 +118,7 @@ export const dayMinOf = (r: JournalRow): number => (r.paper ? 1440 : 390);
 /** A backtest trade made on real days (the market's own record, data/review/market.ts) — the journal says so beside it */
 export const onRecord = (r: JournalRow): boolean => !r.paper && r.s.src === 'feed';
 export const RECORD_WORDS = 'Real days';
-export const RECORD_TITLE = 'Made on the market’s own record from Massive — the name’s minutes and the contract’s own trades';
+export const RECORD_TITLE = 'Made on the market’s own record — the name’s minutes and the contract’s own trades';
 /** The name it was a trade IN */
 export const nameOf = (r: JournalRow): string => r.t.contract.ticker;
 /** What it is called in a sentence: "SPY 518C Jul 2" */

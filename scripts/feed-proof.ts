@@ -87,6 +87,53 @@ check('open interest, max pain and the implied moves are kept ten minutes', ['oi
   globalThis.fetch = realFetch;
 }
 
+/* THETA DATA THROUGH ITS TERMINAL (2026-10-14): the key never on a request — the terminal on this machine holds it; every
+   answer JSON { rows }; "no data" an answer with no rows; a terminal not running "no-terminal", never a refused key; a
+   contract's minutes folded from its own trades, each minute's own volume-weighted average */
+{
+  const realFetch = globalThis.fetch;
+  const key = 'td1_prod_' + '0123456789abcdef'.repeat(2);
+  let sent = '';
+  let headers: Record<string, string> = {};
+  globalThis.fetch = (async (u: URL, init?: { headers?: Record<string, string> }) => {
+    sent = String(u);
+    headers = init?.headers ?? {};
+    return new Response('{"open":1,"high":2,"low":0.5,"close":1.5,"volume":10,"timestamp":"2026-10-13T09:30:00.000"}\n{"open":1.5,"high":1.6,"low":1.4,"close":1.6,"volume":4,"timestamp":"2026-10-13T09:31:00.000"}\n', { status: 200 });
+  }) as typeof fetch;
+  const c = createFeedClient({ keys: { theta: key } });
+  const a = await c.get('theta', '/v3/stock/history/ohlc?symbol=SPY&date=20261013&interval=1m');
+  check('Theta Data: the request goes to the terminal on this machine, asked as NDJSON, and carries no key — not in the address, not in a header', sent.startsWith('http://127.0.0.1:25503/v3/stock/history/ohlc?') && sent.includes('format=ndjson') && !sent.includes(key) && !JSON.stringify(headers).includes(key) && !/apikey|authorization/i.test(sent + JSON.stringify(headers)));
+  check('Theta Data: the terminal\'s lines come back as JSON { rows }, its field names as they are', a.status === 200 && a.contentType === 'application/json' && JSON.parse(a.body).rows.length === 2 && JSON.parse(a.body).rows[1].close === 1.6);
+  check('Theta Data: a path outside its API is refused', (await c.get('theta', '/v2/hist/stock/eod')).status === 400 && (await c.get('theta', '/v3/../x')).status === 400);
+  globalThis.fetch = (async () => new Response('No data for the specified timeframe', { status: 472 })) as typeof fetch;
+  const nd = await createFeedClient({ keys: { theta: key } }).get('theta', '/v3/option/history/ohlc?symbol=SPY&expiration=20261013&strike=900&right=call&date=20261013&interval=1m');
+  check('Theta Data: its "no data" (472) is an answer with no rows', nd.status === 200 && JSON.parse(nd.body).rows.length === 0);
+  globalThis.fetch = (async () => {
+    throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } });
+  }) as typeof fetch;
+  const down = await createFeedClient({ keys: { theta: key } }).get('theta', '/v3/calendar/today');
+  check('Theta Data: the terminal not running is "no-terminal" (503), never a refused key', down.status === 503 && failKind(down) === 'no-terminal');
+  globalThis.fetch = (async () => new Response('INVALID_SESSION_ID', { status: 478 })) as typeof fetch;
+  const taken = await createFeedClient({ keys: { theta: key } }).get('theta', '/v3/calendar/today');
+  check('Theta Data: another terminal took the session (478) is "no-terminal"', taken.status === 503 && failKind(taken) === 'no-terminal');
+  /* the minutes from trades: 09:30 — 2 at 1.00 and 3 at 1.10 (vw 1.06); 09:31 — 1 at 0.90 */
+  globalThis.fetch = (async (u: URL) => {
+    sent = String(u);
+    const lines = [
+      { price: 1.0, size: 2, timestamp: '2026-10-13T09:30:00.198' },
+      { price: 1.1, size: 3, timestamp: '2026-10-13T09:30:59.900' },
+      { price: 0.9, size: 1, timestamp: '2026-10-13T09:31:10.000' },
+    ];
+    return new Response(lines.map(l => JSON.stringify(l)).join('\n') + '\n', { status: 200 });
+  }) as typeof fetch;
+  const mins = await createFeedClient({ keys: { theta: key } }).thetaOptionMinutes({ symbol: 'SPY', expiration: '20261013', strike: '778', right: 'call', date: '20261013' });
+  const rows = JSON.parse(mins.body).rows as { t: number; o: number; c: number; v: number; vw: number; n: number }[];
+  check(`a contract's minutes from its own trades: two minutes, the first 5 contracts at a VWAP of ${rows[0]?.vw?.toFixed(4)} (1.0600), opening 1.00 and closing 1.10; the minute stamped 09:30 New York`, sent.includes('/v3/option/history/trade?') && !sent.includes(key) && rows.length === 2 && rows[0].v === 5 && Math.abs(rows[0].vw - 1.06) < 1e-9 && rows[0].o === 1 && rows[0].c === 1.1 && rows[0].n === 2 && rows[0].t === Date.UTC(2026, 9, 13, 13, 30) && rows[1].vw === 0.9);
+  const badq = await createFeedClient({ keys: { theta: key } }).thetaOptionMinutes({ symbol: 'SPY', expiration: '2026-10-13', strike: '778', right: 'call', date: '20261013' });
+  check("a contract's minutes: a malformed question is refused before the terminal is asked", badq.status === 400);
+  globalThis.fetch = realFetch;
+}
+
 /* the middleware: loopback only, GET only, status without keys */
 {
   const mw = feedMiddleware({ keys: {} });

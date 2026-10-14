@@ -46,8 +46,7 @@ import type { FeedResult } from './client';
 import { useFeedPoll } from './poll';
 import { ROOM_FEEDS, roomSource } from './rooms';
 import { getFeedStatus, useFeedStatus } from './status';
-import { uwCongressTrades, uwPoliticians, type UwPolitician, uwEarningsDay, uwEarningsFor, uwInsiderTrades, uwNewsHeadlines, uwQuote, uwStockState, type UwCongressTrade, type UwEarning, type UwHeadline, type UwInsiderTrade, type UwQuote, type UwStockState } from './uw';
-import { massiveBars, massiveTickerDetails, type MassiveBar, type MassiveTickerDetails } from './massive';
+import { uwStockInfo, type UwStockInfo, uwCongressTrades, uwPoliticians, type UwPolitician, uwEarningsDay, uwEarningsFor, uwInsiderTrades, uwNewsHeadlines, uwQuote, uwStockState, type UwCongressTrade, type UwEarning, type UwHeadline, type UwInsiderTrade, type UwQuote, type UwStockState } from './uw';
 
 const SEC = 1000;
 const MIN = 60 * SEC;
@@ -511,22 +510,19 @@ export const useFeedPrices = (on: boolean, tickers: string[]) =>
   }, MIN);
 
 export interface FeedName {
-  /** Massive's record — null when Massive has none (404: no such name) */
-  details: MassiveTickerDetails | null;
-  /** Massive refused or failed for another reason */
+  /** The company's record as Unusual Whales keeps it (its name, sector, a line about it) — null when it has none */
+  details: UwStockInfo | null;
+  /** The record could not be read */
   detailsFailed: boolean;
 }
 
-/** The open name's company record — Massive, once a name (the proxy keeps it a day) */
+/** The open name's company record — Unusual Whales' /info, once a name (Massive's until 2026-10-14) */
 export const useFeedNameRecord = (on: boolean, ticker: string) =>
   useFeedPoll<FeedName>(on && ticker && up() ? `dossier:record:${ticker}` : null, async () => {
-    /* UW first, the cheap call: a ticker it has no state for answers { data: null } (seen live 2026-10-12) — not a name,
-       and Massive is not asked (its 404 would spend one of its five calls a minute) */
-    const st = await uwStockState(ticker);
-    if (!st.ok && st.reason === 'shape' && st.status === 200) return { ok: true as const, data: { details: null, detailsFailed: false }, at: Date.now() };
-    const r = await massiveTickerDetails(ticker);
+    /* a ticker Unusual Whales has no record for answers { data: null } (seen live 2026-10-12) — not a name */
+    const r = await uwStockInfo(ticker);
     if (r.ok) return { ...r, data: { details: r.data, detailsFailed: false } };
-    if (r.status === 404) return { ok: true as const, data: { details: null, detailsFailed: false }, at: Date.now() };
+    if (r.reason === 'shape' && r.status === 200) return { ok: true as const, data: { details: null, detailsFailed: false }, at: Date.now() };
     return r;
   }, 6 * HOUR);
 
@@ -543,12 +539,6 @@ export const useFeedQuote = (on: boolean, ticker: string) =>
     return { ok: true as const, data: { quote: q.ok ? q.data : null, state: s.ok ? s.data : null }, at: Date.now() };
   }, 15 * SEC);
 
-/** The open name's daily bars over the last sixty calendar days (Massive: the session before is the latest) */
-export const useFeedBars = (on: boolean, ticker: string) =>
-  useFeedPoll<MassiveBar[]>(on && ticker && up() ? `dossier:bars:${ticker}` : null, () => {
-    const today = nyToday();
-    return massiveBars(ticker, 1, 'day', isoPlus(today, -60), today, { limit: 120 });
-  }, 30 * MIN);
 
 /** The open name's whole report list (its next report, for the name's own page) */
 export const useFeedReports = (on: boolean, ticker: string) => useFeedPoll<UwEarning[]>(on && ticker && up() ? `dossier:reports:${ticker}` : null, () => uwEarningsFor(ticker), 10 * MIN);

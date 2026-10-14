@@ -88,7 +88,7 @@ const PracticeLayout = () => {
           )}
           {which === 'backtest' && (
             <>
-              {/* REAL DAYS (2026-10-12): with Massive up a session may replay the market's own record instead */}
+              {/* REAL DAYS (2026-10-12): with Theta Data up a session may replay the market's own record instead */}
               <Fact label="Prices" testId="source" title={backtestFeed ? 'A session replays the house’s tape or a real past session from Massive — one or the other, start to end' : undefined}>
                 {backtestFeed ? 'Replayed tape · real days' : 'Replayed tape'}
               </Fact>

@@ -178,8 +178,8 @@ price. The figures and the licence lines to get in writing are `docs/launch-cost
 
 ## Real days (2026-10-12)
 
-With Massive connected (`MASSIVE_API_KEY`, the Basic plans: Stocks and Options, two years, end of day) a session can
-replay **a real past session** instead of the house's tape — picked on the Sessions page's Days card, the house calendar
+With Theta Data connected (`THETADATA_API_KEY`, through the Theta Terminal on this machine — Massive's Basic plans until
+2026-10-14, when the owner turned Massive off) a session can replay **a real past session** instead of the house's tape — picked on the Sessions page's Days card, the house calendar
 offering the sessions on the record with a dot each. **One market a session, start to end**
 (`src/data/review/market.ts`): a real session never reads the house's tape, and a house session never reads the record.
 The engine asks `marketOf(session)` for every price, so every rule on this page is the same code on either market.
@@ -189,10 +189,12 @@ The engine asks `marketOf(session)` for every price, so every rule on this page 
   sessions before it stand on the chart, never on the clock.
 - **The name**: its own minute bars, 09:30 to 16:00 New York (the record's `t`, epoch ms). A minute with no bar stands
   where the last one closed, volume nothing.
-- **What was listed**: the expiries listed on the first day and, for the expiry on show, its strikes — Massive's
-  contracts as of that day (`as_of`), expired ones among them.
-- **A contract's price** (`src/data/review/realTape.ts`): the Basic plans carry trades, not quotes, so a real day is priced
-  off **the contract's own minute bars**, asked for when the reader opens it.
+- **What was listed**: the expiries listed on the first day and, for the expiry on show, its strikes — the contracts
+  that quoted that day on Theta Data's record (it keeps no listing "as of" a date; a listed contract quotes), expired ones
+  among them.
+- **A contract's price** (`src/data/review/realTape.ts`): a real day is priced off **the contract's own trades**, folded a
+  minute by the terminal's server (server/feed.ts `thetaOptionMinutes` — Theta's own minute bars carry the session's
+  running VWAP, not the minute's), asked for when the reader opens it.
 
 | On a real day | Price | Fills |
 | --- | --- | --- |

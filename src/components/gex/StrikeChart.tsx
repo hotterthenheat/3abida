@@ -582,7 +582,7 @@ export interface ChartTape {
   /** THE BOOK THROUGH TIME for the strike field, where the host has one (Terrain on the feed, 2026-10-12: the books read
       today, oldest first) — absent, a tape has no field */
   book?: GexSnapshot[];
-  /** DAY BARS, oldest first, for the 1D and 1W timeframes (Terrain on the feed: UW's and Massive's day bars, a bar a New
+  /** DAY BARS, oldest first, for the 1D and 1W timeframes (Terrain on the feed: UW's and Theta Data's day bars, a bar a New
       York date at noon UTC, so the axis reads the date on New York's clock; 1W folds them Monday to Friday) — absent, the
       minutes are folded into days */
   daily?: Candle[];

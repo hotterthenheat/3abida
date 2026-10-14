@@ -2,7 +2,7 @@
   REVIEW · THE DAY CARD — a labelled card like every other on a line (DropdownSelect's clothes), opening the house
   calendar (ExpiryPicker's) on the TAPE'S days: a day the tape does not hold cannot be picked, nor one before `min`
   (the desk's clock only moves forward).
-  REAL DAYS (2026-10-12): handed `days` (the sessions on Massive's record, data/feed/backtest.ts) it offers those
+  REAL DAYS (2026-10-12): handed `days` (the sessions on the market's record — Theta Data's, data/feed/backtest.ts) it offers those
   instead, each marked with a small silver dot — the market's own sessions — and says so under the month.
 */
 

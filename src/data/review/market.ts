@@ -11,7 +11,7 @@
                        the same past for every reader;
                        a session without `src`
     a real day         `src: 'feed'` — the market's own
-                       record from Massive: the name's
+                       record (Theta Data's): the name's
                        minute bars, the contracts listed
                        that day, each opened contract's
                        own trades (realTape.ts, loaded by

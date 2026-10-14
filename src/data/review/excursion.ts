@@ -45,7 +45,7 @@
   A TRADE ON A REAL DAY (2026-10-12) is walked once, as
   it closes, on the record that priced it (realKeep.ts
   writes it down in the paper account's shape), so the
-  journal never asks Massive again: read here like a
+  journal never asks the vendor again: read here like a
   paper trade's, with the replayed moments' ways out.
 ==================================================
 */

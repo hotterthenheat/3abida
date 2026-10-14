@@ -396,16 +396,18 @@ function railForCut(ticker: string, cut: RailCut): RailData {
    the field and the candles are one market.
    THE SAME PANE, FILLED (the owner, 2026-10-12: "but i build the UI that the real data goes into"): every timeframe,
    overlay, compare, lane and switch the house's pane carries is here, read off the real inputs — UW's minutes (four
-   sessions) over Massive's five weeks before them; UW's day bars over Massive's two years (1D, 1W); range and volume
+   sessions) over Theta Data's five weeks before them (Massive's until 2026-10-14); UW's day bars over Theta Data's two
+   years (1D, 1W); range and volume
    bars folded from the minutes; the name's prints of $25K and up (the flow band, the net drift, the events lane's
    prints); its three largest dark crosses of the session; its next report off UW's record; the walls through the day
    and the open's ghost off the books this terminal read today; the Vol switch on the minutes; the alerts as the
    house's pane arms them. No plan carries seconds: 15 s stays, held, its title saying so. An index has no price bars
-   on UW's plan (a CBOE grant) nor on Massive's: its chart says so in its own place and the ladder stands on the book. */
+   on UW's plan (a CBOE grant): its chart says so in its own place and the ladder stands on the book (Theta Data carries
+   index prices — drawing them is a step to come). */
 
 /** The timeframes a pane on the feed holds, and why — the one control the rule lets stand disabled */
 const FEED_HELD: Partial<Record<Timeframe, string>> = {
-  '15s': 'No seconds on these plans — Unusual Whales and Massive answer bars of a minute and up',
+  '15s': 'No seconds on the feed here yet — the panes draw bars of a minute and up',
 };
 const EMPTY_BARS: Candle[] = [];
 const lastClose = (bars: readonly Candle[] | undefined): number => (bars && bars.length ? bars[bars.length - 1].close : NaN);
@@ -1236,10 +1238,10 @@ const Pane = ({
   const cb1 = useFeedBars(onFeed && !!c1, c1).bars;
   const cb2 = useFeedBars(onFeed && !!c2, c2).bars;
   const cb3 = useFeedBars(onFeed && !!c3, c3).bars;
-  const cd0 = useFeedDaily(onFeed && wantsDaily && !!c0, c0, { massive: false });
-  const cd1 = useFeedDaily(onFeed && wantsDaily && !!c1, c1, { massive: false });
-  const cd2 = useFeedDaily(onFeed && wantsDaily && !!c2, c2, { massive: false });
-  const cd3 = useFeedDaily(onFeed && wantsDaily && !!c3, c3, { massive: false });
+  const cd0 = useFeedDaily(onFeed && wantsDaily && !!c0, c0);
+  const cd1 = useFeedDaily(onFeed && wantsDaily && !!c1, c1);
+  const cd2 = useFeedDaily(onFeed && wantsDaily && !!c2, c2);
+  const cd3 = useFeedDaily(onFeed && wantsDaily && !!c3, c3);
   const compareBars = useMemo(() => {
     if (!onFeed) return undefined;
     const out: Record<string, { bars: Candle[]; daily?: Candle[] | null }> = {};
@@ -2010,7 +2012,7 @@ const Pane = ({
                  tools stand under it, empty), the ladder beside it standing on the book's rows */
               <div ref={noBarsBoxRef} className="absolute inset-0 z-10 pointer-events-none flex items-start justify-center pt-24 pl-14 pr-6 text-center" data-no-bars>
                 <p className="max-w-[360px] rounded bg-canvas/70 px-2 py-1 text-[12px] text-textMuted">
-                  {ticker}'s price bars are not available on these plans — Unusual Whales and Massive ask an index grant for them. The ladder reads its book.
+                  {ticker}'s price bars are not drawn here yet — Unusual Whales' plan carries no index price. The ladder reads its book.
                 </p>
               </div>
             )}

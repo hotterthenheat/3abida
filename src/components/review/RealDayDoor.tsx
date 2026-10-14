@@ -3,14 +3,15 @@
   SLAYER TERMINAL - REVIEW · A REAL DAY COMING IN
   (components/review/RealDayDoor.tsx)
 
-  A session on real days (2026-10-12) opens on Massive's
-  record, and Massive answers five calls a minute. Until
+  A session on real days (2026-10-12) opens on the market's
+  record — Theta Data's since 2026-10-14 — asked through the
+  Theta Terminal on this machine, a few calls at once. Until
   every call the desk needs is in, the desk is not drawn
   — never a moment of the house's tape under a real
   session's name. This card says what is being asked,
   where each call stands (asked, waiting its turn, in),
   and, when one cannot come, why and the door to ask
-  again. With Massive not connected it says so, and the
+  again. With Theta Data not connected it says so, and the
   session waits as it is: nothing in it changes.
 
   Also the small words a desk on real days uses for a
@@ -49,17 +50,17 @@ const RealDayDoor = ({ session, state }: { session: Session; state: RealSession 
       </div>
       <div className="px-5 py-5 flex flex-col gap-4">
         <p className="text-[13px] leading-snug text-textPrimary">
-          This session replays the market’s own record from Massive — {span}: {(session.tickers?.length ?? 1) > 1 ? 'each name’s' : 'the name’s'} minutes, the contracts listed that day, and each contract’s own trades.
+          This session replays the market’s own record from Theta Data — {span}: {(session.tickers?.length ?? 1) > 1 ? 'each name’s' : 'the name’s'} minutes, the contracts listed that day, and each contract’s own trades.
         </p>
         {state.phase === 'waiting' && (
           <p className="inline-flex items-center gap-2 text-[12px] text-textSecondary" data-real-phase="waiting">
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-textMuted" aria-hidden="true" /> Asking where Massive stands…
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-textMuted" aria-hidden="true" /> Asking where Theta Data stands…
           </p>
         )}
         {state.phase === 'off' && (
           <div className="flex flex-col gap-2" data-real-phase="off">
             <p className="text-[12px] text-warn">{failWords(state.standing)}.</p>
-            <p className="text-[12px] leading-snug text-textSecondary">It opens once Massive is connected. Nothing in it has changed meanwhile — its trades are in the journal, its book is as you left it.</p>
+            <p className="text-[12px] leading-snug text-textSecondary">It opens once Theta Data is connected. Nothing in it has changed meanwhile — its trades are in the journal, its book is as you left it.</p>
           </div>
         )}
         {state.phase === 'short' && (
@@ -70,7 +71,7 @@ const RealDayDoor = ({ session, state }: { session: Session; state: RealSession 
         {(state.phase === 'loading' || state.phase === 'failed') && (
           <div className="flex flex-col gap-2" data-real-phase={state.phase}>
             <p className="text-[11px] text-textMuted">
-              {done} of {state.steps.length} in · Massive answers five calls a minute, so a call may wait its turn
+              {done} of {state.steps.length} in · the Theta Terminal answers a few calls at once, so a call may wait its turn
             </p>
             <ul className="flex flex-col gap-1.5">
               {state.steps.map(s => (

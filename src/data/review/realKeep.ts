@@ -3,7 +3,7 @@
   SLAYER TERMINAL - REVIEW · WHAT A REAL DAY WRITES
   DOWN (data/review/realKeep.ts)
 
-  A session on real days (market.ts) reads Massive's
+  A session on real days (market.ts) reads the market's
   record while its desk is open. What has to outlast
   the visit is written into the session as it changes,
   so the session list, the report and the journal never

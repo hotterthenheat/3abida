@@ -45,16 +45,26 @@ import { createFieldStore } from './fieldStore';
 import { createScorecard } from './scorecard';
 import { createPricedMove } from './pricedMove';
 import { createScaleRef } from './scaleRef';
+import { nyWallTime } from '../src/core/nyTime';
 
-export type ProviderId = 'uw' | 'massive';
+export type ProviderId = 'uw' | 'massive' | 'theta';
 
 export interface FeedKeys {
   uw?: string;
   massive?: string;
+  /** Theta Data's key — never sent on a request: the Theta Terminal on this machine holds it (it is handed the key when
+      it starts, scripts/theta-terminal.mjs); its presence says the owner has set it */
+  theta?: string;
 }
 
-/** The two vendors: where they live and how a key is put on a request */
+/** The vendors: where they live and how a key is put on a request */
 export const PROVIDERS: Record<ProviderId, { name: string; base: string; envVar: string; probe: string; pathOk: RegExp }> = {
+  /* THETA DATA (2026-10-14 — the owner: "i have a new api key for you to use, you can disable the massive ones and use
+     this one"): its REST interface is the Theta Terminal v3, a program running on this machine
+     (https://thetadata.net/docs/Articles/Getting-Started/Getting-Started.html) at http://127.0.0.1:25503/v3 — the key
+     goes to the terminal when it starts, never in a request; always 127.0.0.1, never "localhost" (the terminal refuses a
+     client that switches, its error 476) */
+  theta: { name: 'Theta Data', base: process.env.THETA_TERMINAL_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:25503', envVar: 'THETADATA_API_KEY', probe: '/v3/terminal/mdds/status', pathOk: /^\/v3\/(stock|option|index|calendar|terminal)\// },
   /* base and auth: uw-mcp docs/endpoints.json ("base_url", "auth": Bearer token via Authorization header) */
   uw: { name: 'Unusual Whales', base: 'https://api.unusualwhales.com', envVar: 'UW_API_TOKEN', probe: '/api/stock/SPY/stock-state', pathOk: /^\/api\// },
   /* base and auth: Massive's OpenAPI (client-js src/openapi.json): servers[0] https://api.massive.com, securitySchemes
@@ -88,6 +98,13 @@ const TTL: Record<ProviderId, [RegExp, number][]> = {
     /* a name's listed expiries change once a session (Compass's calendar, 2026-10-12) */
     [/\/expiry-breakdown$/, 30 * MIN],
   ],
+  /* a past session's figures never change; today's do (a query naming today's date is kept 30 s — ttlFor) */
+  theta: [
+    [/^\/v3\/terminal\//, 30 * S],
+    [/^\/v3\/calendar\//, 10 * MIN],
+    [/\/list\//, 6 * HOUR],
+    [/\/history\//, 6 * HOUR],
+  ],
   massive: [
     [/^\/v1\/marketstatus\//, MIN],
     [/^\/v3\/snapshot\//, 5 * MIN],
@@ -96,8 +113,14 @@ const TTL: Record<ProviderId, [RegExp, number][]> = {
     [/^\/v3\/reference\/tickers/, 24 * HOUR],
   ],
 };
-const TTL_DEFAULT: Record<ProviderId, number> = { uw: 15 * S, massive: 5 * MIN };
-export const ttlFor = (p: ProviderId, path: string): number => TTL[p].find(([re]) => re.test(path))?.[1] ?? TTL_DEFAULT[p];
+const TTL_DEFAULT: Record<ProviderId, number> = { uw: 15 * S, massive: 5 * MIN, theta: MIN };
+/** New York's date today as Theta Data writes it in a query (YYYYMMDD) */
+const nyCompactToday = (): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/-/g, '');
+export const ttlFor = (p: ProviderId, path: string, query = ''): number => {
+  /* a Theta Data question about today is today's: kept half a minute */
+  if (p === 'theta' && query && (query.includes(nyCompactToday()) || /snapshot/.test(path))) return 30 * S;
+  return TTL[p].find(([re]) => re.test(path))?.[1] ?? TTL_DEFAULT[p];
+};
 
 /* ---- the answer ------------------------------------------------------------------------------------------------ */
 
@@ -110,13 +133,13 @@ export interface FeedAnswer {
 }
 
 /** What a failure was, in the owner's words — the check prints it, the Settings page shows its kind */
-export type FailKind = 'no-key' | 'network' | 'timeout' | 'key-refused' | 'plan' | 'rate' | 'upstream';
+export type FailKind = 'no-key' | 'network' | 'timeout' | 'key-refused' | 'plan' | 'rate' | 'upstream' | 'no-terminal';
 export function failKind(a: FeedAnswer): FailKind | null {
   if (a.status >= 200 && a.status < 300) return null;
   if (a.from === 'proxy') {
     try {
       const e = (JSON.parse(a.body) as { error?: string }).error;
-      if (e === 'no-key' || e === 'network' || e === 'timeout') return e;
+      if (e === 'no-key' || e === 'network' || e === 'timeout' || e === 'no-terminal') return e;
     } catch {
       /* not ours */
     }
@@ -134,6 +157,7 @@ export const FAIL_WORDS: Record<FailKind, string> = {
   plan: "the plan does not reach this (or the key is not allowed here)",
   rate: 'too many calls — the vendor asked to wait',
   upstream: 'the vendor answered with an error',
+  'no-terminal': 'the Theta Terminal is not running on this machine, or not signed in (npm run theta:terminal)',
 };
 
 const json = (status: number, body: unknown): FeedAnswer => ({ status, contentType: 'application/json', body: JSON.stringify(body), from: 'proxy' });
@@ -141,7 +165,7 @@ const json = (status: number, body: unknown): FeedAnswer => ({ status, contentTy
 /** Every place a key could show, scrubbed */
 function scrub(text: string, keys: FeedKeys): string {
   let out = text;
-  for (const k of [keys.uw, keys.massive]) if (k && k.length >= 4) out = out.split(k).join('[key]');
+  for (const k of [keys.uw, keys.massive, keys.theta]) if (k && k.length >= 4) out = out.split(k).join('[key]');
   return out.replace(/([?&]apiKey=)[^&\s"']+/gi, '$1[key]').replace(/(Bearer\s+)[A-Za-z0-9._-]{8,}/g, '$1[key]');
 }
 
@@ -233,6 +257,8 @@ export interface FeedClientOptions {
   noCache?: boolean;
   /** Unusual Whales' calls at once (the Basic plan: 3) */
   uwConcurrent?: number;
+  /** Theta Data's requests at once — the terminal's own limit is the plan's (Professional: 8), the rest queued */
+  thetaConcurrent?: number;
 }
 
 export function createFeedClient(opts: FeedClientOptions) {
@@ -240,6 +266,7 @@ export function createFeedClient(opts: FeedClientOptions) {
   const timeoutMs = opts.timeoutMs ?? 20 * S;
   const bucket = new TokenBucket(opts.massivePerMinute ?? 5, MIN);
   const uwGate = new Gate(opts.uwConcurrent ?? 3);
+  const thetaGate = new Gate(opts.thetaConcurrent ?? 4);
   const cache = new Map<string, { until: number; answer: FeedAnswer }>();
   const inFlight = new Map<string, Promise<FeedAnswer>>();
   const CACHE_MAX = 400;
@@ -253,9 +280,53 @@ export function createFeedClient(opts: FeedClientOptions) {
     cache.set(url, { until: Date.now() + ttl, answer });
   };
 
+  /**
+   * THETA DATA THROUGH ITS TERMINAL: no key on the request (the terminal holds it); every data answer asked as NDJSON and
+   * handed back as JSON { rows } — one row a line, the terminal's own field names; "no data" (its 472) is an answer with
+   * no rows; a terminal not running, signed out or taken over by another (474, 476, 478, 571, a refused connection) is
+   * 503 { error: 'no-terminal' }; its plan refusing (471) is 403. Timestamps stay as the terminal writes them: New York's
+   * wall clock, no offset.
+   */
+  async function thetaUpstream(pathAndQuery: string): Promise<FeedAnswer> {
+    const url = new URL(PROVIDERS.theta.base + pathAndQuery);
+    const status = url.pathname.startsWith('/v3/terminal/');
+    if (!status) url.searchParams.set('format', 'ndjson');
+    let res: Response;
+    try {
+      res = await thetaGate.run(() => fetch(url, { signal: AbortSignal.timeout(Math.max(timeoutMs, 90 * S)) }));
+    } catch (e) {
+      const err = e as { name?: string };
+      if (err.name === 'TimeoutError' || err.name === 'AbortError') return json(504, { error: 'timeout' });
+      return json(503, { error: 'no-terminal' });
+    }
+    const text = scrub(await res.text(), keys);
+    if (status) return res.status === 200 && text.trim() === 'CONNECTED' ? { ...json(200, { state: 'CONNECTED' }), from: 'upstream' } : json(503, { error: 'no-terminal', detail: text.trim().slice(0, 80) });
+    if (res.status === 472) return json(200, { rows: [], noData: true });
+    if (res.status !== 200) {
+      const code = res.status;
+      const terminal = code === 474 || code === 476 || code === 478 || code === 571;
+      /* the terminal itself out of the way — the proxy's own word, as a refused connection is */
+      if (terminal) return json(503, { error: 'no-terminal', code, detail: text.trim().slice(0, 200) });
+      const st = code === 471 ? 403 : code === 429 ? 429 : code >= 470 && code < 480 ? 400 : 502;
+      return { status: st, contentType: 'application/json', body: JSON.stringify({ error: 'upstream', code, detail: text.trim().slice(0, 200) }), from: 'upstream' };
+    }
+    const rows: unknown[] = [];
+    for (const line of text.split('\n')) {
+      const l = line.trim();
+      if (!l) continue;
+      try {
+        rows.push(JSON.parse(l));
+      } catch {
+        return json(502, { error: 'upstream', detail: 'a line the terminal wrote was not JSON' });
+      }
+    }
+    return { status: 200, contentType: 'application/json', body: JSON.stringify({ rows }), from: 'upstream' };
+  }
+
   async function upstream(p: ProviderId, pathAndQuery: string): Promise<FeedAnswer> {
     const key = keys[p];
     if (!key) return json(503, { error: 'no-key' });
+    if (p === 'theta') return thetaUpstream(pathAndQuery);
     const url = new URL(PROVIDERS[p].base + pathAndQuery);
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (p === 'uw') headers.Authorization = `Bearer ${key}`;
@@ -295,7 +366,101 @@ export function createFeedClient(opts: FeedClientOptions) {
     const flying = inFlight.get(id);
     if (flying) return flying;
     const run = upstream(p, pathAndQuery).then(a => {
-      if (a.status === 200 && !opts.noCache) keep(id, a, ttlFor(p, path));
+      if (a.status === 200 && !opts.noCache) keep(id, a, ttlFor(p, path, pathAndQuery.split('?')[1] ?? ''));
+      return a;
+    });
+    inFlight.set(id, run);
+    try {
+      return await run;
+    } finally {
+      inFlight.delete(id);
+    }
+  }
+
+  /**
+   * A CONTRACT'S MINUTES FROM ITS OWN TRADES (the Backtest's fill rule, docs/review-backtest-rules.md "Real days": a
+   * contract fills only in a minute it traded, at that minute's volume-weighted average). Theta Data's minute bars carry
+   * the SESSION's running VWAP, never the minute's (its field's own words, and its documented example), so the minute's
+   * is folded here from the session's trades — every print the minute's bar counts (their sizes add up to the bar's
+   * volume minute by minute: 391 of 391 on SPY's 778 call of 2026-10-13). The trades are streamed, never kept; the
+   * minutes are, six hours for a past session (it does not change), half a minute for today's. Rows as Massive's minute
+   * bars were: t (the minute's start, epoch ms), o, h, l, c, v, vw, n.
+   */
+  async function thetaOptionMinutes(q: { symbol: string; expiration: string; strike: string; right: string; date: string }): Promise<FeedAnswer> {
+    if (!keys.theta) return json(503, { error: 'no-key' });
+    if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(q.symbol) || !/^\d{8}$/.test(q.expiration) || !/^\d{8}$/.test(q.date) || !/^\d+(\.\d+)?$/.test(q.strike) || !/^(call|put)$/.test(q.right)) return json(400, { error: 'bad-request' });
+    const id = `theta-minutes:${q.symbol}:${q.expiration}:${q.strike}:${q.right}:${q.date}`;
+    if (!opts.noCache) {
+      const hit = cache.get(id);
+      if (hit && hit.until > Date.now()) return { ...hit.answer, from: 'cache' };
+    }
+    const flying = inFlight.get(id);
+    if (flying) return flying;
+    const run = (async (): Promise<FeedAnswer> => {
+      const url = new URL(`${PROVIDERS.theta.base}/v3/option/history/trade`);
+      for (const [k, v] of Object.entries(q)) url.searchParams.set(k, v);
+      url.searchParams.set('format', 'ndjson');
+      let res: Response;
+      try {
+        res = await thetaGate.run(() => fetch(url, { signal: AbortSignal.timeout(180 * S) }));
+      } catch (e) {
+        const err = e as { name?: string };
+        return err.name === 'TimeoutError' || err.name === 'AbortError' ? json(504, { error: 'timeout' }) : json(503, { error: 'no-terminal' });
+      }
+      if (res.status === 472) return json(200, { rows: [], noData: true });
+      if (res.status !== 200 || !res.body) {
+        const code = res.status;
+        const detail = scrub((await res.text().catch(() => '')).trim().slice(0, 200), keys);
+        const terminal = code === 474 || code === 476 || code === 478 || code === 571;
+        return json(terminal ? 503 : code === 471 ? 403 : code === 429 ? 429 : 502, { error: terminal ? 'no-terminal' : 'upstream', code, detail });
+      }
+      const byMin = new Map<string, { o: number; h: number; l: number; c: number; v: number; pv: number; n: number }>();
+      const take = (line: string) => {
+        const l = line.trim();
+        if (!l) return;
+        const t = JSON.parse(l) as { timestamp: string; price: number; size: number };
+        if (!(t.size > 0) || !Number.isFinite(t.price)) return;
+        const m = t.timestamp.slice(0, 16);
+        const b = byMin.get(m);
+        if (!b) byMin.set(m, { o: t.price, h: t.price, l: t.price, c: t.price, v: t.size, pv: t.price * t.size, n: 1 });
+        else {
+          b.h = Math.max(b.h, t.price);
+          b.l = Math.min(b.l, t.price);
+          b.c = t.price;
+          b.v += t.size;
+          b.pv += t.price * t.size;
+          b.n++;
+        }
+      };
+      try {
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let i: number;
+          while ((i = buf.indexOf('\n')) >= 0) {
+            take(buf.slice(0, i));
+            buf = buf.slice(i + 1);
+          }
+        }
+        take(buf + dec.decode());
+      } catch {
+        return json(502, { error: 'upstream', detail: 'the trades could not be read' });
+      }
+      const rows = [...byMin.entries()]
+        .map(([m, b]) => {
+          const [d, hm] = m.split('T');
+          const [y, mo, da] = d.split('-').map(Number);
+          const [h, mi] = hm.split(':').map(Number);
+          return { t: nyWallTime(y, mo, da, h, mi), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, vw: b.pv / b.v, n: b.n };
+        })
+        .sort((a, b) => a.t - b.t);
+      return { status: 200, contentType: 'application/json', body: JSON.stringify({ rows }), from: 'upstream' };
+    })().then(a => {
+      if (a.status === 200 && !opts.noCache) keep(id, a, q.date === nyCompactToday() ? 30 * S : 6 * HOUR);
       return a;
     });
     inFlight.set(id, run);
@@ -328,7 +493,7 @@ export function createFeedClient(opts: FeedClientOptions) {
     }
   }
 
-  return { get, redirectOf, bucket, uwGate, hasKey: (p: ProviderId) => !!keys[p] };
+  return { get, redirectOf, thetaOptionMinutes, bucket, uwGate, thetaGate, hasKey: (p: ProviderId) => !!keys[p] };
 }
 export type FeedClient = ReturnType<typeof createFeedClient>;
 
@@ -380,10 +545,10 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
 
   const status = () => {
     if (!probed || Date.now() - probed.at > PROBE_TTL) {
-      const result = Promise.all([probe(client, 'uw'), probe(client, 'massive')]).then(([uw, massive]) => ({ uw, massive }));
+      const result = Promise.all([probe(client, 'uw'), probe(client, 'massive'), probe(client, 'theta')]).then(([uw, massive, theta]) => ({ uw, massive, theta }));
       probed = { at: Date.now(), result };
     }
-    return probed.result;
+    return probed!.result;
   };
 
   const send = (res: ServerResponse, a: FeedAnswer) => {
@@ -414,7 +579,7 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
       const url = new URL(raw, 'http://localhost');
       if (url.pathname === '/feed/status') {
         const s = await status();
-        return send(res, json(200, { uw: { key: client.hasKey('uw'), ...s.uw }, massive: { key: client.hasKey('massive'), ...s.massive } }));
+        return send(res, json(200, { uw: { key: client.hasKey('uw'), ...s.uw }, massive: { key: client.hasKey('massive'), ...s.massive }, theta: { key: client.hasKey('theta'), ...s.theta } }));
       }
       if (upstream && url.pathname.startsWith('/feed/field/')) {
         try {
@@ -475,7 +640,12 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
         const r = recorder.serve(f[1], Number(url.searchParams.get('since')) || 0);
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
-      const m = /^\/feed\/(uw|massive)(\/.*)$/.exec(url.pathname);
+      /* a contract's minutes folded from its trades (the Backtest's fills) */
+      if (url.pathname === '/feed/theta-minutes/option') {
+        const g = (k: string) => url.searchParams.get(k) ?? '';
+        return send(res, await client.thetaOptionMinutes({ symbol: g('symbol').toUpperCase(), expiration: g('expiration'), strike: g('strike'), right: g('right'), date: g('date') }));
+      }
+      const m = /^\/feed\/(uw|massive|theta)(\/.*)$/.exec(url.pathname);
       if (!m) return send(res, json(404, { error: 'no-route' }));
       const p = m[1] as ProviderId;
       for (const k of Array.from(url.searchParams.keys())) if (STRIP.has(k)) url.searchParams.delete(k);

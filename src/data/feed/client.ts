@@ -15,7 +15,7 @@
 ==================================================
 */
 
-export type FeedProvider = 'uw' | 'massive';
+export type FeedProvider = 'uw' | 'massive' | 'theta';
 
 /** Why a call came back empty-handed — the proxy's own words, then the vendor's status */
 export type FeedFail =
@@ -27,7 +27,8 @@ export type FeedFail =
   | 'rate' // 429
   | 'upstream' // any other error from the vendor
   | 'absent' // no proxy answered (a static host, a build served elsewhere)
-  | 'shape'; // the answer was not what the adapter reads
+  | 'shape' // the answer was not what the adapter reads
+  | 'no-terminal'; // Theta Data: the Theta Terminal on this machine is not running or not signed in
 
 export type FeedResult<T> = { ok: true; data: T; at: number } | { ok: false; reason: FeedFail; status: number };
 
@@ -61,7 +62,7 @@ export function viaProxy(nextUrl: string): string | null {
 }
 
 const statusFail = (status: number, error: unknown): FeedFail => {
-  if (error === 'no-key' || error === 'network' || error === 'timeout') return error;
+  if (error === 'no-key' || error === 'network' || error === 'timeout' || error === 'no-terminal') return error;
   if (status === 401) return 'key-refused';
   if (status === 403) return 'plan';
   if (status === 429) return 'rate';

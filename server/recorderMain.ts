@@ -35,7 +35,8 @@ const port = Number(env.RECORDER_PORT ?? 5190);
 const lan = env.FEED_ALLOW_LAN === '1';
 const stamp = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-const handle = feedMiddleware({ keys: { uw: env.UW_API_TOKEN || undefined, massive: env.MASSIVE_API_KEY || undefined }, allowLan: lan, recordNames: names });
+/* Massive off since 2026-10-14 (the owner: "you can disable the massive ones and use this one") — Theta Data in its place */
+const handle = feedMiddleware({ keys: { uw: env.UW_API_TOKEN || undefined, theta: env.THETADATA_API_KEY || undefined }, allowLan: lan, recordNames: names });
 const server = createServer((req, res) => {
   void handle(req, res, () => {
     res.statusCode = 404;

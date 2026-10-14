@@ -685,6 +685,21 @@ const earning = (symbol: string) => (r: Record<string, unknown>): UwEarning => (
   postMove1d: num(r.post_earnings_move_1d),
 });
 
+/** A name's company record, as Unusual Whales keeps it (2026-10-14, in Massive's place): its full name, short name,
+    sector and one line about it. GET /api/stock/{ticker}/info — answered live for NVDA ("NVIDIA", Technology) */
+export interface UwStockInfo {
+  name: string;
+  shortName: string;
+  sector: string;
+  description: string;
+}
+export const uwStockInfo = (ticker: string): Promise<FeedResult<UwStockInfo>> =>
+  feedGet('uw', `/api/stock/${encodeURIComponent(ticker)}/info`, undefined, body => {
+    const r = (body as { data?: Record<string, unknown> | null }).data;
+    if (!r || typeof r !== 'object') throw new Error('shape');
+    return { name: str(r.full_name), shortName: str(r.short_name), sector: str(r.sector), description: str(r.short_description) };
+  });
+
 /** A day's reports before the open or after the close. GET /api/earnings/premarket | /api/earnings/afterhours (date, limit, page) — empty for a day with none */
 export const uwEarningsDay = (when: 'premarket' | 'afterhours', opts: { date?: string; limit?: number } = {}): Promise<FeedResult<UwEarning[]>> =>
   feedGet('uw', `/api/earnings/${when}`, { date: opts.date, limit: opts.limit ?? 100 }, body => rowsOf(body).map(earning('')));

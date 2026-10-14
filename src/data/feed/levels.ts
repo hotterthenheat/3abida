@@ -90,7 +90,7 @@ import type { ExposureLevels, ExposureProfileData, GreekSplit, StrikeExposure } 
 import type { Candle, GexLevel, GexSnapshot } from '../../types/market';
 import type { ExposureSurface, Greek, SurfaceExpiry } from '../exposureSurface';
 import type { Sureness } from '../levelSureness';
-import { massiveBars } from './massive';
+import { thetaStockDays, thetaStockMinutes } from './theta';
 import type { DarkPoolPrint } from '../../types/gex';
 import type { TapeEarnings } from '../events';
 import { bookSureness } from '../levelSureness';
@@ -731,7 +731,7 @@ async function foldedUnder<T extends { t: number; o: number; h: number; l: numbe
   if (r.ok) foldUnder(t, r.data);
   return r;
 }
-/** The span Massive's minutes are asked for: five weeks back to the session before today (rounded to the day, so the
+/** The span Theta Data's minutes are asked for: five weeks back to the session before today (rounded to the day, so the
     address — the proxy's cache key — holds for the day) */
 function historySpan(): { from: string; to: string } {
   const today = nyIsoDate();
@@ -757,14 +757,15 @@ export function useFeedBars(on: boolean, ticker: string, opts: { history?: boole
   const rAll = useFeedPoll(kAll, () => folded(t, uwOhlc(t, { size: '1m', limit: 2500 })), 5 * 60_000);
   const kNew = on && t && rAll?.ok ? `levels:bars-new:${t}` : null;
   useFeedPoll(kNew, () => folded(t, uwOhlc(t, { size: '1m', limit: 30 })), 15_000);
-  /* THE SESSIONS BEFORE (Terrain, 2026-10-12): Massive's minute bars for the five weeks before the session — one call a
-     name, kept half an hour by the proxy — folded UNDER UW's (a minute UW answered keeps UW's bar), so a 30m or an hour
-     pane has a month behind it as the house's tape does. Massive is asked only while it is up; its minutes stop at the
-     session before, which UW's four sessions reach past. */
-  const massiveUp = useFeedStatus().massive.state === 'ok';
+  /* THE SESSIONS BEFORE (Terrain, 2026-10-12; Theta Data in Massive's place 2026-10-14): Theta Data's minute bars for the
+     five weeks before the session — the consolidated tape, 04:00 to 20:00, two calls a name (a month at most a call),
+     kept six hours by the proxy — folded UNDER UW's (a minute UW answered keeps UW's bar), so a 30m or an hour pane has a
+     month behind it as the house's tape does. Asked only while Theta Data is up; it stops at the session before, which
+     UW's four sessions reach past. */
+  const thetaUp = useFeedStatus().theta.state === 'ok';
   const span = historySpan();
-  const kOld = on && t && !index && opts.history && massiveUp ? `levels:bars-old:${t}:${span.from}:${span.to}` : null;
-  useFeedPoll(kOld, () => foldedUnder(t, massiveBars(t, 1, 'minute', span.from, span.to)), 30 * 60_000);
+  const kOld = on && t && !index && opts.history && thetaUp ? `levels:bars-old:${t}:${span.from}:${span.to}` : null;
+  useFeedPoll(kOld, () => foldedUnder(t, thetaStockMinutes(t, span.from, span.to)), 30 * 60_000);
   const list = useSyncExternalStore(
     fn => {
       const s = barSubs.get(t) ?? new Set();
@@ -1345,21 +1346,24 @@ const isoOfDayStart = (ms: number): string => nyIsoDate(ms);
 
 /**
  * A name's day bars, oldest first: UW's regular-session rows (about a year, today's among them, every 5 min) over
- * Massive's two years of day bars (asked once a day while Massive is up — it refuses an index, as UW does). A date
- * both carry is UW's. Null until either answers; an index asks nothing.
+ * Theta Data's two years of day bars (its own end-of-day report, two calls — a year at most a call — while Theta Data is
+ * up). A date both carry is UW's: its close is the official close, Theta's equalled it on 251 of 252 sessions to
+ * 2026-10-13 (that day 778.05 against 778.01). Null until either answers; an index asks nothing.
  */
-export function useFeedDaily(on: boolean, ticker: string, opts: { massive?: boolean } = {}): Candle[] | null {
+export function useFeedDaily(on: boolean, ticker: string, opts: { history?: boolean } = {}): Candle[] | null {
   const t = ticker.toUpperCase();
   const index = isCashIndex(t);
   const kUw = on && t && !index ? `levels:daily:${t}` : null;
   const rUw = useFeedPoll(kUw, () => uwDailyBars(t, { limit: 2500 }), 5 * 60_000);
   const uw = keep(kUw, rUw);
-  const massiveUp = useFeedStatus().massive.state === 'ok';
+  const thetaUp = useFeedStatus().theta.state === 'ok';
   const today = nyIsoDate();
   const [y, m, d] = today.split('-').map(Number);
   const from = `${y - 2}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  const kM = on && t && !index && opts.massive !== false && massiveUp ? `levels:daily-old:${t}:${from}` : null;
-  const rM = useFeedPoll(kM, () => massiveBars(t, 1, 'day', from, today), 30 * 60_000);
+  /* to the session before: Theta's report for a day is written at 17:15, and UW's rows carry today */
+  const to = sessionBefore(today);
+  const kM = on && t && !index && opts.history !== false && thetaUp ? `levels:daily-old:${t}:${from}:${to}` : null;
+  const rM = useFeedPoll(kM, () => thetaStockDays(t, from, to), 30 * 60_000);
   const old = keep(kM, rM);
   return useMemo(() => {
     if (!uw && !old) return null;

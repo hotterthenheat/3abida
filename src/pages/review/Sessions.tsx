@@ -30,13 +30,13 @@
   a losing day is not a rule.
 
   REAL DAYS (2026-10-12, docs/data-feed.md "The Backtest
-  reads real days"). With Massive up, a Days card offers
+  reads real days"). With Theta Data up, a Days card offers
   the market's own record beside the house's tape — the
   sessions of the last two years, each a dot on the
   calendar — and a session holds that day and the ones
   after it on the record (data/feed/backtest.ts). One or
   the other for the whole session; a session on real days
-  says so in the list. With Massive down the card is not
+  says so in the list. With Theta Data down the card is not
   there and the page is what it always was.
 ==================================================
 */
@@ -59,7 +59,7 @@ import { TRADES_WORDS, dirInk, momentWords, pct, usd, usdSigned } from '../../co
 import { useRoomSource } from '../../data/feed/rooms';
 import { REAL_DAYS, failWords, realBookFor, useRealDays } from '../../data/feed/backtest';
 
-/* WHICH MARKET A NEW SESSION REPLAYS — offered only while Massive is up; the reader's pick is remembered on this machine */
+/* WHICH MARKET A NEW SESSION REPLAYS — offered only while Theta Data is up; the reader's pick is remembered on this machine */
 type DaysFrom = 'feed' | 'house';
 const DAYS_KEY = 'slayer_backtest_days';
 const readDaysFrom = (): DaysFrom => {
@@ -70,7 +70,7 @@ const readDaysFrom = (): DaysFrom => {
   }
 };
 const DAYS_FROM: DropdownOption<DaysFrom>[] = [
-  { value: 'feed', label: 'Real sessions', hint: 'The market’s own record from Massive, the last two years — the name’s minutes and each contract’s own trades' },
+  { value: 'feed', label: 'Real sessions', hint: 'The market’s own record from Theta Data, the last two years — the name’s minutes and each contract’s own trades' },
   { value: 'house', label: 'The house’s tape', hint: 'The terminal’s own year of sessions — the same past for every reader' },
 ];
 /** "Sep 14, 2026" */
@@ -122,7 +122,7 @@ const Sessions = () => {
   const [fee, setFee] = useState(DEFAULT_FEE);
   /* three months back: room to run forward, and not so far back that today's names look strange */
   const [startDay, setStartDay] = useState(days[Math.max(0, days.length - 63)]);
-  /* REAL DAYS: only while Massive is up (data/feed/rooms.ts `backtest`) */
+  /* REAL DAYS: only while Theta Data is up (data/feed/rooms.ts `backtest`) */
   const feedUp = useRoomSource('backtest') === 'feed';
   const [daysFrom, setDaysFromRaw] = useState<DaysFrom>(readDaysFrom);
   const setDaysFrom = (v: DaysFrom) => {
@@ -183,7 +183,7 @@ const Sessions = () => {
             </span>
             {/* before the name, so a long name's cut never takes it */}
             {r.s.src === 'feed' && (
-              <span className="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded border border-silver/60 font-mono text-[11px] text-silver" title="Replays the market’s own record from Massive — the name’s minutes and each contract’s own trades" data-session-real={r.s.id}>
+              <span className="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded border border-silver/60 font-mono text-[11px] text-silver" title="Replays the market’s own record from Theta Data — the name’s minutes and each contract’s own trades" data-session-real={r.s.id}>
                 Real days
               </span>
             )}
@@ -298,7 +298,7 @@ const Sessions = () => {
               days={record.days}
               title="The real session the clock starts on"
               testId="review-start"
-              foot={<>Sessions on Massive’s record, the last two years — a half session is left out. The plan carries no index, so SPX, NDX and RUT have no real days; the funds that track them do.</>}
+              foot={<>Sessions on Theta Data’s record, the last two years — a half session is left out. SPX, NDX and RUT have no real days here yet; the funds that track them do.</>}
             />
           ) : (
             <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-borderSubtle bg-chip font-mono text-[11px]" data-review-record={record.state}>

@@ -4,7 +4,8 @@
   (data/review/realTape.ts)
 
   The other market a session can replay (market.ts):
-  the market's own record, from Massive (2026-10-12).
+  the market's own record (2026-10-12; Massive's then, Theta
+  Data's since 2026-10-14).
   Pure — it reads a RealRecord (the bars, the listings,
   the prints) that data/feed/backtest.ts fills in, so
   scripts/review-engine-proof.ts can hand it a record
@@ -50,7 +51,8 @@ import type { ReplayMarket } from './market';
 import { contractKey, dteAt, longLeg, priceWith, spotForQuote, spreadWidth, yearsLeft, type ChainRow, type ContractDay, type ContractId, type ListedExpiry, type Quote } from './quotes';
 import { LAST_MIN, dateOf, dayWords, reviewName } from './tape';
 
-/** One minute of a contract's own trades — Massive's minute aggregate (docs/data-feed-samples.md) */
+/** One minute of a contract's own trades — folded a minute from its trades (Theta Data's since 2026-10-14, server/feed.ts
+    thetaOptionMinutes; Massive's minute aggregate before) */
 export interface PrintBar {
   o: number;
   h: number;

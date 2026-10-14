@@ -5,7 +5,7 @@
   2. Compass's board files on a name's real listed dates when it has them (data/compassStandIn.ts listingsFor), an AM
      root's last trading day the session before; the schedule without them
 */
-import { pageSource, roomOfPath } from '../src/data/feed/rooms';
+import { backtestSource, pageSource, roomOfPath } from '../src/data/feed/rooms';
 import type { FeedStatus } from '../src/data/feed/status';
 import { boardDay, listingsFor } from '../src/data/compassStandIn';
 
@@ -18,11 +18,14 @@ const check = (name: string, ok: boolean) => {
 
 /* the rail's price follows the page's room (data/feed/rooms.ts pageSource) */
 {
-  const st = (uw: string, massive: string) => ({ uw: { state: uw, key: true, status: 200, at: 1 }, massive: { state: massive, key: true, status: 200, at: 1 } }) as unknown as FeedStatus;
+  /* Theta Data in Massive's place (2026-10-14): the rooms that read the second vendor read Theta Data, and Massive's
+     standing moves no room */
+  const st = (uw: string, theta: string, massive = 'no-key') => ({ uw: { state: uw, key: true, status: 200, at: 1 }, theta: { state: theta, key: true, status: 200, at: 1 }, massive: { state: massive, key: true, status: 200, at: 1 } }) as unknown as FeedStatus;
   const up = st('ok', 'ok');
   check('a Trace page reads the feed when UW is up', pageSource('/trace/live-tape', up) === 'feed');
-  check('a Dossier page reads the feed when both are up', pageSource('/dossier/stocks/AAPL', up) === 'feed');
-  check('the Dossier reads its own book when Massive is down', pageSource('/dossier/news', st('ok', 'no-key')) === 'stand-in');
+  check('a Dossier page reads the feed when UW is up — Massive off, and the Theta Terminal not needed', pageSource('/dossier/stocks/AAPL', up) === 'feed' && pageSource('/dossier/news', st('ok', 'no-terminal')) === 'feed');
+  check('the Dossier reads its own book when UW is down', pageSource('/dossier/news', st('no-key', 'ok')) === 'stand-in');
+  check("the Backtest's real days stand on Theta Data alone: up with UW down, down with the Theta Terminal off whatever Massive says", backtestSource(st('no-key', 'ok')) === 'feed' && backtestSource(st('ok', 'no-terminal', 'ok')) !== 'feed');
   check('a Pinpoint or Terrain page reads the feed when UW is up', ['/pinpoint/map', '/terrain', '/out/terrain'].every(p => pageSource(p, st('ok', 'no-key')) === 'feed'));
   check('an unwired room reads its own book', ['/pulse', '/compass', '/weigher', '/out/pulse/x'].every(p => pageSource(p, up) === 'stand-in'));
   check('a page no room holds reads the house', ['/practice/paper', '/settings/sources', '/glossary', '/community', '/alerts'].every(p => roomOfPath(p) === null && pageSource(p, up) === 'stand-in'));

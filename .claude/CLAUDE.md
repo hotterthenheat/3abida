@@ -600,8 +600,25 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the plans does a figure show "—" — in its own place, its panel standing. A control whose data no plan carries (a 15 s
   bar) stays, disabled, its title saying why. The check: a page with the keys and with them blanked draws the same
   boxes (a structural diff of the DOM's panels and controls).
-- THE KEYS STAY ON THE SERVER. UW_API_TOKEN and MASSIVE_API_KEY live in .env (git-ignored; .env.example names them,
-  and the Massive S3 ones for the flat files, a later step) and are read by vite.config.ts alone (loadEnv(mode, cwd,
+- THETA DATA IN MASSIVE'S PLACE (2026-10-14 — the owner: "i have a new api key for you to use, you can disable the
+  massive ones and use this one"; docs/data-feed.md "Theta Data"). Theta Data answers through the THETA TERMINAL, a Java 21
+  program on the owner's machine (`npm run theta:terminal`, scripts/theta-terminal.mjs; .theta/ git-ignored; a restart
+  loop scripts/theta-terminal.cmd for Task Scheduler beside recorder.cmd): it is handed THETADATA_API_KEY from .env when
+  it starts and serves http://127.0.0.1:25503/v3 — THE KEY IS NEVER IN A REQUEST; the terminal listens on 127.0.0.1
+  alone (its own default is every interface); always "127.0.0.1", never "localhost" (its error 476). ONE TERMINAL A KEY:
+  a second, anywhere, signs the first out (478 — the proxy says 'no-terminal'). The proxy (server/feed.ts provider
+  `theta`) asks NDJSON and answers JSON { rows } with the terminal's field names; 472 is no rows; 471 is the plan. The
+  account reads PROFESSIONAL for stocks, options and indices (8 calls at once; the proxy lets 4 out). Limits measured:
+  minute bars a month a call, day bars a year a call. Timestamps are New York's wall clock with no offset (data/feed/
+  theta.ts `nyStampMs`). Theta's minute bars carry the SESSION's running VWAP — a contract's minute VWAP is folded by the
+  proxy from its own trades (/feed/theta-minutes/option; their sizes equalled the bars' volume 391 of 391). Theta's
+  end-of-day close is its own 17:15 report: it equalled the official close on 251 of 252 sessions (Oct 13 778.05 against
+  778.01) — UW's rows stand over it wherever both carry a date; the official close stays UW's. Read by: Terrain's five
+  weeks of minutes and two years of day bars under UW's, and the Backtest's real days (needs ['theta'] alone). The
+  Dossier needs UW alone (the company record is UW's /api/stock/{T}/info). MASSIVE IS OFF: its key is handed to nothing
+  (vite.config.ts, recorderMain.ts) and commented in .env; data/feed/massive.ts stays for the record.
+- THE KEYS STAY ON THE SERVER. UW_API_TOKEN and THETADATA_API_KEY live in .env (git-ignored; .env.example names them;
+  MASSIVE_API_KEY is off since 2026-10-14) and are read by vite.config.ts alone (loadEnv(mode, cwd,
   '')), handed to server/feed.ts — the proxy the dev server and `vite preview` mount at /feed/uw/* and /feed/massive/*,
   which adds the key itself (UW a Bearer header, Massive the apiKey parameter). Never a VITE_ key, never a key in src,
   never the old provider layer's "direct" mode; the repo is public. The proxy answers this machine alone
@@ -928,8 +945,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   badge "Replay · Oct 13 · 10:42 am" is never shed. The ladder's ghost dots (10 filled, 30 fainter, 60 a ring, on the
   spine's scale) come off the same source the ladder reads — columns in a replay, the books read live — never mixed.
   scripts/replay-cursor-proof.ts (i)–(iii) runs in `npm test`.
-- THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
-  "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
+- THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Theta Data alone since 2026-10-14 — Massive's
+  before, `wired: true`; docs/data-feed.md "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With
+  Theta Data up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE
   MARKET A SESSION, START TO END: the engine asks `marketOf(session)` (data/review/market.ts) for every price — the house's
   tape, or a session's record (`src: 'feed'`, realTape.ts) — never both; a real session whose record is not in moves and

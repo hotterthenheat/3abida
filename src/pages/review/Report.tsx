@@ -90,7 +90,7 @@ const Report = () => {
   return (
     <TraceBox
       title={`The report · ${session.name}`}
-      sub={`From ${dayWords(session.startDay, true)} to where the clock stands, ${momentWords(session.cursor)} · closed trades only — what is still open is on the desk${session.src === 'feed' ? ' · real days: the market’s own record from Massive' : ''}${rulesWords ? ` · run under your rules: ${rulesWords}` : ''}`}
+      sub={`From ${dayWords(session.startDay, true)} to where the clock stands, ${momentWords(session.cursor)} · closed trades only — what is still open is on the desk${session.src === 'feed' ? ' · real days: the market’s own record from Theta Data' : ''}${rulesWords ? ` · run under your rules: ${rulesWords}` : ''}`}
       testId="review-report"
       data={{ trades: stats.n }}
       facts={

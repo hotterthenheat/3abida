@@ -4,25 +4,31 @@
   (data/feed/backtest.ts)
 
   The Backtest replays a REAL past session (2026-10-12)
-  from Massive's record — never a vendor figure beside
-  the house's tape (data/review/market.ts: one market a
-  session, start to end). Massive answers five calls a
-  minute (the proxy's bucket queues them), so a day
+  from the market's own record — Theta Data's since
+  2026-10-14 (Massive's before; the owner: "you can
+  disable the massive ones and use this one") — never a
+  vendor figure beside the house's tape
+  (data/review/market.ts: one market a session, start to
+  end). The Theta Terminal on this machine answers a few
+  calls at once (the proxy queues the rest), so a day
   comes in FEW calls, each kept for the visit:
 
     the picker      a name's sessions, two years of day
-                    bars — ONE call a name
+                    bars — two calls a name (a year a call)
     a session       each name's minutes for every day it
-                    holds (and two before, for the chart)
-                    — ONE call a name; the expiries listed
-                    on its first day — ONE call a name
-    the chain       the strikes listed for the expiry on
-                    show — one call an expiry
+                    holds (and two before, for the chart),
+                    09:30 to 16:00 — one call a name (a
+                    month at most); the contracts that
+                    quoted on its first day — one call a
+                    name, the expiries and every expiry's
+                    strikes read off it
     a contract      its own minutes for every day the
-                    session holds — one call a contract,
-                    asked when the reader opens it (and,
-                    as a session opens, for every contract
-                    its book holds or works)
+                    session holds, folded by the proxy from
+                    the contract's own trades (the minute's
+                    own volume-weighted average) — a call a
+                    day, asked when the reader opens it
+                    (and, as a session opens, for every
+                    contract its book holds or works)
 
   A 429 is waited out (the step says so) and asked
   again; anything else fails the step, in words, with a
@@ -34,7 +40,8 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { Candle } from '../../types/market';
 import type { FeedFail, FeedResult } from './client';
-import { massiveBars, massiveContracts, occTicker, type MassiveBar } from './massive';
+import { occTicker } from './massive';
+import { thetaContractMinutes, thetaContractsOn, thetaStockDays, thetaStockMinutes, type ThetaBar } from './theta';
 import { useRoomSource } from './rooms';
 import { useFeedStatus, type ProviderState } from './status';
 import { isoDate, today } from '../../core/calendar';
@@ -137,7 +144,7 @@ const daysKey = (t: string) => `days|${t}`;
 export function askDays(ticker: string): void {
   const t = ticker.toUpperCase();
   ask<DayRecord>(daysKey(t), `${t}’s sessions, the last two years`, async () => {
-    const r = await massiveBars(t, 1, 'day', isoBack(BACK_DAYS), isoBack(1));
+    const r = await thetaStockDays(t, isoBack(BACK_DAYS), isoBack(1));
     if (!r.ok) return r;
     const now = isoDate(today());
     const rows = r.data.map(b => ({ iso: nyIso(b.t), b })).filter(x => x.iso < now);
@@ -196,7 +203,7 @@ interface Minutes {
 }
 const minutesKey = (t: string, from: string, to: string) => `min|${t}|${from}|${to}`;
 /** The record's bars onto the desk's minutes: 09:30 New York is minute 0, the bell's bar 389 */
-function toMinutes(bars: MassiveBar[], days: string[]): Minutes {
+function toMinutes(bars: ThetaBar[], days: string[]): Minutes {
   const byDay = new Map<string, Candle[]>();
   const short = new Set<string>();
   for (const iso of days) {
@@ -232,7 +239,7 @@ function askMinutes(ticker: string, book: RealBook): void {
   const from = days[0];
   const to = days[days.length - 1];
   ask<Minutes>(minutesKey(ticker, from, to), `${ticker}’s minutes, ${dayWords(book.days[0])} to ${dayWords(book.days[book.days.length - 1])}`, async () => {
-    const r = await massiveBars(ticker, 1, 'minute', from, to);
+    const r = await thetaStockMinutes(ticker, from, to, { regular: true });
     return r.ok ? { ok: true, at: r.at, data: toMinutes(r.data, days) } : r;
   });
 }
@@ -241,36 +248,36 @@ const minutesOf = (ticker: string, book: RealBook): Minutes | undefined => {
   return dataOf<Minutes>(minutesKey(ticker, days[0], days[days.length - 1]));
 };
 
-/* ---- 3. THE EXPIRIES LISTED ON THE FIRST DAY: one call a name, at one round strike near its open ---- */
+/* ---- 3. THE CONTRACTS ON THE FIRST DAY: one call a name — the contracts that quoted that day (Theta Data has no
+   listing "as of" a date; a listed contract quotes), the expiries and every expiry's strikes read off it ---- */
 const expiriesKey = (t: string, asOf: string) => `exp|${t}|${asOf}`;
-const roundStrike = (px: number): number => (px >= 50 ? Math.round(px / 5) * 5 : Math.round(px));
-function askExpiries(ticker: string, asOf: string, near: number): void {
+function askExpiries(ticker: string, asOf: string, _near: number): void {
   ask<string[]>(expiriesKey(ticker, asOf), `${ticker}’s expiries, as listed on ${dayWords(asOf)}`, async () => {
-    const r = await massiveContracts(ticker, { type: 'call', strike: roundStrike(near), asOf, maxPages: 1 });
-    return r.ok ? { ok: true, at: r.at, data: Array.from(new Set(r.data.map(c => c.expiry))).filter(e => e >= asOf).sort() } : r;
+    const r = await thetaContractsOn(ticker, asOf);
+    return r.ok ? { ok: true, at: r.at, data: Array.from(new Set(r.data.filter(c => c.symbol === ticker).map(c => c.expiration))).filter(e => e >= asOf).sort() } : r;
   });
 }
 
-/* ---- 4. THE STRIKES LISTED FOR AN EXPIRY: one call, when the chain shows it ---- */
+/* ---- 4. THE STRIKES LISTED FOR AN EXPIRY: off the same day's contracts, when the chain shows it ---- */
 const strikesKey = (t: string, expiry: string, asOf: string) => `k|${t}|${expiry}|${asOf}`;
 export function askStrikes(ticker: string, expiry: string, asOf: string): void {
   ask<number[]>(strikesKey(ticker, expiry, asOf), `${ticker}’s strikes for ${dayWords(expiry)}`, async () => {
-    const r = await massiveContracts(ticker, { expiryFrom: expiry, expiryTo: expiry, type: 'call', asOf, maxPages: 1 });
-    return r.ok ? { ok: true, at: r.at, data: Array.from(new Set(r.data.map(c => c.strike))).sort((a, b) => a - b) } : r;
+    const r = await thetaContractsOn(ticker, asOf);
+    return r.ok ? { ok: true, at: r.at, data: Array.from(new Set(r.data.filter(c => c.symbol === ticker && c.expiration === expiry && c.right === 'C').map(c => c.strike))).sort((a, b) => a - b) } : r;
   });
 }
 export const strikesState = (ticker: string, expiry: string, asOf: string): Slot | undefined => slots.get(strikesKey(ticker, expiry, asOf));
 
 /* ---- 5. A CONTRACT'S OWN MINUTES: one call, when it is opened ---- */
 const printsKey = (c: ContractId, book: RealBook) => `p|${occTicker(c)}|${book.days[0]}|${book.days[book.days.length - 1]}`;
-function toPrints(bars: MassiveBar[], days: string[]): Map<string, (PrintBar | null)[]> {
+function toPrints(bars: ThetaBar[], days: string[]): Map<string, (PrintBar | null)[]> {
   const out = new Map<string, (PrintBar | null)[]>();
   for (const iso of days) {
     const open = barTime(iso, 0) * 1000;
     const row: (PrintBar | null)[] = new Array(DAY_MIN).fill(null);
     for (const b of bars) {
       const k = Math.round((b.t - open) / 60_000);
-      if (k >= 0 && k < DAY_MIN) row[k] = { o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, vw: b.vw };
+      if (k >= 0 && k < DAY_MIN) row[k] = { o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, vw: b.vw ?? null };
     }
     out.set(iso, row);
   }
@@ -282,8 +289,18 @@ export function askPrints(c: ContractId, book: RealBook): void {
   for (const leg of legs) {
     const occ = occTicker(leg);
     ask<Map<string, (PrintBar | null)[]>>(printsKey(leg, book), `${leg.ticker} ${leg.strike}${leg.right} ${dayWords(leg.expiry)} — its own trades`, async () => {
-      const r = await massiveBars(occ, 1, 'minute', book.days[0], book.days[book.days.length - 1]);
-      return r.ok ? { ok: true, at: r.at, data: toPrints(r.data, book.days) } : r;
+      /* a call a day the contract was alive, the days in turn (a day's trades of an at-the-money same-day contract are
+         tens of megabytes on the terminal's side; the proxy hands back its minutes) */
+      const all: ThetaBar[] = [];
+      let at = 0;
+      for (const day of book.days.filter(d => d <= leg.expiry)) {
+        const r = await thetaContractMinutes({ underlying: leg.ticker, expiry: leg.expiry, strike: leg.strike, right: leg.right }, day);
+        if (!r.ok) return r;
+        all.push(...r.data);
+        at = Math.max(at, r.at);
+      }
+      void occ;
+      return { ok: true, at: at || Date.now(), data: toPrints(all, book.days) };
     });
   }
 }
@@ -326,7 +343,7 @@ export interface RealStep {
 export type RealPhase = 'waiting' | 'off' | 'loading' | 'ready' | 'failed' | 'short';
 export interface RealSession {
   phase: RealPhase;
-  /** Massive's standing, when it is not up */
+  /** Theta Data's standing, when it is not up */
   standing?: ProviderState;
   steps: RealStep[];
   /** The days the record holds — fewer than asked when a half session cut the run */
@@ -367,7 +384,7 @@ export function useRealSession(s: Session | null): RealSession {
   const status = useFeedStatus();
   const isReal = s?.src === 'feed' && !!s.real;
   const contractsKey = isReal && s ? bookContracts(s).map(c => occTicker(c) + (c.short ?? '')).join(',') : '';
-  /* once Massive is up: the minutes first, the expiries once a name's first open is known (one more pass), the book */
+  /* once Theta Data is up: the minutes first, the expiries once a name's first open is known (one more pass), the book */
   useEffect(() => {
     if (isReal && s && source === 'feed') askAll(s);
   }, [isReal, s?.id, source, contractsKey, v]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -381,7 +398,7 @@ export function useRealSession(s: Session | null): RealSession {
     const book = s.real!;
     const names = namesOf(s);
     if (source !== 'feed') {
-      const standing = status.massive.state;
+      const standing = status.theta.state;
       return { phase: standing === 'unknown' ? 'waiting' : 'off', standing, steps: [], days: book.days, market: null, retry };
     }
     const keys: string[] = [];
@@ -406,10 +423,10 @@ export function useRealSession(s: Session | null): RealSession {
     }
     registerMarket(s.id, hit.m);
     return { phase: 'ready', steps, days: held, market: hit.m, retry };
-  }, [s, isReal, source, status.massive.state, v]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [s, isReal, source, status.theta.state, v]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-/** THE PICKER'S DAYS: each name's sessions on the record, asked once Massive is up */
+/** THE PICKER'S DAYS: each name's sessions on the record, asked once Theta Data is up */
 export function useRealDays(tickers: string[], on: boolean): { state: 'off' | 'loading' | 'ready' | 'failed'; days: string[]; reason?: FeedFail; retry: () => void } {
   const v = useRealRecordVersion();
   const key = tickers.join(',');
@@ -432,19 +449,21 @@ export function useRealDays(tickers: string[], on: boolean): { state: 'off' | 'l
 /** Why a call came back empty-handed, in the house's words */
 export const failWords = (reason?: FeedFail | ProviderState): string =>
   reason === 'no-key'
-    ? 'Massive has no key on this machine (MASSIVE_API_KEY in .env)'
-    : reason === 'key-refused'
-      ? 'Massive refused the key'
-      : reason === 'plan'
-        ? 'Massive’s plan does not reach this'
-        : reason === 'rate'
-          ? 'Massive asked for a slower pace — five calls a minute'
-          : reason === 'network'
-            ? 'The network refused Massive’s host'
-            : reason === 'timeout'
-              ? 'Massive took too long to answer'
-              : reason === 'absent'
-                ? 'The terminal’s feed proxy is not running here — it runs with the terminal’s own server'
-                : reason === 'unknown'
-                  ? 'Asking where Massive stands'
-                  : 'Massive answered with an error';
+    ? 'Theta Data has no key on this machine (THETADATA_API_KEY in .env)'
+    : reason === 'no-terminal'
+      ? 'The Theta Terminal is not running on this machine — start it with npm run theta:terminal'
+      : reason === 'key-refused'
+        ? 'Theta Data refused the key'
+        : reason === 'plan'
+          ? 'Theta Data’s plan does not reach this'
+          : reason === 'rate'
+            ? 'The Theta Terminal asked for a slower pace — too many calls at once'
+            : reason === 'network'
+              ? 'The network refused Theta Data’s host'
+              : reason === 'timeout'
+                ? 'Theta Data took too long to answer'
+                : reason === 'absent'
+                  ? 'The terminal’s feed proxy is not running here — it runs with the terminal’s own server'
+                  : reason === 'unknown'
+                    ? 'Asking where Theta Data stands'
+                    : 'Theta Data answered with an error';

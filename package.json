@@ -18,6 +18,7 @@
     "landing:clips": "node scripts/make-landing-clips.mjs",
     "landing:session": "node scripts/make-landing-session.mjs",
     "logos:fetch": "node scripts/fetch-logos.mjs",
+    "theta:terminal": "node scripts/theta-terminal.mjs",
     "feed:check": "tsx scripts/feed-check.ts",
     "feed:recorder": "tsx server/recorderMain.ts",
     "feed:backfill": "tsx scripts/feed-backfill.ts",

@@ -113,6 +113,66 @@ the live answers, kept in `docs/data-feed-samples.md`.
 | `massiveTickers`, `massiveTickerDetails` | `GET /v3/reference/tickers`, `GET /v3/reference/tickers/{ticker}` |
 | `massiveIndices` | `GET /v3/snapshot/indices` — **403 on these plans** (as are `I:` bars) |
 
+## Theta Data in Massive's place (2026-10-14)
+
+The owner: "i have a new api key for you to use, you can disable the massive ones and use this one". **Massive is off**:
+its key is handed to nothing (vite.config.ts, server/recorderMain.ts) and its lines in .env are commented, kept.
+data/feed/massive.ts stays in the tree for the record; nothing calls it.
+
+**How Theta Data is reached.** Theta Data has no cloud REST API: its REST interface is the **Theta Terminal v3**, a Java
+21 program that runs on the owner's machine and serves `http://127.0.0.1:25503/v3/…`
+(https://thetadata.net/docs/Articles/Getting-Started/Getting-Started.html). The key goes to the terminal when it starts,
+never in a request. `npm run theta:terminal` (scripts/theta-terminal.mjs) starts it with THETADATA_API_KEY from .env,
+downloading the program into .theta/ (git-ignored) on the first run, and writes its config to listen on 127.0.0.1
+alone — its own default is every interface. scripts/theta-terminal.cmd keeps it running (register it with Task
+Scheduler at startup, beside scripts/recorder.cmd). **One terminal a key**: a second terminal anywhere signs the first
+out (Theta's error 478) — the proxy then says the terminal is not running, and the rooms that need it fall back.
+
+**The proxy** (server/feed.ts, provider `theta`): `/feed/theta/v3/…` → the terminal, always asked as NDJSON and handed
+back as JSON `{ rows }` with the terminal's own field names; 472 (no data) is an answer with no rows; 471 is the plan
+(403); a terminal not running, signed out or taken over (474, 476, 478, 571, a refused connection) is 503
+`{ error: 'no-terminal' }`. Four calls at once (the plan allows eight). A past day's answer is kept six hours, a
+question naming today half a minute. `/feed/theta-minutes/option?symbol&expiration&strike&right&date` folds a
+contract's trades into minutes (below).
+
+**Seen live, 2026-10-14** (the terminal signed in here, before another terminal took the key's session):
+- The account: **Professional** for stocks, options and indices; eight requests at once.
+- `/v3/stock/history/ohlc` (1m, `venue=utp_cta`, 04:00–20:00): SPY's Oct 13 from 04:00. A month of minutes at most a
+  call ("Bulk history requests are limited to no more than 1 month") — Sep 15 to Oct 13 was 20,181 rows in 21 s.
+- `/v3/stock/history/eod`: a year at most a call ("max 365 days allowed"). **Its close is Theta's own 17:15 report**:
+  over the 252 sessions to Oct 13 it equalled UW's regular-session close (the official close) on 251; Oct 13 it reads
+  778.05 against the official 778.01. UW's rows stand over it wherever both carry a date.
+- `/v3/index/history/price` (1m): SPX's minutes for Oct 13 (its 09:30 row 0.0 — no print yet); `/v3/index/history/eod`.
+- `/v3/option/list/contracts/quote?symbol&date`: SPY's 13,172 contracts that quoted Oct 13 (Theta has no listing "as of"
+  a date; a listed contract quotes). `/v3/option/list/expirations` lists every expiry ever (from 2012).
+- `/v3/option/history/ohlc` (1m): a bar every minute (no trade: volume 0) — **its `vwap` is the session's running
+  VWAP, not the minute's** (its field's own description and its documented example).
+- `/v3/option/history/trade`: every print — SPY's 778 call expiring Oct 13 printed 147,237 times that day (40 MB).
+  **Their sizes summed a minute equal the minute bar's volume on 391 of 391 minutes**, so the minute's own VWAP is
+  folded from them by the proxy and only the minutes come back.
+- `/v3/calendar/today`: the day's type and hours.
+- Timestamps are New York's wall clock with no offset ("2026-10-13T09:30:00.000"); a bar's stamp is its opening minute
+  (data/feed/theta.ts `nyStampMs`).
+
+**Who reads it** (data/feed/theta.ts):
+- **Terrain**: the five weeks of minutes before UW's four sessions (two calls a name) and two years of day bars (two
+  calls) under UW's rows, as Massive's were; compare lines read the same two years.
+- **The Backtest's real days** (`backtest` needs Theta Data alone): a name's sessions (two years of day bars), each
+  session's minutes 09:30–16:00, the contracts that quoted on its first day (its expiries and each expiry's strikes read
+  off them), and each opened contract's minutes, a call a day, folded from its trades — the fill rule unchanged (a
+  contract fills only in a minute it traded, at that minute's VWAP).
+- **The Dossier needs UW alone**: the company's name is UW's `/api/stock/{T}/info` (live: NVDA "NVIDIA").
+
+**Not yet read** (the plan carries them): index prices for Terrain's SPX pane (Theta answers SPX's minutes), the
+greeks, implied volatility and open interest by contract, seconds bars, real-time Nasdaq Basic. Each is a build of its
+own.
+
+**Not verified in the browser here**: Terrain's history and a Backtest real day drawn on Theta's answers — another
+terminal signed in with the key about a minute after this one started, and Theta keeps one session a key, so this
+session's terminal was stopped rather than fight it. The proxy's rules, the conversions and the minutes' fold are
+checked (scripts/feed-proof.ts, against stand-in answers shaped as the live ones were); `npm run feed:check` on the
+owner's machine says whether the terminal answers.
+
 ## The rooms: all or nothing
 
 `src/data/feed/rooms.ts` names what each room would read (`needs`) and gives each room one seam — `pulseSource`,

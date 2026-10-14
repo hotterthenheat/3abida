@@ -142,7 +142,7 @@ const TradesLine = ({ contract, book }: { contract: ContractId; book: RealBook }
   const st = printsState(contract, book);
   const line = 'mt-2 font-mono text-[11px] leading-snug';
   if (!st || st.state === 'asking') return <p className={`${line} text-textMuted`} data-real-trades="asking">Asking for its own trades…</p>;
-  if (st.state === 'waiting') return <p className={`${line} text-textMuted`} data-real-trades="waiting">Its trades are waiting their turn — Massive answers five calls a minute.</p>;
+  if (st.state === 'waiting') return <p className={`${line} text-textMuted`} data-real-trades="waiting">Its trades are waiting their turn — the Theta Terminal answers a few calls at once.</p>;
   if (st.state === 'failed')
     return (
       <p className={`${line} text-warn`} data-real-trades="failed">
@@ -188,14 +188,14 @@ const ChainWaits = ({ ticker, expiry, firstDay }: { ticker: string; expiry: stri
         </button>
       </>
     );
-  if (st?.state === 'waiting') return <>{ticker}’s strikes for {dayWords(expiry)} are waiting their turn — Massive answers five calls a minute.</>;
+  if (st?.state === 'waiting') return <>{ticker}’s strikes for {dayWords(expiry)} are waiting their turn — the Theta Terminal answers a few calls at once.</>;
   return <>Asking for {ticker}’s strikes listed for {dayWords(expiry)}…</>;
 };
 
 const Desk = () => {
   const { id } = useParams();
   const session = useSession(id);
-  /* THE MARKET IT REPLAYS (data/review/market.ts): the house's tape, or — a session on real days — Massive's record, asked
+  /* THE MARKET IT REPLAYS (data/review/market.ts): the house's tape, or — a session on real days — Theta Data's record, asked
      for here and registered once it is in (data/feed/backtest.ts) */
   const realSession = useRealSession(session);
   const recV = useRealRecordVersion();
@@ -583,7 +583,7 @@ const Desk = () => {
     <DeskShell
       session={session}
       onRename={name => renameSession(session.id, name)}
-      subline={`${names.map(n => reviewName(n).name).join(' and ')} · ${real ? 'the market’s own record, from Massive · ' : ''}long calls and puts, paid in cash · ${session.fee ? `${usd(session.fee)} a contract each way` : 'no fee'}`}
+      subline={`${names.map(n => reviewName(n).name).join(' and ')} · ${real ? 'the market’s own record, from Theta Data · ' : ''}long calls and puts, paid in cash · ${session.fee ? `${usd(session.fee)} a contract each way` : 'no fee'}`}
       facts={[
         { label: 'Worth now', testId: 'equity', node: usd(account.equity) },
         { label: 'Cash', testId: 'cash', node: usd(account.cash) },
