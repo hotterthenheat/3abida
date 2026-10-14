@@ -118,7 +118,7 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
         : item(
             'Alert on this level (follows it)',
             open.id === 'flip'
-              ? 'Rings when a minute closes beyond the flip — the flip as it moves'
+              ? 'A notice once three minutes in a row close beyond the flip (the count is yours) — the flip as it moves'
               : open.id === 'callWall' || open.id === 'putWall'
                 ? 'Rings when price touches the wall once it has stood 15 minutes; a move of two strikes or more is a notice'
                 : open.id === 'top3'
@@ -130,7 +130,7 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
       {open.id === 'flip' && on && (
         <div className="mt-1 pt-1 border-t border-borderSubtle px-2 py-1.5 flex items-center gap-2">
           <span className="text-[11px] text-textMuted">Closed minutes beyond it</span>
-          <span role="group" aria-label="Closed minutes beyond the flip before it rings" className="inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px">
+          <span role="group" aria-label="Closed minutes beyond the flip before its notice" className="inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px">
             {[1, 2, 3].map(n => (
               <button key={n} type="button" aria-pressed={watch?.confirmBars === n} onClick={() => setConfirmBars(t, n)} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] ${watch?.confirmBars === n ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
                 {n}

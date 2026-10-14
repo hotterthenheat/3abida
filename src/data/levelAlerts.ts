@@ -21,6 +21,17 @@
   while the tab is hidden, its tag stable per level so a
   repeat replaces the last.
 
+  THE FLIP MOVED DOWN A TIER (the owner, 2026-10-14, on
+  the replay of the ten busiest sessions — the flip was
+  the loudest trigger by far, 21.9 crosses a session at
+  one closed minute: "make a flip cross Tier 2 with 3
+  closed-minute confirmation (default). Tier 1 = wall
+  touches only"): a cross is a Tier-2 notice once three
+  minutes in a row have closed beyond the flip (1 to 5,
+  the reader's pick, 3 by default), and Tier 1 — the
+  chime, the global cap and the stale guard — is a wall
+  touch alone.
+
   PURE: the shell's watcher (components/alerts/
   LevelAlertWatcher.tsx) and the proofs step the same
   engine, a minute bar at a time; a replay steps it on
@@ -74,7 +85,7 @@ export interface LevelInputs {
 }
 
 export interface LevelAlertCfg {
-  /** Closed one-minute bars beyond the flip before a cross is called */
+  /** Closed one-minute bars beyond the flip before a cross is called (3 by default — the owner, 2026-10-14) */
   confirmBars: number;
   /** Minutes a wall must have stood before a touch rings Tier 1 */
   wallAgeMin: number;
@@ -92,7 +103,7 @@ export interface LevelAlertCfg {
   /** A touch: within this share of price */
   touchTol: number;
 }
-export const LEVEL_ALERT_DEFAULTS: LevelAlertCfg = { confirmBars: 1, wallAgeMin: 15, moveStrikes: 2, rearmFrac: 0.5, tier1Cap: 3, capWindowMin: 15, staleMs: 120_000, holdMin: 3, touchTol: 0.0002 };
+export const LEVEL_ALERT_DEFAULTS: LevelAlertCfg = { confirmBars: 3, wallAgeMin: 15, moveStrikes: 2, rearmFrac: 0.5, tier1Cap: 3, capWindowMin: 15, staleMs: 120_000, holdMin: 3, touchTol: 0.0002 };
 
 export interface LevelEvent {
   /** Unique: ticker, kind, level and the minute */
@@ -112,7 +123,8 @@ export interface LevelEvent {
   bar: number;
   /** The inputs' age at the trigger, ms */
   age: number;
-  /** Tier 1 dropped to Tier 2: the inputs were older than two minutes / the window's Tier-1 cap was reached */
+  /** Tier 1 (a wall touch) dropped to Tier 2: the inputs were older than two minutes / the window's Tier-1 cap was
+      reached */
   stale: boolean;
   capped: boolean;
   /** A cross's or a touch's direction: 'up' through or into from below, 'down' from above */
@@ -207,7 +219,8 @@ export class LevelAlertEngine {
       out.push({ ...e, tier, stale, capped, key: `${t}-${e.kind}-${k}-${bar.time}`, ticker: t, at: now, bar: bar.time, age });
     };
 
-    /* THE FLIP: closed minutes beyond it, against the side price stood on */
+    /* THE FLIP: closed minutes beyond it, against the side price stood on — a Tier-2 notice (the owner, 2026-10-14:
+       "make a flip cross Tier 2 with 3 closed-minute confirmation (default)"), never the chime, the cap or the stale guard */
     if (this.watch.has('flip') && lv.flip != null && Number.isFinite(lv.flip) && bar.closed && bar.time !== this.lastClosed) {
       const side = bar.close > lv.flip ? 1 : bar.close < lv.flip ? -1 : 0;
       if (this.flipSide === 0) this.flipSide = side;
@@ -219,7 +232,7 @@ export class LevelAlertEngine {
             const up = side > 0;
             emit(k, {
               tag: tagOf(t, 'flip'),
-              tier: 1,
+              tier: 2,
               level: 'flip',
               kind: 'flip-cross',
               price: lv.flip,
@@ -235,7 +248,8 @@ export class LevelAlertEngine {
     }
     if (bar.closed) this.lastClosed = bar.time;
 
-    /* THE WALLS, followed by identity: re-keyed once a new strike has held; touched after standing the wall's age */
+    /* THE WALLS, followed by identity: re-keyed once a new strike has held; touched after standing the wall's age — the
+       one Tier-1 alert (the owner, 2026-10-14: "Tier 1 = wall touches only") */
     for (const id of ['callWall', 'putWall'] as const) {
       const w = this.walls[id];
       const strike = lv[id];
@@ -389,7 +403,11 @@ export function outcomesOf(e: LevelEvent, bars: readonly { time: number; close: 
 
 export interface LevelWatch {
   ids: LevelId[];
+  /** Closed minutes beyond the flip before its cross is a notice: the reader's pick, else the default (3 since
+      2026-10-14 — a watch set under the old default of 1 that never picked follows the new one) */
   confirmBars: number;
+  /** True once the reader picked the confirmation minutes themselves */
+  chosen?: boolean;
 }
 const WATCH_KEY = 'slayer_level_watch';
 const LOG_KEY = 'slayer_level_alert_log';
@@ -432,7 +450,8 @@ export function levelWatches(): Record<string, LevelWatch> {
     watchCache = {};
     for (const [t, w] of Object.entries(raw)) {
       const ids = Array.isArray(w?.ids) ? w.ids.filter((x): x is LevelId => (LEVEL_IDS as readonly string[]).includes(x)) : [];
-      if (ids.length) watchCache[t.toUpperCase()] = { ids, confirmBars: Number.isInteger(w.confirmBars) && w.confirmBars >= 1 && w.confirmBars <= 5 ? w.confirmBars : 1 };
+      const picked = w.chosen === true && Number.isInteger(w.confirmBars) && w.confirmBars >= 1 && w.confirmBars <= 5;
+      if (ids.length) watchCache[t.toUpperCase()] = { ids, confirmBars: picked ? w.confirmBars : LEVEL_ALERT_DEFAULTS.confirmBars, ...(picked ? { chosen: true } : {}) };
     }
   }
   return watchCache;
@@ -440,7 +459,7 @@ export function levelWatches(): Record<string, LevelWatch> {
 export function setLevelWatch(ticker: string, id: LevelId, on: boolean): void {
   const t = ticker.toUpperCase();
   const all = { ...levelWatches() };
-  const cur = all[t] ?? { ids: [], confirmBars: 1 };
+  const cur = all[t] ?? { ids: [], confirmBars: LEVEL_ALERT_DEFAULTS.confirmBars };
   const ids = on ? [...new Set([...cur.ids, id])] : cur.ids.filter(x => x !== id);
   if (ids.length) all[t] = { ...cur, ids };
   else delete all[t];
@@ -452,7 +471,7 @@ export function setConfirmBars(ticker: string, n: number): void {
   const t = ticker.toUpperCase();
   const all = { ...levelWatches() };
   if (!all[t]) return;
-  all[t] = { ...all[t], confirmBars: Math.max(1, Math.min(5, Math.round(n))) };
+  all[t] = { ...all[t], confirmBars: Math.max(1, Math.min(5, Math.round(n))), chosen: true };
   watchCache = all;
   writeJson(WATCH_KEY, all);
   ring();

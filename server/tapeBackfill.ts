@@ -102,8 +102,9 @@ export function csvFields(line: string): string[] {
   return out;
 }
 
-/** The zip's first entry, raw: the local file header skipped, the deflate stream passed on */
-function entryBody(): Transform {
+/** The zip's first entry, raw: the local file header skipped, the deflate stream passed on (scripts/theta-probe reads
+    the tape through it too) */
+export function entryBody(): Transform {
   let head: Buffer | null = Buffer.alloc(0);
   return new Transform({
     transform(chunk: Buffer, _enc, cb) {

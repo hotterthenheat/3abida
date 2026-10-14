@@ -858,11 +858,14 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   (pure) scores the call wall, put wall, flip and three heaviest strikes on the store's FINAL rows against baselines on
   the same days — B1 random levels (Osler), B2 strike-matched FIXED AT THE OPEN (2026-10-14 — the owner's "Baseline
   levels use only information available at the open"; re-picked every minute it seldom stood a minute: 9 touches with a
-  15-minute outcome against 293 on SPY's twelve sessions): the open column's strikes in each real level's distance band, either side, |gamma| under
-  that column's median, never a real level then nor in a minute it is one (trackRecord `strikeMatchedOf`) — still thin by
-  the data near the money (every strike within a few dollars carries more than the median |gamma|), so a cell with NO
-  strike-matched touch says "insufficient data (…, no strike-matched touch)" and prints no rate; whether the band takes
-  its own lowest-|gamma| strikes instead is the owner's call, not built — B3 the mirror — a level counting only once it has stood a minute, a touch once an
+  15-minute outcome against 293 on SPY's twelve sessions): the open column's strikes in each real level's distance band
+  (within a step of the level's distance from the open's price, either side, the real levels left out), |gamma| under
+  THE BAND'S OWN median (the owner's second rule, 2026-10-14: "below the median |gamma| of that band (not the session
+  median)" — under the column's median a band near the money was empty, gamma peaking there; config
+  record-2026-10-14.2), held for the session, never counted in a minute it is one of that minute's real levels
+  (trackRecord `bandOf`, `strikeMatchedOf`); a cell with NO strike-matched touch still says "insufficient data (…, no
+  strike-matched touch)" and prints no rate (this machine's 13 sessions after the rule: SPY 120 B2 touches — flip 68,
+  heaviest strikes 52, either wall 0 — against 343 real; QQQ 187 against 367) — B3 the mirror — a level counting only once it has stood a minute, a touch once an
   approach, a bounce the close on the approach side at 15 and 30 minutes, MFE/MAE in points; real − B2 with a seeded
   day-block bootstrap interval and the months won; the regime's next-range by tercile and Baltussen's last half hour.
   Every parameter is server/scorecard.config.json, the variants tried print beside every line, the most recent six
@@ -929,9 +932,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   data/levelAlerts.ts (`LevelAlertEngine`, pure, a minute at a time) under components/alerts/LevelAlertWatcher.tsx in the
   shell. A name's watch follows levels by identity (flip, call wall, put wall, top 3, ±σ), set by a right-click on
   Terrain's chart (LevelAlertMenu) and listed in the drawer's Levels shelf. Tier 1 (chime, voice when on, the machine's
-  notification while hidden, tag stable per level): flip crossed and N closed minutes beyond (default 1), a wall touched
-  after standing 15 minutes. Tier 2 (chip): a wall moving ≥ 2 strikes once held three minutes, a new top-3 strike held
-  three minutes, ±1σ/±2σ touched. Tier 3 (log): a wall moving under two strikes. Once a minute a level; re-armed after
+  notification while hidden, tag stable per level): A WALL TOUCHED after standing 15 minutes — wall touches alone (the
+  owner, 2026-10-14, after the ten-session replay showed the flip the loudest trigger by far: "make a flip cross Tier 2
+  with 3 closed-minute confirmation (default). Tier 1 = wall touches only"). Tier 2 (chip): THE FLIP CROSSED and N closed
+  minutes beyond — DEFAULT 3 since 2026-10-14 (1 to 5, the reader's pick; a watch that never picked follows the default,
+  LevelWatch `chosen`), a wall moving ≥ 2 strikes once held three minutes, a new top-3 strike held three minutes,
+  ±1σ/±2σ touched. Tier 3 (log): a wall moving under two strikes. Once a minute a level; re-armed after
   half a strike away in a later minute; three Tier-1 in 15 minutes across every name (global), the rest "capped"; inputs
   over two minutes old drop Tier 1 to Tier 2 "stale". Outcomes at +15/+30 on the track record's rules (How sure). A
   replay writes to its own log. Never a trade call in the words.

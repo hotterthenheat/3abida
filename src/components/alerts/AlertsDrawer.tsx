@@ -281,7 +281,8 @@ const Empty = ({ icon: Icon, children }: { icon: LucideIcon; children: React.Rea
 
 /* THE LEVELS (the owner's item 7): the levels each name's watch follows — set from Terrain's chart, a right-click on a
    level — and what they raised, by tier: 1 rang (the chime, the voice when it is on, the machine's notice while the tab
-   is hidden), 2 showed as a chip, 3 was written here alone */
+   is hidden — a wall touch alone since 2026-10-14), 2 showed as a chip (a flip cross after its closed minutes, a wall's
+   move, a new heavy strike, ±σ), 3 was written here alone */
 const TIER_INK: Record<1 | 2 | 3, string> = { 1: ALERT, 2: 'rgb(var(--silver))', 3: 'rgb(var(--text-muted))' };
 const LevelShelf = ({ pick, go }: { pick: string | null; go: (ticker: string, to: string) => void }) => {
   const watches = useLevelWatches();
@@ -318,7 +319,7 @@ const LevelShelf = ({ pick, go }: { pick: string | null; go: (ticker: string, to
                 <div key={id} className="flex items-center gap-2 px-3 py-1.5 border-b border-borderSubtle/60 last:border-b-0" data-level-watch={id}>
                   <span className="flex-1 min-w-0 text-[12px] text-textPrimary">Follows {LEVEL_NAMES[id]}</span>
                   {id === 'flip' && (
-                    <span role="group" aria-label="Closed minutes beyond the flip before it rings" className="inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" title="Closed one-minute bars beyond the flip before a cross is called">
+                    <span role="group" aria-label="Closed minutes beyond the flip before its notice" className="inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" title="Closed one-minute bars beyond the flip before a cross is called">
                       {[1, 2, 3].map(n => (
                         <button key={n} type="button" aria-pressed={watches[t].confirmBars === n} onClick={() => setConfirmBars(t, n)} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] ${watches[t].confirmBars === n ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
                           {n} min

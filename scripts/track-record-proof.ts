@@ -9,7 +9,7 @@
   strike-matched baseline is never a real level.
 */
 import { readFileSync } from 'node:fs';
-import { nyMinuteOf, recordLine, rng, strikeMatchedOf, touchesOf, trackRecord, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
+import { bandOf, nyMinuteOf, recordLine, rng, strikeMatchedOf, touchesOf, trackRecord, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
 import { buildRegimeReference, ordinal, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeQuantiles } from '../src/data/feed/trailModel';
 
 let pass = 0;
@@ -151,30 +151,56 @@ check('a full cell prints the owner’s line: touched N times, the rate against 
 const churn = synthDay(0, rng(3), null, 600, true);
 const churnTouches = touchesOf(churn, quick, cfg.tol.default, null, null);
 check('a level that changes every minute never counts (it must have stood a minute before the bar)', !churnTouches.some(t => t.kind === 'call wall' && t.base === 'real'));
-const one = [5, 6, 7, 8, 9, 10].flatMap(i => touchesOf(sessions[i], quick, cfg.tol.default, 3, null));
-const rowsAt = new Map([5, 6, 7, 8, 9, 10].flatMap(i => sessions[i].rows.map(r => [r.m, r] as [number, TrackRow])));
+/* a session's touches against ITS OWN rows: synthetic days can share a date and their minutes (a weekend day steps
+   forward to the Monday), so a map over the six sessions keyed by the minute alone read another day's row */
+const per = [5, 6, 7, 8, 9, 10].map(i => ({ s: sessions[i], rowAt: new Map(sessions[i].rows.map(r => [r.m, r] as [number, TrackRow])), ts: touchesOf(sessions[i], quick, cfg.tol.default, 3, null) }));
+const one = per.flatMap(p => p.ts);
 const realCw = one.filter(t => t.base === 'real' && t.kind === 'call wall');
 check('a touch is counted once an approach, numbered within the session', realCw.every(t => t.nth >= 1 && t.nth <= 3) && realCw.length < (6 * sessions[5].bars.length) / 4);
 const b2 = one.filter(t => t.base === 'B2');
-const bad = b2.find(t => { const row = rowsAt.get(t.m - 60_000); return !row || !Number.isInteger(t.level) || t.level === row.cw || t.level === row.pw; });
-if (bad) console.log('  a strike-matched touch off the rule:', JSON.stringify({ level: bad.level, id: bad.id, row: rowsAt.get(bad.m - 60_000) ? { cw: rowsAt.get(bad.m - 60_000)!.cw, pw: rowsAt.get(bad.m - 60_000)!.pw } : null }));
+let bad: { level: number; id: string; row: { cw: number | null; pw: number | null } | null } | null = null;
+for (const p of per)
+  for (const t of p.ts) {
+    if (t.base !== 'B2') continue;
+    const row = p.rowAt.get(t.m - 60_000);
+    if (!row || !Number.isInteger(t.level) || t.level === row.cw || t.level === row.pw) {
+      bad = { level: t.level, id: t.id, row: row ? { cw: row.cw, pw: row.pw } : null };
+      break;
+    }
+  }
+if (bad) console.log('  a strike-matched touch off the rule:', JSON.stringify(bad));
 check('a strike-matched level is a listed strike and never the real level of its minute', b2.length > 0 && !bad);
 /* B2 FIXED AT THE OPEN (the owner: "Baseline levels use only information available at the open"): the strike-matched
    levels are the open's column's alone — every column after the open rewritten, the set is the same — each a listed strike
-   under the open's median |gamma|, never a real level then; every B2 touch is one of them */
+   of its real level's band under THE BAND'S OWN median |gamma| (the owner's second rule, 2026-10-14: "below the median
+   |gamma| of that band (not the session median)"), never a real level then; every B2 touch is one of them */
 {
   const s0 = sessions[7];
   const set = strikeMatchedOf(s0, quick);
   const edited: TrackSession = { ...s0, rows: s0.rows.map((r, i) => (i === 0 ? r : { ...r, cells: r.cells.map(([k, v]) => [k, -v * 3] as [number, number]), cw: r.cw != null ? r.cw + 1 : null, pw: r.pw != null ? r.pw - 1 : null })) };
   const setEdited = strikeMatchedOf(edited, quick);
   const open = s0.rows[0];
-  const mags = open.cells.map(c => Math.abs(c[1])).sort((a, b) => a - b);
-  const med = mags.length % 2 ? mags[mags.length >> 1] : (mags[mags.length / 2 - 1] + mags[mags.length / 2]) / 2;
-  const realAtOpen = new Set([open.cw, open.pw, ...open.top.slice(0, quick.topK).map(t => t[0])]);
+  const realAtOpen = new Set([open.cw, open.pw, ...open.top.slice(0, quick.topK).map(t => t[0])].filter((x): x is number => x != null));
+  const strikes = open.cells.map(c => c[0]).sort((a, b) => a - b);
+  const step = Math.min(...strikes.slice(1).map((k, i) => k - strikes[i]).filter(x => x > 0));
+  const medOf = (a: number[]) => {
+    const m = [...a].sort((x, y) => x - y);
+    return m.length % 2 ? m[m.length >> 1] : (m[m.length / 2 - 1] + m[m.length / 2]) / 2;
+  };
+  const levelOf = (kind: string): number | null => (kind === 'call wall' ? open.cw : kind === 'put wall' ? open.pw : kind === 'flip' ? open.flip : null);
+  /* the rule, written again here: a pick sits in its level's band, under that band's median, and is no real level */
   const rule = set.every(l => {
     const cell = open.cells.find(c => c[0] === l.level);
-    return !!cell && Math.abs(cell[1]) < med && !realAtOpen.has(l.level);
+    const lv = levelOf(l.kind);
+    if (!cell || realAtOpen.has(l.level)) return false;
+    if (lv == null) return l.kind === 'top strike' && open.top.slice(0, quick.topK).some(t => Math.abs(cell[1]) < medOf(bandOf(open, t[0], step, realAtOpen).map(c => Math.abs(c[1]))));
+    const band = bandOf(open, lv, step, realAtOpen);
+    return band.some(c => c[0] === l.level) && Math.abs(cell[1]) < medOf(band.map(c => Math.abs(c[1])));
   });
+  /* a band's median is its own: the strikes in no band multiplied fifty-fold move the column's median and change nothing here */
+  const inBand = new Set([open.cw, open.pw, open.flip, ...open.top.slice(0, quick.topK).map(t => t[0])].filter((x): x is number => x != null).flatMap(lv => bandOf(open, lv, step, realAtOpen).map(c => c[0])));
+  const far: TrackSession = { ...s0, rows: s0.rows.map((r, i) => (i === 0 ? { ...r, cells: r.cells.map(([k, v]) => [k, inBand.has(k) || realAtOpen.has(k) ? v : v * 50] as [number, number]) } : r)) };
+  const setFar = strikeMatchedOf(far, quick);
   /* every B2 touch over forty sessions is one of its session's open-picked levels, and never the real level of its minute */
   let touchedB2 = 0;
   let offSet = 0;
@@ -190,7 +216,7 @@ check('a strike-matched level is a listed strike and never the real level of its
       if (row && (t.level === row.cw || t.level === row.pw || row.top.slice(0, quick.topK).some(x => x[0] === t.level))) onReal++;
     }
   }
-  check(`strike-matched levels come from the open's column alone: ${set.length} on the first day, each a listed strike under the open's median |gamma| and no real level then; every column after the open rewritten, the same ${setEdited.length}; over forty sessions each of the ${touchedB2} B2 touches is one of its open's (${offSet} off) and none the real level of its minute (${onReal})`, set.length > 0 && rule && JSON.stringify(set) === JSON.stringify(setEdited) && touchedB2 > 0 && offSet === 0 && onReal === 0);
+  check(`strike-matched levels come from the open's column alone: ${set.length} on the first day, each in its level's band under the band's own median |gamma| and no real level then; every column after the open rewritten, the same ${setEdited.length}; the far strikes' gamma multiplied, the same ${setFar.length} (the band's median, not the column's); over forty sessions each of the ${touchedB2} B2 touches is one of its open's (${offSet} off) and none the real level of its minute (${onReal})`, set.length > 0 && rule && JSON.stringify(set) === JSON.stringify(setEdited) && JSON.stringify(set) === JSON.stringify(setFar) && touchedB2 > 0 && offSet === 0 && onReal === 0);
   const c15 = rec.cells.find(c => c.kind === 'call wall' && c.split === 'all' && c.horizon === 15 && c.tol === cfg.tol.default)!;
   check(`and they stand long enough to be touched — a baseline with a count: ${c15.B2.n} strike-matched call-wall touches with a 15-minute outcome (real ${c15.real.n})`, c15.B2.n >= 100);
 }

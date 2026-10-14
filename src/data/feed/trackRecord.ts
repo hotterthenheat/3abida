@@ -41,14 +41,18 @@
        every minute, so it almost never stood the minute
        a touch needs — SPY's twelve sessions counted 9
        touches with a 15-minute outcome against 293
-       real): for each real level of
-       the open's column, the listed strikes in the same
-       distance band from the open's price (within a step
-       of the level's distance, either side) whose
-       |gamma| is under that column's median, never a
-       real level then — and a minute it is one of that
-       minute's real levels it is not counted: round
-       numbers and distance alike, the gamma not;
+       real): for each real level of the open's column,
+       the listed strikes in the same distance band from
+       the open's price (within a step of the level's
+       distance, either side, the real levels left out)
+       whose |gamma| is under THE BAND'S OWN median (the
+       owner's second rule, 2026-10-14: "below the median
+       |gamma| of that band (not the session median)" —
+       against the column's median a band near the money
+       was empty, gamma peaking there), held for the
+       session — and a minute it is one of that minute's
+       real levels it is not counted: round numbers and
+       distance alike, the gamma not;
     B3 distance-matched — the mirror: a price at the
        real level's distance from spot when the level
        formed, on the other side, kept until the level
@@ -291,21 +295,28 @@ function levelsBefore(row: TrackRow, cfg: TrackConfig): Live[] {
   return out;
 }
 
-/** B2, FIXED AT THE OPEN: for each real level of the open's column, the listed strikes in the same distance band from
-    the open's price — within a step of the level's distance, either side — whose |gamma| is under that column's median,
-    never a real level then; one level a kind and strike, standing all session */
+/** THE BAND of a real level at the open: the listed strikes at the level's distance from the open's price — within a
+    step of it, either side — with the open's real levels left out */
+export function bandOf(row: TrackRow, level: number, step: number, taken: ReadonlySet<number>): [number, number][] {
+  const d = Math.abs(level - row.spot);
+  return row.cells.filter(c => !taken.has(c[0]) && Math.abs(Math.abs(c[0] - row.spot) - d) <= step + 1e-9);
+}
+/** B2, FIXED AT THE OPEN: for each real level of the open's column, the strikes of its band whose |gamma| is under THE
+    BAND'S OWN median |gamma| (the owner, 2026-10-14: "below the median |gamma| of that band (not the session median)"
+    — a band of one strike has nothing under its median), never a real level then; one level a kind and strike, standing
+    all session */
 function strikeMatchedAtOpen(row: TrackRow, cfg: TrackConfig): Live[] {
   const out = new Map<string, Live>();
   if (!row.cells.length) return [];
   const step = stepOf(row.cells);
-  const med = median(row.cells.map(c => Math.abs(c[1]))) ?? 0;
   const real = levelsBefore(row, cfg);
   const taken = new Set(real.map(l => l.level));
   for (const r of real) {
-    const d = Math.abs(r.level - row.spot);
-    for (const c of row.cells) {
-      if (taken.has(c[0]) || Math.abs(c[1]) >= med) continue;
-      if (Math.abs(Math.abs(c[0] - row.spot) - d) > step + 1e-9) continue;
+    const band = bandOf(row, r.level, step, taken);
+    const med = median(band.map(c => Math.abs(c[1])));
+    if (med == null) continue;
+    for (const c of band) {
+      if (Math.abs(c[1]) >= med) continue;
       const id = `B2:${r.kind}:${c[0]}`;
       if (!out.has(id)) out.set(id, { kind: r.kind, base: 'B2', id, level: c[0], sign: c[1] > 0 ? 1 : c[1] < 0 ? -1 : 0, size: Math.abs(c[1]) });
     }
@@ -540,8 +551,8 @@ function cellOf(kind: LevelKind, split: string, pick: (t: Touch) => boolean, h: 
     months: monthsWon(real, b2, h),
     mfe,
     mae,
-    /* a real rate with no strike-matched touch beside it would be a bare rate (2026-10-14: near the money every strike
-       carries more than the column's median |gamma|, so on SPY's walls the baseline is often empty) */
+    /* a real rate with no strike-matched touch beside it would be a bare rate (2026-10-14: a band of one strike has
+       nothing under its median, and a baseline strike may never be reached) */
     insufficient: n < cfg.minTouches || months < cfg.minMonths || b2Rate.n === 0 ? { touches: n, months, baseline: b2Rate.n } : null,
   };
 }

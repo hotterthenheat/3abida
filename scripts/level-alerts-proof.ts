@@ -1,20 +1,21 @@
 /*
   Acceptance test for the tiered level alerts (data/levelAlerts.ts, the owner's item 7, 2026-10-14):
-  the rules on built minutes — a flip cross called after N closed minutes beyond it; a whipsaw inside the re-arm
-  distance never rings twice; a wall touch only after the wall has stood 15 minutes; a wall followed by its identity
-  (a move of two strikes a Tier-2 notice, a smaller one Tier 3); the stale guard; the global Tier-1 cap; the outcomes
-  at +15 and +30 minutes on the track record's definitions — and the owner's acceptance on the sessions this machine
-  has rebuilt:
+  the rules on built minutes — a flip cross a Tier-2 notice after N closed minutes beyond it (3 by default since the
+  owner's second rule of 2026-10-14: "make a flip cross Tier 2 with 3 closed-minute confirmation (default). Tier 1 =
+  wall touches only"); a whipsaw inside the re-arm distance never noticed twice; a wall touch — the one Tier-1 alert —
+  only after the wall has stood 15 minutes; a wall followed by its identity (a move of two strikes a Tier-2 notice, a
+  smaller one Tier 3); the stale guard; the global Tier-1 cap; the outcomes at +15 and +30 minutes on the track
+  record's definitions — and the owner's acceptance on the sessions this machine has rebuilt:
   (i)   replaying the 10 sessions with the most flip crossings: no 15 minutes hold more than the cap of Tier-1 alerts,
         and no two alerts with one tag fall inside one cooldown (the same minute, or before price moved the re-arm
-        distance away)
+        distance away); the alerts of each session by tier are printed
   (ii)  a 3-minute gap in the data drops a Tier-1 alert to Tier 2, said "stale"
   (iii) every alert old enough joins its +15 and +30 minute outcome
 */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import { LevelAlertEngine, LEVEL_IDS, outcomesOf, type LevelBar, type LevelEvent, type LevelInputs, type TierCap } from '../src/data/levelAlerts';
+import { LEVEL_ALERT_DEFAULTS, LevelAlertEngine, LEVEL_IDS, outcomesOf, type LevelBar, type LevelEvent, type LevelInputs, type TierCap } from '../src/data/levelAlerts';
 import { createFieldStore } from '../server/fieldStore';
 import type { PastDay } from '../server/fieldBackfill';
 
@@ -30,21 +31,25 @@ const lv = (o: Partial<LevelInputs> = {}): LevelInputs => ({ flip: 600, callWall
 const bar = (i: number, close: number, closed = true, hi = close, lo = close): LevelBar => ({ time: T0 + i * 60, high: Math.max(hi, close), low: Math.min(lo, close), close, closed });
 const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => LevelInputs = () => lv(), age = () => 0) => closes.flatMap((c, i) => e.observe(bar(i, c), inputs(i), (T0 + i * 60 + 60) * 1000, age()));
 
-/* the flip */
+/* the flip — a Tier-2 notice after three closed minutes beyond it by default (the owner, 2026-10-14) */
 {
+  check('the default confirmation is three closed minutes', LEVEL_ALERT_DEFAULTS.confirmBars === 3);
   const e = new LevelAlertEngine('SPY', ['flip']);
   const ev = run(e, [599, 599.5, 600.4, 600.8, 601]);
-  check(`one closed minute beyond the flip calls the cross (Tier 1, "${ev[0]?.words}")`, ev.length === 1 && ev[0].tier === 1 && ev[0].kind === 'flip-cross' && ev[0].side === 'up' && ev[0].tag === 'SPY-flip' && ev[0].bar === T0 + 120);
+  check(`three closed minutes beyond the flip call the cross, a Tier-2 notice ("${ev[0]?.words}")`, ev.length === 1 && ev[0].tier === 2 && ev[0].kind === 'flip-cross' && ev[0].side === 'up' && ev[0].tag === 'SPY-flip' && ev[0].bar === T0 + 240);
+  const e1 = new LevelAlertEngine('SPY', ['flip']);
+  const ev1 = run(e1, [599, 600.4, 600.6, 599.8, 600.4, 600.6]);
+  check('by default two minutes beyond and one back is no cross', ev1.length === 0);
   const e2 = new LevelAlertEngine('SPY', ['flip'], { confirmBars: 2 });
   const ev2 = run(e2, [599, 600.4, 599.8, 600.4, 600.6]);
   check('with two confirmation minutes, one minute beyond and back is no cross; two in a row are', ev2.length === 1 && ev2[0].bar === T0 + 240);
-  const e3 = new LevelAlertEngine('SPY', ['flip']);
+  const e3 = new LevelAlertEngine('SPY', ['flip'], { confirmBars: 1 });
   const ev3 = run(e3, [599, 600.3, 599.8, 600.2, 599.9, 600.3]);
-  check(`a whipsaw inside half a strike rings once (${ev3.length})`, ev3.length === 1);
-  const e4 = new LevelAlertEngine('SPY', ['flip']);
+  check(`at one confirmation minute a whipsaw inside half a strike is noticed once (${ev3.length})`, ev3.length === 1);
+  const e4 = new LevelAlertEngine('SPY', ['flip'], { confirmBars: 1 });
   const ev4 = run(e4, [599, 600.3, 599.4, 600.6]);
-  check(`once price has moved half a strike away, the next cross rings (${ev4.length}: ${ev4.map(x => x.side).join(', ')})`, ev4.length === 3 && ev4[1].side === 'down');
-  const e5 = new LevelAlertEngine('SPY', ['flip']);
+  check(`once price has moved half a strike away, the next cross is noticed (${ev4.length}: ${ev4.map(x => x.side).join(', ')})`, ev4.length === 3 && ev4[1].side === 'down');
+  const e5 = new LevelAlertEngine('SPY', ['flip'], { confirmBars: 1 });
   const forming = e5.observe(bar(0, 599), lv(), T0 * 1000, 0).length + e5.observe(bar(1, 600.5, false), lv(), (T0 + 70) * 1000, 0).length;
   check('a forming minute beyond the flip confirms nothing until it closes', forming === 0 && e5.observe(bar(1, 600.5, true), lv(), (T0 + 120) * 1000, 0).length === 1);
 }
@@ -72,15 +77,19 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
   check(`±σ: +1σ at 602 and +2σ at 604 touched, each once (${evs.map(x => x.tag).join(', ')})`, evs.length === 2 && evs.every(x => x.tier === 2) && evs[0].tag === 'SPY-sigmaup1' && evs[1].tag === 'SPY-sigmaup2');
 }
 
-/* the stale guard and the global cap */
+/* the stale guard and the global cap — on Tier 1, which is a wall touch alone */
 {
-  const e = new LevelAlertEngine('SPY', ['flip']);
-  const ev = run(e, [599, 600.6], () => lv(), () => 3 * 60_000);
-  check('(ii) inputs three minutes old at the trigger: Tier 1 drops to Tier 2, said stale', ev.length === 1 && ev[0].tier === 2 && ev[0].stale);
+  const wallTouch = (n = 21) => Array.from({ length: n }, (_, i) => (i === n - 1 ? 605 : 603));
+  const e = new LevelAlertEngine('SPY', ['callWall']);
+  const ev = run(e, wallTouch(), () => lv(), () => 3 * 60_000);
+  check('(ii) inputs three minutes old at the trigger: a wall touch drops from Tier 1 to Tier 2, said stale', ev.length === 1 && ev[0].kind === 'wall-touch' && ev[0].tier === 2 && ev[0].stale);
   const cap: TierCap = { at: [] };
-  const names = ['SPY', 'QQQ', 'IWM', 'NVDA'].map(t => new LevelAlertEngine(t, ['flip'], {}, cap));
-  const fired = names.flatMap((n, k) => run(n, [599, 600.6], () => lv(), () => 0).map(x => ({ ...x, k })));
-  check(`the Tier-1 cap is global: four names crossing in one minute ring three, the fourth a Tier-2 notice said capped (${fired.map(x => `${x.ticker} T${x.tier}`).join(', ')})`, fired.filter(x => x.tier === 1).length === 3 && fired.filter(x => x.capped).length === 1);
+  const names = ['SPY', 'QQQ', 'IWM', 'NVDA'].map(t => new LevelAlertEngine(t, ['callWall'], {}, cap));
+  const fired = names.flatMap((n, k) => run(n, wallTouch(), () => lv(), () => 0).map(x => ({ ...x, k })));
+  check(`the Tier-1 cap is global: four names touching a wall in one minute ring three, the fourth a Tier-2 notice said capped (${fired.map(x => `${x.ticker} T${x.tier}`).join(', ')})`, fired.length === 4 && fired.filter(x => x.tier === 1).length === 3 && fired.filter(x => x.capped).length === 1);
+  const f = new LevelAlertEngine('SPY', ['flip'], { confirmBars: 1 }, { at: [] });
+  const crossed = run(f, [599, 600.6], () => lv(), () => 3 * 60_000);
+  check('a flip cross is never Tier 1: it rings nothing, counts against no cap and is never said stale', crossed.length === 1 && crossed[0].tier === 2 && !crossed[0].stale && !crossed[0].capped);
 }
 
 /* the outcomes */
@@ -128,6 +137,7 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
     let gapDowngraded = 0;
     let gapTier1 = 0;
     const kinds: Record<string, number> = {};
+    const table: string[] = [];
     for (const s of picked) {
       const cap: TierCap = { at: [] };
       const e = new LevelAlertEngine(s.name, LEVEL_IDS, {}, cap);
@@ -146,6 +156,11 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
         kinds[x.kind] = (kinds[x.kind] ?? 0) + 1;
         kinds[`tier ${x.tier}${x.capped ? ' capped' : ''}`] = (kinds[`tier ${x.tier}${x.capped ? ' capped' : ''}`] ?? 0) + 1;
       }
+      /* the session's alerts by tier (the owner, 2026-10-14: "report alerts per session by tier") */
+      const n = (f: (x: LevelEvent) => boolean) => out.filter(f).length;
+      table.push(
+        `  ${s.name} ${s.day}  crossings ${String(s.crossings).padStart(2)} · alerts ${String(out.length).padStart(3)} · tier 1 ${String(n(x => x.tier === 1)).padStart(2)} (wall touches) · tier 2 ${String(n(x => x.tier === 2)).padStart(3)} (flip crosses ${n(x => x.kind === 'flip-cross')}, wall moves ${n(x => x.kind === 'wall-move')}, new top-3 ${n(x => x.kind === 'new-top3')}, capped ${n(x => x.capped)}, stale ${n(x => x.stale)}) · tier 3 ${String(n(x => x.tier === 3)).padStart(2)}`
+      );
       /* the cap: no 15 minutes hold more than three Tier-1 alerts */
       const t1 = out.filter(x => x.tier === 1).map(x => x.at).sort((a, b) => a - b);
       for (let i = 0; i < t1.length; i++) tier1Max = Math.max(tier1Max, t1.filter(x => x >= t1[i] && x < t1[i] + 15 * 60_000).length);
@@ -179,7 +194,7 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
         const ev = e2.observe(st.bar, st.lv, (st.bar.time + 60) * 1000, age);
         lastSeen = st.bar.time;
         for (const x of ev)
-          if (t1Bars.has(x.bar) && (x.kind === 'flip-cross' || x.kind === 'wall-touch')) {
+          if (t1Bars.has(x.bar) && x.kind === 'wall-touch') {
             gapTier1++;
             if (x.tier === 2 && x.stale) gapDowngraded++;
           }
@@ -200,6 +215,8 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
       }
       return `${n} minute${n === 1 ? '' : 's'}: ${crosses} (${(crosses / picked.length).toFixed(1)} a session)`;
     });
+    console.log('NOTE  the ten sessions, by tier (flip crosses at the default three closed minutes; Tier 1 is a wall touch alone):');
+    for (const l of table) console.log(l);
     console.log(`NOTE  flip crosses called, by confirmation minutes — ${byN.join('; ')}`);
     console.log(`NOTE  ${picked.length} sessions (${picked.map(s => `${s.name} ${s.day} ${s.crossings}`).join(', ')}), ${events} alerts: ${Object.entries(kinds).map(([k, n]) => `${k} ${n}`).join(', ')}`);
     check(`(i) the cap holds: at most ${tier1Max} Tier-1 alerts in any 15 minutes (cap 3)`, tier1Max <= 3 && events > 0);

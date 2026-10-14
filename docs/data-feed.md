@@ -674,18 +674,43 @@ levels use only information available at the open", so B2 is now **fixed at the 
 real levels is not counted for it). The config is `record-2026-10-14.1`, so the hold-out was evaluated again and says
 so.
 
-**What the data says about it, plainly:** fixed at the open, B2 is still thin near the money, and that is the data, not
-the code. Within a few dollars of SPY's price every listed strike carries more than the column's median |gamma| — gamma
-peaks at the money — so the only strikes under the median at a wall's distance are ten to thirty dollars out, often on
-the far side of the price (SPY Oct 12: the open's B2 strikes sat at 773 for the call wall at 785 and the put wall at
-772, while the session ranged 777.05 to 779.40). After the fix SPY's 12 sessions have 23 B2 touches (flip 21,
-heaviest strikes 2, either wall 0), QQQ's 57. So a cell whose baseline has no touch now says
-"insufficient data (…, no strike-matched touch)" and prints no rate — a real rate with nothing beside it would be the
-bare rate the owner ruled out. The proof (track-record-proof) checks that B2 comes from the open's column alone, that
-rewriting every column after the open leaves it as it was, that each B2 touch is one of the open's strikes and never
-the real level of its minute, and the empty-baseline line. **For the owner to decide:** whether the band should take
-the lowest-|gamma| strikes within it (relative to the band, not the column's median), which would give the walls a
-baseline near the money; it is not built — the definition is the owner's.
+**What the data said about it, plainly:** fixed at the open under the COLUMN's median, B2 was still thin near the
+money, and that was the data, not the code. Within a few dollars of SPY's price every listed strike carries more than
+the column's median |gamma| — gamma peaks at the money — so the only strikes under the median at a wall's distance were
+ten to thirty dollars out, often on the far side of the price (SPY Oct 12: the open's B2 strikes sat at 773 for the
+call wall at 785 and the put wall at 772, while the session ranged 777.05 to 779.40). Under that rule SPY's 12
+sessions had 23 B2 touches (flip 21, heaviest strikes 2, either wall 0), QQQ's 57. A cell whose baseline has no touch
+says "insufficient data (…, no strike-matched touch)" and prints no rate — a real rate with nothing beside it would be
+the bare rate the owner ruled out.
+
+**The owner's second rule (2026-10-14):** "strikes in the same distance band from price at the open whose |gamma| is
+below the median |gamma| of that band (not the session median), held for the session, excluding the real level." Built
+the same day (trackRecord `bandOf`, `strikeMatchedAtOpen`; config `record-2026-10-14.2`, so the hold-out is evaluated
+again and says so): a level's band is the listed strikes within a step of the level's distance from the open's price,
+either side, the open's real levels left out; the band's own median |gamma| is taken over those strikes, and the ones
+under it are the baseline, standing all session (a minute in which one is a real level of that minute is not counted).
+A band of one strike has nothing under its median. **The counts after it, this machine's 13 sessions** (the recount
+is the recap's own `recapTouchesOf`, every touch, not only those with a 15-minute outcome):
+
+| | Real touches | B2 touches | B2 strikes picked at the open |
+|---|---|---|---|
+| SPY call wall | 42 | **0** | 22 |
+| SPY put wall | 47 | **0** | 20 |
+| SPY flip | 56 | 68 | 19 |
+| SPY heaviest strikes | 198 | 52 | 59 |
+| QQQ call wall | 46 | 28 | 20 |
+| QQQ put wall | 72 | 2 | 20 |
+| QQQ flip | 45 | 64 | 18 |
+| QQQ heaviest strikes | 204 | 93 | 62 |
+
+So the flip and the heaviest strikes now have a baseline of their own size (SPY 120 B2 touches against 343 real, was
+23; QQQ 187 against 367, was 57), and SPY's walls still have none: a wall touched here stood a few dollars from the
+price (Oct 5's put wall at 767 under 770), and its band's strikes — the same distance on the other side, or a step
+beyond — were not reached that session (Oct 5 ranged 769.65 to 776.61). That is the data on 13 sessions; the cell
+says "no strike-matched touch" and prints no rate until the baseline has touches. The proof (track-record-proof)
+checks that B2 comes from the open's column alone, that rewriting every column after the open leaves it as it was,
+that multiplying every strike outside the bands fifty-fold (which moves the column's median) changes nothing, that
+each B2 touch is one of the open's strikes and never the real level of its minute, and the empty-baseline line.
 
 ### SPX's price, checked (2026-10-13 — the owner: "per minute, compute SPX_tape / SPY_bar_close over 5 past sessions
 and today. Pass if the ratio stays within ±0.02% of that day's median in ≥99% of regular minutes")
@@ -950,11 +975,16 @@ move, and, for the alert's line, the regime's percentile (the recorder's newest 
 level type's track record.
 
 - **Tier 1** (the chime, the voice when Settings' switch is on, and the machine's own notification while the tab is
-  hidden, under a tag stable per level — "SPY-flip", "SPY-callwall" — so a repeat replaces the last): a minute that
-  closes beyond the flip, N closed minutes in a row (default 1); a touch of a wall that has stood 15 minutes.
-- **Tier 2** (a chip in the notices' column): a wall moving two strikes or more (once the new strike has held three
-  minutes — the field's wall-chip rule — and the watch follows it), a strike entering the three heaviest and holding
-  three minutes, a touch of ±1σ or ±2σ.
+  hidden, under a tag stable per level — "SPY-callwall", "SPY-putwall" — so a repeat replaces the last): a touch of a
+  wall that has stood 15 minutes — **a wall touch alone** since the owner's second rule of 2026-10-14 ("Tier 1 = wall
+  touches only").
+- **Tier 2** (a chip in the notices' column): **a flip cross** — N minutes in a row closed beyond the flip, **3 by
+  default** (1 to 5, the reader's pick in the drawer's Levels shelf or the chart's right-click; a watch that never
+  picked follows the default). It was Tier 1 at one closed minute until 2026-10-14, when the replay below showed the
+  flip as the loudest trigger by far and the owner moved it: "make a flip cross Tier 2 with 3 closed-minute
+  confirmation (default)". Also a wall moving two strikes or more (once the new strike has held three minutes — the
+  field's wall-chip rule — and the watch follows it), a strike entering the three heaviest and holding three minutes,
+  a touch of ±1σ or ±2σ.
 - **Tier 3** (the log alone): a wall moving under two strikes.
 - **Cooldown**: a level fires at most once a minute, and again only after price, in a later minute, has moved half a
   strike step away from where it stood. **The cap is global**: three Tier-1 alerts in 15 minutes across every name; a
@@ -971,18 +1001,38 @@ level type's track record.
   (`noteLevelEvents(…, 'replay')`, slayer_level_alert_replay_log), never the live one.
 - Kept on this machine: slayer_level_watch, slayer_level_alert_log (100 a name, 400 in all), slayer_level_alert_seen.
 
-**Acceptance** (scripts/level-alerts-proof.ts, `npm test`): the rules on built minutes (the cross after N closed
-minutes, a whipsaw inside the re-arm distance ringing once, a forming minute confirming nothing, the 15-minute wall,
-the identity followed, the stale guard, the global cap, the outcomes), and on the 10 rebuilt sessions with the most
-flip crossings on this machine (SPY Apr 2 2025 with 88 down to SPY Oct 2 with 2 — the model's own levels a minute):
-- (i) 535 alerts; at most 3 Tier-1 alerts in any 15 minutes; no two alerts with one tag inside one cooldown.
-- (ii) every Tier-1 alert replayed after a three-minute gap dropped to Tier 2, said stale: 60 of 60.
-- (iii) every alert with half an hour of its session after it joined its +15 and +30 outcomes: 457 of 457.
+**Acceptance** (scripts/level-alerts-proof.ts, `npm test`): the rules on built minutes (the cross a Tier-2 notice
+after N closed minutes, three by default; a whipsaw inside the re-arm distance noticed once; a forming minute confirming
+nothing; the 15-minute wall the one Tier-1 alert; the identity followed; the stale guard and the global cap on a wall
+touch, a flip cross never rung, capped or said stale; the outcomes), and on the 10 rebuilt sessions with the most flip
+crossings on this machine (the second run, 2026-10-14, after the owner's rule — SPY Apr 2 2025 with 88 down to AAPL
+Oct 5 with 10; the first run's ten, before AAPL's sessions were rebuilt, ran down to SPY Oct 2 with 2):
+- (i) 379 alerts; at most 3 Tier-1 alerts in any 15 minutes; no two alerts with one tag inside one cooldown.
+- (ii) every Tier-1 alert replayed after a three-minute gap dropped to Tier 2, said stale: 3 of 3.
+- (iii) every alert with half an hour of its session after it joined its +15 and +30 outcomes: 321 of 321.
 
-**What the replay says about the noise** (these are the busiest sessions on purpose): 219 flip crosses at one
-confirmation minute, 21.9 a session; 106 (10.6) at two minutes; 70 (7.0) at three. Of the 535, 145 rang at Tier 1, 83
-Tier-1 alerts were capped to Tier 2, 207 were new top-3 strikes and 99 wall moves of two strikes or more (Tier 2). On
-these sessions the flip is the loudest trigger by far; two or three confirmation minutes thin it to a half or a third.
+**The ten sessions by tier** (the owner, 2026-10-14: "Re-run the 10-session replay and report alerts per session by
+tier" — flip crosses at the default three closed minutes, Tier 1 a wall touch alone; "crossings" is the raw count of
+minutes the price changed sides of the flip, before any confirmation):
+
+| Session | Crossings | Alerts | Tier 1 (wall touches) | Tier 2 | of which flip crosses · wall moves · new top-3 | Tier 3 |
+|---|---|---|---|---|---|---|
+| SPY Apr 2 2025 | 88 | 104 | 5 | 99 | 30 · 27 · 42 | 0 |
+| QQQ Apr 2 2025 | 69 | 109 | 0 | 109 | 19 · 32 · 58 | 0 |
+| QQQ Oct 1 2026 | 31 | 31 | 0 | 31 | 5 · 13 · 13 | 0 |
+| QQQ Sep 29 2026 | 30 | 26 | 0 | 26 | 5 · 7 · 14 | 0 |
+| AAPL Sep 29 2026 | 25 | 11 | 1 | 9 | 6 · 0 · 3 | 1 |
+| SPY Oct 13 2026 | 23 | 29 | 0 | 29 | 4 · 11 · 14 | 0 |
+| SPY Oct 1 2026 | 20 | 29 | 0 | 29 | 3 · 0 · 26 | 0 |
+| QQQ Oct 7 2026 | 13 | 12 | 0 | 12 | 4 · 5 · 3 | 0 |
+| SPY Oct 12 2026 | 12 | 12 | 0 | 12 | 1 · 9 · 2 | 0 |
+| AAPL Oct 5 2026 | 10 | 16 | 0 | 15 | 1 · 11 · 3 | 1 |
+| **All ten** | 321 | 379 | 6 | 371 | 78 · 115 · 178 | 2 |
+
+None capped, none stale: the cap and the stale guard act on Tier 1, which is now six wall touches in ten of the
+busiest sessions. Flip crosses on the same sessions by confirmation minutes: 237 (23.7 a session) at one, 116 (11.6)
+at two, 78 (7.8) at three, the default. The first run (the earlier ten, one closed minute, the flip at Tier 1) had
+rung 145 Tier-1 alerts and capped 83 more — nearly all of them flip crosses; the replay is why the flip moved down.
 
 **Shots** (the two events in them were written into the log by the check, to show the delivery):
 docs/next-builds-2026-10-13/level-alert-card.png (the right-click on +1σ), level-alert-chips.png, level-alert-drawer.png.
