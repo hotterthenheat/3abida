@@ -9,6 +9,7 @@ import EditorDockGate from '../scripts/EditorDockGate';
 import AlertsDrawer from '../alerts/AlertsDrawer';
 import WatchlistDrawer from './WatchlistDrawer';
 import AlertWatcher from '../alerts/AlertWatcher';
+import LevelAlertWatcher from '../alerts/LevelAlertWatcher';
 import AlertToasts from '../alerts/AlertToasts';
 import PaperRunner from '../paper/PaperRunner';
 import ScrollHome from './ScrollHome';
@@ -315,6 +316,8 @@ const AppShell = () => {
       {/* HEAR IT EVERYWHERE (2026-09-10): every name's alerts watched on every
           page, and a firing shown wherever the reader is */}
       <AlertWatcher />
+      {/* the tiered level alerts (the owner's item 7): the levels a name's watch follows, a minute at a time */}
+      <LevelAlertWatcher />
       {/* A PAPER ACCOUNT'S ORDERS, WATCHED ON EVERY PAGE (2026-09-22) — a stop fills while the reader is elsewhere, and the
           chip above says so (data/paper/store.ts) */}
       <PaperRunner />

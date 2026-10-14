@@ -63,6 +63,8 @@ export interface Sureness {
   record?: { lines: string[]; note: string; scope: string };
   /** The priced move's calibration (data/feed/pricedMove.ts, the owner's item 4): its lines, beside theory */
   move?: { lines: string[] };
+  /** The level alerts today (the owner's item 7): each with its +15 and +30 minute outcome */
+  alerts?: { lines: string[] };
   /** The expiry window (the owner's item 6): the header's badge, and what the field and the ladder read in it */
   window?: { badge: string; line: string | null };
 }

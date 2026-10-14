@@ -144,6 +144,19 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
             <p className="text-textSecondary">{first.field}</p>
           </div>
         )}
+        {first.alerts && (
+          <div data-how-sure-alerts>
+            <p className="text-[11px] text-textMuted">Level alerts today, and how each turned out</p>
+            <p className="text-[11px] text-textMuted">Held: a touch closed back on the side it came from, a cross stayed beyond — the track record's own rules.</p>
+            <ul className="flex flex-col gap-1">
+              {first.alerts.lines.map(l => (
+                <li key={l} className="text-textSecondary">
+                  {l}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {first.record && (
           <div data-how-sure-record>
             <p className="text-[11px] text-textMuted">Track record</p>

@@ -15,7 +15,7 @@ import {
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { useFeedPrice } from '../../data/feed/price';
-import { nyClock as nyClockAt, clock as printClock } from '../../core/nyTime';
+import { nyClock as nyClockAt, clock as printClock, nyIsoDate } from '../../core/nyTime';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { expiryFor } from '../../core/calendar';
@@ -38,6 +38,8 @@ import StrikeChart, {
 } from '../../components/gex/StrikeChart';
 import type { BeadLegend } from '../../components/gex/gexNodesPrimitive';
 import { BASIS_HINT, BASIS_LABEL, FLOORS, beadLegendLines, beadLegendWords } from '../../components/terrain/beadLegend';
+import LevelAlertMenu from '../../components/terrain/LevelAlertMenu';
+import { outcomesOf, useLevelLog } from '../../data/levelAlerts';
 import type { ScaleBasis } from '../../data/feed/beadScale';
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import { useFadeClose } from '../../components/ui/useFadeClose';
@@ -1352,6 +1354,28 @@ const Pane = ({
     [fRecord]
   );
   const moveSure = useMemo(() => (fMove?.calibration?.length ? { lines: fMove.calibration } : undefined), [fMove?.calibration]);
+  /* THE LEVELS A RIGHT-CLICK CAN FOLLOW (item 7): the book's walls and flip, and its three heaviest strikes */
+  const axisLevels = useMemo(() => {
+    const fin = (v: number) => (Number.isFinite(v) && v > 0 ? v : null);
+    return { callWall: fin(levels.callWall), putWall: fin(levels.putWall), flip: fin(levels.flip) };
+  }, [levels.callWall, levels.putWall, levels.flip]);
+  const top3 = useMemo(() => [...rail.rows].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3).map(r => r.strike), [rail.rows]);
+  /* THE LEVEL ALERTS IN HOW SURE (item 7): today's, each joined to its +15 and +30 minutes on the chart's own minutes */
+  const levelEvents = useLevelLog(ticker);
+  const alertSure = useMemo(() => {
+    const today = nyIsoDate();
+    const mine = levelEvents.filter(e => nyIsoDate(e.at) === today).slice(0, 12);
+    if (!mine.length) return undefined;
+    const bars = offHouse ? fBars.bars ?? [] : (Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? []);
+    const pts = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}`;
+    const lines = mine.map(e => {
+      const o = outcomesOf(e, bars);
+      const said = o.map((x, i) => (x ? `+${i ? 30 : 15} min: ${x.held == null ? `${pts(x.points)} since` : `${x.held ? 'held' : 'gave way'}, ${pts(x.points)}`}` : `+${i ? 30 : 15} min: not yet`)).join(' · ');
+      return `${printClock(e.at)} · tier ${e.tier}${e.stale ? ' (stale)' : e.capped ? ' (capped)' : ''} · ${e.words} — ${said}`;
+    });
+    return { lines };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelEvents, offHouse, fBars.bars, ticker, revision]);
   /* THE WINDOW IN HOW SURE (item 6): the badge, and what the field and the ladder read in the window */
   const windowSure = useMemo(() => {
     if (!onFeed || isCashIndex(ticker)) return undefined;
@@ -1364,8 +1388,11 @@ const Pane = ({
     return { badge: 'repriced every minute · all windows', line };
   }, [onFeed, ticker, win, fBook60]);
   const railSure = useMemo(
-    () => (onFeed && (fieldLine || recordSure || moveSure || windowSure) && rail.sure ? rail.sure.map(x => ({ ...x, ...(fieldLine ? { field: fieldLine } : {}), ...(recordSure ? { record: recordSure } : {}), ...(moveSure ? { move: moveSure } : {}), ...(windowSure ? { window: windowSure } : {}) })) : rail.sure),
-    [onFeed, fieldLine, recordSure, moveSure, windowSure, rail.sure]
+    () =>
+      ((onFeed && (fieldLine || recordSure || moveSure || windowSure)) || alertSure) && rail.sure
+        ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
+        : rail.sure,
+    [onFeed, fieldLine, recordSure, moveSure, windowSure, alertSure, rail.sure]
   );
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
@@ -1859,7 +1886,13 @@ const Pane = ({
               frameless
               /* WALLS THROUGH THE DAY and THE SESSION'S PHASES (the ideas report, 2026-10-09) — drawn behind the candles
                  through the chart's own layer, off until the Overlays menu turns them on */
-              layer={api => <TerrainLayers api={api} ticker={ticker} walls={!!paneOverlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} wallsSource={wallsSource} />}
+              layer={api => (
+                <>
+                  <TerrainLayers api={api} ticker={ticker} walls={!!paneOverlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} wallsSource={wallsSource} />
+                  {/* a right-click on a level: an alert that follows it (the owner's item 7) */}
+                  <LevelAlertMenu api={api} ticker={ticker} levels={axisLevels} top={top3} sigma={fMove ? { prevClose: fMove.prevClose, s: fMove.sigma } : null} />
+                </>
+              )}
             />
             </Deferred>
             )}

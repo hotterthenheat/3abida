@@ -42,6 +42,7 @@ import { flashAlert } from '../../brand/markState';
 import { nyClock } from '../../core/nyTime';
 import { UndoToasts } from '../ui/undo';
 import { notifyIfHidden, speak } from '../layout/shellPrefs';
+import { useLevelLog } from '../../data/levelAlerts';
 
 /** How long a snooze from the chip rests the alert */
 export const SNOOZE_MS = 15 * 60_000;
@@ -66,6 +67,10 @@ const AlertToasts = () => {
     .flatMap(n => n.fired.map(r => ({ ticker: n.ticker, r })))
     .filter(x => now - x.r.at < TOAST_MS && !snoozed.current.has(x.r.key))
     .sort((a, b) => b.r.at - a.r.at)
+    .slice(0, AT_MOST);
+  /* THE LEVEL ALERTS' TIERS ONE AND TWO (the owner's item 7) — the watcher has rung Tier 1 already; a chip shows both */
+  const levelShown = useLevelLog()
+    .filter(e => e.tier <= 2 && now - e.at < TOAST_MS)
     .slice(0, AT_MOST);
   /* the paper account's, in the same column — a verdict stays twice as long as a fill */
   const paperShown = paper.filter(t => now - t.at < (t.kind === 'failed' || t.kind === 'passed' ? TOAST_MS * 2 : TOAST_MS)).slice(0, AT_MOST);
@@ -99,8 +104,8 @@ const AlertToasts = () => {
 
   /* wake when the oldest chip on screen is due to leave */
   useEffect(() => {
-    if (shown.length === 0 && paperShown.length === 0) return;
-    const soonest = Math.min(...shown.map(x => x.r.at + TOAST_MS), ...paperShown.map(t => t.at + (t.kind === 'failed' || t.kind === 'passed' ? TOAST_MS * 2 : TOAST_MS))) - Date.now();
+    if (shown.length === 0 && paperShown.length === 0 && levelShown.length === 0) return;
+    const soonest = Math.min(...shown.map(x => x.r.at + TOAST_MS), ...levelShown.map(e => e.at + TOAST_MS), ...paperShown.map(t => t.at + (t.kind === 'failed' || t.kind === 'passed' ? TOAST_MS * 2 : TOAST_MS))) - Date.now();
     const id = window.setTimeout(() => wake(t => t + 1), Math.max(0, soonest) + 20);
     return () => window.clearTimeout(id);
   });
@@ -159,6 +164,25 @@ const AlertToasts = () => {
           </button>
         </span>
       ))}
+      {levelShown.map(e => {
+        const ink = e.tier === 1 ? ALERT : 'rgb(var(--silver))';
+        return (
+          <button
+            key={e.key}
+            type="button"
+            onClick={openAlertsDrawer}
+            title={`Tier ${e.tier}${e.stale ? ' — the data was over two minutes old, so it did not ring' : e.capped ? ' — three Tier-1 alerts had rung in 15 minutes, so it did not ring' : ''} · open the alerts`}
+            className="shell-toast pointer-events-auto inline-flex items-center gap-2 h-7 pl-2.5 pr-3 rounded-md border bg-canvas/85 backdrop-blur-md backdrop-saturate-150 shadow-lg shadow-black/40 font-mono text-[11px] select-none"
+            style={{ color: ink, borderColor: alpha(ink, 0.5) }}
+            data-level-toast={e.tier}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: ink }} aria-hidden />
+            <span className="text-textPrimary">{e.words}</span>
+            {(e.stale || e.capped) && <span className="text-textMuted">{e.stale ? 'stale' : 'capped'}</span>}
+            <span className="text-textMuted tnum">at {nyClock(e.at, { seconds: true, zone: true })}</span>
+          </button>
+        );
+      })}
     </div>
   );
 };

@@ -848,6 +848,56 @@ every expiry within 60 days, the ladder Unusual Whales' book on every expiry, as
   then How sure becomes its icon (measured at 1280, 1600 and 1920 wide, one pane and two: the row's content equals its
   width).
 
+## Tiered level alerts (2026-10-14, the owner's item 7 — the in-app tiers; web push held)
+
+A name's WATCH follows levels by their identity — the flip, the call wall, the put wall, the three heaviest strikes,
+the ±1σ and ±2σ levels — set on Terrain's chart by a right-click within a few pixels of the level ("Alert on this level
+(follows it)", components/terrain/LevelAlertMenu.tsx; anywhere else the chart's own card opens as before) and listed
+in the alerts drawer's **Levels** shelf, where a level is let go and the flip's confirmation minutes (1, 2 or 3) are
+set. The engine is pure (data/levelAlerts.ts `LevelAlertEngine`) and steps a minute at a time; the shell's watcher
+(components/alerts/LevelAlertWatcher.tsx) feeds it on every page from what the alerts' watcher already reads (the
+book's walls, flip and heaviest strikes, the minutes, the price — the same shared calls), the day's ±σ off the priced
+move, and, for the alert's line, the regime's percentile (the recorder's newest shown row against regime.json) and the
+level type's track record.
+
+- **Tier 1** (the chime, the voice when Settings' switch is on, and the machine's own notification while the tab is
+  hidden, under a tag stable per level — "SPY-flip", "SPY-callwall" — so a repeat replaces the last): a minute that
+  closes beyond the flip, N closed minutes in a row (default 1); a touch of a wall that has stood 15 minutes.
+- **Tier 2** (a chip in the notices' column): a wall moving two strikes or more (once the new strike has held three
+  minutes — the field's wall-chip rule — and the watch follows it), a strike entering the three heaviest and holding
+  three minutes, a touch of ±1σ or ±2σ.
+- **Tier 3** (the log alone): a wall moving under two strikes.
+- **Cooldown**: a level fires at most once a minute, and again only after price, in a later minute, has moved half a
+  strike step away from where it stood. **The cap is global**: three Tier-1 alerts in 15 minutes across every name; a
+  fourth drops to Tier 2, said "capped". **Stale**: inputs older than two minutes at the trigger drop Tier 1 to Tier 2,
+  said "stale". A touch is the minute's range within 0.02% of price (the track record's tolerance).
+- **The payload**: the level, its price, the price then, the time, the data's age, the regime's percentile and the
+  level type's track-record line — in the drawer's row and its title.
+- **The bell** counts what was not looked at: Tier 1 in the red square with the alerts that fired, Tier 2 in silver
+  beside it ("Alerts, 2 new (level alerts: 1 tier 1, 1 tier 2)"); opening the drawer marks them seen.
+- **How sure** lists today's level alerts with their +15 and +30 minute outcomes on the track record's rules (a touch
+  held when the close is back on the side it came from, a cross when it stays beyond; a wall's move or a new heavy
+  strike, the move since).
+- **Replay** (item 8) steps the same engine on the minutes to its cursor into its own log
+  (`noteLevelEvents(…, 'replay')`, slayer_level_alert_replay_log), never the live one.
+- Kept on this machine: slayer_level_watch, slayer_level_alert_log (100 a name, 400 in all), slayer_level_alert_seen.
+
+**Acceptance** (scripts/level-alerts-proof.ts, `npm test`): the rules on built minutes (the cross after N closed
+minutes, a whipsaw inside the re-arm distance ringing once, a forming minute confirming nothing, the 15-minute wall,
+the identity followed, the stale guard, the global cap, the outcomes), and on the 10 rebuilt sessions with the most
+flip crossings on this machine (SPY Apr 2 2025 with 88 down to SPY Oct 2 with 2 — the model's own levels a minute):
+- (i) 535 alerts; at most 3 Tier-1 alerts in any 15 minutes; no two alerts with one tag inside one cooldown.
+- (ii) every Tier-1 alert replayed after a three-minute gap dropped to Tier 2, said stale: 60 of 60.
+- (iii) every alert with half an hour of its session after it joined its +15 and +30 outcomes: 457 of 457.
+
+**What the replay says about the noise** (these are the busiest sessions on purpose): 219 flip crosses at one
+confirmation minute, 21.9 a session; 106 (10.6) at two minutes; 70 (7.0) at three. Of the 535, 145 rang at Tier 1, 83
+Tier-1 alerts were capped to Tier 2, 207 were new top-3 strikes and 99 wall moves of two strikes or more (Tier 2). On
+these sessions the flip is the loudest trigger by far; two or three confirmation minutes thin it to a half or a third.
+
+**Shots** (the two events in them were written into the log by the check, to show the delivery):
+docs/next-builds-2026-10-13/level-alert-card.png (the right-click on +1σ), level-alert-chips.png, level-alert-drawer.png.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

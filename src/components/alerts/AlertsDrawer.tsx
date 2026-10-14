@@ -60,6 +60,7 @@ import { marketClock, nyClock, nyParts, nyWallTime, viewerDay } from '../../core
 import { SNOOZE_MS } from './AlertToasts';
 import AllComposer from './AllComposer';
 import { usd } from '../../core/format';
+import { LEVEL_NAMES, clearLevelLog, levelLog, markLevelAlertsSeen, noteLevelEvents, setConfirmBars, setLevelWatch, useLevelLog, useLevelWatches, type LevelEvent } from '../../data/levelAlerts';
 
 /** The kind's icon — a lucide outline, one per thing an alert can watch */
 const KIND_ICON: Record<AlertKind, LucideIcon> = {
@@ -278,6 +279,83 @@ const Empty = ({ icon: Icon, children }: { icon: LucideIcon; children: React.Rea
 
 /* ---- the drawer ------------------------------------------------------------------------ */
 
+/* THE LEVELS (the owner's item 7): the levels each name's watch follows — set from Terrain's chart, a right-click on a
+   level — and what they raised, by tier: 1 rang (the chime, the voice when it is on, the machine's notice while the tab
+   is hidden), 2 showed as a chip, 3 was written here alone */
+const TIER_INK: Record<1 | 2 | 3, string> = { 1: ALERT, 2: 'rgb(var(--silver))', 3: 'rgb(var(--text-muted))' };
+const LevelShelf = ({ pick, go }: { pick: string | null; go: (ticker: string, to: string) => void }) => {
+  const watches = useLevelWatches();
+  const all = useLevelLog();
+  const names = Object.keys(watches).filter(t => !pick || t === pick);
+  const events = all.filter(e => !pick || e.ticker === pick).slice(0, 40);
+  const clear = () => {
+    const had = levelLog('live');
+    const count = Object.values(had).reduce((n, l) => n + l.length, 0);
+    clearLevelLog();
+    undoable({ label: `Cleared ${count} level alert${count === 1 ? '' : 's'}`, undo: () => noteLevelEvents(Object.values(had).flat()), key: 'alerts-clear-levels' });
+  };
+  const state = (e: LevelEvent) =>
+    [
+      `tier ${e.tier}`,
+      viewerDay(e.at) === viewerDay(Date.now()) ? hhmmss(e.at) : `${viewerDay(e.at)}, ${hhmmss(e.at)}`,
+      `data ${Math.round(e.age / 1000)} s old`,
+      e.stale ? 'stale' : '',
+      e.capped ? 'capped' : '',
+      e.regimePct != null ? `regime ${Math.round(e.regimePct)}th pct` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  return (
+    <Shelf label="Levels" count={events.length} action="Clear" onAction={clear}>
+      {names.length === 0 ? (
+        <Empty icon={BellOff}>No level is watched{pick ? ` on ${pick}` : ''}. On Terrain, right-click the flip, a wall, a ±σ line or a heavy strike: the watch follows that level as it moves.</Empty>
+      ) : (
+        <div className="flex flex-col gap-2 pb-2">
+          {names.map(t => (
+            <Card key={t} testId={`levels-${t}`}>
+              <NameHead ticker={t} note={`${watches[t].ids.length} level${watches[t].ids.length === 1 ? '' : 's'} followed`} />
+              {watches[t].ids.map(id => (
+                <div key={id} className="flex items-center gap-2 px-3 py-1.5 border-b border-borderSubtle/60 last:border-b-0" data-level-watch={id}>
+                  <span className="flex-1 min-w-0 text-[12px] text-textPrimary">Follows {LEVEL_NAMES[id]}</span>
+                  {id === 'flip' && (
+                    <span role="group" aria-label="Closed minutes beyond the flip before it rings" className="inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" title="Closed one-minute bars beyond the flip before a cross is called">
+                      {[1, 2, 3].map(n => (
+                        <button key={n} type="button" aria-pressed={watches[t].confirmBars === n} onClick={() => setConfirmBars(t, n)} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] ${watches[t].confirmBars === n ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+                          {n} min
+                        </button>
+                      ))}
+                    </span>
+                  )}
+                  <Door label="Terrain" onClick={() => go(t, '/terrain')} />
+                  <IconButton onClick={() => setLevelWatch(t, id, false)} label={`Stop following ${LEVEL_NAMES[id]} on ${t}`} title="Stop following it" testId="data-level-watch-remove">
+                    <X className="w-3 h-3" />
+                  </IconButton>
+                </div>
+              ))}
+            </Card>
+          ))}
+        </div>
+      )}
+      {events.length > 0 && (
+        <Card testId="level-alerts">
+          {events.map(e => (
+            <div key={e.key} className="flex items-start gap-2.5 px-3 py-2 border-b border-borderSubtle/60 last:border-b-0" data-level-alert={e.tier} title={e.record ?? undefined}>
+              <span className="shrink-0 mt-[2px] w-6 h-5 rounded-md border flex items-center justify-center font-mono text-[11px] font-bold" style={{ color: TIER_INK[e.tier], borderColor: alpha(TIER_INK[e.tier], 0.4) }}>
+                {e.tier}
+              </span>
+              <span className="flex-1 min-w-0 flex flex-col gap-[2px]">
+                <span className="text-[12px] leading-snug text-textPrimary">{e.words}</span>
+                <span className="font-mono text-[11px] tnum text-textMuted">{state(e)}</span>
+                {e.record && <span className="text-[11px] text-textMuted line-clamp-2">{e.record}</span>}
+              </span>
+            </div>
+          ))}
+        </Card>
+      )}
+    </Shelf>
+  );
+};
+
 const AlertsDrawer = () => {
   const open = useAlertsDrawer();
   const names = useAllAlerts();
@@ -290,9 +368,14 @@ const AlertsDrawer = () => {
   const [composed, setComposed] = useState('');
 
   /* Opened, or something alerted while it was open — the reader is looking */
+  const levelEvents = useLevelLog();
   useEffect(() => {
     if (open) markSeenAll();
   }, [open, names]);
+  /* the level alerts' tiers too (the bell's silver count) */
+  useEffect(() => {
+    if (open) markLevelAlertsSeen();
+  }, [open, levelEvents.length]);
 
   /* A DIALOG (the audit's X13): focus goes in on open, Tab stays inside, Esc closes it when it is the top layer (a menu
      open inside takes the key first — ui/layers.ts), and focus goes back to the bell on close */
@@ -515,6 +598,7 @@ const AlertsDrawer = () => {
               </p>
             )}
           </Shelf>
+          <LevelShelf pick={pick === ALL ? null : pick} go={go} />
         </div>
 
         <p className="shrink-0 px-3.5 py-2 border-t border-borderSubtle/70 font-mono text-[11px] leading-snug text-textMuted">

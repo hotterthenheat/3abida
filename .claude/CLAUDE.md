@@ -903,6 +903,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   `parts`, `book60Window`), every expiry with How sure saying so until a read carries them; store rows carry `netP`
   and regime.json `windows`; a window's regime chip names no UW attribution or scorecard range. How sure's header:
   "repriced every minute · all windows". The house's field has no partitions: a window reads the whole book there.
+- TIERED LEVEL ALERTS (2026-10-14, item 7; docs/data-feed.md "Tiered level alerts"; WEB PUSH HELD — the owner decides):
+  data/levelAlerts.ts (`LevelAlertEngine`, pure, a minute at a time) under components/alerts/LevelAlertWatcher.tsx in the
+  shell. A name's watch follows levels by identity (flip, call wall, put wall, top 3, ±σ), set by a right-click on
+  Terrain's chart (LevelAlertMenu) and listed in the drawer's Levels shelf. Tier 1 (chime, voice when on, the machine's
+  notification while hidden, tag stable per level): flip crossed and N closed minutes beyond (default 1), a wall touched
+  after standing 15 minutes. Tier 2 (chip): a wall moving ≥ 2 strikes once held three minutes, a new top-3 strike held
+  three minutes, ±1σ/±2σ touched. Tier 3 (log): a wall moving under two strikes. Once a minute a level; re-armed after
+  half a strike away in a later minute; three Tier-1 in 15 minutes across every name (global), the rest "capped"; inputs
+  over two minutes old drop Tier 1 to Tier 2 "stale". Outcomes at +15/+30 on the track record's rules (How sure). A
+  replay writes to its own log. Never a trade call in the words.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE
