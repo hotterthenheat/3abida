@@ -56,6 +56,7 @@
 ==================================================
 */
 
+import { PARTS, partOf, windowEnds } from '../src/data/feed/trailModel';
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -116,6 +117,9 @@ export interface RecordedBook60 {
   price: number;
   expiries: string[];
   rows: Book60Row[];
+  /** [strike, call gamma by partition ×4, put gamma by partition ×4] — UW's sign, the partitions trailModel partOf's
+      (item 6); absent on reads before 2026-10-14 */
+  parts?: number[][];
 }
 export interface RecordedTotal {
   receivedAt: number;
@@ -377,16 +381,27 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     if (!expiries.length) return;
     const half = price * BOOK60_BAND;
     const q = expiries.map(e => `expirations[]=${e}`).join('&');
-    const by = new Map<number, { c: number; p: number; t: number | null }>();
+    const by = new Map<number, { c: number; p: number; t: number | null; parts: number[] }>();
+    /* each strike's call and put gamma by expiry partition too (item 6: the windows' measured reference and the ladder's
+       window view, off this same answer — no call more) */
+    const ends = windowEnds(d.day);
     for (let page = 0; page < MAX_PAGES; page++) {
       const got = await getRows(`/api/stock/${name}/spot-exposures/expiry-strike?${q}&min_strike=${Math.floor(price - half)}&max_strike=${Math.ceil(price + half)}&limit=500&page=${page}`);
       if (!got) return;
       for (const r of got) {
         const k = num(r.strike);
         if (k == null) continue;
-        const cur = by.get(k) ?? { c: 0, p: 0, t: null };
-        cur.c += num(r.call_gamma_oi) ?? 0;
-        cur.p += num(r.put_gamma_oi) ?? 0;
+        const cur = by.get(k) ?? { c: 0, p: 0, t: null, parts: new Array(2 * PARTS).fill(0) };
+        const cg = num(r.call_gamma_oi) ?? 0;
+        const pg = num(r.put_gamma_oi) ?? 0;
+        cur.c += cg;
+        cur.p += pg;
+        const exp = String(r.expiry ?? '');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(exp)) {
+          const q = partOf(exp, d.day, ends);
+          cur.parts[q] += cg;
+          cur.parts[PARTS + q] += pg;
+        }
         const t = Date.parse(String(r.time ?? ''));
         if (Number.isFinite(t) && (cur.t == null || t > cur.t)) cur.t = t;
         by.set(k, cur);
@@ -394,7 +409,13 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       if (got.length < 500) break;
     }
     if (!by.size) return;
-    const read: RecordedBook60 = { receivedAt: clock(), price, expiries, rows: [...by].map(([k, v]) => [k, v.c, v.p, v.t] as Book60Row).sort((a, b) => a[0] - b[0]) };
+    const read: RecordedBook60 = {
+      receivedAt: clock(),
+      price,
+      expiries,
+      rows: [...by].map(([k, v]) => [k, v.c, v.p, v.t] as Book60Row).sort((a, b) => a[0] - b[0]),
+      parts: [...by].map(([k, v]) => [k, ...v.parts]).sort((a, b) => a[0] - b[0]),
+    };
     d.books60.push(read);
     write(name, d.day, 'books60.jsonl', JSON.stringify(read), true);
   }
@@ -565,7 +586,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         await readTotal(name, d);
       }
       const lastBook60 = d.books60[d.books60.length - 1]?.receivedAt ?? 0;
-      if (!d.books60.length || (inSession && clock() - lastBook60 >= BOOK60_EVERY_MS)) await readBook60(name, d);
+      /* …and once when the day's newest read predates the partitions (a recorder upgraded mid-day — item 6's windows) */
+      if (!d.books60.length || !d.books60[d.books60.length - 1].parts || (inSession && clock() - lastBook60 >= BOOK60_EVERY_MS)) await readBook60(name, d);
       if (!d.seed) await readSeed(name, d);
       /* THE STORE (server/fieldStore.ts): the shown rows for the minutes ended, from what was received by each */
       if (opts.store && (barHours || inSession)) {

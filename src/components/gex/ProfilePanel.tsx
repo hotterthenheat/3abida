@@ -53,7 +53,7 @@
 ==================================================
 */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Info, X } from 'lucide-react';
 import Simulator from '../../core/simulator';
 import Term from '../ui/Term';
@@ -575,6 +575,35 @@ const ProfilePanel = ({
   const panelW = foot?.w ?? 0;
   const tier = profileTier(panelW);
   const colW = tier === 'thin' ? COL_W : COL_W_WIDE;
+  /* THE HEAD NEVER RUNS PAST THE EDGE (2026-10-14: at a 520 px panel the "How to read" door's words stood past the
+     pane's edge, clipped): the head's first row is measured after each render and on every resize; while it overflows,
+     the door gives up its words (1), then How sure becomes its icon (2), and they come back once the row has the room
+     again */
+  const headRowRef = useRef<HTMLDivElement | null>(null);
+  const [squeeze, setSqueeze] = useState(0);
+  const squeezedAt = useRef(0);
+  const measureHead = () => {
+    const el = headRowRef.current;
+    if (!el) return;
+    const over = el.scrollWidth > el.clientWidth + 1;
+    setSqueeze(sq => {
+      if (over && sq < 2) {
+        squeezedAt.current = el.clientWidth;
+        return sq + 1;
+      }
+      if (!over && sq > 0 && el.clientWidth > squeezedAt.current + 140) return sq - 1;
+      return sq;
+    });
+  };
+  useLayoutEffect(measureHead);
+  useEffect(() => {
+    const el = headRowRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => measureHead());
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* THE FRAME LOOP — draw when the chart's mapping, the size or the data moved */
   useEffect(() => {
@@ -1739,7 +1768,7 @@ const ProfilePanel = ({
       title="What the two lanes mean"
     >
       <Info className="w-3 h-3" />
-      {!narrow && 'How to read'}
+      {!narrow && squeeze < 1 && 'How to read'}
     </button>
   );
   /* THE HEAD'S TOOLS (Noah, 2026-09-06): the Lanes card when the host has no row of its own
@@ -1764,7 +1793,7 @@ const ProfilePanel = ({
           Vol
         </button>
       )}
-      {sure && sure.length > 0 && <HowSureBook sures={sure} compact={!roomForLanes} align={twoRowHead ? 'start' : 'end'} className="pointer-events-auto" />}
+      {sure && sure.length > 0 && <HowSureBook sures={sure} compact={!roomForLanes || squeeze >= 2} align={twoRowHead ? 'start' : 'end'} className="pointer-events-auto" />}
       {guide}
     </>
   );
@@ -1853,7 +1882,7 @@ const ProfilePanel = ({
           review, 2026-10-13: "the ladder hides 784/785 (call wall) at the top") */}
       <div aria-hidden className="absolute left-0 top-0 w-px pointer-events-none" style={{ height: (twoRowHead ? HEAD_TOP_2 : HEAD_TOP) + (showSize && tier !== 'thin' ? KEY_BAND : 0) + COL_HEAD + COUNT_BAND }} data-plot-inset />
       <div className="absolute inset-x-0 top-0 flex flex-col px-2 pointer-events-none" style={{ height: twoRowHead ? HEAD_TOP_2 : HEAD_TOP }} data-profile-head data-head-rows={twoRowHead ? 2 : 1}>
-        <div className="flex items-center gap-1.5 min-w-0" style={{ height: HEAD_TOP }}>
+        <div ref={headRowRef} className="flex items-center gap-1.5 min-w-0 overflow-hidden" style={{ height: HEAD_TOP }}>
           {viewTabs}
           {headCard && (
             <span className="pointer-events-auto shrink-0 inline-flex" data-profile-head-card>

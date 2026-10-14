@@ -62,8 +62,16 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import { columnSummary, lastTradeOf, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, uwYears, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
+import { columnSummary, lastTradeOf, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, uwYears, type ServerInputs, type StraddleRead , PARTS, PART_STRIDE } from '../src/data/feed/trailModel';
 import { RunningScale, columnMax } from '../src/data/feed/beadScale';
+/** A column's net by expiry partition — every strike's gamma parts summed */
+const partNets = (snap: { levels: readonly unknown[]; parts?: Float32Array }): number[] | undefined => {
+  const p = snap.parts;
+  if (!p || p.length !== snap.levels.length * PART_STRIDE) return undefined;
+  const out = new Array(PARTS).fill(0);
+  for (let i = 0; i < snap.levels.length; i++) for (let q = 0; q < PARTS; q++) out[q] += p[i * PART_STRIDE + q];
+  return out;
+};
 /** A column's largest |delta exposure| */
 const deltaMax = (levels: readonly { dex?: number }[]): number => {
   let m = 0;
@@ -105,6 +113,9 @@ export interface StoreRow {
   top: [number, number][];
   /** Every strike the column holds summed — the regime (estimated dealer gamma, assumed sign) */
   net: number;
+  /** The net by expiry partition (trailModel partOf: the day, to Friday, to monthly OPEX, the rest) — a window's net is
+      the sum up to its partition (item 6); absent on rows written before 2026-10-14 */
+  netP?: number[];
   /** The column's largest |value| — what the scale counts */
   max: number;
   /** The column's largest |delta exposure| — the delta field's count (item 5's fixed and prior references); absent on
@@ -282,6 +293,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         net: sum.net,
         max,
         maxD,
+        netP: partNets(snap),
         ref,
         cells: sortedCells(snap.levels),
         carried: sum.carried,
@@ -348,6 +360,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         net: sum.net,
         max,
         maxD,
+        netP: partNets(snap),
         ref,
         cells: sortedCells(snap.levels),
         carried: sum.carried,
@@ -378,7 +391,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       if (!snap.levels.length) continue;
       const sum = columnSummary(snap, bar.close);
       const max = columnMax(snap.levels);
-      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleAt(u, bar, exps.today) : null, strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null, age: null });
+      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), netP: partNets(snap), ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleAt(u, bar, exps.today) : null, strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null, age: null });
     }
     return out;
   }

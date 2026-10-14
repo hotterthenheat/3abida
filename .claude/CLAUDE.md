@@ -895,6 +895,14 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   and the field's heaviest strike, pinned as their PRICES in the axis's format on their inks, never a name; beyond the
   clear area at its edge with ▲/▼. How sure's residual is "Model agreement with Unusual Whales (both naive-sign
   estimates)" — never accuracy against real dealer positions. Store rows carry `maxD` (the delta peak).
+- THE EXPIRY WINDOWS (2026-10-14, item 6; docs/data-feed.md "The expiry windows"): 0DTE · To Friday · To monthly OPEX ·
+  All 60 days at the foot of Terrain's Expiry card on the feed (RailCut 'w:0dte' | 'w:fri' | 'w:opex'; 'book' is "All 60
+  days", the default). The model sums each strike by expiry partition in the same pass (trailModel `partOf`,
+  `GexSnapshot.parts`, PART_STRIDE) and a window is a view (`windowView`) — never a recompute, never a request; a window
+  view leaves out the vols' trade times. The ladder in a window is UW's 60-day book by partition (the recorder's books60
+  `parts`, `book60Window`), every expiry with How sure saying so until a read carries them; store rows carry `netP`
+  and regime.json `windows`; a window's regime chip names no UW attribution or scorecard range. How sure's header:
+  "repriced every minute · all windows". The house's field has no partitions: a window reads the whole book there.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

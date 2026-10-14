@@ -76,6 +76,8 @@ export interface TrackRow {
   pw: number | null;
   top: [number, number][];
   net: number;
+  /** The net by expiry partition (trailModel partOf), for the regime's reference per window (item 6) */
+  netP?: number[];
   cells: [number, number][];
   /** The at-the-money straddle for the expiry settling today, dollars a share — the implied-move control */
   str0?: { value: number } | null;

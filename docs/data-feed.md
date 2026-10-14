@@ -798,6 +798,56 @@ What a bead's brightness means, printed where it is read, and the marks that say
   session) the merge has nothing to merge: 28–30 ms against 18–19. Before the merge and the dotted fill, a dashed
   outline round every stale bead cost 8 ms a frame and dots drawn as squares 25,000 extra rects.
 
+## The expiry windows (2026-10-14, the owner's item 6)
+
+**0DTE · To Friday · To monthly OPEX · All 60 days**, at the foot of Terrain's Expiry card on the feed (the house rule:
+every expiry choice is the calendar card; the trigger names the window). "All 60 days" is the default — the field's
+every expiry within 60 days, the ladder Unusual Whales' book on every expiry, as before.
+
+- **One pass prices every window.** The model already prices each contract a minute; it now also sums each strike by
+  the contract's expiry PARTITION against the session's day (trailModel `partOf`): 0 the day itself, 1 to the Friday of
+  its week (a holiday Friday's Thursday expiry is inside it), 2 to the monthly OPEX (the third Friday on or after the
+  day), 3 the rest of the 60 days. Every column carries those sums (`GexSnapshot.parts`, five quantities × four
+  partitions a strike: gamma, delta, the gamma priced, priced on today's vols, on a vol older than an hour, as 32-bit
+  floats), and a window is their running sum (`windowView`, cached per column) — so the field, each column's flip and
+  walls, the bead scale's reference (its own p85 per window), the regime strip and the residual all follow the window,
+  and a switch computes nothing new and asks nothing. A window view leaves out the vols' newest and oldest trade times
+  (they are the strike's over every expiry); its provenance and stale share are the window's own.
+- **The ladder through the window**: the recorder's five-minute read of UW's 60-day book (`/spot-exposures/
+  expiry-strike`) now keeps each strike's call and put gamma by the same partitions (`parts` on books60.jsonl — the
+  same call, nothing more asked), and a window's ladder is the newest read's sums to the window (`book60Window`): the
+  walls, flip and supreme on the axis, the Heaviest row and How sure follow it. A day whose reads predate the partitions
+  takes one read at the recorder's next tick; until a read carries them the ladder shows every expiry and How sure says
+  so. Only gamma is in that book, so the ladder's other lanes print "—" in a window.
+- **The regime strip** reads the window's own reference (`regime.json` `windows`, nightly, from the rows' `netP` — the
+  net by partition every store row now carries); UW's directional series and the scorecard's ranges stand on every
+  expiry, so a window's chip names neither. Until the nightly job has rows with partitions the chip says "no reference
+  yet".
+- **How sure's header** wears "repriced every minute · all windows", and a window adds what the field and the ladder
+  read in it ("To Friday: … the ladder reads Unusual Whales' 60-day book through the same window (4 expiries, figured
+  1:14 pm)").
+
+**Acceptance** (scripts/expiry-window-proof.ts, `npm test`, and the browser):
+- (i) The partition: on a synthetic day with contracts in every partition, the four parts sum to the whole per strike
+  per minute — worst relative gap 3.3e-8 for gamma and delta (the parts are 32-bit floats).
+- (iii) Each window's view equals the column modeled on that window's contracts alone (an independent run): 44 cells a
+  window, the same strikes and provenance, worst gap ≤ 5.6e-8. The store's final rows equal the rebuild in every window
+  (their `netP`, field-store-proof).
+- (ii) Zero network on a switch: with the page's feed calls cut off after load (every `/feed/` request aborted), each
+  switch still changed the field's reference ($2.1B all, $1.8B to Friday, $1.2B 0DTE) and the ladder's Heaviest row
+  (778 −$2.0B · 785 −$1.7B · 780 −$1.5B on all; 778 −$1.9B · 779 −$1.4B · 780 −$546M on 0DTE); the only calls attempted
+  in those seconds were the page's standing polls (the field every 15 s, the minutes, the price), none new. On Oct 13
+  To Friday and To monthly OPEX are the same window: Friday Oct 16 is October's third Friday.
+- The recorder's first read with partitions (after hours, Oct 13): 16 expiries, 187 strikes, every strike's partitions
+  summing to its row.
+- Shots: docs/next-builds-2026-10-13/window-to-friday.png, window-0dte.png, window-howsure.png.
+- Seen while checking: the strip's one bar far below the rest is 3:59 pm New York (net −19.4B in the store's row) —
+  the day's own expiry with a minute left, where at-the-money gamma blows up; the model's behaviour at the close, not a
+  fault. And the ladder's head ran past the pane's edge at a 504 px panel ("How to read" clipped — before this change
+  too, out of sight): ProfilePanel now measures the head's first row and, while it overflows, the door drops its words,
+  then How sure becomes its icon (measured at 1280, 1600 and 1920 wide, one pane and two: the row's content equals its
+  width).
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

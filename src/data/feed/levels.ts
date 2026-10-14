@@ -55,7 +55,7 @@
 ==================================================
 */
 
-import { pastInputs, sigmaOf, type RegimeReference, type StraddleRead } from './trailModel';
+import { PARTS, pastInputs, sigmaOf, type RegimeReference, type StraddleRead } from './trailModel';
 import type { ScaleRef } from './beadScale';
 import { isoDayLabel } from '../../core/format';
 import type { FeedBook60 } from './trailModel';
@@ -919,7 +919,9 @@ function noteMeasured60(t: string, b: NonNullable<ServerDay['books60']>[number])
   if (m.books.some(x => x.at === b.receivedAt)) return;
   const rows = b.rows.map(([strike, c, p]) => ({ strike, net: -(c + p), call: -c, put: -p })).sort((x, y) => x.strike - y.strike);
   const newest = b.rows.reduce((mx, r) => (r[3] != null && r[3] > mx ? r[3] : mx), 0);
-  m.books = [...m.books, { at: newest || b.receivedAt, spot: b.price, expiries: b.expiries, rows }].sort((x, y) => x.at - y.at);
+  /* the partitions (item 6), the house's sign: UW's call and put gamma both turned over, as the rows are */
+  const parts = b.parts?.length ? b.parts.filter(r => r.length === 1 + 2 * PARTS).map(r => ({ strike: r[0], call: r.slice(1, 1 + PARTS).map(v => -v), put: r.slice(1 + PARTS).map(v => -v) })).sort((x, y) => x.strike - y.strike) : undefined;
+  m.books = [...m.books, { at: newest || b.receivedAt, spot: b.price, expiries: b.expiries, rows, ...(parts ? { parts } : {}) }].sort((x, y) => x.at - y.at);
 }
 /** The 60-day books read today for a name, oldest first */
 export function measuredBooks60(ticker: string): readonly FeedBook60[] {
@@ -949,7 +951,7 @@ interface ServerDay {
   latest: number;
   books: { receivedAt: number; rows: Record<string, unknown>[] }[];
   /** UW's book on the expiries within 60 days, per strike (server/fieldRecorder.ts readBook60) */
-  books60?: { receivedAt: number; price: number; expiries: string[]; rows: [number, number, number, number | null][] }[];
+  books60?: { receivedAt: number; price: number; expiries: string[]; rows: [number, number, number, number | null][]; parts?: number[][] }[];
   chains: ChainRead[];
   seed: SeedRead | null;
   total: TotalRead | null;

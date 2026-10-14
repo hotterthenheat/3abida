@@ -120,12 +120,12 @@
 ==================================================
 */
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { nyIsoDate, nyWallTime } from '../../core/nyTime';
 import type { Candle, GexSnapshot } from '../../types/market';
 import type { FeedBook, FeedBook60 } from './levels';
-import { TRAIL_MODEL, oiPublishedAt, universeOf, readAt, modelColumn, fieldResidual, residualFigures } from './trailModel';
-import type { ServerInputs, Universe, TotalRead } from './trailModel';
+import { TRAIL_MODEL, oiPublishedAt, universeOf, readAt, modelColumn, fieldResidual, residualFigures, windowView, book60Window } from './trailModel';
+import type { ServerInputs, Universe, TotalRead, ExpiryWindow } from './trailModel';
 
 export * from './trailModel';
 
@@ -372,7 +372,7 @@ export interface TrailField {
  * `cut` is one listed date, or null for every expiry; `reads` are the books read — the measured reference (their
  * residual moves when they do, never the field). `on` false (the house's market, an index) asks nothing.
  */
-export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Candle[] | null, reads: readonly GexSnapshot[], cut: string | null = null): TrailField {
+export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Candle[] | null, reads: readonly GexSnapshot[], cut: string | null = null, window: ExpiryWindow = 'all'): TrailField {
   const t = ticker.toUpperCase();
   const live = on && !!t && !!bars;
   const key = `${t}|${cut ?? 'all'}`;
@@ -402,7 +402,29 @@ export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Ca
   const s = live ? trails.get(key) : undefined;
   const day = s?.day ?? '';
   const full = snaps.length > 0 && barDay(snaps[snaps.length - 1].time) === day;
+  /* THE WINDOW (item 6): every column already carries its sums by expiry partition, so a window is a view of the same
+     columns — computed here, asked of no one — and its residual stands against UW's 60-day book seen through the same
+     window, from the reads that carry its partitions */
+  const view = useMemo(() => (window === 'all' || cut ? null : windowedOf(snaps, window)), [snaps, window, cut]);
+  const residual = useMemo(() => {
+    if (!view || !s) return null;
+    const books = books60Of(s.t)
+      .map(b => book60Window(b, window))
+      .filter((b): b is FeedBook60 => !!b);
+    const named = window === '0dte' ? 'the day\'s own expiry' : window === 'fri' ? 'the expiries to Friday' : 'the expiries to monthly OPEX';
+    return books.length ? fieldResidual(view.filter(c => barDay(c.time) === s.day), books, named) : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, window, reads]);
+  if (view) return { snaps: view, full, residual };
   return { snaps, full, residual: s?.residual ?? null };
+}
+/** The window's view of a column list, the last one kept (a tick replaces the list; the columns' views are cached) */
+let lastView: { src: readonly GexSnapshot[]; w: ExpiryWindow; out: GexSnapshot[] } | null = null;
+function windowedOf(src: GexSnapshot[], w: ExpiryWindow): GexSnapshot[] {
+  if (lastView && lastView.src === src && lastView.w === w) return lastView.out;
+  const out = src.map(c => windowView(c, w));
+  lastView = { src, w, out };
+  return out;
 }
 
 if (typeof window !== 'undefined')

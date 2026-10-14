@@ -83,6 +83,9 @@ export interface GexSnapshot {
   /** A moment rebuilt from the chain or held from a date's book, not a book read as it stood (data/feed/trailField.ts):
       its beads draw a step quieter. Absent on a measured book and on the house's own field. */
   rebuilt?: boolean;
+  /** THE EXPIRY WINDOWS' PARTS (data/feed/trailModel.ts PART_STRIDE, the owner's item 6): each level's sums by expiry
+      partition, in the levels' order — the window views add them up. Absent off the model. */
+  parts?: Float32Array;
 }
 
 export interface Indicators {

@@ -128,7 +128,7 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
     const r10 = rows.find(r => nyMinuteOf(r.m) === 10 * 60);
     const s10 = r10 ? sigmaOf(r10.str0) : null;
     const at10: CalibrationDay['at10'] = r10 && s10 != null && s10 > 0 ? { spot: r10.spot, sigma: s10, src: r10.str0?.src ?? 'model' } : null;
-    return { session: { day, rows: rows.map(r => ({ m: r.m, spot: r.spot, flip: r.flip, cw: r.cw, pw: r.pw, top: r.top, net: r.net, cells: r.cells, str0: r.str0 })), bars: trackBars, prevClose, dir }, source, at10 };
+    return { session: { day, rows: rows.map(r => ({ m: r.m, spot: r.spot, flip: r.flip, cw: r.cw, pw: r.pw, top: r.top, net: r.net, netP: r.netP, cells: r.cells, str0: r.str0 })), bars: trackBars, prevClose, dir }, source, at10 };
   }
 
   /** The job for one name: every session on disk, the main record and the hold-out, written as scorecard.json */

@@ -92,8 +92,9 @@ import {
   useTerrainSource,
   type FeedBook,
   type FeedOi,
-  type FeedStrike, useBeadScaleRefs
+  type FeedStrike, useBeadScaleRefs, measuredBooks60
 } from '../../data/feed/levels';
+import { book60Window, regimeForWindow, type ExpiryWindow } from '../../data/feed/trailModel';
 import { useFeedNamePrints } from '../../data/feed/trace';
 import type { WallsSource } from '../../components/terrain/wallsHeatPrimitive';
 import type { Candle } from '../../types/market';
@@ -261,7 +262,22 @@ interface TerrainCfg {
 }
 
 /** A calendar expiry's days-to-expiry, or the whole book */
-export type RailCut = number | 'book';
+export type RailCut = number | 'book' | WindowCut;
+/* THE EXPIRY WINDOWS (the owner's item 6, 2026-10-14): 0DTE, to Friday, to monthly OPEX — on the feed, beside "All 60
+   days" (the book: the field's 60 days, the ladder Unusual Whales' book on every expiry). The field, its flip and walls,
+   the regime strip and the bead scale follow the window (data/feed/trailModel.ts windowView — every column carries its
+   sums by expiry partition, so a switch asks nothing), and the ladder reads Unusual Whales' 60-day book through the
+   same window. */
+export type WindowCut = 'w:0dte' | 'w:fri' | 'w:opex';
+const WINDOW_CUTS: readonly WindowCut[] = ['w:0dte', 'w:fri', 'w:opex'];
+const isWindowCut = (c: unknown): c is WindowCut => typeof c === 'string' && (WINDOW_CUTS as readonly string[]).includes(c);
+/** The field's window for a cut: a window's own, else every expiry the field holds */
+const windowOfCut = (c: RailCut): ExpiryWindow => (isWindowCut(c) ? (c.slice(2) as ExpiryWindow) : 'all');
+const WINDOW_CHOICES: ExpiryChoice<RailCut>[] = [
+  { value: 'w:0dte', label: '0DTE', hint: "The contracts that settle the session's own day", date: null },
+  { value: 'w:fri', label: 'To Friday', hint: 'Every expiry to the Friday of this week', date: null },
+  { value: 'w:opex', label: 'To monthly OPEX', hint: "Every expiry to the month's third Friday (the next month's once it has passed)", date: null },
+];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** The card's choices: the calendar's expiries as lit days (two horizons on one Friday are one
     day), the book as the foot pill — built at render, since the dates are today's */
@@ -322,7 +338,8 @@ const railShape = (rows: { strike: number; value: number; callOI?: number }[], s
     here is the wall the Map names for that day), the strike's open interest on one key so the
     rail's card prints it whole, the walls reduced by the book's own rule. */
 function railForCut(ticker: string, cut: RailCut): RailData {
-  if (cut === 'book') {
+  /* the house's field has no expiry partitions: a window reads the whole book there */
+  if (cut === 'book' || isWindowCut(cut)) {
     const base = buildLadderFor(ticker);
     const legs = new Map<number, { put: number; call: number }>();
     try {
@@ -412,7 +429,7 @@ const feedCutChoices = (dates: string[]): ExpiryChoice<RailCut>[] => {
     const day = `${MONTHS[date.getMonth()]} ${date.getDate()}`;
     out.push({ value: dte, label: dte === 0 ? `Today · ${day}` : day, hint: dte === 0 ? "The contracts that expire at today's bell" : `${dte} days out — a date Unusual Whales lists`, date });
   }
-  out.push({ value: 'book', label: 'All expiries', hint: 'Every expiry the name carries', date: null });
+  out.push(...WINDOW_CHOICES, { value: 'book', label: 'All 60 days', hint: "The field: every expiry within 60 days. The ladder keeps Unusual Whales' book on every expiry.", date: null });
   return out;
 };
 /** The rail off the feed's rows (ascending, the house's sign) — the walls by the book's own rule, the open interest on
@@ -565,7 +582,7 @@ function loadCfg(): TerrainCfg {
        interval did. */
     const deskLadder = typeof c.ladder === 'boolean' ? (c.ladder as boolean) : undefined;
     const palette: ProfilePalette = c.palette === 'house' ? 'house' : def.palette;
-    const railCut: RailCut = typeof c.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(c.railCut) ? c.railCut : def.railCut;
+    const railCut: RailCut = (typeof c.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(c.railCut)) || isWindowCut(c.railCut) ? (c.railCut as RailCut) : def.railCut;
 
     if (Array.isArray(c.panes)) {
       const stored = c.panes as unknown[];
@@ -1200,13 +1217,15 @@ const Pane = ({
   const fDates = useFeedMaxPain(onFeed, ticker);
   const fListed = useMemo(() => listedDates(fDates), [fDates]);
   /* the desk's cut as one of UW's listed dates — a cut no listed date matches reads the whole book */
-  const cutDate = onFeed && railCut !== 'book' ? fListed.find(d => calDaysTo(d) === railCut) ?? null : null;
+  const cutDate = onFeed && typeof railCut === 'number' ? fListed.find(d => calDaysTo(d) === railCut) ?? null : null;
+  /* the expiry window (item 6) — on the feed alone; a listed date or the book reads every window */
+  const win: ExpiryWindow = onFeed ? windowOfCut(railCut) : 'all';
   /* THE FIELD, FULL (2026-10-13): today's minutes rebuilt from the chain on the house's pricer and calibrated to UW's
      newest book, the sessions before off UW's own book for each date, the books this terminal read in their own minutes
      (data/feed/trailField.ts) */
   /* the field follows the pane's expiry card: one listed date's contracts alone, or every expiry */
   const trailCut = cutDate;
-  const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, trailCut);
+  const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, trailCut, win);
   /* the sessions before today the chart holds, rebuilt by the server from UW's dated history (server/fieldBackfill.ts) */
   const fPast = useServerPastSessions(onFeed && !isCashIndex(ticker) && overlays.trails, ticker, fBars.bars);
   const fField = fTrail.snaps;
@@ -1216,13 +1235,30 @@ const Pane = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ticker, revision, railCut, offHouse]
   );
+  /* THE LADDER THROUGH THE WINDOW (item 6): Unusual Whales' 60-day book by expiry partition, the newest read carrying
+     them (the recorder's five-minute read) — none yet, and the ladder keeps the book on every expiry, said in How sure */
+  const fBook60 = useMemo(() => {
+    if (!onFeed || win === 'all') return null;
+    const all = measuredBooks60(ticker);
+    for (let i = all.length - 1; i >= 0; i--) {
+      const v = book60Window(all[i], win);
+      if (v) return v;
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFeed, win, ticker, fFieldRead]);
   const feedRailData = useMemo(() => {
     if (!onFeed || !fBook) return null;
+    if (fBook60) {
+      const nan = { put: NaN, call: NaN, net: NaN };
+      const rows: FeedStrike[] = fBook60.rows.map(r => ({ strike: r.strike, gex: { put: r.put, call: r.call, net: r.net }, dex: nan, vanna: nan, charm: nan, gexVol: nan, time: fBook60.at }));
+      return feedRail({ ...fBook, spot: fBook60.spot, at: fBook60.at }, rows, null, false, fDay?.price ?? null);
+    }
     const dateRows = cutDate ? fByDate?.get(cutDate) : null;
     if (cutDate && !dateRows) return null;
     const rows = dateRows ? [...dateRows].filter(r => fBook.rows.some(b => b.strike === r.strike)).sort((a, b) => a.strike - b.strike) : fBook.rows;
     return feedRail(fBook, rows, fOi, !dateRows, fDay?.price ?? null);
-  }, [onFeed, fBook, fOi, fByDate, cutDate, fDay]);
+  }, [onFeed, fBook, fOi, fByDate, cutDate, fDay, fBook60]);
   const railData = houseRail ?? feedRailData ?? emptyRail(fBook?.spot ?? 0);
   const levels = railData.levels;
   const changePct = useMemo(
@@ -1316,9 +1352,20 @@ const Pane = ({
     [fRecord]
   );
   const moveSure = useMemo(() => (fMove?.calibration?.length ? { lines: fMove.calibration } : undefined), [fMove?.calibration]);
+  /* THE WINDOW IN HOW SURE (item 6): the badge, and what the field and the ladder read in the window */
+  const windowSure = useMemo(() => {
+    if (!onFeed || isCashIndex(ticker)) return undefined;
+    const label = win === '0dte' ? '0DTE' : win === 'fri' ? 'To Friday' : win === 'opex' ? 'To monthly OPEX' : null;
+    const line = !label
+      ? null
+      : fBook60
+        ? `${label}: the field sums the contracts in the window, priced in the same pass as every other; the ladder reads Unusual Whales' 60-day book through the same window (${fBook60.expiries.length} expir${fBook60.expiries.length === 1 ? 'y' : 'ies'}, figured ${printClock(fBook60.at)}).`
+        : `${label}: the field sums the contracts in the window; Unusual Whales' book by expiry has not been read yet today, so the ladder shows every expiry.`;
+    return { badge: 'repriced every minute · all windows', line };
+  }, [onFeed, ticker, win, fBook60]);
   const railSure = useMemo(
-    () => (onFeed && (fieldLine || recordSure || moveSure) && rail.sure ? rail.sure.map(x => ({ ...x, ...(fieldLine ? { field: fieldLine } : {}), ...(recordSure ? { record: recordSure } : {}), ...(moveSure ? { move: moveSure } : {}) })) : rail.sure),
-    [onFeed, fieldLine, recordSure, moveSure, rail.sure]
+    () => (onFeed && (fieldLine || recordSure || moveSure || windowSure) && rail.sure ? rail.sure.map(x => ({ ...x, ...(fieldLine ? { field: fieldLine } : {}), ...(recordSure ? { record: recordSure } : {}), ...(moveSure ? { move: moveSure } : {}), ...(windowSure ? { window: windowSure } : {}) })) : rail.sure),
+    [onFeed, fieldLine, recordSure, moveSure, windowSure, rail.sure]
   );
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
@@ -1790,9 +1837,11 @@ const Pane = ({
                  not a third of the chart (X11) */
               nyClock
               recordLines={fRecord?.lines}
-              regimeRef={fRegime}
-              regimeDir={regimeDir}
-              regimeRanges={fRecord?.main.regime?.ranges ?? null}
+              /* the window's own reference (item 6); UW's directional series and the scorecard's ranges stand on every
+                 expiry, so a window says neither */
+              regimeRef={regimeForWindow(fRegime, win)}
+              regimeDir={win === 'all' ? regimeDir : null}
+              regimeRanges={win === 'all' ? fRecord?.main.regime?.ranges ?? null : null}
               pricedMove={fMove}
               beadBasis={beadBasis}
               beadFloor={beadFloor}
@@ -2325,7 +2374,7 @@ const Pane = ({
                  desk's one cut, so a change here changes every pane */
               /* bare beside another pane: the card's word went, its value cut to "Every expir…" in every pane (the
                  audit's TE-2) — the value says it, the tooltip names it */
-              headCard={<ExpiryCard label="Expiry" size="sm" bare={!expanded && paneCount > 1} value={offHouse && cutDate === null ? 'book' : railCut} choices={offHouse ? feedCutChoices(fListed) : railCutChoices()} onChange={onRailCut} title="Expiry — which contracts the rails read" testId="terrain-expiry" />}
+              headCard={<ExpiryCard label="Expiry" size="sm" bare={!expanded && paneCount > 1} value={offHouse && cutDate === null && !isWindowCut(railCut) ? 'book' : railCut} choices={offHouse ? feedCutChoices(fListed) : railCutChoices()} onChange={onRailCut} title="Expiry — which contracts the rails read" testId="terrain-expiry" />}
               /* THE CHART KEEPS ITS SHARE (the audit's TE-5: in three and four panes the ladder took ~60% and the chart
                  shrank to ~175 px): beside other panes the rail stops at 40% of the pane */
               maxShare={belowLg ? 0.82 : !expanded && paneCount >= 3 ? 0.4 : 0.6}
@@ -3475,7 +3524,7 @@ export const TerrainSoloPane = ({ initial, rail, onName }: { initial: unknown; r
   });
   const r = (rail && typeof rail === 'object' ? rail : {}) as { palette?: unknown; railCut?: unknown };
   const palette: ProfilePalette = r.palette === 'house' ? 'house' : 'thermal';
-  const [railCut, setRailCut] = useState<RailCut>(() => (typeof r.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(r.railCut) ? r.railCut : 'book'));
+  const [railCut, setRailCut] = useState<RailCut>(() => ((typeof r.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(r.railCut)) || isWindowCut(r.railCut) ? (r.railCut as RailCut) : 'book'));
   const [replay, setReplay] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const [menu, setMenu] = useState<'symbol' | 'compare' | null>(null);

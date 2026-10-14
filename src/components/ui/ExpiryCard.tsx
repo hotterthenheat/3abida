@@ -165,9 +165,10 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
               {note}
             </p>
           )}
-          <div className="mt-2 pt-2 border-t border-borderSubtle/70 flex items-center justify-between gap-3">
+          <div className="mt-2 pt-2 border-t border-borderSubtle/70 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <p className="text-[11px] text-textMuted">{free ? `Any trading day up to ${free.days} days out.` : 'The lit days are the expiries this desk prices.'}</p>
-            {/* a choice that is not a day (the book's "Every expiry") sits at the foot, alone */}
+            {/* a choice that is not a day (the book's "Every expiry", Terrain's expiry windows) sits at the foot */}
+            <span className="flex flex-wrap items-center justify-end gap-1.5">
             {choices
               .filter(c => !c.date)
               .map(c => {
@@ -188,6 +189,7 @@ const ExpiryCard = <T extends string | number>({ label = 'Expiry', value, choice
                   </button>
                 );
               })}
+            </span>
           </div>
         </Popover.Content>
       </Popover.Portal>

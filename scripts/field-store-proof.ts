@@ -198,7 +198,7 @@ try {
   const bars: Bar[] = [];
   for (let k = 0; k < complete(); k++) bars.push({ time: (OPEN + k * 60_000) / 1000, close: closeAt(k), session: 'r' });
   const rebuilt = new Map(store.rowsOf(past, bars).map(r => [r.m, r]));
-  const same = (a: StoreRow, b: StoreRow) => a.spot === b.spot && a.flip === b.flip && a.cw === b.cw && a.pw === b.pw && a.net === b.net && a.ref === b.ref && a.max === b.max && JSON.stringify(a.cells) === JSON.stringify(b.cells) && JSON.stringify(a.top) === JSON.stringify(b.top) && a.str0?.value === b.str0?.value;
+  const same = (a: StoreRow, b: StoreRow) => a.spot === b.spot && a.flip === b.flip && a.cw === b.cw && a.pw === b.pw && a.net === b.net && a.ref === b.ref && a.max === b.max && JSON.stringify(a.cells) === JSON.stringify(b.cells) && JSON.stringify(a.top) === JSON.stringify(b.top) && a.str0?.value === b.str0?.value && JSON.stringify(a.netP) === JSON.stringify(b.netP);
   const final2 = store.readRows('SPY', D, 'final');
   check(`the final rows equal the session's full rebuild to the cell (${final2.length} minutes, the same code path)`, final2.length > 0 && final2.every(r => rebuilt.has(r.m) && same(r, rebuilt.get(r.m)!)));
   check("the rebuild's vols are UW's minutes, and the day is covered once saved", (() => {
@@ -214,6 +214,7 @@ try {
   check("a row's reference is the renderer's for that column (beadScale.ts, one count)", shown2.every((r, i) => prim.columnAt(i).ref === r.ref));
   const scale = new RunningScale();
   check('and it runs forward: each row’s reference is the 85th percentile of the maxima up to it', shown2.every(r => scale.push(r.max) === r.ref));
+  check("every row carries its net by expiry partition, summing to its net (item 6: the final rows equal the rebuild in every window)", [...shown2, ...final2].every(r => Array.isArray(r.netP) && r.netP.length === 4 && Math.abs(r.netP.reduce((x, v) => x + v, 0) - r.net) <= 1e-6 * Math.max(1, Math.abs(r.net))));
   check("every row carries the column's delta peak (maxD) for the delta field's fixed and prior references (item 5)", shown2.every(r => typeof r.maxD === 'number' && r.maxD >= 0) && final2.every(r => typeof r.maxD === 'number'));
 
   /* ONE RECORDER A MACHINE (2026-10-13: a dev server's in-process restart left the old recorder ticking, and 29

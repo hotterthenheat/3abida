@@ -113,7 +113,21 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
   return (
     <PopoverCard trigger={door} width={340} align={align} testId="how-sure-book">
       <div className="px-3 py-2.5 flex flex-col gap-2 text-[12px] leading-relaxed" data-how-sure-card="book">
-        <p className="font-semibold text-textPrimary">How sure are the walls and the flip</p>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-textPrimary">
+          How sure are the walls and the flip
+          {/* the owner's item 6: every window is priced in the same pass, every minute */}
+          {first.window && (
+            <span className="rounded-[3px] border border-ink/[0.12] px-1.5 text-[11px] font-normal text-textMuted" data-how-sure-window-badge>
+              {first.window.badge}
+            </span>
+          )}
+        </p>
+        {first.window?.line && (
+          <div data-how-sure-window>
+            <p className="text-[11px] text-textMuted">The expiry window</p>
+            <p className="text-textSecondary">{first.window.line}</p>
+          </div>
+        )}
         <div>
           <p className="text-[11px] text-textMuted">What they assume</p>
           <p className="text-textSecondary">{first.assumption}</p>

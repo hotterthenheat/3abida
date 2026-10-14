@@ -19,6 +19,26 @@ export interface FeedBook60 {
   expiries: string[];
   /** Ascending; the house's sign */
   rows: { strike: number; net: number; call: number; put: number }[];
+  /** Each strike's call and put gamma by expiry partition (partOf), the house's sign — absent on reads before
+      2026-10-14 (item 6) */
+  parts?: { strike: number; call: number[]; put: number[] }[];
+}
+/** The 60-day book seen through an expiry window (item 6): each strike's partitions summed to the window's last; 'all'
+    the book itself; null for a read without partitions */
+export function book60Window(b: FeedBook60, w: ExpiryWindow): FeedBook60 | null {
+  if (w === 'all') return b;
+  if (!b.parts) return null;
+  const top = WINDOW_TOP[w];
+  const rows = b.parts.map(p => {
+    let call = 0;
+    let put = 0;
+    for (let q = 0; q <= top; q++) {
+      call += p.call[q];
+      put += p.put[q];
+    }
+    return { strike: p.strike, net: call + put, call, put };
+  });
+  return { at: b.at, spot: b.spot, expiries: b.expiries.filter(e => partOf(e, nyIsoDate(b.at)) <= top), rows };
 }
 
 /* ---- the model, named --------------------------------------------------------------------------------------------- */
@@ -155,6 +175,9 @@ export interface Universe {
   /** UW's whole-day clock for a later expiry, in years; 0 for today's (priced on the minutes left) */
   years: Float64Array;
   expiry: string[];
+  /** Each contract's expiry window partition against the day (item 6: 0 the day itself, 1 to its Friday, 2 to monthly
+      OPEX, 3 the rest) — partOf */
+  part: Uint8Array;
   /** Each contract's observations, oldest first */
   obs: Obs[][];
   /** The chain reads' moments, oldest first — a column's inputs are named by the newest at or before it */
@@ -178,6 +201,41 @@ export function oiPublishedAt(day: string): number {
   const [y, m, d] = day.split('-').map(Number);
   return nyWallTime(y, m, d, Math.floor(OI_PUBLISH_NY_MIN / 60), OI_PUBLISH_NY_MIN % 60);
 }
+
+/* ---- THE EXPIRY WINDOWS (the owner's item 6, 2026-10-14: "pills for 0DTE / To Friday / To monthly OPEX / All 60 days
+   (current default). Field, flip, walls, regime strip and p85 reference all follow the selection … partition: the sum
+   over disjoint windows equals All per strike per minute") ------------------------------------------------------------ */
+
+/** A window: the expiries settling the session's day, to its Friday, to the monthly OPEX, or all the universe holds */
+export type ExpiryWindow = '0dte' | 'fri' | 'opex' | 'all';
+export const WINDOWS: readonly ExpiryWindow[] = ['0dte', 'fri', 'opex', 'all'];
+/** The disjoint partitions the windows are cumulative sums of */
+export const PARTS = 4;
+/** A window's last partition: 0DTE the first alone, To Friday the first two, To OPEX three, All four */
+export const WINDOW_TOP: Record<ExpiryWindow, number> = { '0dte': 0, fri: 1, opex: 2, all: 3 };
+const isoOf = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
+/** The month's third Friday */
+function thirdFriday(y: number, m: number): string {
+  const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+  return isoOf(y, m, 1 + ((5 - first + 7) % 7) + 14);
+}
+/** The window ends for a session's day: the Friday of its week (the day itself on a Friday — a holiday Friday's expiry
+    falls the Thursday before, inside it) and the monthly OPEX, the third Friday on or after the day */
+export function windowEnds(day: string): { fri: string; opex: string } {
+  const [y, m, d] = day.split('-').map(Number);
+  const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const fri = isoOf(y, m, d + ((5 - wd + 7) % 7));
+  let opex = thirdFriday(y, m);
+  if (opex < day) opex = m === 12 ? thirdFriday(y + 1, 1) : thirdFriday(y, m + 1);
+  return { fri, opex };
+}
+/** A contract's partition: 0 its expiry is the day, 1 after it to the Friday, 2 after the Friday to the OPEX, 3 after */
+export function partOf(expiry: string, day: string, ends: { fri: string; opex: string } = windowEnds(day)): 0 | 1 | 2 | 3 {
+  return expiry <= day ? 0 : expiry <= ends.fri ? 1 : expiry <= ends.opex ? 2 : 3;
+}
+/** A column's per-strike sums by partition, in the levels' order: gamma, delta, the gamma priced, priced on today's
+    vols, and on a vol older than an hour — five quantities × four partitions a strike */
+export const PART_STRIDE = 5 * PARTS;
 
 /**
  * The universe of a name for a day from what the server recorded: the contracts the chain reads list (its own root
@@ -264,6 +322,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     expires: Float64Array.from(kept.map(c => lastTradeOf(c.expiry))),
     years: Float64Array.from(kept.map(c => (c.expiry > day ? uwYears(0, 0, c.expiry, day) : 0))),
     expiry: kept.map(c => c.expiry),
+    part: (ends => Uint8Array.from(kept.map(c => partOf(c.expiry, day, ends))))(windowEnds(day)),
     obs: kept.map(c => c.obs),
     reads: [...new Set([...reads.map(r => r.receivedAt), ...tickEnds])].sort((a, b) => a - b),
     seedDate: seed?.date ?? null,
@@ -323,8 +382,13 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
   const s2 = spot * spot;
   const [a, b] = windowAt(u.strikes, spot, half);
   const levels: GexLevel[] = [];
+  /* the strike's sums by expiry partition (item 6) — the window views add them up, so every window is priced in this
+     one pass and a switch asks nothing */
+  const parts: number[] = [];
+  const pv = new Float64Array(PART_STRIDE);
   for (let i = a; i < b; i++) {
     const k = u.strikes[i];
+    pv.fill(0);
     let gc = 0;
     let gp = 0;
     let dc = 0;
@@ -354,6 +418,12 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
       }
       all += gw;
       if (!o.carried) fresh += gw;
+      const q = u.part[j];
+      pv[q] += u.call[j] ? -gw : gw;
+      pv[PARTS + q] += -w * (u.call[j] ? g.deltaCall : g.deltaPut);
+      pv[2 * PARTS + q] += gw;
+      if (!o.carried) pv[3 * PARTS + q] += gw;
+      if (clock - o.trade > STALE_MS) pv[4 * PARTS + q] += gw;
       if (o.trade < stale) {
         stale = o.trade;
         staleBound = o.bound;
@@ -363,11 +433,42 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
       if (clock - o.trade > STALE_MS) old += gw;
     }
     if (all <= 0) continue;
+    for (let x = 0; x < PART_STRIDE; x++) parts.push(pv[x]);
     const coverage = fresh / all;
     /* the house's sign (levels.ts feedStrike): the calls' gamma and every delta turned over, the puts' gamma as is */
     levels.push({ strike: k, value: -gc + gp, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, coverage });
   }
-  return { time: bar.time, levels, spot, rebuilt: true };
+  return { time: bar.time, levels, spot, rebuilt: true, parts: Float32Array.from(parts) };
+}
+
+/** A column seen through an expiry window (item 6): each strike's gamma and delta summed over the window's partitions,
+    its provenance and stale share over the window's own contracts; a strike the window holds nothing at is left out.
+    The vols' newest and oldest trade times are the strike's over every expiry, so a window view leaves them out rather
+    than claim them. 'all', or a column without partitions (the house's field, a book read as it stood), is itself. */
+const viewCache: Record<Exclude<ExpiryWindow, 'all'>, WeakMap<GexSnapshot, GexSnapshot>> = { '0dte': new WeakMap(), fri: new WeakMap(), opex: new WeakMap() };
+export function windowView(snap: GexSnapshot, w: ExpiryWindow): GexSnapshot {
+  const p = snap.parts;
+  if (w === 'all' || !p || p.length !== snap.levels.length * PART_STRIDE) return snap;
+  const cache = viewCache[w];
+  const had = cache.get(snap);
+  if (had) return had;
+  const top = WINDOW_TOP[w];
+  const sum = (base: number) => {
+    let x = 0;
+    for (let q = 0; q <= top; q++) x += p[base + q];
+    return x;
+  };
+  const levels: GexLevel[] = [];
+  snap.levels.forEach((l, i) => {
+    const o = i * PART_STRIDE;
+    const all = sum(o + 2 * PARTS);
+    if (!(all > 0)) return;
+    const coverage = sum(o + 3 * PARTS) / all;
+    levels.push({ strike: l.strike, value: sum(o), dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, coverage, ...(l.at != null ? { at: l.at } : {}) });
+  });
+  const view: GexSnapshot = { time: snap.time, levels, spot: snap.spot, rebuilt: snap.rebuilt };
+  cache.set(snap, view);
+  return view;
 }
 
 /* ---- a rebuilt session as the model's inputs — ONE mapping for the server's store, the pages' trail and Pinpoint ------ */
@@ -458,9 +559,22 @@ export interface RegimeReference {
   before: (number[] | null)[];
   /** The sessions a reference reaches back over */
   trailing: number;
+  /** THE SAME BY EXPIRY WINDOW (item 6): the nets of the window's partitions, over the sessions whose rows carry them —
+      absent for a window no session holds yet */
+  windows?: Partial<Record<Exclude<ExpiryWindow, 'all'>, Omit<RegimeReference, 'windows'>>>;
 }
+/** The window's reference, 'all' the reference itself; null where none is kept */
+export const regimeForWindow = (ref: RegimeReference | null, w: ExpiryWindow): Omit<RegimeReference, 'windows'> | null => (!ref ? null : w === 'all' ? ref : ref.windows?.[w] ?? null);
+/** A row's net in a window: its partitions summed to the window's last, or null for a row without them */
+export const windowNet = (r: { net: number; netP?: readonly number[] }, w: ExpiryWindow): number | null => {
+  if (w === 'all') return r.net;
+  if (!r.netP || r.netP.length !== PARTS) return null;
+  let x = 0;
+  for (let q = 0; q <= WINDOW_TOP[w]; q++) x += r.netP[q];
+  return x;
+};
 /** The reference off sessions' rows (ascending by day): the trailing N sessions' nets by half-hour bucket */
-export function buildRegimeReference(name: string, sessions: readonly { day: string; rows: readonly { m: number; net: number }[] }[], trailing = 250, minuteOf: (ms: number) => number): RegimeReference {
+export function buildRegimeReference(name: string, sessions: readonly { day: string; rows: readonly { m: number; net: number; netP?: readonly number[] }[] }[], trailing = 250, minuteOf: (ms: number) => number): RegimeReference {
   const sorted = [...sessions].sort((a, b) => a.day.localeCompare(b.day));
   const build = (set: readonly { rows: readonly { m: number; net: number }[] }[]): (number[] | null)[] => {
     const by: number[][] = Array.from({ length: REGIME_BUCKETS }, () => []);
@@ -470,7 +584,16 @@ export function buildRegimeReference(name: string, sessions: readonly { day: str
     }
     return by.map(regimeQuantiles);
   };
-  return { name, through: sorted[sorted.length - 1]?.day ?? '', sessions: Math.min(trailing, sorted.length), buckets: build(sorted), before: build(sorted.slice(0, -1)), trailing };
+  const base = { name, through: sorted[sorted.length - 1]?.day ?? '', sessions: Math.min(trailing, sorted.length), buckets: build(sorted), before: build(sorted.slice(0, -1)), trailing };
+  /* per window: the sessions whose rows carry their partitions, each row's net the window's */
+  const windows: NonNullable<RegimeReference['windows']> = {};
+  for (const w of ['0dte', 'fri', 'opex'] as const) {
+    const held = sorted
+      .filter(s => s.rows.length && s.rows.every(r => windowNet(r, w) != null))
+      .map(s => ({ day: s.day, rows: s.rows.map(r => ({ m: r.m, net: windowNet(r, w) as number })) }));
+    if (held.length) windows[w] = { name, through: held[held.length - 1].day, sessions: Math.min(trailing, held.length), buckets: build(held), before: build(held.slice(0, -1)), trailing };
+  }
+  return Object.keys(windows).length ? { ...base, windows } : base;
 }
 /** The quantiles a page on `day` may read — never a session at or after it */
 export function regimeBucketsFor(ref: RegimeReference, day: string): (number[] | null)[] | null {
@@ -645,7 +768,7 @@ export function straddleFromChain(rows: readonly ChainRow[], expiry: string, spo
     the session) — and the comparison is made over the strikes both hold, strike by strike and summed. UW's whole-book
     series (every expiry, every strike) and its per-strike book (every expiry) are not the model's universe, so neither
     is a measure of it: the same sign 13% of the time at −1.99× was the universe, not a sign. */
-export function fieldResidual(field: readonly GexSnapshot[], books60: readonly FeedBook60[]): string | null {
+export function fieldResidual(field: readonly GexSnapshot[], books60: readonly FeedBook60[], universe = 'within 60 days'): string | null {
   const byMinute = new Map<number, GexSnapshot>();
   for (const s of field) byMinute.set(Math.floor(s.time / 60), s);
   const gaps: number[] = [];
@@ -681,7 +804,7 @@ export function fieldResidual(field: readonly GexSnapshot[], books60: readonly F
   };
   const n = gaps.length;
   const books = `${n} book${n === 1 ? '' : 's'}`;
-  return `The field is modeled, never rescaled to the vendor. Against Unusual Whales' book on the same strikes and expiries (within 60 days, ${books} read today): strike by strike it differs by ${(med(gaps) * 100).toFixed(1)}% of the book's size at the median; summed over those strikes it has the same sign in ${same} of ${n}, at ${med(ratios).toFixed(2)}× the book's size at the median.`;
+  return `The field is modeled, never rescaled to the vendor. Against Unusual Whales' book on the same strikes and expiries (${universe}, ${books} read today): strike by strike it differs by ${(med(gaps) * 100).toFixed(1)}% of the book's size at the median; summed over those strikes it has the same sign in ${same} of ${n}, at ${med(ratios).toFixed(2)}× the book's size at the median.`;
 }
 
 /** The residual's figures, for a check (window.__slayerTrail) */
