@@ -10,6 +10,7 @@ import { createFieldBackfill } from '../server/fieldBackfill';
 import { createFieldStore } from '../server/fieldStore';
 import { createScorecard } from '../server/scorecard';
 import { createPricedMove } from '../server/pricedMove';
+import { createScaleRef } from '../server/scaleRef';
 
 const names = (process.argv[2] ?? 'SPY').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
 const env: Record<string, string> = {};
@@ -22,7 +23,8 @@ const client = createFeedClient({ keys: { uw: process.env.UW_API_TOKEN || env.UW
 const backfill = createFieldBackfill(client);
 const store = createFieldStore();
 const move = createPricedMove(client, backfill, { log: l => console.log(l) });
-const job = createScorecard(backfill, store, { log: l => console.log(l), move });
+const scale = createScaleRef(backfill, store, { log: l => console.log(l) });
+const job = createScorecard(backfill, store, { log: l => console.log(l), move, scale });
 (async () => {
   for (const n of names) {
     const t0 = Date.now();

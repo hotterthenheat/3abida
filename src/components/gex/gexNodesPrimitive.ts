@@ -1,6 +1,6 @@
-import { HEAT_MODE, heatRampColor, heatRampColorFor } from './heatmap';
-import { RUN_BINS, SCALE_Q, binOf, quantileOf } from '../../data/feed/beadScale';
-import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { HEAT_MODE, heatRampColor, heatRampColorFor, inkFor } from './heatmap';
+import { BEAD_STEPS, FIXED_SESSIONS, RunningScale, pooledRef, stepOf, stepT, strengthOf, type ScaleBasis, type ScaleRef } from '../../data/feed/beadScale';
+import type { ISeriesPrimitive, ISeriesPrimitiveAxisView, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
 import { pickFlip, pickWalls, zeroCrossings } from '../../core/walls';
@@ -55,22 +55,38 @@ const FLIP_RGBA = 'rgba(156,163,175,0.8)'; // indecision gray — the regime bor
    The band belongs to the crown. */
 const FLIPK_RGBA = 'rgba(234,0,255,0.85)'; // the supreme outranks the flip on a shared strike too
 
-/** What a bead's brightness says — the legend prints it (Terrain's Heaviest row) */
-export const BEAD_SCALE = "Bead light: √(size ÷ this session's 85th-percentile peak so far)";
-
 /* EVERY STRIKE IN THE WINDOW DRAWS (the owner's second review, 2026-10-13, item 5: 774 stood at +$506M, half the
-   reference, and drew nothing — only the twelve heaviest of a column were drawn); below the floor, nothing. The
-   ranking happens ONCE, when the data arrives — a frame must never sort. */
-const MIN_STRENGTH = 0.08;
+   reference, and drew nothing — only the twelve heaviest of a column were drawn), and since item 5 (e) every strike
+   above zero: the floor is the reader's (`floor`, a share of the reference, off by default). The ranking happens ONCE,
+   when the data arrives — a frame must never sort. */
 
-/** One bead: a strike's strength against the reference, and which side owns it */
+/* STALENESS IN THE MARK ITSELF (item 5 (g) — "reduced opacity with a dotted outline, quantized to 3 steps. Do not use
+   desaturation"): 0 a cell on today's vols, 1 a modeled cell with half or more of its gamma on vols older than an hour,
+   2 a cell priced mostly on the session before's close vol (carried). The same inks; the core and halo at these shares
+   of their alpha, filled dotted (STALE_COVER), and a dotted outline round a swelling bead. */
+export const STALE_ALPHA = [1, 0.8, 0.6] as const;
+/** The share of a stale bead its dotted fill covers (two on, one off; one on, one off) */
+export const STALE_COVER = [1, 2 / 3, 1 / 2] as const;
+const staleOf = (l: GexSnapshot['levels'][number]): 0 | 1 | 2 => (l.prov === 'carried' ? 2 : (l.staleShare ?? 0) >= 0.5 ? 1 : 0);
+/** A bead's core and halo alpha at a step (the halo's under the core: what makes the ribbon soft) — one function, so the
+    greyscale proof reads what is drawn */
+export const coreAlpha = (s: number) => 0.16 + s * 0.5;
+export const haloAlpha = (s: number) => 0.04 + s * 0.14;
+/** The side ramp's colour at a step: floored at 0.2 so the faintest step still whispers in hue */
+export const stepColourT = (s: number) => 0.2 + 0.8 * s;
+
+/** One bead: a strike's step against the reference, and which side owns it */
 interface Bead {
   strike: number;
+  /** Its strength, √(|value| ÷ reference) clipped at 1, and the step it draws at (1..BEAD_STEPS) */
   t: number;
+  step: number;
   /** Sim side-coding: positive = put-dominant (amplifies), negative = call-dominant (absorbs) */
   put: boolean;
-  /** A modeled cell priced mostly on the session before's close vol (data/feed/trailField.ts) — a step quieter */
-  quiet: boolean;
+  /** 0 fresh, 1 stale, 2 carried — STALE_ALPHA */
+  stale: 0 | 1 | 2;
+  /** Above the basis's p95 — it wears a ring (item 5 (c)) */
+  ring: boolean;
 }
 
 /** One column of the field, ranked and scaled at load time */
@@ -80,8 +96,9 @@ interface Column {
   top: Bead[];
   /** Every strike — only consulted for a focused strike outside the top */
   all: Map<number, Bead>;
-  /** The reference this column's beads were measured against (its running scale) */
+  /** The reference this column's beads were measured against, and what it was built with */
   ref: number;
+  key: string;
   /* THIS MOMENT'S OWN LEVELS (2026-10-13): the flip and the walls of the column's own book, against its own price —
      core/walls.ts pickFlip (the sign change nearest the price; null where the book never changes sign: a gap, never the
      last one carried) and pickWalls */
@@ -90,13 +107,6 @@ interface Column {
   pw: number | null;
 }
 
-/* CARRIED BEADS, A STEP QUIETER (2026-10-13): a modeled cell priced on today's vols (data/feed/trailField.ts), and the
-   house's own field, draw as ever; a cell priced mostly on the session before's close vol (carried) at 78% of the
-   core's alpha and with a halo a hairline tighter — the same inks, so the field reads as one, and a reader who looks
-   can tell them apart. */
-const REBUILT_CORE = 0.78;
-const REBUILT_HALO_W = 1.0;
-const REBUILT_HALO_H = 1.6;
 
 /* A WALL THAT MOVES (2026-10-13): a chip at the moment the call or put wall changes strike — "CW 780 → 785 · 11:42" —
    counted once the new strike has held three moments (a wall trading places with its neighbour for a moment is not a
@@ -174,6 +184,18 @@ export function trailPaperFrom(el: Element): TrailPaper {
   };
 }
 const rgba = (c: RGB3, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+/** The axis labels' inks, read off an element inside the chart's box (the direction pair follows Settings' colour-vision
+    choice through the tokens) */
+export function axisInksFrom(el: Element): Record<'cw' | 'pw' | 'flip' | 'supreme' | 'put' | 'call', RGB3> {
+  return {
+    cw: tokenRgb(el, '--bull', [48, 209, 88]),
+    pw: tokenRgb(el, '--bear', [255, 59, 48]),
+    flip: tokenRgb(el, '--flip', [156, 163, 175]),
+    supreme: tokenRgb(el, '--supreme', [234, 0, 255]),
+    put: tokenRgb(el, '--ember', [245, 197, 66]),
+    call: tokenRgb(el, '--glacier', [122, 189, 215]),
+  };
+}
 
 interface BitmapScope {
   context: CanvasRenderingContext2D;
@@ -206,6 +228,26 @@ class TrailsPaneRenderer {
       run at 60fps) blit this instead of re-filling thousands of subpaths;
       the fill cost, not the path building, was the hover jank. */
   private bmp: HTMLCanvasElement | null = null;
+  /** The stale steps' dotted fills, by ink and step — two device pixels on and one off (stale), one on and one off
+      (carried), anchored to the bitmap so a row of beads dots evenly */
+  private dotCache = new Map<string, CanvasPattern | string>();
+  dots(ctx: CanvasRenderingContext2D, css: string, stale: 1 | 2, px: number): CanvasPattern | string {
+    const key = `${css}|${stale}|${px}`;
+    let p = this.dotCache.get(key);
+    if (p) return p;
+    const c = document.createElement('canvas');
+    c.width = (stale === 2 ? 2 : 3) * px;
+    c.height = 1;
+    const g = c.getContext('2d');
+    if (g) {
+      g.fillStyle = css;
+      g.fillRect(0, 0, (stale === 2 ? 1 : 2) * px, 1);
+    }
+    p = (g && ctx.createPattern(c, 'repeat')) || css;
+    if (this.dotCache.size > 400) this.dotCache.clear();
+    this.dotCache.set(key, p);
+    return p;
+  }
 
   draw(target: DrawTarget): void {
     const src = this.source;
@@ -244,6 +286,10 @@ class TrailsPaneRenderer {
     const col0 = src.columnAt(first);
     const barSpacing = ts.options().barSpacing ?? 6;
     if (src.ref <= 0) return;
+    if (import.meta.env?.DEV && src.published != null && src.published > 0 && last === snaps.length) {
+      const drawn = src.columnAt(last - 1).ref;
+      if (Math.abs(drawn - src.published) > src.published * 1e-12) console.error(`bead legend out of step: the legend says ${src.published}, the newest column was drawn against ${drawn}`);
+    }
     /* WAVEFORMS, NOT DOTS (Noah, 2026-08-22, against Sovereign's close-ups):
        a rail is a ribbon — every bead is as WIDE as its slot, so they touch,
        and the variation is VERTICAL: the ribbon's thickness flickers with
@@ -289,10 +335,13 @@ class TrailsPaneRenderer {
       const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}|${paper ? 'paper' : 'dark'}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
-      /* BATCHED: beads are gathered into one path per ink (alpha quantised to
-         ~20 steps), then each path is filled once — into the BITMAP. */
+      /* BATCHED BY STEP (item 5 (d)): a bead's brightness is one of BEAD_STEPS steps a side, so the field is one Path2D
+         per ink, step, staleness and dimming — filled once each, into the BITMAP. Rings (item 5 (c)) and the stale
+         steps' dotted outlines (item 5 (g)) are a path per ink each, stroked once. */
       const cores = new Map<string, Path2D>();
       const halos = new Map<string, Path2D>();
+      const rings = new Map<string, Path2D>();
+      const dotted = new Map<string, Path2D>();
       const flipPath = new Path2D();
       const flipKPath = new Path2D();
       let flipDrawn = false;
@@ -300,6 +349,23 @@ class TrailsPaneRenderer {
         let p = map.get(key);
         if (!p) map.set(key, (p = new Path2D()));
         return p;
+      };
+      /* RUNS (item 5 (iv), the frame at full zoom-out): a hairline bead is a rect as wide as its slot, so neighbours at a
+         strike overlap by design — a row of them at one step and staleness is ONE rect from the first's left edge to
+         the last's right, the same pixels in one fill (a path's subpaths union, so nothing doubles), a fraction of the
+         shapes. Keyed by strike and layer; a gap, a step change or a round bead between starts a new run. */
+      type Run = { map: Map<string, Path2D>; key: string; x0: number; x1: number; y0: number; h: number };
+      const runs = new Map<number, Run>();
+      const flush = (r: Run) => pathFor(r.map, r.key).rect(r.x0, r.y0, r.x1 - r.x0, r.h);
+      const runRect = (map: Map<string, Path2D>, layer: number, strike: number, key: string, x0: number, y0: number, w: number, h: number) => {
+        const id = strike * 4 + layer;
+        const r = runs.get(id);
+        if (r && r.map === map && r.key === key && r.y0 === y0 && r.h === h && x0 <= r.x1 + 0.5) {
+          if (x0 + w > r.x1) r.x1 = x0 + w;
+          return;
+        }
+        if (r) flush(r);
+        runs.set(id, { map, key, x0, x1: x0 + w, y0, h });
       };
       const yCache = new Map<number, number | null>();
       const yOf = (strike: number) => {
@@ -357,37 +423,24 @@ class TrailsPaneRenderer {
              strike in the candles' range clear of the band, and a wall beyond it is named by its pinned chip */
           if (y < beadFloorCss || y > paneHCss) continue;
 
-          /* THE DRAWN STRENGTH IS THE STATED ONE (2026-10-13): t is already √(size ÷ reference) — the legend's scale
-             (BEAD_SCALE) — so height and light follow t itself; the old t^1.6 on top of it would have drawn another scale
-             than the one the legend states */
-          const t = Math.max(isFocus ? 0.08 : 0, bead.t);
-          const s = t;
-          const ry = (A_MIN + s * (A_MAX - A_MIN)) * vr;
+          /* THE DRAWN STRENGTH IS THE STATED ONE: the step's own strength (item 5 (d)) — height, light and hue all
+             follow it, so the legend's reference is what full brightness means */
+          const step = Math.max(isFocus ? 1 : 0, bead.step);
+          if (step <= 0) continue;
+          const sd = stepT(step);
+          const ry = (A_MIN + sd * (A_MAX - A_MIN)) * vr;
           const yc = y * vr;
-          // Translucent on purpose — the tape reads THROUGH the ribbon
-          let core = 0.16 + s * 0.5;
-          let halo = 0.04 + s * 0.14;
-          if (bead.quiet && !isFocus) core *= REBUILT_CORE;
-          if (focus != null && !isFocus) {
-            core *= 0.3; // the field steps back
-            halo *= 0.3;
-          }
+          const stale = isFocus ? 0 : bead.stale;
+          const dim = focus != null && !isFocus ? 1 : 0; // the field steps back
           /* Ink precedence: the focus wins, then THE SUPREME — above the walls
              (Noah, 2026-08-29: the crown is never diluted; reverses the
              2026-08-22 wall-over-supreme order, whose worry — "I don't even see
              any put wall" — is answered by the wall's chip, axis line and
              the ladder's K·PW tag), then today's walls, then the side. */
           const isSupreme = supreme != null && bead.strike === supreme;
-          /* SIDE BEADS TRAVEL THE HOUSE RAMP (ember/glacier, 2026-08-29 —
-             "what about the charts"): each bead's hue comes from the ramp at
-             its own strength, so a band heats oxblood → fire → gold where
-             the book is heavy and cools where it drains — the ladder's
-             journey, on the tape. Identity beads (focus/supreme/walls) keep
-             their identity inks. The color-t is floored at 0.2 so the
-             faintest bead still whispers in hue instead of vanishing into
-             ramp-black — the alpha already carries the fade. Quantised to 8
-             bins so the batcher stays a batcher. */
-          const tBin = Math.min(7, Math.round((0.2 + 0.8 * t) * 7));
+          /* SIDE BEADS TRAVEL THE HOUSE RAMP (ember/glacier, 2026-08-29): each step's hue comes from the ramp at its
+             own strength (stepColourT), so a band heats where the book is heavy and cools where it drains; identity
+             beads (focus/supreme/walls) keep their identity inks */
           const inkKey = isFocus
             ? 'f'
             : isSupreme
@@ -397,8 +450,9 @@ class TrailsPaneRenderer {
                 : bead.strike === src.pwStrike
                   ? 'pw'
                   : bead.put
-                    ? `p@${tBin}`
-                    : `c@${tBin}`;
+                    ? `p@${step}`
+                    : `c@${step}`;
+          const key2 = `${inkKey}|${step}|${stale}|${dim}`;
 
           /* Each ELLIPSE bead is its OWN subpath: ellipse() draws a line
              from the path's current point to the ellipse's start, so without
@@ -410,27 +464,48 @@ class TrailsPaneRenderer {
           // The halo: wider and taller, faint — what makes the ribbon soft.
           // Gated on real pixels too: a halo around a sub-pixel bead is
           // path-building with no visible return.
-          const haloH = bead.quiet ? REBUILT_HALO_H : 1.9;
-          if (t > 0.2 && ry * haloH > 2.2 * vr) {
-            const hx = rx * (bead.quiet ? REBUILT_HALO_W : 1.15);
-            const p = pathFor(halos, `${inkKey}|${Math.round(halo * 40)}`);
+          if (sd > 0.2 && ry * 1.9 > 2.2 * vr) {
+            const hx = rx * 1.15;
             if (round) {
+              const p = pathFor(halos, key2);
               p.moveTo(cx + hx, yc);
-              p.ellipse(cx, yc, hx, ry * haloH, 0, 0, Math.PI * 2);
+              p.ellipse(cx, yc, hx, ry * 1.9, 0, 0, Math.PI * 2);
             } else {
-              p.rect(cx - hx, yc - ry * haloH, hx * 2, ry * haloH * 2);
+              runRect(halos, 1, bead.strike, key2, cx - hx, yc - ry * 1.9, hx * 2, ry * 1.9 * 2);
             }
           }
-          // The core: a slot-wide bead whose height is this moment's strength
-          const p = pathFor(cores, `${inkKey}|${Math.round(core * 20)}`);
+          // The core: a slot-wide bead whose height is this moment's step
           if (round) {
+            const p = pathFor(cores, key2);
             p.moveTo(cx + rx, yc);
             p.ellipse(cx, yc, rx, ry, 0, 0, Math.PI * 2);
           } else {
-            p.rect(cx - rx, yc - ry, rx * 2, ry * 2);
+            runRect(cores, 0, bead.strike, key2, cx - rx, yc - ry, rx * 2, ry * 2);
+          }
+          /* THE RING (item 5 (c)): a bead above the basis's p95 — clipped at full brightness with the rest of the top
+             step, and told apart by a hairline round it */
+          if (bead.ring && !dim) {
+            const g = 1.2 * vr;
+            const r = pathFor(rings, inkKey.replace(/@\d+$/, ''));
+            if (round) {
+              r.moveTo(cx + rx + g, yc);
+              r.ellipse(cx, yc, rx + g, ry + g, 0, 0, Math.PI * 2);
+            } else r.rect(cx - rx - g, yc - ry - g, (rx + g) * 2, (ry + g) * 2);
+          }
+          /* THE STALE STEPS, DOTTED (item 5 (g)): a stale bead is filled with a dotted pattern of its ink (paint below) —
+             a hairline reads as a dotted line, never a quieter solid one — and a swelling bead also wears a dotted outline.
+             (Dots drawn as shapes cost 25,000 extra rects a frame at full zoom-out; a pattern costs none.) */
+          if (stale > 0 && round) {
+            const o = pathFor(dotted, `${inkKey.replace(/@\d+$/, '')}|${stale}`);
+            const g = 0.8 * vr;
+            o.moveTo(cx + rx + g, yc);
+            o.ellipse(cx, yc, rx + g, ry + g, 0, 0, Math.PI * 2);
           }
         }
       }
+
+      for (const r of runs.values()) flush(r);
+      runs.clear();
 
       const INKS: Record<string, readonly [number, number, number]> = paper
         ? { f: ink, k: paper.supreme, cw: paper.cw, pw: paper.pw, p: paper.put, c: paper.call }
@@ -442,16 +517,20 @@ class TrailsPaneRenderer {
             p: PUT_RGB,
             c: CALL_RGB,
           };
-      const paint = (tctx: CanvasRenderingContext2D, map: Map<string, Path2D>, step: number) => {
+      const inkOf = (inkKey: string): RGB3 => {
+        if (inkKey[1] === '@') {
+          const sd = stepColourT(stepT(Number(inkKey.slice(2))));
+          return paper ? heatRampColorFor(inkKey[0] === 'p' ? 1 : -1, sd, HEAT_MODE, true) : heatRampColor(inkKey[0] === 'p' ? 1 : -1, sd);
+        }
+        return INKS[inkKey] ?? INKS.c;
+      };
+      const paint = (tctx: CanvasRenderingContext2D, map: Map<string, Path2D>, alphaOf: (s: number) => number) => {
         for (const [key2, path] of map) {
-          const [inkKey, q] = key2.split('|');
-          const rgb =
-            inkKey[1] === '@'
-              ? paper
-                ? heatRampColorFor(inkKey[0] === 'p' ? 1 : -1, Number(inkKey.slice(2)) / 7, HEAT_MODE, true)
-                : heatRampColor(inkKey[0] === 'p' ? 1 : -1, Number(inkKey.slice(2)) / 7)
-              : INKS[inkKey] ?? INKS.c;
-          tctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(Number(q) / step).toFixed(3)})`;
+          const [inkKey, step, stale, dim] = key2.split('|');
+          const rgb = inkOf(inkKey);
+          const a = alphaOf(stepT(Number(step))) * STALE_ALPHA[Number(stale) as 0 | 1 | 2] * (dim === '1' ? 0.3 : 1);
+          const css = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a.toFixed(3)})`;
+          tctx.fillStyle = stale === '0' ? css : this.dots(tctx, css, Number(stale) as 1 | 2, Math.max(1, Math.round(hr)));
           tctx.fill(path);
         }
       };
@@ -463,8 +542,23 @@ class TrailsPaneRenderer {
         bmp.height = scope.bitmapSize.height;
         const bctx = bmp.getContext('2d');
         if (bctx) {
-          paint(bctx, halos, 40);
-          paint(bctx, cores, 20);
+          paint(bctx, halos, haloAlpha);
+          paint(bctx, cores, coreAlpha);
+          bctx.lineWidth = Math.max(1, Math.round(vr));
+          for (const [inkKey, path] of rings) {
+            const rgb = inkOf(inkKey === 'p' || inkKey === 'c' ? `${inkKey}@${BEAD_STEPS}` : inkKey);
+            bctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`;
+            bctx.stroke(path);
+          }
+          bctx.lineWidth = Math.max(1, Math.round(vr * 0.8));
+          for (const [k, path] of dotted) {
+            const [inkKey, stale] = k.split('|');
+            const rgb = inkOf(inkKey === 'p' || inkKey === 'c' ? `${inkKey}@${BEAD_STEPS}` : inkKey);
+            bctx.setLineDash([1 * hr, (stale === '2' ? 1.5 : 2.5) * hr]);
+            bctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${stale === '2' ? 0.55 : 0.65})`;
+            bctx.stroke(path);
+          }
+          bctx.setLineDash([]);
           /* The regime border draws OVER the field (2026-08-29): it is the
              line the whole map hinges on, and under the beads it spent half
              its length buried in whatever band it crossed. */
@@ -683,6 +777,37 @@ export type TrailGreek = 'gex' | 'dex' | 'vex';
 const momentMax: Record<TrailGreek, WeakMap<GexSnapshot, number>> = { gex: new WeakMap(), dex: new WeakMap(), vex: new WeakMap() };
 const levelValue = (l: GexSnapshot['levels'][number], greek: TrailGreek): number => (greek === 'gex' ? l.value : greek === 'dex' ? (l.dex ?? 0) : (l.vex ?? 0));
 
+/** What the legend prints (GexTrailsPrimitive.legend) */
+export type BeadLegend = NonNullable<ReturnType<GexTrailsPrimitive['legend']>>;
+
+/** One pinned label on the price axis */
+class AxisLabel implements ISeriesPrimitiveAxisView {
+  constructor(
+    private y: number,
+    private words: string,
+    private rgb: RGB3,
+    private shown: boolean
+  ) {}
+  coordinate(): number {
+    return this.y;
+  }
+  text(): string {
+    return this.words;
+  }
+  textColor(): string {
+    return inkFor([this.rgb[0], this.rgb[1], this.rgb[2]]);
+  }
+  backColor(): string {
+    return `rgb(${this.rgb[0]},${this.rgb[1]},${this.rgb[2]})`;
+  }
+  visible(): boolean {
+    return this.shown;
+  }
+  tickVisible(): boolean {
+    return false;
+  }
+}
+
 export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   chart: IChartApi | null = null;
   series: ISeriesApi<'Candlestick'> | null = null;
@@ -769,8 +894,6 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     this.requestUpdate = undefined;
   }
 
-  updateAllViews(): void {}
-
   paneViews(): TrailsPaneView[] {
     return this._paneViews;
   }
@@ -779,48 +902,60 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   rev = 0;
   /** Built columns by snapshot identity — see setData's incremental note. */
   private colCache = new WeakMap<GexSnapshot, Column>();
-  /** Each column's running reference (see setData) and what it was built from */
-  private refs: number[] = [];
-  private runIds: GexSnapshot[] = [];
-  private runMax: number[] = [];
-  private runHist = new Float64Array(RUN_BINS);
-  private runCount = 0;
-  private runGreek: TrailGreek = 'gex';
 
-  private runFrom(snapshots: GexSnapshot[], greek: TrailGreek): void {
+  /* THE REFERENCE IS TAKEN OVER MINUTES (the owner's item 5, 2026-10-13: "Full brightness = $X gamma per 1% (session p85
+     of per-minute peaks, as of <time>)"): whatever the chart's timeframe, each minute's peak goes into the session's
+     count (data/feed/beadScale.ts — the store's one code), and a column wider than a minute is measured against the
+     reference as of its last minute. The base is the per-minute store the columns were folded from. */
+  private baseIds: GexSnapshot[] = [];
+  private baseTimes: number[] = [];
+  private baseMax: number[] = [];
+  private baseRef: number[] = [];
+  private baseRing: number[] = [];
+  private baseDays: string[] = [];
+  /** Each minute's session's first minute (an index into the base) */
+  private baseFirst: number[] = [];
+  private baseRun = new RunningScale();
+  /** refAt's answers by column, kept until the base, the basis or the references change */
+  private refMemo = new WeakMap<GexSnapshot, ReturnType<GexTrailsPrimitive['refAt']>>();
+  private baseGreek: TrailGreek = 'gex';
+  /** Each New York day's per-minute peaks in the base, for the prior and fixed bases (built as the base is) */
+  private dayMaxima = new Map<string, number[]>();
+  private dayRefs = new Map<string, { prior: ScaleRef | null; fixed: ScaleRef | null; priorDay: string | null }>();
+
+  /** The basis (item 5 (b)) and the floor (item 5 (e): a share of the reference; 0 = off) */
+  basis: ScaleBasis = 'session';
+  floor = 0;
+  /** The server's references by New York day (the feed: the fixed over the 60 sessions before the day, and the prior),
+      read before the base's own where it has them */
+  external = new Map<string, { fixed: ScaleRef | null; prior: ScaleRef | null; priorDay: string | null }>();
+
+  private baseFrom(base: GexSnapshot[], greek: TrailGreek): void {
     const memo = momentMax[greek];
     let k = 0;
-    if (greek === this.runGreek) while (k < this.runIds.length && k < snapshots.length && this.runIds[k] === snapshots[k]) k++;
-    else this.runGreek = greek;
-    this.runIds.length = k;
-    this.runMax.length = k;
-    this.refs.length = k;
-    /* PER SESSION (2026-10-13 — the owner: "keep the scale computed per session as of the replay clock"): the count
-       holds the session's columns up to the one being scaled, so rolling back to k rebuilds it from the first column
-       of k's session — a session is at most a few hundred columns */
-    this.runHist.fill(0);
-    this.runCount = 0;
-    let day = '';
-    if (k > 0) {
-      day = nyDayKey(this.runIds[k - 1].time);
-      let first = k - 1;
-      while (first > 0 && nyDayKey(this.runIds[first - 1].time) === day) first--;
-      for (let i = first; i < k; i++) {
-        const m = this.runMax[i];
-        if (m > 0) {
-          this.runHist[binOf(m)]++;
-          this.runCount++;
-        }
-      }
+    if (greek === this.baseGreek) while (k < this.baseIds.length && k < base.length && this.baseIds[k] === base[k]) k++;
+    else this.baseGreek = greek;
+    /* roll back to the first minute of k's session, so the running count restarts there */
+    if (k > 0 && k < this.baseIds.length) {
+      const day = this.baseDays[k - 1];
+      while (k > 0 && this.baseDays[k - 1] === day) k--;
     }
-    for (let i = k; i < snapshots.length; i++) {
-      const snap = snapshots[i];
+    if (k < this.baseIds.length) {
+      for (const d of new Set(this.baseDays.slice(k))) this.dayMaxima.delete(d);
+      this.dayRefs.clear();
+    }
+    for (const arr of [this.baseIds, this.baseTimes, this.baseMax, this.baseRef, this.baseRing, this.baseDays, this.baseFirst] as unknown[][]) arr.length = k;
+    this.baseRun.reset();
+    this.refMemo = new WeakMap();
+    let day = k > 0 ? this.baseDays[k - 1] : '';
+    let first = k > 0 ? this.baseFirst[k - 1] : 0;
+    for (let i = k; i < base.length; i++) {
+      const snap = base[i];
       const d = nyDayKey(snap.time);
       if (d !== day) {
-        /* a new session starts its own scale */
         day = d;
-        this.runHist.fill(0);
-        this.runCount = 0;
+        first = i;
+        this.baseRun.reset();
       }
       let m = memo.get(snap);
       if (m === undefined) {
@@ -831,14 +966,89 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         }
         memo.set(snap, m);
       }
-      if (m > 0) {
-        this.runHist[binOf(m)]++;
-        this.runCount++;
-      }
-      this.runIds.push(snap);
-      this.runMax.push(m);
-      this.refs.push(this.runCount ? quantileOf(this.runHist, this.runCount, SCALE_Q) : 0);
+      this.baseIds.push(snap);
+      this.baseTimes.push(snap.time);
+      this.baseMax.push(m);
+      this.baseRef.push(this.baseRun.push(m));
+      this.baseRing.push(this.baseRun.ring());
+      this.baseDays.push(d);
+      this.baseFirst.push(first);
+      let list = this.dayMaxima.get(d);
+      if (!list) this.dayMaxima.set(d, (list = []));
+      list.push(m);
     }
+  }
+
+  /** The prior and fixed references for a New York day: the server's where it has them, else the base's own */
+  private dayRef(day: string): { prior: ScaleRef | null; fixed: ScaleRef | null; priorDay: string | null } {
+    let r = this.dayRefs.get(day);
+    if (r) return r;
+    const ext = this.external.get(day);
+    const before = [...this.dayMaxima.keys()].filter(d => d < day).sort();
+    const priorDay = before.length ? before[before.length - 1] : null;
+    const prior = ext?.prior ?? (priorDay ? pooledRef(this.dayMaxima.get(priorDay)!, 1) : null);
+    const pool = before.slice(-FIXED_SESSIONS);
+    const fixed = ext?.fixed ?? (pool.length ? pooledRef(pool.flatMap(d => this.dayMaxima.get(d)!), pool.length) : null);
+    r = { prior, fixed, priorDay: ext?.priorDay ?? priorDay };
+    this.dayRefs.set(day, r);
+    return r;
+  }
+
+  /** The reference column i is measured against — the basis's, as of the column's last minute; a basis with nothing to
+      stand on (no session before loaded, none on the server) falls back to the session's own, and says so */
+  refAt(i: number): { ref: number; ring: number; basis: ScaleBasis; at: number; minutes: number; sessions: number; priorDay: string | null } {
+    const snap = this.snapshots[i];
+    const had = this.refMemo.get(snap);
+    if (had) return had;
+    const got = this.refOf(snap);
+    this.refMemo.set(snap, got);
+    return got;
+  }
+  private refOf(snap: GexSnapshot): { ref: number; ring: number; basis: ScaleBasis; at: number; minutes: number; sessions: number; priorDay: string | null } {
+    const end = snap.time + Math.max(60, this.stepSec) - 1;
+    /* the last base minute at or before the column's end */
+    let lo = 0;
+    let hi = this.baseTimes.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (this.baseTimes[m] <= end) lo = m + 1;
+      else hi = m;
+    }
+    const j = lo - 1;
+    const day = nyDayKey(snap.time);
+    if (this.basis !== 'session') {
+      const r = this.dayRef(day);
+      const got = this.basis === 'prior' ? r.prior : r.fixed;
+      if (got) return { ref: got.ref, ring: got.ring, basis: this.basis, at: j >= 0 ? this.baseTimes[j] : snap.time, minutes: got.minutes, sessions: got.sessions, priorDay: r.priorDay };
+    }
+    if (j >= 0 && this.baseDays[j] === day) return { ref: this.baseRef[j], ring: this.baseRing[j], basis: 'session', at: this.baseTimes[j], minutes: j - this.baseFirst[j] + 1, sessions: 1, priorDay: null };
+    return { ref: 0, ring: 0, basis: 'session', at: snap.time, minutes: 0, sessions: 0, priorDay: null };
+  }
+
+  /** The reference the host last handed the legend — the renderer checks the newest column against it in development
+      (item 5 acceptance (i): "the legend value equals the reference the renderer used at that minute (assert)") */
+  published: number | null = null;
+  /** What the legend prints: the newest column's reference, the very number its beads were drawn against */
+  legend(): (ReturnType<GexTrailsPrimitive['refAt']> & { greek: TrailGreek }) | null {
+    if (!this.snapshots.length) return null;
+    const r = this.refAt(this.snapshots.length - 1);
+    return r.ref > 0 ? { ...r, greek: this.greek } : null;
+  }
+
+  setBasis(basis: ScaleBasis, floor: number): void {
+    if (this.basis === basis && this.floor === floor) return;
+    this.basis = basis;
+    this.floor = floor;
+    this.refMemo = new WeakMap();
+    this.rev++;
+    this.requestUpdate?.();
+  }
+  setExternal(refs: Map<string, { fixed: ScaleRef | null; prior: ScaleRef | null; priorDay: string | null }>): void {
+    this.external = refs;
+    this.dayRefs.clear();
+    this.refMemo = new WeakMap();
+    this.rev++;
+    this.requestUpdate?.();
   }
 
   /** The Greek the beads draw — see TrailGreek */
@@ -848,7 +1058,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     return levelValue(l, this.greek);
   }
 
-  setData(snapshots: GexSnapshot[], maxAbs: number, enabled: boolean, barSec = 60, greek: TrailGreek = 'gex'): void {
+  setData(snapshots: GexSnapshot[], maxAbs: number, enabled: boolean, barSec = 60, greek: TrailGreek = 'gex', base?: GexSnapshot[]): void {
     if (greek !== this.colGreek) {
       this.colCache = new WeakMap();
       this.colGreek = greek;
@@ -867,14 +1077,12 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     }
     this.stepSec = Number.isFinite(step) ? step : barSec;
     /* THE SCALE RUNS FORWARD (2026-10-13, the research's look-ahead rule): strength is ABSOLUTE against a stable
-       reference — the 85th percentile of the per-moment maxima — but each column's reference is taken over the columns
-       AT OR BEFORE it IN ITS OWN SESSION (New York's date), so nothing to its right changes what is drawn on its left (it
-       was the whole loaded field: a later column resized every earlier one), and a quiet session is not dimmed by a loud
-       one before it. Kept incrementally: the maxima go into a log-binned count (1/32 of a decade a
-       bin), so a tick that replaces the live last snapshot re-reads one column, and a store whose front moved
-       starts over in a few milliseconds. */
-    this.runFrom(snapshots, greek);
-    this.ref = this.refs.length ? this.refs[this.refs.length - 1] : 0;
+       reference — the 85th percentile of the per-minute peaks — each minute's taken over the minutes AT OR BEFORE it IN
+       ITS OWN SESSION (New York's date), so nothing to its right changes what is drawn on its left and a quiet session
+       is not dimmed by a loud one before it. Kept incrementally by identity: a tick that replaces the live last minute
+       re-reads its session's count, and a store whose front moved starts over in a few milliseconds. */
+    this.baseFrom(base ?? snapshots, greek);
+    this.ref = snapshots.length ? this.refAt(snapshots.length - 1).ref : 0;
     this.enabled = enabled;
     this.requestUpdate?.();
   }
@@ -884,31 +1092,96 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   columnAt(i: number): Column {
     const snap = this.snapshots[i];
     let col = this.colCache.get(snap);
-    const runRef = this.refs[i] || this.ref || 1;
-    if (!col || col.ref !== runRef) {
-      const ref = runRef;
+    const r = this.refAt(i);
+    const ref = r.ref || this.ref || 1;
+    const key = `${ref}|${r.ring}|${this.floor}`;
+    if (!col || col.key !== key) {
       const all = new Map<number, Bead>();
       for (const l of snap.levels) {
         const v = this.valueOf(l);
         /* A SQUARE-ROOT SCALE ON MAGNITUDE (2026-10-13 — the owner: "Use a square-root scale on magnitude"): one strike
            holding a third of the book no longer leaves the rest unlit — a strike at a quarter of the reference draws at
-           half strength (BEAD_SCALE says it in the legend) */
-        all.set(l.strike, { strike: l.strike, t: Math.min(1, Math.sqrt(Math.abs(v) / ref)), put: v >= 0, quiet: l.prov === 'carried' });
+           half strength — quantized to its step (item 5 (d)) */
+        const t = strengthOf(v, ref);
+        all.set(l.strike, { strike: l.strike, t, step: stepOf(t), put: v >= 0, stale: staleOf(l), ring: r.ring > 0 && Math.abs(v) > r.ring });
       }
+      const floorAbs = this.floor * ref;
       const top = [...snap.levels]
+        .filter(l => Math.abs(this.valueOf(l)) > 0 && Math.abs(this.valueOf(l)) >= floorAbs)
         .sort((a, b) => Math.abs(this.valueOf(b)) - Math.abs(this.valueOf(a)))
         .map(l => all.get(l.strike)!)
-        .filter(b => b.t >= MIN_STRENGTH);
+        .filter(b => b.step > 0);
       /* the moment's own price — the snapshot's, else its window's middle (the house's window is centred on it) */
       const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
       const flip = snap.levels.length > 1 ? pickFlip(snap.levels, spot, l => l.value) : null;
       const walls = pickWalls(snap.levels, spot, l => l.value);
-      col = { time: snap.time, top, all, ref, flip, cw: walls.callWall, pw: walls.putWall };
+      col = { time: snap.time, top, all, ref, key, flip, cw: walls.callWall, pw: walls.putWall };
       this.colCache.set(snap, col);
     }
     return col;
   }
 
+  /* THE KEY LEVELS PINNED ON THE PRICE AXIS (item 5 (h)): the call wall, the put wall and the flip — the ladder's own,
+     the same strikes the field inks — and at most two more, the supreme and the heaviest strike after it, each its
+     PRICE on the level's ink, never a name (the house keeps names off the axis). A level beyond the clear area stands
+     at the edge with an arrow, as the chips do; the library moves labels apart where they would overlap. */
+  private axisViews: AxisLabel[] = [];
+  priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
+    return this.enabled && this.axisLabels ? this.axisViews : [];
+  }
+  axisLabels = true;
+  /** The book's levels for the axis — the ladder's call wall, put wall, flip and supreme, whatever the Key levels
+      overlay says (it only decides whether the field's beads wear the walls' inks) */
+  private axisLv: { cw: number | null; pw: number | null; flip: number | null; supreme: number | null } = { cw: null, pw: null, flip: null, supreme: null };
+  setAxisLevels(lv: { cw: number | null; pw: number | null; flip: number | null; supreme: number | null }): void {
+    const a = this.axisLv;
+    if (a.cw === lv.cw && a.pw === lv.pw && a.flip === lv.flip && a.supreme === lv.supreme) return;
+    this.axisLv = lv;
+    this.requestUpdate?.();
+  }
+  /** The inks the axis labels wear, read off the chart's box by the host (tokens: --bull, --bear, --flip, --supreme,
+      --ember, --glacier, --panel) */
+  axisInks: Record<'cw' | 'pw' | 'flip' | 'supreme' | 'put' | 'call', RGB3> | null = null;
+  updateAllViews(): void {
+    const series = this.series;
+    const latest = this.snapshots[this.snapshots.length - 1];
+    if (!series || !latest || !this.enabled || !this.axisInks) {
+      this.axisViews = [];
+      return;
+    }
+    const inks = this.axisInks;
+    /* in the axis's own format, so a label covers the tick it stands on */
+    const pf = series.priceFormatter();
+    const fmt = (k: number) => pf.format(k);
+    const lv = this.axisLv;
+    const want: { price: number; rgb: RGB3 }[] = [];
+    if (lv.cw != null && Number.isFinite(lv.cw)) want.push({ price: lv.cw, rgb: inks.cw });
+    if (lv.pw != null && Number.isFinite(lv.pw)) want.push({ price: lv.pw, rgb: inks.pw });
+    if (lv.flip != null && Number.isFinite(lv.flip)) want.push({ price: lv.flip, rgb: inks.flip });
+    const taken = new Set(want.map(w => w.price));
+    /* the two more: the supreme, then the field's heaviest strike now (the one its strength chip names) */
+    const more: { price: number; rgb: RGB3 }[] = [];
+    if (lv.supreme != null && Number.isFinite(lv.supreme) && !taken.has(lv.supreme)) more.push({ price: lv.supreme, rgb: inks.supreme });
+    const heavy = [...latest.levels].sort((a, b) => Math.abs(this.valueOf(b)) - Math.abs(this.valueOf(a)));
+    for (const l of heavy) {
+      if (more.length >= 2) break;
+      if (taken.has(l.strike) || more.some(m => m.price === l.strike) || this.valueOf(l) === 0) continue;
+      more.push({ price: l.strike, rgb: this.valueOf(l) >= 0 ? inks.put : inks.call });
+    }
+    const floor = this.chromeInset > 0 ? this.chromeInset + 3 : 0;
+    let paneH = 0;
+    try {
+      paneH = this.chart?.paneSize(0).height ?? 0;
+    } catch {
+      paneH = 0;
+    }
+    this.axisViews = [...want, ...more].slice(0, 5).map(w => {
+      const y = series.priceToCoordinate(w.price);
+      const pin = y == null ? '' : y < floor ? '▲ ' : paneH > 0 && y > paneH ? '▼ ' : '';
+      const at = y == null ? -1000 : pin === '▲ ' ? floor + 8 : pin === '▼ ' ? paneH - 8 : y;
+      return new AxisLabel(at, `${pin}${fmt(w.price)}`, w.rgb, y != null);
+    });
+  }
   /**
    * The bead under a point on the pane (CSS px), or null — the moment whose slot holds x, and the strike drawn within a
    * few pixels of y among that moment's drawn beads. Read by the chart's hover card.

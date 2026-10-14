@@ -64,6 +64,15 @@ import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { columnSummary, lastTradeOf, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, uwYears, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
 import { RunningScale, columnMax } from '../src/data/feed/beadScale';
+/** A column's largest |delta exposure| */
+const deltaMax = (levels: readonly { dex?: number }[]): number => {
+  let m = 0;
+  for (const l of levels) {
+    const a = Math.abs(l.dex ?? 0);
+    if (a > m) m = a;
+  }
+  return m;
+};
 import { nyWallTime } from '../src/core/nyTime';
 import type { MinuteBar, PastDay } from './fieldBackfill';
 
@@ -98,6 +107,9 @@ export interface StoreRow {
   net: number;
   /** The column's largest |value| — what the scale counts */
   max: number;
+  /** The column's largest |delta exposure| — the delta field's count (item 5's fixed and prior references); absent on
+      rows written before 2026-10-14 */
+  maxD?: number;
   /** The bead scale's reference: the session's 85th percentile of column maxima so far, this one in */
   ref: number;
   /** Every strike drawn, [strike, value] ascending by strike */
@@ -242,6 +254,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       }
       const sum = columnSummary(snap, bar.close);
       const max = columnMax(snap.levels);
+      const maxD = deltaMax(snap.levels);
       const ref = st.scale.push(max);
       /* a chain read inside the minute: the straddles are its NBBO mids; else the model's price at the minute */
       const read = inputs.chains.find(c => c.receivedAt >= m && c.receivedAt < end) ?? null;
@@ -268,6 +281,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         top: sum.top,
         net: sum.net,
         max,
+        maxD,
         ref,
         cells: sortedCells(snap.levels),
         carried: sum.carried,
@@ -317,6 +331,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       }
       const sum = columnSummary(snap, bar.close);
       const max = columnMax(snap.levels);
+      const maxD = deltaMax(snap.levels);
       const ref = st.scale.push(max);
       const row: StoreRow = {
         f: STORE_FORMAT,
@@ -332,6 +347,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         top: sum.top,
         net: sum.net,
         max,
+        maxD,
         ref,
         cells: sortedCells(snap.levels),
         carried: sum.carried,
@@ -362,7 +378,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       if (!snap.levels.length) continue;
       const sum = columnSummary(snap, bar.close);
       const max = columnMax(snap.levels);
-      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleAt(u, bar, exps.today) : null, strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null, age: null });
+      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleAt(u, bar, exps.today) : null, strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null, age: null });
     }
     return out;
   }

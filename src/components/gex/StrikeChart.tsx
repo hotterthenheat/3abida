@@ -51,7 +51,8 @@ import {
   INTRADAY_MAX_MINUTES,
   type Timeframe,
 } from '../../data/timeframe';
-import { GexTrailsPrimitive, trailPaperFrom, type BeadHit } from './gexNodesPrimitive';
+import { GexTrailsPrimitive, axisInksFrom, trailPaperFrom, type BeadHit, type BeadLegend } from './gexNodesPrimitive';
+import type { ScaleBasis, ScaleRef } from '../../data/feed/beadScale';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
 import { isoDayLabel, pct, usdCompact, usdCompactSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
@@ -787,6 +788,15 @@ interface StrikeChartProps {
   /** THE PRICED MOVE (the owner's item 4): the day's budget off the prior close's 4:00 pm straddle, the profile and the
       live remaining 1σ — the Expected move overlay draws it in place of the single-vol cone while it is in */
   pricedMove?: { prevClose: number; sigma: number; from: string; profile: number[]; rem: { sigma: number; src: 'nbbo' | 'model'; at: number } | null; close?: number | null } | null;
+  /** THE BEAD SCALE (the owner's item 5): the basis, the floor (a share of the reference; 0 off), the server's references
+      by New York day for the field's Greek, and the legend's hand-off — the newest column's reference, the very number
+      its beads were drawn against */
+  beadBasis?: ScaleBasis;
+  beadFloor?: number;
+  beadRefs?: Map<string, { fixed: ScaleRef | null; prior: ScaleRef | null; priorDay: string | null }> | null;
+  onBeadLegend?: (l: BeadLegend | null) => void;
+  /** The call wall, the put wall and the flip, and two more, pinned on the price axis as their prices (item 5 (h)) */
+  axisLevels?: boolean;
   /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
   regimeRanges?: { horizon: number; median: number | null; terciles: { tercile: number; n: number; range: number | null; overImplied: number | null }[] }[] | null;
   /** THE SHARE OF THE OPENING VIEW THE BARS TAKE, the rest held open ahead of the last one (HISTORY_SHARE, 0.64, by
@@ -1085,7 +1095,7 @@ const StrikeChart = ({
   onReadout,
   projectionRef,
   exportRef,
-  nyClock = false, recordLines, regimeRef = null, regimeDir = null, regimeRanges = null, pricedMove = null,
+  nyClock = false, recordLines, regimeRef = null, regimeDir = null, regimeRanges = null, pricedMove = null, beadBasis = 'session', beadFloor = 0, beadRefs = null, onBeadLegend, axisLevels = false,
   historyShare,
   fitCandles = false,
   quote = null,
@@ -1253,6 +1263,17 @@ const StrikeChart = ({
   const priceTagRef = useRef<HTMLDivElement | null>(null);
   const priceTagRafRef = useRef(0);
   const trailsRef = useRef<GexTrailsPrimitive | null>(null);
+  /* THE LEGEND'S HAND-OFF (item 5): after every change to what the field draws against, the newest column's reference
+     goes to the host — and is noted on the primitive, which checks its newest column against it in development */
+  const onBeadLegendRef = useRef(onBeadLegend);
+  onBeadLegendRef.current = onBeadLegend;
+  const publishBeadLegend = () => {
+    const tr = trailsRef.current;
+    if (!tr) return;
+    const l = tr.enabled ? tr.legend() : null;
+    tr.published = l?.ref ?? null;
+    onBeadLegendRef.current?.(l);
+  };
   const compareSeriesRef = useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
   const compareLoadedRef = useRef('');
   const indicatorSeriesRef = useRef<Map<string, ISeriesApi<'Line'> | ISeriesApi<'Histogram'>>>(new Map());
@@ -2340,7 +2361,25 @@ const StrikeChart = ({
     const box = containerRef.current;
     if (!trails) return;
     trails.setPaper(chartGround(themeKey) === 'light' && box ? trailPaperFrom(box) : null);
+    trails.axisInks = box ? axisInksFrom(box) : null;
   }, [themeKey, appTheme, mainNonce]);
+
+  /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) — and the axis labels (item 5 (h)) */
+  useEffect(() => {
+    const trails = trailsRef.current;
+    if (!trails) return;
+    trails.axisLabels = axisLevels;
+    trails.setBasis(beadBasis, beadFloor);
+    publishBeadLegend();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beadBasis, beadFloor, axisLevels, mainNonce]);
+  useEffect(() => {
+    const trails = trailsRef.current;
+    if (!trails) return;
+    trails.setExternal(beadRefs ?? new Map());
+    publishBeadLegend();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beadRefs, mainNonce]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -3387,7 +3426,9 @@ const StrikeChart = ({
     trails.labelPx = compact ? 8.5 : 9.5;
     const handTrails = () => {
       const snaps = aggregateSnapshots(baseGex ?? [], trailMins);
-      trails.setData(snaps, snapshotsMaxAbs(snaps), showTrails, mins * 60, trailsGreek);
+      /* the per-minute store rides beside the folded columns: the reference counts minutes whatever the texture */
+      trails.setData(snaps, snapshotsMaxAbs(snaps), showTrails, mins * 60, trailsGreek, baseGex ?? undefined);
+      publishBeadLegend();
     };
     /* A COLD FOLD LEAVES THE MOUNT FRAME (2026-09-06, the perf sweep): the
        first time a store is folded to the field's texture it is the single
@@ -4098,6 +4139,8 @@ const StrikeChart = ({
       promises. No primitive change, and `trails` still owns the field itself.
     */
     const showLevels = overlays.levels;
+    const fin = (v: number) => (Number.isFinite(v) ? v : null);
+    trailsRef.current?.setAxisLevels({ cw: fin(levels.callWall), pw: fin(levels.putWall), flip: fin(levels.flip), supreme: fin(levels.supreme) });
     trailsRef.current?.setSupreme(showLevels && Number.isFinite(levels.supreme) ? levels.supreme : null);
     trailsRef.current?.setWalls(
       showLevels && Number.isFinite(levels.callWall) ? levels.callWall : null,

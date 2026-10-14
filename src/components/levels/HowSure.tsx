@@ -124,7 +124,9 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
         </div>
         {first.field && (
           <div data-how-sure-field>
-            <p className="text-[11px] text-textMuted">The field on the chart</p>
+            {/* the owner's item 5 (i): named for what it is — two estimates on the same assumed sign agreeing */}
+            <p className="text-[11px] text-textMuted">Model agreement with Unusual Whales (both naive-sign estimates)</p>
+            <p className="text-[11px] text-textMuted">How close two estimates on the same assumed side come — not accuracy against real dealer positions, which neither can see.</p>
             <p className="text-textSecondary">{first.field}</p>
           </div>
         )}

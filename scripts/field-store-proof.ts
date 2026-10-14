@@ -214,6 +214,7 @@ try {
   check("a row's reference is the renderer's for that column (beadScale.ts, one count)", shown2.every((r, i) => prim.columnAt(i).ref === r.ref));
   const scale = new RunningScale();
   check('and it runs forward: each row’s reference is the 85th percentile of the maxima up to it', shown2.every(r => scale.push(r.max) === r.ref));
+  check("every row carries the column's delta peak (maxD) for the delta field's fixed and prior references (item 5)", shown2.every(r => typeof r.maxD === 'number' && r.maxD >= 0) && final2.every(r => typeof r.maxD === 'number'));
 
   /* ONE RECORDER A MACHINE (2026-10-13: a dev server's in-process restart left the old recorder ticking, and 29
      minutes were written twice): a second recorder on the same folder writes nothing while the first holds the lock,

@@ -45,6 +45,7 @@ import { buildRegimeReference, type RegimeReference } from '../src/data/feed/tra
 import type { createFieldBackfill, PastDay } from './fieldBackfill';
 import type { FieldStore, StoreRow } from './fieldStore';
 import type { PricedMove } from './pricedMove';
+import type { ScaleRefs } from './scaleRef';
 import { sigmaOf } from '../src/data/feed/trailModel';
 import type { CalibrationDay } from '../src/data/feed/pricedMove';
 
@@ -89,7 +90,7 @@ const monthsBack = (iso: string, months: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts: { root?: string; config?: TrackConfig; now?: () => number; log?: (line: string) => void; move?: PricedMove } = {}) {
+export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts: { root?: string; config?: TrackConfig; now?: () => number; log?: (line: string) => void; move?: PricedMove; scale?: ScaleRefs } = {}) {
   const root = opts.root ?? ROOT;
   const clock = opts.now ?? Date.now;
   const fileOf = (name: string) => join(root, name, FILE);
@@ -193,6 +194,14 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
         opts.log?.(`move calibration ${t}: ${c.sessions} sessions${c.provisional ? ' (provisional)' : ''}`);
       } catch (e) {
         opts.log?.(`move calibration ${t} failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    /* THE BEAD SCALE'S REFERENCES (item 5): the fixed and prior p85 a day, off the sessions' per-minute peaks */
+    if (opts.scale) {
+      try {
+        await opts.scale.build(t);
+      } catch (e) {
+        opts.log?.(`scale ${t} failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
     opts.log?.(`scorecard ${t}: ${sessions.length} sessions (${finals} from the store, ${rebuilt} rebuilt, ${skipped} without rows), ${main.touches} touches, ${main.variantsTried} variants; ${holdoutNote}`);

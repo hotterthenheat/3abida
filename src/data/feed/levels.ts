@@ -56,6 +56,7 @@
 */
 
 import { pastInputs, sigmaOf, type RegimeReference, type StraddleRead } from './trailModel';
+import type { ScaleRef } from './beadScale';
 import { isoDayLabel } from '../../core/format';
 import type { FeedBook60 } from './trailModel';
 import { useMemo, useSyncExternalStore } from 'react';
@@ -1154,6 +1155,26 @@ export function usePricedMove(on: boolean, ticker: string): PricedMoveFeed | nul
     rem: newestRem.get(key)?.rem ?? null,
     close: move.data.close ?? null,
   };
+}
+
+/** THE BEAD SCALE'S REFERENCES (the owner's item 5 (b), server/scaleRef.ts): by New York day, the fixed p85 over the 60
+    sessions before it and the prior session's, for gamma and delta — asked every five minutes while the field is on */
+export type BeadScaleRefs = Record<'gex' | 'dex', Map<string, { fixed: ScaleRef | null; prior: ScaleRef | null; priorDay: string | null }>>;
+const scaleCache = new Map<string, { at: number; refs: BeadScaleRefs }>();
+export function useBeadScaleRefs(on: boolean, ticker: string): BeadScaleRefs | null {
+  const t = ticker.toUpperCase();
+  const r = useFeedPoll(on && t ? `field:scale:${t}` : null, () => feedFetch(`/feed/field/${encodeURIComponent(t)}/scale`) as Promise<FeedResult<{ days: Record<string, Record<'gex' | 'dex', { fixed: ScaleRef | null; prior: ScaleRef | null; priorDay: string | null }>>; built?: number }>>, 5 * 60_000);
+  if (!r?.ok || !r.data?.days) return null;
+  const built = r.data.built ?? 0;
+  const had = scaleCache.get(t);
+  if (had && had.at === built) return had.refs;
+  const refs: BeadScaleRefs = { gex: new Map(), dex: new Map() };
+  for (const [day, g] of Object.entries(r.data.days)) {
+    if (g.gex) refs.gex.set(day, g.gex);
+    if (g.dex) refs.dex.set(day, g.dex);
+  }
+  scaleCache.set(t, { at: built, refs });
+  return refs;
 }
 
 /** THE REGIME'S REFERENCE (the owner's item 3): the half-hour buckets' quantiles over the trailing sessions, built

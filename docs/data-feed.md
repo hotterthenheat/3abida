@@ -737,6 +737,67 @@ budget and the calibration (server/pricedMove.ts, `GET /feed/field/<NAME>/move?d
   the budget asking no call that names D, the 4:00 pm order, the profile, the cone, the readout's words, and the
   calibration of 20,000 simulated driftless days landing on theory.
 
+## The bead scale, its legend and disclosure (2026-10-14, the owner's item 5)
+
+What a bead's brightness means, printed where it is read, and the marks that say how much to trust it.
+
+- **The reference counts minutes.** Each minute's peak |value| goes into its session's log-binned count
+  (data/feed/beadScale.ts `minuteRefs` — the renderer's `baseFrom` and the store's rows run the same count), and a
+  column wider than a minute (the 5-minute texture) stands against the reference as of its last minute. Before this
+  the renderer counted its own columns, so a 5-minute chart's reference was a p85 of 5-minute peaks while the store's
+  was of minutes.
+- **(a) The legend**, a row under Heaviest that stays in view while the field draws, prints the renderer's own hand-off
+  (`legend()`: the newest column's reference, the number its beads were drawn against; StrikeChart hands it to Terrain
+  after every change, and in development the renderer checks its newest column against it): "Full brightness = $2.1B
+  gamma per 1% (session p85 of per-minute peaks, as of 4:58 pm)" over "Net per strike · clipped above full · ring
+  above p95, $2.2B" (the full sentence in its title). On the delta field the unit is delta.
+- **(b) The basis**, the pane's choice beside the legend: **Session so far** (the default; its title: brightness at
+  10:00 am and 3:00 pm is not comparable), **Fixed** (the p85 of every minute's peak over the 60 sessions before the
+  day, frozen for it — server/scaleRef.ts builds `scale.json` nightly with the scorecard and on first ask, from each
+  finished session's per-minute peaks kept as `scale-bins.json`; where the server has none, the sessions the page
+  holds, the count said) and **Prior session** (the session before's p85). A basis with nothing to stand on falls back
+  to the session so far and says so. On SPY, Oct 13: session $2.1B, fixed $3.7B over 12 sessions, prior (Oct 12) $2.2B.
+- **(c) The ring**: a hairline round a bead above the basis's p95 — clipped at full with the rest of the top step, and
+  told apart. The bins are a 32nd of a decade, so the p95 is a bin's upper edge.
+- **(d) Ten steps a side** (`stepOf`, each drawn at its top, so the top step is full brightness): one Path2D an ink,
+  step, staleness and dimming, filled once; hairline beads at one strike and step in touching columns merge into one
+  rect (they overlap by design, so the pixels are the same).
+- **(e) The floor**, off by default (Off, 5%, 10%, 25% of the reference — never of the largest bead): every strike above
+  zero draws until the reader sets one.
+- **(f) The pair**: the field's ember (amplifies) and glacier (absorbs) ramps, lightness rising with the step on black
+  and falling on paper. Checked (scripts/bead-scale-proof.ts): every step's drawn ink over the ground is lighter on
+  black and darker on paper than the step below it, both sides, all three staleness steps; and the two sides stay apart
+  from the third step up under protanopia, deuteranopia and tritanopia (Machado 2009, severity 1): smallest OKLab
+  distance 0.084, 0.074 and 0.114 (0.02 is just noticeable). The shot docs/next-builds-2026-10-13/
+  scale-dark-greyscale.png is the dark page in greyscale.
+- **(g) Staleness in the mark**: 0 a cell on today's vols; 1 a modeled cell with half or more of its gamma on vols older
+  than an hour; 2 a carried cell (mostly the session before's close vol). Core and halo at 1, 0.8 and 0.6 of their
+  alpha, the stale steps filled with a dotted pattern of their ink (two device pixels on and one off; one on, one off),
+  so a hairline reads as a dotted line, and a swelling bead also outlined dotted. Never desaturated.
+- **(h) The axis** (Terrain): the book's call wall, put wall and flip — whatever the Key levels switch says — then the
+  supreme and the field's heaviest strike now, pinned on the price axis as their prices in the axis's own format on
+  their inks (bull, bear, flip, supreme, the side's), never a name (the house keeps names off the axis); a level beyond
+  the clear area stands at its edge with ▲ or ▼, and the library moves overlapping labels apart.
+- **(i) How sure**: the residual is "Model agreement with Unusual Whales (both naive-sign estimates)", with "How close
+  two estimates on the same assumed side come — not accuracy against real dealer positions, which neither can see."
+
+**Acceptance:**
+- (i) The legend equals the reference the renderer used: proved column by column on a 1-minute and a 5-minute texture
+  (every column drawn against its last minute's reference, the legend the newest column's), and asserted in
+  development at every draw.
+- (ii) Greyscale keeps the order: proved on the drawn inks and alphas (above), and the greyscale shot.
+- (iii) Replay equals live: on the recorder's session on this machine, 20 random minutes, 1,200 beads, the step
+  recomputed as of each minute equals the step drawn live — 0 differ. The comparison reads Oct 13's capture only up to
+  3:52 pm ET (11 minutes): from there two recorders in one dev server wrote the same minutes twice (fixed by the
+  one-recorder lock, above), and the live count held those minutes twice — 23 of the later references differ for that
+  reason alone.
+- (iv) Frame time at full zoom-out, a browser harness drawing 60 strikes × 390 minutes and nudging the zoom every frame
+  so the field rebuilds each time (headless Chromium, three alternating runs each): on the real SPY session of Oct 12,
+  the old renderer 8.4–9.1 ms a frame at the median (p95 11.5–14.1), the new 7.9–8.3 ms (p95 10.5–11.8) — no worse,
+  with 613 rects against 2,388. On a field that changes step at every strike every minute (random noise, unlike any
+  session) the merge has nothing to merge: 28–30 ms against 18–19. Before the merge and the dotted fill, a dashed
+  outline round every stale bead cost 8 ms a frame and dots drawn as squares 25,000 extra rects.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

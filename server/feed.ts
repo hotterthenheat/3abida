@@ -44,6 +44,7 @@ import { createFieldBackfill } from './fieldBackfill';
 import { createFieldStore } from './fieldStore';
 import { createScorecard } from './scorecard';
 import { createPricedMove } from './pricedMove';
+import { createScaleRef } from './scaleRef';
 
 export type ProviderId = 'uw' | 'massive';
 
@@ -371,7 +372,9 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
   /* THE PRICED MOVE (server/pricedMove.ts, item 4): the day's budget off the session before's closing straddle */
   const move = createPricedMove(client, backfill);
   /* THE SCORECARD (server/scorecard.ts): the track record over the store's final rows, run after the close */
-  const scorecard = createScorecard(backfill, store, { move });
+  /* THE BEAD SCALE'S REFERENCES (server/scaleRef.ts, item 5): the fixed 60-session and the prior session's p85 a day */
+  const scale = createScaleRef(backfill, store);
+  const scorecard = createScorecard(backfill, store, { move, scale });
   let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
   const PROBE_TTL = MIN;
 
@@ -431,6 +434,11 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
         const r = await move.serve(mv[1], url.searchParams.get('day') ?? '');
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
+      const sl = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/scale$/.exec(url.pathname);
+      if (sl) {
+        const r = await scale.serve(sl[1]);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
       const rg = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/regime$/.exec(url.pathname);
       if (rg) {
         const r = scorecard.serveRegime(rg[1]);
@@ -473,5 +481,5 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     }
   };
   /* the standalone recorder (server/recorderMain.ts) reaches the job and the store through the handler */
-  return Object.assign(handler, { backfill, recorder, store, client, scorecard, move, close });
+  return Object.assign(handler, { backfill, recorder, store, client, scorecard, move, scale, close });
 }

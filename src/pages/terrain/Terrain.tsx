@@ -36,7 +36,9 @@ import StrikeChart, {
   type PriceProjection,
   type PriceScale,
 } from '../../components/gex/StrikeChart';
-import { BEAD_SCALE } from '../../components/gex/gexNodesPrimitive';
+import type { BeadLegend } from '../../components/gex/gexNodesPrimitive';
+import { BASIS_HINT, BASIS_LABEL, FLOORS, beadLegendLines, beadLegendWords } from '../../components/terrain/beadLegend';
+import type { ScaleBasis } from '../../data/feed/beadScale';
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import { useFadeClose } from '../../components/ui/useFadeClose';
 import CompareControl from '../../components/gex/CompareControl';
@@ -90,7 +92,7 @@ import {
   useTerrainSource,
   type FeedBook,
   type FeedOi,
-  type FeedStrike,
+  type FeedStrike, useBeadScaleRefs
 } from '../../data/feed/levels';
 import { useFeedNamePrints } from '../../data/feed/trace';
 import type { WallsSource } from '../../components/terrain/wallsHeatPrimitive';
@@ -229,6 +231,10 @@ export interface PaneCfg {
   theme?: CandleThemeKey;
   /** Walls through the day's lens — gamma, charm or delta. A SLOT field, a way of reading a pane, like `lane`. */
   wallsLens?: WallsLens;
+  /** THE BEAD SCALE (the owner's item 5): what full brightness is measured against — the session so far (absent: the
+      default), a fixed 60-session reference, or the prior session's — and the floor, a share of it (absent: off) */
+  beadBasis?: ScaleBasis;
+  beadFloor?: number;
 }
 
 interface TerrainCfg {
@@ -522,6 +528,8 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
     theme: typeof c.theme === 'string' && c.theme in CANDLE_THEMES ? (c.theme as CandleThemeKey) : def.theme,
     link: isLinkGroup(c.link) ? c.link : null,
     wallsLens: c.wallsLens === 'dex' || c.wallsLens === 'charm' || c.wallsLens === 'gex' ? c.wallsLens : undefined,
+    beadBasis: c.beadBasis === 'fixed' || c.beadBasis === 'prior' ? c.beadBasis : undefined,
+    beadFloor: typeof c.beadFloor === 'number' && (FLOORS as readonly number[]).includes(c.beadFloor) && c.beadFloor > 0 ? c.beadFloor : undefined,
   };
 }
 
@@ -1275,6 +1283,15 @@ const Pane = ({
   const fRecord = useTrackRecord(onFeed && overlays.trails, ticker);
   /* THE PRICED MOVE (item 4): the day's budget, the profile, the live remaining 1σ, the calibration */
   const fMove = usePricedMove(onFeed && !isCashIndex(ticker) && (!!overlays.cone || overlays.trails), ticker);
+  /* THE BEAD SCALE (item 5): the server's fixed and prior references, and the legend the chart hands back — kept only
+     when its words would change, so a tick does not re-render the pane for nothing */
+  const fScale = useBeadScaleRefs(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
+  const [beadLegend, setBeadLegend] = useState<BeadLegend | null>(null);
+  const onBeadLegend = useCallback((l: BeadLegend | null) => {
+    setBeadLegend(prev => (prev && l && prev.ref === l.ref && prev.ring === l.ring && prev.at === l.at && prev.basis === l.basis && prev.sessions === l.sessions && prev.priorDay === l.priorDay && prev.greek === l.greek ? prev : l));
+  }, []);
+  const beadBasis: ScaleBasis = cfg.beadBasis ?? 'session';
+  const beadFloor = cfg.beadFloor ?? 0;
   /* THE REGIME STRIP (item 3): the reference built nightly, and UW's directionalized sign in the house's sign */
   const fRegime = useRegimeReference(onFeed && !!overlays.regime, ticker);
   const regimeDir = useMemo<1 | -1 | 0 | null>(() => {
@@ -1777,6 +1794,11 @@ const Pane = ({
               regimeDir={regimeDir}
               regimeRanges={fRecord?.main.regime?.ranges ?? null}
               pricedMove={fMove}
+              beadBasis={beadBasis}
+              beadFloor={beadFloor}
+              beadRefs={fScale?.gex ?? null}
+              onBeadLegend={onBeadLegend}
+              axisLevels
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
                  tape — and never spans less than eight strikes, so the ladder keeps its rows (the audit, row 31) */
@@ -2176,13 +2198,48 @@ const Pane = ({
                     {showHeavyKey && (
                       <span className="shrink-0 text-[11px] text-textMuted" data-heaviest-key>
                         <span className="text-[rgb(var(--ember))]">+</span> amplifies · <span className="text-[rgb(var(--glacier))]">−</span> absorbs
-                        {/* the beads' scale, stated (the owner, 2026-10-13: "state the scale in the legend") */}
-                        {overlays.trails && <span data-bead-scale> · {BEAD_SCALE}</span>}
                       </span>
                     )}
                   </span>
                 </div>
               )
+              )}
+
+              {/* THE BEAD LEGEND, ALWAYS IN VIEW while the field is drawn (the owner's item 5 (a)): what full brightness is,
+                  in money, as of when — the renderer's own reference (data-bead-ref) — with the basis (item 5 (b)) and
+                  the floor (item 5 (e)) beside it */}
+              {overlays.trails && beadLegend && (
+                <div className="relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-0.5 flex flex-col min-w-0 text-[11px] leading-[16px] text-textMuted tnum" title={beadLegendWords(beadLegend, beadBasis, beadFloor)} data-bead-legend data-bead-ref={beadLegend.ref} data-bead-basis={beadLegend.basis}>
+                  <span className="min-w-0 truncate" data-bead-scale>
+                    {beadLegendLines(beadLegend, beadBasis, beadFloor).head}
+                  </span>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="min-w-0 truncate" data-bead-tail>
+                      {beadLegendLines(beadLegend, beadBasis, beadFloor).tail}
+                    </span>
+                    <span role="group" aria-label="What full brightness is measured against" className="ml-auto shrink-0 inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-bead-basis-pick>
+                      {(['session', 'fixed', 'prior'] as const).map(b => {
+                        const on = beadBasis === b;
+                        return (
+                          <button key={b} type="button" aria-pressed={on} title={BASIS_HINT[b]} onClick={() => onCfg({ beadBasis: b === 'session' ? undefined : b })} className={`hit h-[16px] px-1.5 rounded-[2px] text-[11px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+                            {BASIS_LABEL[b]}
+                          </button>
+                        );
+                      })}
+                    </span>
+                    <span role="group" aria-label="Floor: hide the beads under a share of full brightness" title="Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead" className="shrink-0 inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-bead-floor>
+                      <span className="px-1">Floor</span>
+                      {FLOORS.map(f => {
+                        const on = beadFloor === f;
+                        return (
+                          <button key={f} type="button" aria-pressed={on} onClick={() => onCfg({ beadFloor: f > 0 ? f : undefined })} className={`hit h-[16px] px-1.5 rounded-[2px] text-[11px] tnum transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+                            {f === 0 ? 'Off' : `${Math.round(f * 100)}%`}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </span>
+                </div>
               )}
 
               {/* Its own, every one of them — and not there until you

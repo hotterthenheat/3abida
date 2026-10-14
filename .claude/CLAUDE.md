@@ -704,13 +704,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   /spot-exposures/strike units); the house's sign. NO CALIBRATION: the books UW answered are a MEASURED REFERENCE (the
   hover's readout) and their residual — per strike at the captured times, and against UW's whole-book series (the
   model summed over every strike within 15% and 60 days, a minute a quarter hour) — is one line in the ladder's "How sure" (`fieldResidual`, Sureness `field`). Every cell carries `prov` ('modeled' |
-  'carried'), `staleSince` and `coverage` (GexLevel); carried beads draw a step quieter (gexNodesPrimitive REBUILT_*).
+  'carried'), `staleSince` and `coverage` (GexLevel); a stale or carried bead draws dotted (item 5 (g), below).
   THE SCALE RUNS FORWARD, PER SESSION, SQUARE-ROOT (2026-10-13 — the owner: "Use a square-root scale on magnitude
   instead, keep the scale computed per session as of the replay clock, and state the scale in the legend"): a bead's
-  strength is √(|value| ÷ the 85th percentile of the column maxima at or before it IN ITS OWN SESSION, New York's
-  date — a log-binned running count), drawn as is (height and light follow it; no further curve), and the Heaviest
-  row says so (gexNodesPrimitive BEAD_SCALE) — nothing to the right changes the left, and a loud session does not dim
-  the next. TERRAIN'S PRICE AXIS FITS THE CANDLES (the owner, the same day: StrikeChart `fitCandles` — no wall,
+  strength is √(|value| ÷ the 85th percentile of the per-MINUTE peaks at or before it IN ITS OWN SESSION, New York's
+  date — a log-binned running count, whatever the timeframe), drawn in its step (item 5, below), and the legend says
+  so — nothing to the right changes the left, and a loud session does not dim the next. TERRAIN'S PRICE AXIS FITS THE CANDLES (the owner, the same day: StrikeChart `fitCandles` — no wall,
   supreme, spot or layer widens it; a focused strike still does). Each column draws its OWN flip (pickFlip, a gap where none,
   never carried) and a chip where a wall moved and held three columns ("CW 780 → 785 · 11:42", the newest three); the
   hover card (StrikeChart `beadCard`) names strike, the time on the reader's clock, the net, its share, the change since the open, the flip
@@ -768,8 +767,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   margins, by chance the walls). So every strike row, bead line, chip and candle in the fitted range is in the clear;
   a bead under the chrome band or off the pane's foot is not drawn, and a chip whose strike is beyond the clear area
   stands pinned at the edge with "▲"/"▼" before its words ("▲ 785 · 8%", "▲ CW 780 → 785 · 9:25 am"), never on a
-  strike it does not name. EVERY STRIKE IN THE WINDOW DRAWS (gexNodesPrimitive `columnAt`: every bead at or above
-  MIN_STRENGTH, the twelve-heaviest cut is gone — 774 at +$506M, half the reference, drew nothing). THE PLOT STARTS
+  strike it does not name. EVERY STRIKE IN THE WINDOW DRAWS (gexNodesPrimitive `columnAt`: every strike above zero
+  since item 5 — the floor is the reader's, off by default; the twelve-heaviest cut is gone — 774 at +$506M, half the
+  reference, drew nothing). THE PLOT STARTS
   AFTER THE RAIL: the drawing rail docked left and open gives the chart's box a 56 px left inset (RAIL_LEFT_INSET_PX),
   so no candle stands under it. OPEN INTEREST AS RECEIVED, NEVER AHEAD (trailField `universeOf` / `oiAt`, model
   trail-2026-10-13.4): a column's count is the newest chain read RECEIVED at or before the column's end; before the
@@ -876,6 +876,25 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   a date's answer often leads with the next session's), never the 3:59 pm bar; after the close the lines end at the
   4:00 pm bar. A chart primitive maps a bar to the time scale by its time (expectedMovePrimitive `scaleIndex`): the
   candle series holds only the recent window, so an array position is not a logical index.
+- THE BEAD SCALE, ITS LEGEND AND DISCLOSURE (2026-10-14, item 5; docs/data-feed.md "The bead scale"): the reference
+  is taken over every MINUTE's peak (data/feed/beadScale.ts `minuteRefs` — the renderer's and the store's one count;
+  a wider column stands against its last minute's), and Terrain's legend row, always in view while the field draws,
+  prints the renderer's own hand-off (gexNodesPrimitive `legend()`, StrikeChart `onBeadLegend`; development asserts
+  the newest column was drawn against it): "Full brightness = $X gamma per 1% (session p85 of per-minute peaks, as of
+  <time>)", net per strike, clipped above full, the ring's p95. THE BASIS is the pane's (`beadBasis`): Session so far
+  (the default; its title says brightness at 10:00 am and 3:00 pm is not comparable), Fixed (the p85 over the 60
+  sessions before the day — server/scaleRef.ts `scale.json`, nightly with the scorecard; the loaded sessions where the
+  server has none, the count said) or Prior session; a basis with nothing to stand on falls back and says so. TEN STEPS
+  A SIDE (`stepOf`, drawn at the step's top; one Path2D an ink, step, staleness and dimming; hairlines at one strike and
+  step in touching columns merge into one rect). A RING above the basis's p95. THE FLOOR (`beadFloor`) is off by
+  default, a share of the reference, never of the largest bead. STALENESS IN THE MARK: 0 fresh, 1 half or more of the
+  gamma on vols older than an hour, 2 carried — core and halo at 1 / 0.8 / 0.6 of their alpha, filled with a dotted
+  pattern (two on one off, one on one off), a swelling bead also outlined dotted; never desaturated. The direction-free
+  ember/glacier pair keeps its order in greyscale and stays apart under protan, deutan and tritan simulation
+  (scripts/bead-scale-proof.ts). THE AXIS (`axisLevels`, Terrain): the book's call wall, put wall and flip, the supreme
+  and the field's heaviest strike, pinned as their PRICES in the axis's format on their inks, never a name; beyond the
+  clear area at its edge with ▲/▼. How sure's residual is "Model agreement with Unusual Whales (both naive-sign
+  estimates)" — never accuracy against real dealer positions. Store rows carry `maxD` (the delta peak).
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE
