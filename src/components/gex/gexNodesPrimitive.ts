@@ -43,8 +43,10 @@ const SUPREME_RGB: readonly [number, number, number] = [234, 0, 255]; // magenta
    instead of static lines at today's values. Same level rules as the chips
    used (buildLevelsFor): wall = heaviest |gamma| above/below that moment's
    close, flip = the sign-change midpoint nearest it. */
-const CW_RGB: readonly [number, number, number] = [48, 209, 88]; // bull green
-const PW_RGB: readonly [number, number, number] = [255, 59, 48]; // bear red
+/* THE WALLS WEAR THE GAMMA PAIR (the owner, 2026-10-14: "Wall chips: put wall ember, call wall glacier. Bull/bear is for
+   candles only"): the dark tokens' own values (tokens.css); green and red until then */
+const CW_RGB: readonly [number, number, number] = [122, 189, 215]; // --glacier
+const PW_RGB: readonly [number, number, number] = [245, 197, 66]; // --ember
 const FLIP_RGBA = 'rgba(156,163,175,0.8)'; // indecision gray — the regime border (mirrors palette FLIP); alpha raised with the 2026-08-29 weight pass
 
 /* WHEN TWO IDENTITIES SHARE A STRIKE, THE SUPREME WINS OUTRIGHT (Noah,
@@ -179,8 +181,8 @@ export function trailPaperFrom(el: Element): TrailPaper {
   return {
     put: heatRampColorFor(1, 1, HEAT_MODE, true),
     call: heatRampColorFor(-1, 1, HEAT_MODE, true),
-    cw: tokenRgb(el, '--bull', [15, 107, 44]),
-    pw: tokenRgb(el, '--bear', [168, 36, 27]),
+    cw: tokenRgb(el, '--glacier', [3, 105, 161]),
+    pw: tokenRgb(el, '--ember', [146, 86, 4]),
     supreme: tokenRgb(el, '--supreme', [163, 0, 179]),
     focus: tokenRgb(el, '--select', [47, 61, 92]),
     flip: tokenRgb(el, '--flip', [107, 114, 128]),
@@ -192,8 +194,8 @@ const rgba = (c: RGB3, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
     choice through the tokens) */
 export function axisInksFrom(el: Element): Record<'cw' | 'pw' | 'flip' | 'supreme' | 'put' | 'call', RGB3> {
   return {
-    cw: tokenRgb(el, '--bull', [48, 209, 88]),
-    pw: tokenRgb(el, '--bear', [255, 59, 48]),
+    cw: tokenRgb(el, '--glacier', [122, 189, 215]),
+    pw: tokenRgb(el, '--ember', [245, 197, 66]),
     flip: tokenRgb(el, '--flip', [156, 163, 175]),
     supreme: tokenRgb(el, '--supreme', [234, 0, 255]),
     put: tokenRgb(el, '--ember', [245, 197, 66]),

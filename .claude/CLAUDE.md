@@ -1041,6 +1041,20 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   README's table, measured 2026-10-14 at 1440 × 900 headless): a pan at 59.6 fps, the hover's readout in 24–48 ms, the
   1Y jump 526 ms, the window switch 148 ms, the timeframe 123 ms, the ticker 216 ms to the header (335 to the strip —
   over the 150 ms budget: a new name rebuilds the pane). The header's small menus close on a pick.
+  THE BUILD OF 2026-10-14, SECTION A (the owner's directive after the UI pass; the report is docs/terrain-build-2026-10-14/
+  README.md, a section at a time): THE WALLS WEAR THE GAMMA PAIR everywhere a wall is named — the call wall glacier, the
+  put wall ember (gex/palette.ts CALL_WALL #7ABDD7 / PUT_WALL #F5C542, paletteInk's tokens, gexNodesPrimitive's inks and
+  axisInksFrom, ProfilePanel's inks); BULL/BEAR IS DIRECTION ONLY (the candles, a change, a flow leg, held/broke — `BEAR`
+  stands beside `BULL` in both palettes for them). A DAY BAR NAMES ITS NEW YORK SESSION IN EVERY ZONE (chartTime.ts
+  sessionDateOf — the session's date read in New York twelve hours on from the stamp; sessionTickMarks, SESSION_TIME,
+  the behaviour's `sessionDates`, flipped by StrikeChart with the timeframe; scripts/session-date-proof.ts in `npm test`,
+  six zones); the bars effect reloads the series when the new last bar does not continue the one it holds (StrikeChart
+  `reshaped` — today stood twice on 1D, the minutes' fold and UW's day row). THE DEPTH TRAP (src/dev/depthTrap.ts, dev
+  only): the phone's "Maximum update depth exceeded" did not come back in seven runs; the trap keeps the component stack
+  and the panes' registered state when it fires (window.__slayerDepth). THE BEAD-SCALE PROOF names every skipped session
+  and FAILS when it read none. THE DEV SERVER READS THE ALWAYS-ON RECORDER BY DEFAULT (http://127.0.0.1:5190 — FEED_RECORDER_URL
+  blank; `off` to record itself; a refused port falls back to its own recorder for half a minute), so a restart cuts
+  no session.
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

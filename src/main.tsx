@@ -3,7 +3,12 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AppBoundary } from './components/ui/Fault';
 import { applyStoredDefaults } from './core/storedDefaults';
+import { installDepthTrap } from './dev/depthTrap';
 import './index.css';
+
+/* development only: the update-depth trap (src/dev/depthTrap.ts) — the component stack and the pages' registered state
+   when React reports a render loop */
+if (import.meta.env.DEV) installDepthTrap();
 
 /* a default that changed under stored state is carried into storage once, before any page reads it */
 applyStoredDefaults();

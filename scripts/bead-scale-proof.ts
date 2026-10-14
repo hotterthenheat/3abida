@@ -228,11 +228,16 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
     for (const name of readdirSync(root))
       for (const day of existsSync(join(root, name)) && /^[A-Z]/.test(name) ? readdirSync(join(root, name)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)) : [])
         if (existsSync(join(root, name, day, 'shown.jsonl'))) sessions.push({ name, day, file: join(root, name, day, 'shown.jsonl') });
-  if (!sessions.length) console.log('SKIP  replay against live: no recorder session on this machine');
+  /* EVERY SKIPPED SESSION IS NAMED WITH ITS REASON, AND A PROOF THAT READ NOTHING FAILS (2026-10-14 — the owner: "print
+     every skipped session with its reason; fail if all are skipped"): a machine with no recorder session, or none five
+     minutes long, cannot stand on this check */
+  const skipped: string[] = [];
+  if (!sessions.length) check('replay against live: a recorder session on this machine to read (none — .feed-cache/field holds no shown.jsonl)', false);
   else {
     let minutes = 0;
     let beads = 0;
     let off = 0;
+    let read = 0;
     const cut: string[] = [];
     for (const s of sessions) {
       type Row = { m: number; max: number; ref: number; cells: [number, number][] };
@@ -259,7 +264,11 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
       const once = new Set<number>();
       const rows = all.filter(r => r.m < firstDup && !once.has(r.m) && (once.add(r.m), true)).sort((a, b) => a.m - b.m);
       if (Number.isFinite(firstDup)) cut.push(`${s.name} ${s.day} read to ${new Date(firstDup).toISOString().slice(11, 16)} UTC (${rows.length} minutes), where two recorders wrote the same minutes`);
-      if (rows.length < 5) continue;
+      if (rows.length < 5) {
+        skipped.push(`${s.name} ${s.day}: ${rows.length === 0 ? 'no minute readable' : `${rows.length} minute${rows.length === 1 ? '' : 's'}`} on this machine${Number.isFinite(firstDup) ? ' before two recorders wrote the same minute' : ''} — under the five the check needs`);
+        continue;
+      }
+      read++;
       const pick = rng(rows.length);
       const replay = minuteRefs(
         rows.map(r => r.m / 1000),
@@ -277,10 +286,11 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
       }
     }
     for (const c of cut) console.log(`NOTE  ${c}`);
-    /* a recorder that has just started holds a few minutes: a session under five is not read, and with none to read the
-       check is skipped, not failed (2026-10-14 — the dev server restarted mid-session and every session held four) */
-    if (minutes === 0) console.log(`SKIP  replay against live: ${sessions.length} recorder session${sessions.length === 1 ? '' : 's'} on this machine, none five minutes long yet`);
-    else check(`replay equals live: ${beads} beads at ${minutes} random minutes of ${sessions.length} recorder session${sessions.length === 1 ? '' : 's'}, the step recomputed as of the minute against the step the recorder drew live — ${off} differ`, off === 0);
+    for (const s of skipped) console.log(`SKIP  ${s}`);
+    /* a recorder that has just started holds a few minutes: a session under five is not read and is named above; with
+       none read the check FAILS (the owner, 2026-10-14) — it stood as a skip until then */
+    if (minutes === 0) check(`replay against live: at least one of the ${sessions.length} recorder session${sessions.length === 1 ? '' : 's'} on this machine five minutes long (every one skipped, each named above)`, false);
+    else check(`replay equals live: ${beads} beads at ${minutes} random minutes of ${read} of ${sessions.length} recorder session${sessions.length === 1 ? '' : 's'} (${skipped.length} skipped, named above), the step recomputed as of the minute against the step the recorder drew live — ${off} differ`, off === 0);
   }
 }
 

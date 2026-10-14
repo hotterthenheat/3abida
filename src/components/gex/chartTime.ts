@@ -28,7 +28,7 @@
 
 import { TickMarkType, defaultHorzScaleBehavior, type IHorzScaleBehavior, type Time, type TickMarkFormatter, type TimeChartOptions } from 'lightweight-charts';
 import { readDeskPrefs } from '../../data/deskPrefs';
-import { clock as readerClock } from '../../core/nyTime';
+import { clock as readerClock, nyParts } from '../../core/nyTime';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const two = (n: number) => String(n).padStart(2, '0');
@@ -118,6 +118,52 @@ export const LOCAL_TIME = { timeFormatter: (t: Time) => fmtStampLocal(t) };
 export const NY_TIME = { timeFormatter: (t: Time) => fmtStampLocal(t, 'ny') };
 
 /*
+  A DAY BAR NAMES ITS NEW YORK SESSION (2026-10-14 — the owner: "Daily bars: label each bar with its New York session
+  date in every viewer zone"). A day bar is stamped at its session's noon UTC (data/feed/levels.ts dayTime), the house's
+  at UTC midnight, a week's at its Monday's stamp; read on the viewer's own clock a stamp can name the day before (a
+  Pacific viewer saw "11" and "13" under Oct 12 and Oct 14, the house's midnight stamps read at 5 pm the evening before).
+  The session's date is read IN NEW YORK twelve hours on from the stamp — the same date for every stamp from New York's
+  midnight to its noon, in every zone on earth — and a daily chart's ticks, their weights and the crosshair's stamp all
+  say it (sessionTickMarks, SESSION_TIME, the behaviour's `sessionDates`). An intraday chart keeps the reader's calendar.
+*/
+const HALF_DAY_S = 12 * 3600;
+export interface SessionDate {
+  y: number;
+  m: number;
+  d: number;
+}
+/** The New York session a day bar stands for */
+export function sessionDateOf(t: Time): SessionDate {
+  if (typeof t === 'number') {
+    const p = nyParts((t + HALF_DAY_S) * 1000);
+    return { y: p.year, m: p.month, d: p.day };
+  }
+  const d = chartDate(t);
+  return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() };
+}
+/** `Oct 13` — a day bar's session */
+export const fmtSession = (t: Time): string => {
+  const s = sessionDateOf(t);
+  return `${MONTHS[s.m - 1]} ${s.d}`;
+};
+/** The ticks of a daily or weekly chart: each bar's session date, the month and year where the range crosses them */
+export const sessionTickMarks: TickMarkFormatter = (time, type) => {
+  const s = sessionDateOf(time);
+  switch (type) {
+    case TickMarkType.Year:
+      return String(s.y);
+    case TickMarkType.Month:
+      return MONTHS[s.m - 1];
+    case TickMarkType.DayOfMonth:
+      return String(s.d);
+    default:
+      return fmtSession(time);
+  }
+};
+/** The crosshair's stamp on a daily or weekly chart: the session's date, no clock */
+export const SESSION_TIME = { timeFormatter: (t: Time) => fmtSession(t) };
+
+/*
   DAY, MONTH AND YEAR TICKS ON THE VIEWER'S CALENDAR (the Terrain audit of 2026-10-13, item 5). The library weighs
   each bar by what changed since the bar before — the year, the month, the day, else the hour or minute it crossed —
   and picks the heaviest marks to label; it reads the calendar in UTC, so a "day" tick stood on the first bar after
@@ -146,15 +192,25 @@ const secondsOf = (t: unknown): number | null => (typeof t === 'number' && Numbe
 
 /** The time behaviour as the library types it for createChart: its options are a time chart's (tickMarkFormatter among them) */
 export type TimeBehavior = IHorzScaleBehavior<Time> & { options(): TimeChartOptions };
+/** The behaviour with its one switch: `sessionDates` on a daily or weekly chart weighs the ticks by New York's session dates */
+export type SessionBehavior = TimeBehavior & { sessionDates: boolean };
+
+const sessionWeight = (cur: number, prev: number): number => {
+  const a = sessionDateOf(cur as Time);
+  const b = sessionDateOf(prev as Time);
+  return a.y !== b.y ? 70 : a.m !== b.m ? 60 : a.d !== b.d ? 50 : 0;
+};
 
 /** The library's time scale, its calendar ticks on the viewer's clock — `createChartEx<Time, TimeBehavior>(el, new (localCalendarBehavior())(), opts)` */
-export function localCalendarBehavior(): new () => TimeBehavior {
+export function localCalendarBehavior(): new () => SessionBehavior {
   const Base = defaultHorzScaleBehavior() as new () => TimeBehavior;
   return class LocalCalendar extends Base {
+    /** On: a day bar's weight is read off its New York session date (the daily chart); off: the viewer's calendar */
+    sessionDates = false;
     fillWeightsForPoints(points: Parameters<IHorzScaleBehavior<Time>['fillWeightsForPoints']>[0], startIndex = 0): void {
       super.fillWeightsForPoints(points, startIndex);
       if (!points.length) return;
-      /* the weights again, on the viewer's calendar — a business day (a daily chart) keeps the library's own */
+      /* the weights again, on the viewer's calendar — or, on a daily chart, on the session dates the bars stand for */
       let prev = startIndex > 0 ? secondsOf(points[startIndex - 1].originalTime) : null;
       if (prev === null && startIndex === 0 && points.length > 1) {
         const first = secondsOf(points[0].originalTime);
@@ -168,7 +224,7 @@ export function localCalendarBehavior(): new () => TimeBehavior {
           continue;
         }
         if (prev !== null) {
-          const w = calendarWeight(new Date(cur * 1000), new Date(prev * 1000)) || intradayWeight(cur, prev);
+          const w = this.sessionDates ? sessionWeight(cur, prev) : calendarWeight(new Date(cur * 1000), new Date(prev * 1000)) || intradayWeight(cur, prev);
           (points[i] as { timeWeight: number }).timeWeight = w;
         }
         prev = cur;

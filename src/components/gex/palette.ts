@@ -8,6 +8,9 @@
 /** Apple system green — the market's bullish voice (matches the `bull`
     tailwind token). JS-side chart code imports THIS; class-side uses `bull`. */
 export const BULL = '#30D158';
+/** The down side of the direction pair — the candles', a change's, a flow leg's (the owner, 2026-10-14: "Bull/bear is
+    for candles only" — direction, never a wall) */
+export const BEAR = '#FF3B30';
 /** The house accent — the holo family's flat silver (matches `select`, the dark
     set the chart islands wear). Selection, brand, what is live. Never market
     direction. A neon lime until 2026-10-02 (the owner: "remove all lime/green
@@ -16,8 +19,12 @@ export const BULL = '#30D158';
     …, box)), so a light tape gets the deep silver. */
 export const ACCENT = '#C7D3E8';
 
-export const CALL_WALL = BULL; // green, not mint — reversed by Noah 2026-08-18
-export const PUT_WALL = '#FF3B30'; // bear (hot red)
+/* THE WALLS WEAR THE GAMMA PAIR (the owner, 2026-10-14: "Wall chips: put wall ember, call wall glacier. Bull/bear is for
+   candles only"): the call wall glacier, the put wall ember — the dark tokens' own values (tokens.css --glacier 122 189
+   215, --ember 245 197 66). A surface that can wear a light ground reads the tokens off its own box (paletteInk,
+   gexNodesPrimitive trailPaperFrom / axisInksFrom). The walls were green and red from 2026-08-18 to 2026-10-14. */
+export const CALL_WALL = '#7ABDD7';
+export const PUT_WALL = '#F5C542';
 /* INDECISION GRAY (Noah, 2026-08-29): the flip is the price where the book
    is on the verge of two sides — neither's color belongs to it. Gray IS the
    read. (The old baby blue moved up: it is the supreme's now.) */

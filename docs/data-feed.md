@@ -501,7 +501,12 @@ that restarts. Today only 98 minutes were recorded, and missed live minutes can'
 run and how it restarts itself").** It runs as its own process, `npm run feed:recorder` (server/recorderMain.ts): the
 same proxy and recorder as the dev server's, no Vite, on RECORDER_PORT (5190), recording RECORD_NAMES (.env; SPY,
 QQQ, IWM by default) from the moment it starts and never letting them go, the keys read from .env itself. It exits on
-an error it cannot handle, and the supervisor round it starts it again:
+an error it cannot handle, and the supervisor round it starts it again. **It runs independently of the app and the dev
+server (confirmed 2026-10-14):** the dev server reads the field's routes from the recorder at `http://127.0.0.1:5190`
+by default (FEED_RECORDER_URL blank; `off` makes the dev server record on its own) and records nothing itself while one
+answers there — the recorder holds the lock all along, so a restart of the app or the dev server cuts no session; a
+port that refuses (no recorder on the machine) falls back to the dev server's own recorder and is not asked again for
+half a minute. The supervisor:
 
 - **On the owner's Windows machine** (where the terminal runs): `scripts\recorder.cmd` is a loop — it starts the
   recorder, and ten seconds after the recorder stops for any reason starts it again, logging to

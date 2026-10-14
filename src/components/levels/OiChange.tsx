@@ -20,7 +20,7 @@ import { useState, type ReactNode } from 'react';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import SpotRule from '../ui/SpotRule';
 import { rowProps } from '../ui/rowKeys';
-import { BULL, PUT_WALL } from '../gex/paletteInk';
+import { BULL, BEAR } from '../gex/paletteInk';
 import { inWindow } from '../../data/pinpointBook';
 import type { OiChange as OiChangeData, OiChangeRow } from '../../data/oiChange';
 
@@ -41,7 +41,7 @@ interface Props {
 /** One leg's change as a bar from the strike outward — left for the puts, right for the calls */
 const Leg = ({ v, max, side }: { v: number; max: number; side: 'left' | 'right' }) => {
   const w = Math.min(1, Math.abs(v) / max);
-  const ink = v >= 0 ? BULL : PUT_WALL;
+  const ink = v >= 0 ? BULL : BEAR;
   /* the figure hugs the bar's end, out from the strike */
   const bar = v !== 0 && <span className="h-[10px] rounded-sm shrink-0" style={{ width: `calc((100% - 72px) * ${w.toFixed(4)})`, background: ink, opacity: 0.85 }} />;
   const fig = (
@@ -72,7 +72,7 @@ const OiChange = ({ data, ticker, window, focus, onPick, scope }: Props) => {
           <p>
             Each row is one strike. The bar to the <span className="text-textPrimary">left</span> is the change in its puts between the two last counts, the bar
             to the <span className="text-textPrimary">right</span> the change in its calls. <span style={{ color: BULL }}>Green</span> is contracts added,{' '}
-            <span style={{ color: PUT_WALL }}>red</span> contracts closed out. The figure beside each bar is the contracts.
+            <span style={{ color: BEAR }}>red</span> contracts closed out. The figure beside each bar is the contracts.
           </p>
           <p>
             What it says: where positions were opened and where they were taken off since the close before. The hedging the Map reads is built on these counts, so

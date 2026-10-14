@@ -30,7 +30,10 @@ function feedProxy(keys: { uw?: string; massive?: string; theta?: string }, fiel
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
-    plugins: [react(), feedProxy({ uw: env.UW_API_TOKEN || undefined, theta: env.THETADATA_API_KEY || undefined }, env.FEED_RECORDER_URL || undefined)],
+    /* THE FIELD'S ROUTES GO TO THE ALWAYS-ON RECORDER (2026-10-14): http://127.0.0.1:5190 — the recorder's own port — unless
+       FEED_RECORDER_URL names another, or says `off` (then the dev server records on its own, as it did); a port that
+       refuses falls back to this process (server/feed.ts) */
+    plugins: [react(), feedProxy({ uw: env.UW_API_TOKEN || undefined, theta: env.THETADATA_API_KEY || undefined }, env.FEED_RECORDER_URL === 'off' ? undefined : env.FEED_RECORDER_URL || 'http://127.0.0.1:5190')],
     server: {
       /* THE FIRST LOAD AFTER `npm run dev` (Noah, 2026-09-20: "a white screen for about 5-7 seconds"). Measured: the very first
          visit painted at 4.2s, the second at 0.2s — the same page, the same browser. The dev server compiles nothing until it is

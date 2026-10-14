@@ -530,6 +530,13 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
      answered by the always-on recorder there instead, so a dev server that comes and goes never records a day with
      holes beside it (the owner, 2026-10-13: "The recorder must run on an always-on machine"). */
   const upstream = opts.fieldUpstream?.replace(/\/+$/, '') || null;
+  /** The recorder at `upstream` refused the connection: not asked again before this moment */
+  let upstreamDownUntil = 0;
+  const refused = (e: unknown): boolean => {
+    const cause = (e as { cause?: { code?: string } } | null)?.cause;
+    const code = cause?.code ?? (e as { code?: string } | null)?.code ?? '';
+    return code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH' || code === 'ECONNRESET';
+  };
   /* THE FIELD'S PAST SESSIONS (server/fieldBackfill.ts): a session before today rebuilt from UW's dated history, once */
   const backfill = createFieldBackfill(client);
   /* THE POINT-IN-TIME STORE (server/fieldStore.ts): two rows a minute, written by the recorder */
@@ -585,12 +592,19 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
         const s = await status();
         return send(res, json(200, { uw: { key: client.hasKey('uw'), ...s.uw }, massive: { key: client.hasKey('massive'), ...s.massive }, theta: { key: client.hasKey('theta'), ...s.theta } }));
       }
-      if (upstream && url.pathname.startsWith('/feed/field/')) {
+      if (upstream && url.pathname.startsWith('/feed/field/') && Date.now() >= upstreamDownUntil) {
         try {
           const r = await fetch(upstream + raw, { signal: AbortSignal.timeout(20_000) });
           return send(res, { status: r.status, contentType: r.headers.get('content-type') ?? 'application/json', body: await r.text(), from: 'proxy' });
-        } catch {
-          return send(res, json(502, { error: 'network', where: 'recorder' }));
+        } catch (e) {
+          /* THE ALWAYS-ON RECORDER FIRST, THIS PROCESS WHERE IT IS NOT UP (2026-10-14 — the owner: "Confirm the recorder
+             on my always-on machine runs independently of the app and dev server, so a restart never cuts a session"):
+             the dev server asks the recorder at FEED_RECORDER_URL (http://127.0.0.1:5190, the recorder's own port, by
+             default) and so never records beside it — its own restart cuts nothing, the recorder holding the lock all
+             along. A machine with no recorder listening (the port refused) answers from this process's own recorder, as
+             before, and is not asked again for half a minute; a recorder up but failing is said as before (502). */
+          if (!refused(e)) return send(res, json(502, { error: 'network', where: 'recorder' }));
+          upstreamDownUntil = Date.now() + 30 * S;
         }
       }
       const sr = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/store$/.exec(url.pathname);

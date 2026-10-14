@@ -37,7 +37,7 @@ import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
 import ScriptLegend from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
-import { LOCAL_TIME, NY_TIME, localCalendarBehavior, localTickMarks, nyTickMarks, type TimeBehavior } from './chartTime';
+import { LOCAL_TIME, NY_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, nyTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
 
 /* the time scale with its day, month and year ticks on the viewer's calendar (chartTime.ts) — one class for every chart */
 const LocalCalendar = localCalendarBehavior();
@@ -145,7 +145,7 @@ const PRICE_STRETCH = 3;
   would be the wrong vocabulary here.
 */
 const FLOW_CALL_INK = BULL;
-const FLOW_PUT_INK = PUT_WALL;
+const FLOW_PUT_INK = BEAR;
 
 /*
   THE DRIFT LINES WEAR THE SAME TWO INKS AS THE FLOW LEGS, and they should:
@@ -155,7 +155,7 @@ const FLOW_PUT_INK = PUT_WALL;
   for a number they already know.
 */
 const DRIFT_CALL_INK = BULL;
-const DRIFT_PUT_INK = PUT_WALL;
+const DRIFT_PUT_INK = BEAR;
 
 /*
   THE TWO VOLATILITY LINES ADD NO NEW HUE.
@@ -904,7 +904,7 @@ export type CrosshairReadout = (bar: CrosshairBar | null) => void;
 
 // Wall / flip / supreme overlay colors (independent of candle theme)
 import { defaultStop } from './drawingKinds';
-import { BULL, CALL_WALL, PUT_WALL, FLIP, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
+import { BULL, BEAR, CALL_WALL, PUT_WALL, FLIP, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
 import { FONT_SANS } from '../../theme/fonts';
 
 // Level lines are created once per overlay/ticker, then their prices are
@@ -1279,6 +1279,8 @@ const StrikeChart = ({
   const altSpec = useMemo(() => barClockSpec(barClock), [barClock]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  /** The chart's time behaviour — its `sessionDates` switch flips with the timeframe (chartTime.ts) */
+  const behaviorRef = useRef<SessionBehavior | null>(null);
   /* THE HOST'S CHROME BAND (Noah, 2026-09-14: "the top section seems to be overlapped by the
      430 number"): CSS px from the box's top to the lowest floating block over its upper third —
      every host marks its strip `data-chart-chrome`, measured here the way the scripts legend
@@ -2399,7 +2401,9 @@ const StrikeChart = ({
     if (!container) return;
 
     const s0 = chartSurface(themeRef.current);
-    const chart = createChartEx<Time, TimeBehavior>(container, new LocalCalendar(), {
+    const behavior = new LocalCalendar();
+    behaviorRef.current = behavior;
+    const chart = createChartEx<Time, TimeBehavior>(container, behavior, {
       autoSize: true,
       layout: {
         background: { color: s0.bg },
@@ -2702,6 +2706,21 @@ const StrikeChart = ({
     // ensureRunway and applySync are stable useCallback([])s — listed so the
     // subscriptions installed here are never reading a stale one.
   }, [makeMain, ensureRunway, applySync, setFollower, projectionRef, readoutAt, emitReadout]);
+
+  /* A DAILY CHART NAMES ITS SESSIONS (2026-10-14 — the owner: "label each bar with its New York session date in every
+     viewer zone"; chartTime.ts sessionTickMarks): on 1D and 1W the ticks, their weights and the crosshair's stamp read
+     each bar's New York session date, so a Pacific or an Asian viewer never sees the day before under a bar; intraday
+     the reader's own calendar, as before. Applied before the bars are set (the effects below), so the weights are
+     counted on the right calendar. */
+  useEffect(() => {
+    const chart = chartRef.current;
+    const b = behaviorRef.current;
+    if (!chart || !b) return;
+    const daily = tfMinutes(timeframe) >= 1440;
+    b.sessionDates = daily;
+    const ny = nyClock || tapeRef.current?.clock === 'ny';
+    chart.applyOptions({ localization: daily ? SESSION_TIME : ny ? NY_TIME : LOCAL_TIME, timeScale: { tickMarkFormatter: daily ? sessionTickMarks : ny ? nyTickMarks : localTickMarks } });
+  }, [timeframe, nyClock, mainNonce]);
 
   /* Style swap (Noah, 2026-08-23): replace ONLY the main series in place —
      price lines and primitives die with the old one, so the nonce tells the
@@ -3688,6 +3707,14 @@ const StrikeChart = ({
     const jumped = kindChanged || (!!tapeRef.current && tapeLastRef.current > 0 && (baseLast < tapeLastRef.current || baseLast - tapeLastRef.current > 60));
     tapeLastRef.current = tapeRef.current ? baseLast : 0;
 
+    /* THE BARS' SOURCE SWITCHING UNDER THE SAME WORLD (2026-10-14): a 1D chart draws the minutes folded by UTC day until
+       the feed's day bars land (noon-UTC stamps, data/feed/levels.ts dayTime) — the same name, timeframe and clock, a
+       different set of bars. An update() of the new last bar after the old ones stood two bars for one day (Oct 14 twice,
+       seen 2026-10-14), and a set stepping back would have been refused. A new last bar that does not continue the last
+       bar the series holds — the bar before it is not that one — or that stands before it, is loaded afresh. */
+    const prevLast = lastBarTimeRef.current;
+    const lastT = bars.length ? bars[bars.length - 1].time : 0;
+    const reshaped = prevLast > 0 && lastT > 0 && lastT !== prevLast && (lastT < prevLast || bars.length < 2 || bars[bars.length - 2].time !== prevLast);
     lastCloseRef.current = bars.length ? bars[bars.length - 1].close : null;
     if (bars.length) {
       lastBarTimeRef.current = bars[bars.length - 1].time;
@@ -3700,7 +3727,7 @@ const StrikeChart = ({
     }
 
 
-    if (changed || jumped) {
+    if (changed || jumped || reshaped) {
       /* THE FIRST PAINT CARRIES THE RECENT BARS (2026-09-06, the perf sweep):
          a month of one-minute bars is 8,580 points, and the library checks
          every one of them on setData — the single largest cost of opening a

@@ -23,6 +23,7 @@ import { priceKey, useFeedPrice } from '../../data/feed/price';
 import { refreshFeed } from '../../data/feed/poll';
 import { uwSpotGexByStrike } from '../../data/feed/uw';
 import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes, nySessionPhase, nyWallTime } from '../../core/nyTime';
+import { registerDepthState } from '../../dev/depthTrap';
 import { readoutOf, remLines, SESSION_MINUTES, shareBetween, sigmasAway, sigmaRemOf, type SigmaRem } from '../../data/feed/pricedMove';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
@@ -1927,6 +1928,12 @@ const Pane = ({
      Strikes door on the pane lays the ladder over the chart's right side, on the chart's own price rows — the rail
      beside the chart needs a desk's width, the overlay does not. Off until pressed; a slot's business, never stored. */
   const [narrowLadder, setNarrowLadder] = useState(false);
+
+  /* development only: what this pane stood at if React reports a render loop (src/dev/depthTrap.ts — the owner,
+     2026-10-14: "log the component and state when it fires") */
+  const depthRef = useRef<Record<string, unknown>>({});
+  depthRef.current = { ticker, tf, stripW, stripH, isPhone, narrowLadder, atLive, dayPanel, plan: headPlan };
+  useEffect(() => (import.meta.env.DEV ? registerDepthState(`terrain pane ${ticker}`, () => depthRef.current) : undefined), [ticker]);
 
   /* What a move to each strike forces dealers to trade — the panel's second
      lane, off the SAME rows the size lane draws, so the flow beside a capsule

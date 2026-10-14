@@ -78,15 +78,15 @@ import { motion } from 'framer-motion';
 import DropdownSelect from '../ui/DropdownSelect';
 import GuideFocus, { GuideDoor } from '../ui/GuideFocus';
 import { CorridorGuide } from './AheadGuide';
-import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
+import { BEAR, BULL, CALL_WALL, FLIP, PUT_WALL, SUPREME } from './paletteInk';
 import { useResolvedTheme } from '../../theme/theme';
 import { CLOSE_MIN, VOL_OPTIONS, fmtDollars, fmtPrice, fmtStrike, hhmm, volWords, type AheadClock, type Corridor, type Schedule, type ScheduleBlock, type VolPoints } from '../../data/ahead';
 import type { ExposureLevels } from '../../types/gex';
 import { FONT_SANS } from '../../theme/fonts';
 
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
-const GREEN = CALL_WALL;
-const RED = PUT_WALL;
+const GREEN = BULL; // a move up, a flow in — direction, not a wall (the owner, 2026-10-14)
+const RED = BEAR;
 /* THE TWO FIGURES FOLLOW THE PAGE (the light sweep, 2026-09-19 — Noah, with the light Ahead page: "do you see the
    problem?" — two black boxes on paper). They were dark islands on either theme by his 2026-09-12 word ("the charts to by
    default always be black"); that night's sweep turned it: on paper a drawn figure is part of the page — one soft grey,

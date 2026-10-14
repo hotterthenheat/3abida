@@ -22,8 +22,11 @@ import { readToken } from '../../theme/theme';
 export const BULL = 'rgb(var(--bull))';
 /* the house accent — the silver since 2026-10-02 (it was the neon lime) */
 export const ACCENT = 'rgb(var(--select))';
-export const CALL_WALL = BULL;
-export const PUT_WALL = 'rgb(var(--bear))';
+/** The direction pair's down side — a change, an outcome, a flow leg; never a wall (the owner, 2026-10-14) */
+export const BEAR = 'rgb(var(--bear))';
+/* the walls wear the gamma pair since 2026-10-14 (palette.ts): the call wall glacier, the put wall ember */
+export const CALL_WALL = 'rgb(var(--glacier))';
+export const PUT_WALL = 'rgb(var(--ember))';
 export const FLIP = 'rgb(var(--flip))';
 export const SUPREME = 'rgb(var(--supreme))';
 export const SPOT = 'rgb(var(--text-primary))';
