@@ -180,7 +180,13 @@ interface ChartToolbarProps {
       there (Noah, 2026-09-22: "put the p and l buttons in between timeframes and the indicator button on the top … on full
       screen of course"). A spread strip's gap starts after it, so a top-docked rail still centres in what is left. */
   afterIntervals?: ReactNode;
+  /** WHICH PARTS THIS MOUNT DRAWS (the Terrain UI pass, 2026-10-14 — one toolbar, two homes on a pane: the header row
+      carries Replay, Alerts and the layers at rest; the hover row the rest). A part set false is not drawn; absent, every
+      part is, as before. Replay in a compact strip is drawn only where a host names it here. */
+  parts?: Partial<Record<ToolbarPart, boolean>>;
 }
+
+export type ToolbarPart = 'timeframes' | 'replay' | 'indicators' | 'alerts' | 'candles' | 'overlays' | 'theme' | 'fullscreen';
 
 const TIMEFRAME_OPTIONS = TIMEFRAMES.map(t => ({ value: t.value, label: t.label }));
 
@@ -481,7 +487,10 @@ const ChartToolbar = ({
   alertSpot = 0,
   onTotalFullscreen,
   afterIntervals,
+  parts,
 }: ChartToolbarProps) => {
+  /* a part the host left in (every part, absent a list) */
+  const has = (p: ToolbarPart): boolean => parts?.[p] !== false;
   const storeThemeKey = useCandleThemeKey();
   const themeKey = themeKeyProp ?? storeThemeKey;
   const [openMenu, setOpenMenu] = useState<
@@ -596,7 +605,7 @@ const ChartToolbar = ({
             `items-center gap-2 flex-wrap ${spread ? 'w-full' : ''}`
       }`}
     >
-      {compact && !keepIntervals ? (
+      {!has('timeframes') ? null : compact && !keepIntervals ? (
         /* The current interval IS the trigger, the way every mobile charting
            app does it — the label is the answer to "what am I looking at" and
            the menu is the answer to "what else can I look at". */
@@ -667,7 +676,7 @@ const ChartToolbar = ({
           from the timeframes. Candles here is the tape's SHAPE
           (bars/line/area…), not the color theme; Alerts is live since
           2026-08-28 — armed watches, the fired log, and the bell's count. */}
-      {(onToggleReplay || onIndicators || alertTicker || onChartStyle || onPriceScale) && (
+      {((onToggleReplay && has('replay')) || (onIndicators && has('indicators')) || (alertTicker && has('alerts')) || ((onChartStyle || onPriceScale) && has('candles'))) && (
         <span
           className={`flex gap-1 ${
             vertical ? 'flex-col items-stretch' : 'flex-wrap items-center justify-end'
@@ -696,7 +705,7 @@ const ChartToolbar = ({
             Pulse only wires this in FULLSCREEN, where the strip is never
             compact, so nothing there changes.
           */}
-          {onToggleReplay && !compact && (
+          {onToggleReplay && has('replay') && (!compact || parts?.replay) && (
             <button
               onClick={onToggleReplay}
               title={replay ? 'Exit replay — P' : 'Replay session history — P'}
@@ -717,7 +726,7 @@ const ChartToolbar = ({
               {!vertical && !compact && 'Replay'}
             </button>
           )}
-          {onIndicators && indicators && paneId && (
+          {onIndicators && indicators && paneId && has('indicators') && (
             <>
               <button
                 onClick={() => setLibraryOpen(true)}
@@ -742,7 +751,7 @@ const ChartToolbar = ({
               <ScriptLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} paneId={paneId} indicators={indicators} onIndicators={onIndicators} fullscreen={fullscreen} />
             </>
           )}
-          {onIndicators && indicators && !paneId && (
+          {onIndicators && indicators && !paneId && has('indicators') && (
             <Dropdown
               label={vertical || compact ? '' : 'Indicators'}
               /* Signature inks on the tool icons (Noah, 2026-08-23) —
@@ -820,7 +829,7 @@ const ChartToolbar = ({
               </div>
             </Dropdown>
           )}
-          {alertTicker && (
+          {alertTicker && has('alerts') && (
             <Dropdown
               label={vertical || compact ? '' : 'Alerts'}
               icon={
@@ -837,7 +846,7 @@ const ChartToolbar = ({
               <AlertsMenu ticker={alertTicker} spot={alertSpot} tf={timeframe} />
             </Dropdown>
           )}
-          {(onChartStyle || onPriceScale) && (
+          {(onChartStyle || onPriceScale) && has('candles') && (
             <Dropdown
               label={vertical || compact ? '' : 'Candles'}
               icon={<CandlestickChart className="w-3 h-3 text-textPrimary" />}
@@ -1067,13 +1076,14 @@ const ChartToolbar = ({
       )}
 
       {/* A hairline between the quartet and the standing controls */}
-      {(onToggleReplay || onIndicators || alertTicker || onChartStyle || onPriceScale) && (
+      {((onToggleReplay && has('replay')) || (onIndicators && has('indicators')) || (alertTicker && has('alerts')) || ((onChartStyle || onPriceScale) && has('candles'))) && has('overlays') && (
         <span className={vertical ? 'h-px w-4 self-center bg-borderSubtle' : 'w-px h-4 bg-borderSubtle'} aria-hidden />
       )}
 
       {/* Vertical compresses the trigger to icon + count — the full word was
           what set the upright toolbox's width (Noah, 2026-08-23: "too wide");
           the hover title keeps the name. */}
+      {has('overlays') && (
       <Dropdown
         label={vertical || compact ? String(activeOverlayCount) : `Overlays ${activeOverlayCount}`}
         icon={<Layers className="w-3 h-3" />}
@@ -1165,8 +1175,9 @@ const ChartToolbar = ({
           )}
         </div>
       </Dropdown>
+      )}
 
-      {(!minimal || candles) && (
+      {(!minimal || candles) && has('theme') && (
       <Dropdown
         /* Minimal surfaces (desk widgets) drop the theme name from the
            trigger — at panel width the long label wrapped Expand off the
@@ -1266,7 +1277,7 @@ const ChartToolbar = ({
         Terrain wires both per pane. The desks that pass no handler are
         unchanged, because the button was not reaching them either way.
       */}
-      {onToggleFullscreen && (
+      {onToggleFullscreen && has('fullscreen') && (
         <button
           onClick={onToggleFullscreen}
           title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen chart'}

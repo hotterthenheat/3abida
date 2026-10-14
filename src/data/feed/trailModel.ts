@@ -989,3 +989,46 @@ export function residualFigures(field: readonly GexSnapshot[], books60: readonly
 /* ---- the column's record -------------------------------------------------------------------------------------- */
 
 /** How a column of the field was made */
+
+/* ---- THE REGIME'S WORDS (the Terrain UI pass, 2026-10-14) ----------------------------------------------------------
+   One reading for the strip's chip and the decision strip's box, so the two can never disagree: the meaning, never the
+   bare sign (the owner: "Labels say the meaning, not the bare sign ('calls absorb −$2.1B')"), the percentile against the
+   same half-hour over the reference's sessions, and the attribution against UW's directional series. */
+
+export interface RegimeRead {
+  /** The column's net in the house's sign (puts positive) */
+  net: number;
+  /** Its percentile within the half-hour's reference, null without one */
+  pct: number | null;
+  /** The sessions the percentile stands on */
+  refSessions: number;
+  /** Whether a reference exists for the day at all (the chip says which "no reference" it is) */
+  hasReference: boolean;
+  attribution: 'robust' | 'dependent' | 'unchecked';
+  /** The bar's time (epoch s) when it lies outside the regular session's half-hours, else null */
+  outsideAt: number | null;
+}
+
+/** "puts amplify" where the net is positive in the house's sign, "calls absorb" where it is negative */
+export const regimeSide = (net: number): 'puts amplify' | 'calls absorb' => (net < 0 ? 'calls absorb' : 'puts amplify');
+
+/** The reading of one column against the reference: `nyMinute` is the column's minute of New York's day, `today` its
+    New York date, `dir` UW's directional sign in the house's sign (null: unchecked) */
+export function regimeReadOf(net: number, nyMinute: number, today: string, ref: RegimeReference | null, dir: 1 | -1 | 0 | null, at: number): RegimeRead {
+  const buckets = ref ? regimeBucketsFor(ref, today) : null;
+  const k = regimeBucketOf(nyMinute);
+  const q = buckets && k != null ? buckets[k] : null;
+  const pct = q ? regimePercentile(net, q) : null;
+  const refSessions = ref ? (today === ref.through ? Math.max(0, ref.sessions - 1) : ref.sessions) : 0;
+  const attribution: RegimeRead['attribution'] = dir == null ? 'unchecked' : Math.sign(net) === dir ? 'robust' : 'dependent';
+  return { net, pct, refSessions, hasReference: !!buckets, attribution, outsideAt: k == null ? at : null };
+}
+
+/** The chip's words: "puts amplify +$13.9B, 96th pct of 12 sessions · attribution-dependent" (`money` prints the net,
+    `clock` a bar's time on the reader's clock) */
+export function regimeWordsOf(r: RegimeRead, money: (v: number) => string, clock: (ms: number) => string): string {
+  const sign = `${regimeSide(r.net)} ${money(r.net)}`;
+  const pctWords = (r.pct == null ? (r.hasReference ? 'no reference for this half-hour' : 'no reference yet') : `${ordinal(r.pct)} pct of ${r.refSessions} session${r.refSessions === 1 ? '' : 's'}`) + (r.outsideAt != null ? ` at the ${clock(r.outsideAt * 1000)} bar` : '');
+  const attribution = r.attribution === 'unchecked' ? 'attribution unchecked' : r.attribution === 'robust' ? 'attribution-robust' : 'attribution-dependent';
+  return `${sign}, ${pctWords} · ${attribution}`;
+}

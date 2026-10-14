@@ -1,6 +1,6 @@
 import { coneOf, readoutOf, readoutWords, remLine, SESSION_MINUTES, sigmaRemOf } from '../../data/feed/pricedMove';
 import { alpha } from './paletteInk';
-import { netOf, ordinal, regimeBucketOf, regimeBucketsFor, regimePercentile, type RegimeReference } from '../../data/feed/trailModel';
+import { netOf, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeReadOf, regimeWordsOf, type RegimeRead, type RegimeReference } from '../../data/feed/trailModel';
 import { nyMinuteOf } from '../../data/feed/trackRecord';
 import { pickWalls } from '../../core/walls';
 import {
@@ -54,7 +54,7 @@ import {
 import { GexTrailsPrimitive, axisInksFrom, trailPaperFrom, type BeadHit, type BeadLegend } from './gexNodesPrimitive';
 import type { ScaleBasis, ScaleRef } from '../../data/feed/beadScale';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
-import { isoDayLabel, pct, usdCompact, usdCompactSigned } from '../../core/format';
+import { isoDayLabel, num, pct, usdCompact, usdCompactSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
@@ -828,6 +828,14 @@ interface StrikeChartProps {
   /** A HOST'S BAR at the foot of the price pane (PaneFoot) — Terrain's replay transport (item 8), where the chart's own
       replay bar stands */
   footBar?: ReactNode;
+  /** THE REGIME'S READING (the Terrain UI pass, 2026-10-14): the newest session bar's net, percentile and attribution —
+      the same reading the strip's chip prints (trailModel regimeWordsOf) — handed to the host for its decision strip;
+      null when the strip is off or has no bar. Fired only when the reading changes. */
+  onRegime?: (r: (RegimeRead & { words: string; range: string | null }) | null) => void;
+  /** A JUMP OF THE VIEW (the UI pass — the header's Today · 1W · 1M · 6M · 1Y · Max and its calendar): the host bumps
+      `nonce` with a span or a day, and the time scale shows it — a span from the last bar back (today: from the
+      session's open), a day centred, at the zoom the chart has. The host picks the timeframe first. */
+  jumpTo?: { nonce: number; kind: 'span'; span: 'today' | '1w' | '1m' | '6m' | '1y' | 'max' } | { nonce: number; kind: 'day'; day: string } | null;
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -1114,7 +1122,7 @@ const StrikeChart = ({
   barCountdown = 'measured',
   asOf = null,
   futureBars = null,
-  footBar = null,
+  footBar = null, onRegime, jumpTo = null,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
   const asOfRef = useRef<number | null>(asOf);
@@ -1396,6 +1404,16 @@ const StrikeChart = ({
      keyed on the prop would tear the handler down ten times a minute. */
   const onCrosshairRef = useRef(onCrosshair);
   onCrosshairRef.current = onCrosshair;
+  const onRegimeRef = useRef(onRegime);
+  onRegimeRef.current = onRegime;
+  /* the regime reading last handed to the host, so a tick that changes nothing hands nothing */
+  const regimeHandedRef = useRef<string>('');
+  const handRegime = (r: (RegimeRead & { words: string; range: string | null }) | null) => {
+    const key = r ? `${r.words}|${r.range ?? ''}` : '';
+    if (key === regimeHandedRef.current) return;
+    regimeHandedRef.current = key;
+    onRegimeRef.current?.(r);
+  };
   const syncRegisterRef = useRef(syncRegister);
   syncRegisterRef.current = syncRegister;
   const onReadoutRef = useRef(onReadout);
@@ -1710,6 +1728,47 @@ const StrikeChart = ({
     chart.priceScale('right').applyOptions({ autoScale: true });
     showRecent();
   }, [showRecent]);
+
+  /* A JUMP OF THE VIEW (the Terrain UI pass, 2026-10-14): the host's span or day, applied once the bars of the pane's
+     timeframe stand — a span runs from the last bar back (today: from New York's 09:30 of the last bar's day), a little
+     room ahead as the opening view keeps; a day is centred at the zoom the chart has. Nothing the host did not ask. */
+  const jumpAppliedRef = useRef(0);
+  useEffect(() => {
+    if (!jumpTo || jumpTo.nonce === jumpAppliedRef.current) return;
+    const chart = chartRef.current;
+    if (!chart) return;
+    const mins = tfMinutes(timeframe);
+    const bars = barsFor(mins);
+    if (!bars.length) return;
+    jumpAppliedRef.current = jumpTo.nonce;
+    const ts = chart.timeScale();
+    const last = bars[bars.length - 1].time;
+    const first = bars[0].time;
+    const barSec = Math.max(60, mins * 60);
+    if (jumpTo.kind === 'span') {
+      const DAY = 86_400;
+      const spans: Record<typeof jumpTo.span, number> = { today: 0, '1w': 7 * DAY, '1m': 31 * DAY, '6m': 183 * DAY, '1y': 366 * DAY, max: Infinity };
+      let from: number;
+      if (jumpTo.span === 'today') from = last - Math.max(0, nyMinuteOf(last * 1000) - (9 * 60 + 30)) * 60;
+      else if (!Number.isFinite(spans[jumpTo.span])) from = first;
+      else from = Math.max(first, last - spans[jumpTo.span]);
+      /* a few bars of room ahead of the last one, as the opening view keeps */
+      const to = last + barSec * 6;
+      chart.priceScale('right').applyOptions({ autoScale: true });
+      ts.setVisibleRange({ from: Math.min(from, last - barSec) as UTCTimestamp, to: to as UTCTimestamp });
+      return;
+    }
+    /* a day: the bar nearest its middle, the current zoom kept round it */
+    let idx = bars.findIndex(b => nyIsoDateOf(b.time * 1000) >= jumpTo.day);
+    if (idx < 0) idx = bars.length - 1;
+    const sameDay = bars.map((b, i) => (nyIsoDateOf(b.time * 1000) === jumpTo.day ? i : -1)).filter(i => i >= 0);
+    if (sameDay.length) idx = sameDay[Math.floor(sameDay.length / 2)];
+    const range = ts.getVisibleLogicalRange();
+    const span = range ? Math.max(20, range.to - range.from) : 120;
+    chart.priceScale('right').applyOptions({ autoScale: true });
+    ts.setVisibleLogicalRange({ from: idx - span / 2, to: idx + span / 2 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpTo, timeframe, mainNonce, revision]);
 
   /* The horizontal arm goes off while this chart is following another pane —
      a full crosshair reads as "your cursor is here", and it is not. Guarded so
@@ -2647,6 +2706,7 @@ const StrikeChart = ({
         /* already gone */
       }
       setRegimeWords('');
+      handRegime(null);
       remeasurePaneLabels();
       return;
     }
@@ -2706,24 +2766,25 @@ const StrikeChart = ({
       })
     );
     const netNow: number | null = lastNet;
-    const pctNow: number | null = lastPct;
     const atNow: number | null = lastAt;
-    if (netNow == null) setRegimeWords('');
-    else {
-      /* the meaning, never the bare sign (the owner, 2026-10-14: "Labels say the meaning, not the bare sign ('calls absorb
-         −$2.1B')") — in the house's sign a negative net is the calls' */
-      const sign = `${netNow < 0 ? 'calls absorb' : 'puts amplify'} ${usdCompactSigned(netNow)}`;
-      /* the sessions the percentile stands on — a dozen is not 250, and the chip says so */
-      const refSessions = regimeRef ? (today === regimeRef.through ? Math.max(0, regimeRef.sessions - 1) : regimeRef.sessions) : 0;
-      const pctWords = (pctNow == null ? (buckets ? 'no reference for this half-hour' : 'no reference yet') : `${ordinal(pctNow)} pct of ${refSessions} session${refSessions === 1 ? '' : 's'}`) + (newestOutside && atNow != null ? ` at the ${readerClock(atNow * 1000)} bar` : '');
-      const attribution = regimeDir == null ? 'attribution unchecked' : Math.sign(netNow) === regimeDir ? 'attribution-robust' : 'attribution-dependent';
-      let tercile = '';
+    if (netNow == null || atNow == null) {
+      setRegimeWords('');
+      handRegime(null);
+    } else {
+      /* ONE READING for the chip and the host's decision strip (trailModel regimeReadOf / regimeWordsOf): the meaning,
+         never the bare sign (the owner, 2026-10-14: "Labels say the meaning, not the bare sign ('calls absorb −$2.1B')"),
+         the percentile over the reference's sessions — a dozen is not 250, and the chip says so — and the attribution */
+      const read = regimeReadOf(netNow, nyMinuteOf(atNow * 1000), today, regimeRef, regimeDir, atNow);
+      if (!newestOutside) read.outsideAt = null;
+      const words = regimeWordsOf(read, usdCompactSigned, ms => readerClock(ms));
+      let tercile: string | null = null;
       const r60 = regimeRanges?.find(r => r.horizon === 60) ?? null;
-      if (r60 && r60.median && pctNow != null) {
-        const t = r60.terciles.find(x => x.tercile === (pctNow < 33.34 ? 1 : pctNow < 66.67 ? 2 : 3));
-        if (t && t.n >= REGIME_GATE_MINUTES && t.range != null) tercile = ` · next-60-min range in this tercile: ${(t.range / r60.median).toFixed(2)}× median (${t.n} minutes${t.overImplied != null ? `; over the implied move ${t.overImplied.toFixed(2)}×` : ''})`;
+      if (r60 && r60.median && read.pct != null) {
+        const t = r60.terciles.find(x => x.tercile === (read.pct! < 33.34 ? 1 : read.pct! < 66.67 ? 2 : 3));
+        if (t && t.n >= REGIME_GATE_MINUTES && t.range != null) tercile = `next-60-min range in this tercile: ${num(t.range / r60.median, 2)}× median (${t.n} minutes${t.overImplied != null ? `; over the implied move ${num(t.overImplied, 2)}×` : ''})`;
       }
-      setRegimeWords(`${sign}, ${pctWords} · ${attribution}${tercile}`);
+      setRegimeWords(`${words}${tercile ? ` · ${tercile}` : ''}`);
+      handRegime({ ...read, words, range: tercile });
     }
     remeasurePaneLabels();
   }, [overlays.regime, altSpec, timeframe, ticker, themeKey, regimeRef, regimeDir, regimeRanges, remeasurePaneLabels, tape?.book, tape?.key]);

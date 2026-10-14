@@ -19,10 +19,13 @@
 */
 
 import { Gauge, Info } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import PopoverCard from '../ui/PopoverCard';
 import type { Sureness } from '../../data/levelSureness';
+import { num } from '../../core/format';
 
-const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+/* the house's figure (core/format): a whole strike plain, a half strike to the cent */
+const fmt = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? num(v, 0) : num(v, 2));
 const NAME: Record<Sureness['level'], string> = { 'call wall': 'The call wall', 'put wall': 'The put wall', flip: 'The flip', supreme: 'The supreme' };
 
 /** The card's body — also usable inline where a page has the room */
@@ -94,10 +97,23 @@ const SHORT: Record<Sureness['level'], string> = { 'call wall': 'Call wall', 'pu
 /** ONE DOOR FOR A LADDER'S LEVELS (Terrain's strike ladder, 2026-10-10): where the levels are drawn on a canvas and no row
     can carry a door of its own, one "How sure" in the ladder's head opens the same read for each — what they assume and
     how fresh, said once, then where each would sit with the side turned over */
-export const HowSureBook = ({ sures, align = 'end', compact = false, className = '' }: { sures: Sureness[]; align?: 'start' | 'end' | 'center'; compact?: boolean; className?: string }) => {
+/** THE SECTIONS A HOST MAY OPEN THE CARD AT (the Terrain UI pass, 2026-10-14 — the decision strip's five boxes each open
+    their own): the box's door stands in for the "How sure" button, and the card scrolls to the section and marks it */
+export type HowSureSection = 'regime' | 'levels' | 'move' | 'record' | 'freshness';
+
+export const HowSureBook = ({ sures, align = 'end', compact = false, className = '', trigger, focus }: { sures: Sureness[]; align?: 'start' | 'end' | 'center'; compact?: boolean; className?: string; trigger?: ReactNode; focus?: HowSureSection }) => {
   const first = sures[0];
+  const [open, setOpen] = useState(false);
+  const focusRef = useRef<HTMLDivElement | null>(null);
+  /* the card opened at a section: scrolled into view once the card stands, and marked for a moment */
+  useEffect(() => {
+    if (!open || !focus) return;
+    const id = requestAnimationFrame(() => focusRef.current?.scrollIntoView({ block: 'nearest' }));
+    return () => cancelAnimationFrame(id);
+  }, [open, focus]);
   if (!first) return null;
-  const door = (
+  const mark = (s: HowSureSection) => (focus === s ? { ref: focusRef, 'data-how-sure-focus': '' } : {});
+  const door = trigger ?? (
     <button
       type="button"
       aria-label="How sure are the walls and the flip — what they assume, how fresh they are, and where they would sit the other way"
@@ -111,8 +127,8 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
     </button>
   );
   return (
-    <PopoverCard trigger={door} width={340} align={align} testId="how-sure-book">
-      <div className="px-3 py-2.5 flex flex-col gap-2 text-[12px] leading-relaxed" data-how-sure-card="book">
+    <PopoverCard trigger={door} width={340} align={align} testId="how-sure-book" open={open} onOpenChange={setOpen}>
+      <div className="px-3 py-2.5 flex flex-col gap-2 text-[12px] leading-relaxed" data-how-sure-card="book" data-how-sure-open-at={focus}>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-textPrimary">
           How sure are the walls and the flip
           {/* the owner's item 6: every window is priced in the same pass, every minute */}
@@ -138,11 +154,19 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
             <p className="text-textSecondary">{first.window.line}</p>
           </div>
         )}
+        {first.regime && (
+          <div data-how-sure-regime {...mark('regime')}>
+            <p className="text-[11px] text-textMuted">The regime</p>
+            <p className="text-textSecondary tnum">{first.regime.line}</p>
+            {first.regime.range && <p className="text-textSecondary tnum">{first.regime.range}</p>}
+            <p className="text-[11px] text-textMuted">{first.regime.note}</p>
+          </div>
+        )}
         <div>
           <p className="text-[11px] text-textMuted">What they assume</p>
           <p className="text-textSecondary">{first.assumption}</p>
         </div>
-        <div>
+        <div data-how-sure-freshness {...mark('freshness')}>
           <p className="text-[11px] text-textMuted">How fresh</p>
           <p className="text-textSecondary">{first.freshness}</p>
         </div>
@@ -176,7 +200,7 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
           </div>
         )}
         {first.record && (
-          <div data-how-sure-record>
+          <div data-how-sure-record {...mark('record')}>
             <p className="text-[11px] text-textMuted">Track record</p>
             <p className="text-[11px] text-textMuted">{first.record.scope}</p>
             <ul className="flex flex-col gap-1">
@@ -190,7 +214,7 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
           </div>
         )}
         {first.move && (
-          <div data-how-sure-move>
+          <div data-how-sure-move {...mark('move')}>
             <p className="text-[11px] text-textMuted">Priced move · σ to the close</p>
             <ul className="flex flex-col gap-1">
               {first.move.lines.map(l => (
@@ -213,7 +237,7 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
             )}
           </div>
         )}
-        <div>
+        <div data-how-sure-levels {...mark('levels')}>
           <p className="text-[11px] text-textMuted">If the side were the other way</p>
           <ul className="flex flex-col gap-1">
             {sures.map(s => (

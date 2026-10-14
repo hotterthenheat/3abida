@@ -1,4 +1,9 @@
-import { isoDayLabel, num, usdCompactSigned } from '../../core/format';
+import { isoDayLabel, num, pctSigned, usd, usdCompactSigned, usdSigned } from '../../core/format';
+import PaneHead, { type JumpSpan, type WindowValue } from '../../components/terrain/PaneHead';
+import DecisionStrip, { type DecisionBox } from '../../components/terrain/DecisionStrip';
+import CrosshairReadout from '../../components/terrain/CrosshairReadout';
+import { liveWithinMs, paneAgeOf, type PaneAge } from '../../components/terrain/paneAge';
+import type { ToolbarPart } from '../../components/gex/ChartToolbar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Code2, ExternalLink, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
 import { DOCK_ROOM, openEditor } from '../../data/editorDock';
@@ -15,8 +20,8 @@ import {
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { useFeedPrice } from '../../data/feed/price';
-import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes } from '../../core/nyTime';
-import { remLines, SESSION_MINUTES, shareBetween, sigmaRemOf, type SigmaRem } from '../../data/feed/pricedMove';
+import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes, nySessionPhase } from '../../core/nyTime';
+import { readoutOf, remLines, SESSION_MINUTES, shareBetween, sigmasAway, sigmaRemOf, type SigmaRem } from '../../data/feed/pricedMove';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { expiryFor } from '../../core/calendar';
@@ -77,6 +82,7 @@ import {
   feedOpenRatio,
   isCashIndex,
   listedDates,
+  shortDay,
   useFeedBars,
   useFeedBook,
   useFeedByExpiry,
@@ -99,7 +105,7 @@ import {
   type FeedOi,
   type FeedStrike, useBeadScaleRefs, measuredBooks60, measuredBooks, pastSessionsOf, useReplaySessions, type PricedMoveFeed
 } from '../../data/feed/levels';
-import { book60Window, driftEndOf, driftOf, regimeForWindow, sigmaOf, type ExpiryWindow } from '../../data/feed/trailModel';
+import { book60Window, driftEndOf, driftOf, netOf, ordinal, regimeForWindow, regimeReadOf, regimeSide, regimeWordsOf, sigmaOf, type ExpiryWindow, type RegimeRead } from '../../data/feed/trailModel';
 import ReplayStrip from '../../components/gex/ReplayStrip';
 import ReplayTools from '../../components/terrain/ReplayTools';
 import { useTerrainReplay } from '../../components/terrain/useTerrainReplay';
@@ -752,8 +758,6 @@ const PRICE_GUTTER_PX = PRICE_SCALE_MIN_WIDTH + 2;
   gives each toolbar ~577px and still wraps.
 */
 const TOOLBAR_FULL_PX = 994;
-/** The same toolbar compact — the seven timeframes as one trigger, every card its icon (measured 350) */
-const TOOLBAR_COMPACT_PX = 350;
 /** The fullscreen door when it rides the identity row: its 24px button and the row's 8px gap */
 const ROW_DOOR_PX = 32;
 
@@ -809,9 +813,8 @@ const STRIP_PAD_PX = 6;
   — rather than these numbers, so a symbol that outgrows them fails the build
   instead of quietly printing on the ticks.
 */
-const ID_ROW_FULL_PX = 366;
-const ID_ROW_NO_PCT_PX = 311;
-const ID_ROW_NO_BADGE_PX = 286;
+/* The old identity row's tiers (366 / 311 / 286) are the header's budget now — `headPlan` in the Pane, the same
+   measured parts taken in the order a reader gains most. */
 
 /*
   THE HEAVIEST READ'S ENTRIES, measured the same way: the HEAVIEST label is 50
@@ -825,9 +828,6 @@ const ID_ROW_NO_BADGE_PX = 286;
   the price axis. Measured: 2 entries fit 287px with room (`scrollWidth ===
   clientWidth`), 3 need ~338.
 */
-const HEAVY_LABEL_PX = 60; // the word plus its gap
-const HEAVY_ENTRY_PX = 96; // the widest entry plus its gap
-const HEAVY_MAX = 3;
 
 /*
   WHAT THE HOVERED-BAR READOUT COSTS — T-8, MEASURED in this build with all
@@ -888,8 +888,6 @@ const HEAVY_MAX = 3;
   Measured tiers with two panes: full to 1440 · tight at 1366 and 1280 · gone
   at 1180 and below, where the row is already shedding its own parts.
 */
-const MTF_FULL_PX = 196;
-const MTF_TIGHT_PX = 104;
 
 const READOUT_C_PX = 55;
 const READOUT_OHL_PX = 168;
@@ -908,18 +906,6 @@ const READOUT_IND_PX = 81;
   carry fewer entries, and what still clips is faded out so an incomplete
   value cannot pass for a complete one.
 */
-const heaviest = (rows: { strike: number; value: number }[], n: number) =>
-  [...rows].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, n);
-
-/* Share count, not dollars — `fmtUsd` would print a $ in front of a volume.
-   Same K/M/B ladder so the two reads scan alike. */
-const fmtVol = (v: number): string => {
-  const a = Math.abs(v);
-  if (a >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
-  return v.toFixed(0);
-};
 
 /*
   THE TIMEFRAMES, AND WHETHER THEY AGREE — T-12.
@@ -970,18 +956,10 @@ const ConfluenceStrip = ({ rows, form, current, onPick }: { rows: ConfluenceRow[
   );
 };
 
-/* One labelled figure in the readout row. The key is quiet and the value is
-   not, so a row of six reads as values with keys rather than the other way
-   round. `ink` carries an indicator's own line colour, so the number and the
-   line it came from are the same colour a few pixels apart. */
-const ReadoutCell = ({ k, v, ink }: { k: string; v: string; ink?: string }) => (
-  <span className="shrink-0 whitespace-nowrap">
-    <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">{k}</span>
-    <span className="ml-1 font-mono text-[11px] tnum" style={ink ? { color: ink } : undefined}>
-      {v}
-    </span>
-  </span>
-);
+/* ONE TOOLBAR, THREE MOUNTS (the UI pass): the header carries Replay, Alerts and the layers; its timeframe trigger stands
+   alone where the tabs have no room; the hover row carries the rest */
+const HEAD_PARTS: Partial<Record<ToolbarPart, boolean>> = { timeframes: false, indicators: false, candles: false, theme: false, fullscreen: false };
+const HOVER_PARTS: Partial<Record<ToolbarPart, boolean>> = { replay: false, alerts: false, overlays: false };
 
 interface PaneProps {
   cfg: PaneCfg;
@@ -1156,26 +1134,6 @@ const Pane = ({
      Before the first measurement stripW is 0 and everything renders — the
      honest default is the full row for one frame, not a shed one that grows. */
   const stripInner = stripW > 0 ? stripW - PRICE_GUTTER_PX - (ownScale ? PRICE_GUTTER_PX : STRIP_PAD_PX) : 0;
-  const roomFor = (px: number) => stripInner === 0 || stripInner >= px;
-  const showChangePct = roomFor(ID_ROW_FULL_PX);
-  /* Gated on the row affording everything else FIRST — see MTF_*_PX. */
-  const mtfForm: 'full' | 'tight' | 'none' = roomFor(ID_ROW_FULL_PX + MTF_FULL_PX)
-    ? 'full'
-    : roomFor(ID_ROW_FULL_PX + MTF_TIGHT_PX)
-      ? 'tight'
-      : 'none';
-  const showBadge = paneCount > 1 && roomFor(ID_ROW_NO_PCT_PX);
-  const showCompareAdd = roomFor(ID_ROW_NO_BADGE_PX);
-  /* At least one entry: a HEAVIEST label with nothing after it is chrome that
-     says nothing, so the row hides itself entirely rather than print a header
-     over an empty line (see `heavy.length > 0` at the row). */
-  /* the walls' lens chips ride the same line when the walls are drawn (measured ~130 px with their gap) */
-  const lensPx = overlays.walls ? 130 : 0;
-  const heavyCount = stripInner === 0
-    ? HEAVY_MAX
-    : Math.max(1, Math.min(HEAVY_MAX, Math.floor((stripInner - HEAVY_LABEL_PX - lensPx) / HEAVY_ENTRY_PX)));
-  /* the + / − key (~150 px) only where the line still has the room for it — never onto the price ticks */
-  const showHeavyKey = stripInner === 0 || stripInner >= HEAVY_LABEL_PX + lensPx + heavyCount * HEAVY_ENTRY_PX + 150;
   /* The tape, straight from the provider that accumulates it. Read HERE rather
      than threaded down from Terrain: this component already takes fourteen
      props, and every pane wants the same unfiltered tape — StrikeChart narrows
@@ -1392,6 +1350,51 @@ const Pane = ({
     [noBars, feedIv, ticker, fField, fMacro]
   );
   const chartTape = noBars ? indexTape : feedTape;
+  /* ══ THE HEADER'S BUDGET (the Terrain UI pass, 2026-10-14) ════════════════════════════════════════════════════════
+     One row, its parts measured at 1440 × 900 on 2026-10-14 (the sweep holds the geometry — nothing over an axis — not
+     these figures). THE FLOOR is the symbol chip (56), the price (47), the hairline, the timeframe trigger (56), the
+     age dot (12) and the fullscreen door (24) with their gaps; a LINKED pane wears its letter at every width. Then,
+     in the order a reader gains most, while the column pays: the tabs' shape (13 more), Replay · Alerts · Layers
+     (140), the window as a trigger (70), the jumps as a trigger (74), the change (52), the age's words (31), the
+     tabs' names (125), the badge (24), the ? (32), the compare + with the unlinked link chip (34 / 66), the pop-out
+     (28), the window whole (96 more), the jumps whole (148 more). What the row cannot pay for stands in the hover row
+     (the three doors, the pop-out) or behind its key (?, the window's W, the jumps' T) — never on the price ticks.
+     Width in, content out: nothing here reads its own rendered width, so a tier cannot feed back and oscillate. */
+  const headPlan = (() => {
+    /* the row's usable width: the strip's inner width less the row's own padding (px-2) */
+    const room = stripInner > 0 ? stripInner - 16 : 0;
+    const GAPX = 8;
+    const linked = cfg.link !== null && cfg.link !== undefined;
+    /* measured 2026-10-14 at 1440 × 900: the symbol chip 78, the price 46, the trigger 52, the dot 10, the door 24, five
+       gaps; the tight tabs 124 (72 over the trigger), the full 194 (70 more); the three doors 132 with the hairline
+       before them; the window's trigger 49, its chips 158; the jumps' trigger with its calendar 83, whole 214; the
+       change 44; the age's words 33 over the dot; the badge 16; the ? 24; the compare + 26 with the unlinked link chip
+       32; the pop-out 24 */
+    let used = 78 + 46 + 52 + 10 + 24 + 5 * GAPX + (linked ? 32 + GAPX : 0);
+    const take = (px: number): boolean => {
+      if (room !== 0 && room < used + px) return false;
+      used += px;
+      return true;
+    };
+    const tabsTight = take(72);
+    const tools = take(132 + 1 + 2 * GAPX);
+    const windowTrigger = onFeed && !isCashIndex(ticker) ? take(49 + GAPX) : false;
+    const jumpTrigger = !noBars ? take(83 + GAPX) : false;
+    const change = take(44 + GAPX);
+    const ageWords = take(33);
+    const tabsFull = tabsTight && take(70);
+    const badge = paneCount > 1 && take(16 + GAPX);
+    const keys = take(24 + GAPX);
+    const compare = take(26 + GAPX + (linked ? 0 : 32 + GAPX));
+    const popOut = !!onPopOut && !bare && take(24 + 4);
+    const windowFull = windowTrigger && take(158 - 49);
+    const jumpFull = jumpTrigger && take(214 - 83);
+    return { tabsForm: tabsFull ? ('full' as const) : tabsTight ? ('tight' as const) : ('none' as const), tools, windowForm: windowFull ? ('full' as const) : windowTrigger ? ('trigger' as const) : ('none' as const), jumpForm: jumpFull ? ('full' as const) : jumpTrigger ? ('trigger' as const) : ('none' as const), change, ageWords, badge, keys, compare, popOut };
+  })();
+  const showChangePct = headPlan.change;
+  const mtfForm = headPlan.tabsForm;
+  const showBadge = headPlan.badge;
+  const showCompareAdd = headPlan.compare;
   /* THE REPLAY'S TAPE: the live tape's kind, cut at the cursor — the house's held as it stood (item 8) */
   const replayTape = useMemo<ChartTape | undefined>(() => {
     if (!rp.active || !rp.cut) return undefined;
@@ -1441,10 +1444,11 @@ const Pane = ({
   }, []);
   const beadBasis: ScaleBasis = cfg.beadBasis ?? 'session';
   const beadFloor = cfg.beadFloor ?? 0;
-  /* THE REGIME STRIP (item 3): the reference built nightly, and UW's directionalized sign in the house's sign */
-  const fRegime = useRegimeReference(onFeed && !!overlays.regime, ticker);
+  /* THE REGIME STRIP (item 3): the reference built nightly, and UW's directionalized sign in the house's sign — read
+     whenever the pane is on the feed since the UI pass (the decision strip's Regime box reads them with the strip off) */
+  const fRegime = useRegimeReference(onFeed && !isCashIndex(ticker), ticker);
   const regimeDir = useMemo<1 | -1 | 0 | null>(() => {
-    if (!onFeed || !overlays.regime) return null;
+    if (!onFeed) return null;
     const rows = totalOf(ticker)?.rows;
     const last = rows?.length ? rows[rows.length - 1] : null;
     const d = last?.[4];
@@ -1452,7 +1456,7 @@ const Pane = ({
     /* UW's sign is the house's turned over (the house negates the book) */
     return d > 0 ? -1 : d < 0 ? 1 : 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onFeed, overlays.regime, ticker, fTrail.snaps]);
+  }, [onFeed, ticker, fTrail.snaps]);
   const recordSure = useMemo(
     () =>
       fRecord
@@ -1484,13 +1488,123 @@ const Pane = ({
     return { lines, ...(!rp.active && moveNow.calibration?.length ? { calibration: moveNow.calibration } : {}) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onFeed, moveNow, sessionMinute, rp.active, revision]);
-  void sigmaRem;
+  /* THE REGIME'S READING, as the chart's strip hands it (one reading for the chip and the box — trailModel
+     regimeWordsOf); the How sure section it opens */
+  const [regimeRead, setRegimeRead] = useState<(RegimeRead & { words: string; range: string | null }) | null>(null);
+  const onRegime = useCallback((r: (RegimeRead & { words: string; range: string | null }) | null) => setRegimeRead(r), []);
+  useEffect(() => setRegimeRead(null), [ticker]);
+  /* THE READING WHEN THE STRIP IS OFF: the pane's own, off the newest column — the same functions, so the box and the
+     chip can never disagree (in a replay the cursor's column; on the house its field's last moment) */
+  const paneRegime = useMemo<(RegimeRead & { words: string; range: string | null }) | null>(() => {
+    if (regimeRead) return regimeRead;
+    const col: GexSnapshot | null = rp.active ? rp.frame?.column ?? null : offHouse ? (fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null) : (Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? []).slice(-1)[0] ?? null;
+    if (!col || !col.levels.length) return null;
+    const at = col.time;
+    const r = regimeReadOf(netOf(col.levels), nyMinutes(at * 1000), nyIsoDate(at * 1000), regimeForWindow(fRegime, win), win === 'all' && !rp.active ? regimeDir : null, at);
+    return { ...r, words: regimeWordsOf(r, usdCompactSigned, ms => printClock(ms)), range: null };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regimeRead, rp.active, rp.frame, offHouse, fTrail.snaps, ticker, fRegime, win, regimeDir, revision]);
+  const regimeSure = useMemo(
+    () => (paneRegime ? { line: paneRegime.words, range: paneRegime.range, note: "Estimated dealer gamma (assumed sign) — it describes the next 30 to 60 minutes' range and the last half hour's momentum on negative days; never a level, and never the flip's side." } : undefined),
+    [paneRegime]
+  );
+  /* A JUMP OF THE VIEW (the header's Today · 1W · 1M · 6M · 1Y · Max and its calendar): the timeframe that fits the
+     span first — the pane's own intraday one for the session, 15 m for a week, hourly for a month, day bars beyond —
+     then the chart's range (StrikeChart `jumpTo`) */
+  const [jumpTo, setJumpTo] = useState<{ nonce: number; kind: 'span'; span: JumpSpan } | { nonce: number; kind: 'day'; day: string } | null>(null);
+  const jumpNonce = useRef(0);
+  const jumpSpan = useCallback(
+    (span: JumpSpan) => {
+      const m = tfMinutes(timeframe);
+      const next: Timeframe = span === 'today' ? (m >= 1 && m <= 15 ? timeframe : '5m') : span === '1w' ? (m >= 15 && m <= 60 ? timeframe : '15m') : span === '1m' ? (m >= 60 && m <= 1440 ? timeframe : '1h') : '1D';
+      if (next !== timeframe) onCfg({ timeframe: next });
+      setJumpTo({ nonce: ++jumpNonce.current, kind: 'span', span });
+    },
+    [timeframe, onCfg]
+  );
+  const jumpDate = useCallback(
+    (day: string) => {
+      /* a day the minutes reach keeps an intraday pane; an older one takes the day bars */
+      const ageDays = (Date.now() - new Date(`${day}T12:00:00`).getTime()) / 86_400_000;
+      const m = tfMinutes(timeframe);
+      const next: Timeframe = ageDays > 30 ? '1D' : m >= 1 && m <= 60 ? timeframe : '15m';
+      if (next !== timeframe) onCfg({ timeframe: next });
+      setJumpTo({ nonce: ++jumpNonce.current, kind: 'day', day });
+    },
+    [timeframe, onCfg]
+  );
+  const jumpMin = useMemo(() => {
+    const first = (fDaily && fDaily.length ? fDaily[0] : null) ?? (fBars.bars && fBars.bars.length ? fBars.bars[0] : null) ?? (!offHouse ? (Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? [])[0] : null);
+    return first ? nyIsoDate(first.time * 1000) : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fDaily, fBars.bars, offHouse, ticker]);
+  /* HOW OLD WHAT THE PANE SHOWS IS — the header's Live / data-age chip (paneAge.ts): the newest of the last bar's end,
+     the quote's moment and the field's newest column against the clock; a closed market is not stale data */
+  const age = useMemo<PaneAge | null>(() => {
+    if (rp.active || noBars) return null;
+    const at = Date.now();
+    if (!offHouse) return paneAgeOf(at, [at], 60_000);
+    const bars = fBars.bars;
+    const barMs = tfMinutes(tf) * 60_000;
+    const lastBar = bars?.length ? bars[bars.length - 1] : null;
+    const col = fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null;
+    const a = paneAgeOf(at, [lastBar ? lastBar.time * 1000 + barMs : null, fQuote?.at ?? null, col ? col.time * 1000 + 60_000 : null], liveWithinMs(barMs));
+    if (a.kind === 'old' && nySessionPhase(at) !== 'open') return { ...a, kind: 'closed', words: `Closed · ${printClock(a.at ?? at)}` };
+    return a;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rp.active, noBars, offHouse, fBars.bars, tf, fTrail.snaps, fQuote, revision]);
   /* THE LEVELS A RIGHT-CLICK CAN FOLLOW (item 7): the book's walls and flip, and its three heaviest strikes */
   const axisLevels = useMemo(() => {
     const fin = (v: number) => (Number.isFinite(v) && v > 0 ? v : null);
     return { callWall: fin(levels.callWall), putWall: fin(levels.putWall), flip: fin(levels.flip) };
   }, [levels.callWall, levels.putWall, levels.flip]);
   const top3 = useMemo(() => [...rail.rows].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3).map(r => r.strike), [rail.rows]);
+  /* THE DECISION STRIP'S FIVE READS (the Terrain UI pass, 2026-10-14): one line each off what the pane already holds —
+     the regime, the nearest named level each side with its distance in dollars and σ to the close, the priced move,
+     what stands behind the track record, and how fresh the inputs are. Each box opens How sure at its own section. */
+  const boxes = useMemo<DecisionBox[]>(() => {
+    const out: DecisionBox[] = [];
+    const price = levels.spot;
+    const k = (v: number) => num(v, v % 1 === 0 ? 0 : 2);
+    out.push(
+      paneRegime
+        ? { key: 'regime', label: 'Regime', words: `${regimeSide(paneRegime.net)} ${usdCompactSigned(paneRegime.net)}${paneRegime.pct != null ? ` · ${ordinal(paneRegime.pct)} pct` : ''}`, short: `${regimeSide(paneRegime.net)} ${usdCompactSigned(paneRegime.net)}`, title: paneRegime.words, tone: paneRegime.net < 0 ? 'calls' : 'puts' }
+        : { key: 'regime', label: 'Regime', words: '—', short: '—', title: 'No column of the field yet', tone: null }
+    );
+    const fin = (v: number) => Number.isFinite(v) && v > 0;
+    const cands: { name: string; price: number }[] = [];
+    if (fin(levels.callWall)) cands.push({ name: 'CW', price: levels.callWall });
+    if (fin(levels.putWall)) cands.push({ name: 'PW', price: levels.putWall });
+    if (fin(levels.flip)) cands.push({ name: 'Flip', price: levels.flip });
+    for (const st of top3) if (fin(st) && !cands.some(c => Math.abs(c.price - st) < 1e-9)) cands.push({ name: 'Top', price: st });
+    const above = cands.filter(c => c.price > price).sort((a, b) => a.price - b.price)[0] ?? null;
+    const below = cands.filter(c => c.price < price).sort((a, b) => b.price - a.price)[0] ?? null;
+    const side = (c: { name: string; price: number } | null, arrow: string, short: boolean) => {
+      if (!c) return `${arrow} —`;
+      const sg = sigmasAway(c.price, price, sigmaRem);
+      const sigma = sg != null ? ` ${num(Math.abs(sg), 1)}σ` : '';
+      return short ? `${arrow}${c.name} ${k(c.price)}${sigma || ` ${usdSigned(c.price - price)}`}` : `${arrow}${c.name} ${k(c.price)} ${usdSigned(c.price - price)}${sigma}`;
+    };
+    const have = fin(price) && cands.length > 0;
+    out.push({ key: 'levels', label: 'Nearest', words: have ? `${side(above, '▲', false)} · ${side(below, '▼', false)}` : '—', short: have ? `${side(above, '▲', true)} ${side(below, '▼', true)}` : '—', title: 'The nearest named level each side of the price — a wall, the flip or one of the three heaviest strikes — its distance in dollars and in σ to the close', tone: null });
+    if (sigmaRem && moveNow && sessionMinute != null) {
+      const r = readoutOf(price, moveNow.prevClose, moveNow.sigma, sessionMinute, moveNow.profile);
+      out.push({ key: 'move', label: 'Move', words: `±${usd(sigmaRem.sigma)} to close · ${sigmaRem.src === 'straddle' ? 'market' : 'budget'}${r ? ` · ${r.sigmas >= 0 ? '+' : '−'}${num(Math.abs(r.sigmas), 1)}σ day` : ''}`, short: `±${usd(sigmaRem.sigma)} ${sigmaRem.src === 'straddle' ? 'mkt' : 'bgt'}`, title: `${sigmaRem.src === 'straddle' ? "1σ to the close off the straddle on today's expiry, live" : '1σ to the close as the budget leaves it: σ_day × √(1 − the variance used)'} — and where the price stands on the day's budget`, tone: null });
+    } else out.push({ key: 'move', label: 'Move', words: '—', short: '—', title: onFeed ? (sessionMinute != null && sessionMinute >= SESSION_MINUTES ? 'The session is over: nothing left to the close' : 'No priced move yet') : "No priced move off the house's tape", tone: null });
+    if (fRecord) {
+      const thin = fRecord.main.touches < 500 || fRecord.main.months < 12;
+      out.push({ key: 'record', label: 'Record', words: `${fRecord.main.sessions} sessions · ${fRecord.main.touches} touches${thin ? ' · thin' : ''}`, short: `${fRecord.main.sessions}s · ${fRecord.main.touches}t${thin ? ' · thin' : ''}`, title: `${thin ? 'Insufficient data (under 500 touches or 12 months) — ' : ''}${fRecord.lines['call wall']}`, tone: thin ? 'warn' : null });
+    } else out.push({ key: 'record', label: 'Record', words: '—', short: '—', title: onFeed ? 'No scorecard for this name yet' : "No track record off the house's tape", tone: null });
+    if (onFeed) {
+      const col = fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null;
+      let vols = 0;
+      if (col) for (const l of col.levels) if (l.freshAt && l.freshAt > vols) vols = l.freshAt;
+      const parts = [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', fBook ? `book ${printClock(fBook.at)}` : 'book —', vols ? `vols ${printClock(vols)}` : null].filter((x): x is string => !!x);
+      out.push({ key: 'freshness', label: 'Fresh', words: parts.join(' · '), short: [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', vols ? printClock(vols) : fBook ? printClock(fBook.at) : null].filter((x): x is string => !!x).join(' · '), title: rail.sure[0]?.freshness ?? 'How fresh the inputs are', tone: null });
+    } else out.push({ key: 'freshness', label: 'Fresh', words: 'OI last close · spot live', short: 'OI last close', title: rail.sure[0]?.freshness ?? 'How fresh the inputs are', tone: null });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paneRegime, levels, top3, sigmaRem, moveNow, sessionMinute, fRecord, onFeed, fTrail.snaps, fOi, fBook, rail.sure, revision]);
   /* THE LEVEL ALERTS IN HOW SURE (item 7): today's, each joined to its +15 and +30 minutes on the chart's own minutes */
   const levelEvents = useLevelLog(ticker);
   const alertSure = useMemo(() => {
@@ -1561,11 +1675,11 @@ const Pane = ({
   const railSure = useMemo(
     () =>
       replaySure
-        ? rail.sure.map(x => ({ ...x, freshness: replaySure.source, ...(windowSure ? { window: windowSure } : {}), ...(moveSure ? { move: { lines: moveSure.lines } } : {}), ...(driftSure ? { drift: driftSure } : {}), replay: { badge: replaySure.badge, lines: replaySure.lines } }))
-        : ((onFeed && (fieldLine || recordSure || moveSure || windowSure || driftSure)) || alertSure) && rail.sure
-          ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(onFeed && driftSure ? { drift: driftSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
+        ? rail.sure.map(x => ({ ...x, freshness: replaySure.source, ...(windowSure ? { window: windowSure } : {}), ...(regimeSure ? { regime: regimeSure } : {}), ...(moveSure ? { move: { lines: moveSure.lines } } : {}), ...(driftSure ? { drift: driftSure } : {}), replay: { badge: replaySure.badge, lines: replaySure.lines } }))
+        : ((onFeed && (fieldLine || recordSure || moveSure || windowSure || driftSure)) || alertSure || regimeSure) && rail.sure
+          ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(regimeSure ? { regime: regimeSure } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(onFeed && driftSure ? { drift: driftSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
           : rail.sure,
-    [onFeed, fieldLine, recordSure, moveSure, windowSure, driftSure, alertSure, rail.sure, replaySure]
+    [onFeed, fieldLine, recordSure, moveSure, windowSure, driftSure, alertSure, rail.sure, replaySure, regimeSure]
   );
   /* THE LADDER'S GHOST DOTS (item 8): each strike's net 10, 30 and 60 minutes before — in a replay off the field's columns
      at the cursor; live off the books the ladder itself reads (Unusual Whales' book read every minute, or its 60-day book
@@ -1661,11 +1775,6 @@ const Pane = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ticker, revision, mtfForm === 'none', offHouse, fBars.bars]
   );
-  /* The header's heaviest read comes off the NEAR-SPOT core, not the widened
-     set the rail draws. `rows` now reaches the whole maintained book so the
-     column can fill the price scale; pointing the header at it would have it
-     naming strikes $30 away from the market. */
-  const heavy = useMemo(() => heaviest(rail.core, heavyCount), [rail, heavyCount]);
 
   /* What the reader clicked in the rail, flashed on the chart. Clicking the
      same strike again clears it, so the rail is a toggle rather than a thing
@@ -1801,13 +1910,11 @@ const Pane = ({
      row; short of the room it keeps its own line below the book. */
   /* the doors at the row's end: the fullscreen one, the pop-out beside it on the desk, none in a pop-out */
   const rowDoorPx = bare ? 0 : onPopOut ? ROW_DOOR_PX + 28 : ROW_DOOR_PX;
-  const inlineFull = !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_FULL_PX + rowDoorPx;
-  /* short of the full labels beside the identity, the compact toolbar rides the row before a
-     row of its own is spent (a one-up with the rail open: 1073 usable, the identity 514, the
-     full toolbar 994, the compact 350) */
-  const inlineCompact = !inlineFull && !expanded && stripInner > 0 && stripInner >= ID_ROW_FULL_PX + MTF_FULL_PX + 24 + TOOLBAR_COMPACT_PX + rowDoorPx;
-  const toolbarInline = inlineFull || inlineCompact;
-  const toolbarCompactShown = toolbarInline ? inlineCompact : toolbarCompact;
+  /* THE TOOLBAR NEVER RIDES THE HEADER NOW (the Terrain UI pass, 2026-10-14): the header is one row of its own —
+     identity, facts, the age chip, the timeframe, the window, the jumps, Replay, Alerts, the layers, ? and the doors —
+     and the rest of the toolbar is the hover row under it, on every width */
+  const toolbarInline = false;
+  const toolbarCompactShown = toolbarCompact;
 
   /* ONE TOOLBAR, TWO MOUNTS (Noah, 2026-08-28: "make the row ... sit up top
      like how the fullscreen of the pulse page does"). Docked it is the
@@ -1886,11 +1993,86 @@ const Pane = ({
     </>
   );
 
-  const paneToolbar = (spread: boolean) => (
+  /* THE FACTS beside the identity: the price, an index's print chip, the Strikes door under lg, the change */
+  const printChip = fQuote?.source === 'print' && fQuote.at != null && (
+    <span className={`shrink-0 font-mono text-[11px] tnum ${fQuote.stale ? 'text-warn' : 'text-textMuted'}`} data-pane-print={fQuote.stale ? 'stale' : 'fresh'} title={`The index is priced off its newest option print carrying a price, ${printClock(fQuote.at)}${fQuote.stale ? ' — older than two minutes' : ''}`}>
+      {printClock(fQuote.at)} print{fQuote.stale ? ' · stale' : ''}
+    </span>
+  );
+  const facts = (
+    <>
+      <span className="shrink-0">
+        <SpotPrice value={levels.spot} />
+      </span>
+      {printChip}
+      {belowLg && rail.rows.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setNarrowLadder(v => !v)}
+          aria-pressed={narrowLadder}
+          title={narrowLadder ? 'Hide the strike ladder' : 'Show the strike ladder over the chart'}
+          className={`hit shrink-0 pointer-events-auto inline-flex items-center h-5 px-1.5 rounded-[3px] font-mono text-[11px] font-semibold transition-colors ${narrowLadder ? 'bg-ink/[0.16] text-textPrimary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
+          data-narrow-ladder
+        >
+          Strikes
+        </button>
+      )}
+      {/* First thing the row gives up when the column is narrow (ID_ROW_FULL_PX) — the price it is a delta of is
+          directly to its left, and the chart draws the same move; the house's percent, a signed figure (data-dir) */}
+      {showChangePct && Number.isFinite(changePct) && (
+        <span className={`shrink-0 font-mono text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`} data-dir={up ? 'up' : 'down'}>
+          {pctSigned(changePct)}
+        </span>
+      )}
+    </>
+  );
+  /* WALLS THROUGH THE DAY'S LENS, chosen in the pane while the walls are drawn — on the hover row, where the header's
+     width budget is not spent */
+  const wallsLens = (
+    <span role="group" aria-label="Walls through the day — the lens" className="shrink-0 pointer-events-auto inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-walls-lens>
+      {WALLS_LENSES.map(o => {
+        const on = (cfg.wallsLens ?? 'gex') === o.value;
+        return (
+          <button key={o.value} type="button" aria-pressed={on} title={o.hint} onClick={() => onCfg({ wallsLens: o.value })} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+            {o.label}
+          </button>
+        );
+      })}
+    </span>
+  );
+  /* THE BEAD SCALE'S BASIS AND FLOOR (item 5 (b) and (e)) — on the hover row since the legend became one line */
+  const beadControls = (
+    <>
+      <span role="group" aria-label="What full brightness is measured against" className="shrink-0 inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-bead-basis-pick>
+        {(['session', 'fixed', 'prior'] as const).map(b => {
+          const on = beadBasis === b;
+          return (
+            <button key={b} type="button" aria-pressed={on} title={BASIS_HINT[b]} onClick={() => onCfg({ beadBasis: b === 'session' ? undefined : b })} className={`hit h-[16px] px-1.5 rounded-[2px] text-[11px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+              {BASIS_LABEL[b]}
+            </button>
+          );
+        })}
+      </span>
+      <span role="group" aria-label="Floor: hide the beads under a share of full brightness" title="Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead" className="shrink-0 inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px text-[11px] text-textMuted" data-bead-floor>
+        <span className="px-1">Floor</span>
+        {FLOORS.map(f => {
+          const on = beadFloor === f;
+          return (
+            <button key={f} type="button" aria-pressed={on} onClick={() => onCfg({ beadFloor: f > 0 ? f : undefined })} className={`hit h-[16px] px-1.5 rounded-[2px] text-[11px] tnum transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
+              {f === 0 ? 'Off' : `${Math.round(f * 100)}%`}
+            </button>
+          );
+        })}
+      </span>
+    </>
+  );
+
+  const paneToolbar = (spread: boolean, parts?: Partial<Record<ToolbarPart, boolean>>, compact?: boolean) => (
     <ChartToolbar
       minimal
       candles
-      compact={toolbarCompactShown}
+      compact={compact ?? toolbarCompactShown}
+      parts={parts}
       /* Docked, the menus are the small ones, and every menu stays inside this pane (Noah, 2026-09-13) */
       dense={!expanded}
       menuBounds={paneBoxRef}
@@ -1930,14 +2112,24 @@ const Pane = ({
     />
   );
 
+  /* THE HEADER'S TIMEFRAME: the five tabs with their trends where the row has the room (T-12), else the compact
+     trigger — and the pane's own timeframe named where the tabs do not carry it (TE-1, TE-12) */
+  const headTimeframes =
+    mtfForm !== 'none' && confluence.length > 0 ? (
+      <>
+        <ConfluenceStrip rows={confluence} form={mtfForm} current={tf} onPick={next => onCfg({ timeframe: next })} />
+        {!confluence.some(c => c.tf === tf) && (
+          <span className="shrink-0 font-mono text-[11px] font-semibold text-textSecondary" title="This pane's timeframe — the toolbar under the pointer changes it" data-pane-tf>
+            {tf}
+          </span>
+        )}
+      </>
+    ) : null;
   /* THE FULLSCREEN DOOR, one button with two homes when docked: the corner chip at rest, or the
      identity row's last item when the toolbar rides that row (Noah, 2026-09-16: "does the full
      screen button look aligned to you with the rest?" — the chip stood 4px above the row's
      centre and its 28px covered the Theme button's end). */
-  const expandDoor = bare ? null : (
-    <span className="inline-flex items-center gap-1">
-      {/* POP-OUT (2026-10-10): this pane in a window of its own, for a second screen — kept in step with the terminal */}
-      {onPopOut && (
+  const popOutDoor = !bare && onPopOut && (
         <button
           onClick={onPopOut}
           aria-label={`Open ${ticker}'s pane in its own window`}
@@ -1947,7 +2139,12 @@ const Pane = ({
         >
           <ExternalLink className="w-3.5 h-3.5" />
         </button>
-      )}
+  );
+  const expandDoor = bare ? null : (
+    <span className="inline-flex items-center gap-1">
+      {/* POP-OUT (2026-10-10): this pane in a window of its own, for a second screen — kept in step with the terminal;
+          where the header's budget cannot pay for it, it stands in the hover row */}
+      {headPlan.popOut && popOutDoor}
       <button
         onClick={onToggleExpand}
         aria-pressed={expanded}
@@ -2128,6 +2325,8 @@ const Pane = ({
               regimeDir={win === 'all' && !rp.active ? regimeDir : null}
               regimeRanges={win === 'all' && !rp.active ? fRecord?.main.regime?.ranges ?? null : null}
               pricedMove={rp.active ? rpMove : fMove}
+              onRegime={onRegime}
+              jumpTo={jumpTo}
               beadBasis={beadBasis}
               beadFloor={beadFloor}
               beadRefs={fScale?.gex ?? null}
@@ -2202,24 +2401,6 @@ const Pane = ({
             {onFeed && overlays.trails && !noBars && (!fTrail.full || (fPast && fPast.ready < fPast.asked)) && (
               <div className="absolute left-14 bottom-8 z-20 pointer-events-none select-none rounded bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textMuted" data-trail-since>
                 Trail · {[!fTrail.full ? 'it fills as the chain is read' : '', fPast && fPast.ready < fPast.asked ? `earlier sessions ${fPast.ready} of ${fPast.asked} in` : ''].filter(Boolean).join(' · ')}
-              </div>
-            )}
-            {!expanded && !toolbarInline && (
-              /* ── THE EXPAND BUTTON, FAR RIGHT (Noah, 2026-08-28: "push the
-                 fullscreen button ... to the far right on both small chart
-                 view and full chart view") — its own chip pinned to the
-                 pane's top-right corner, clear of the price ticks, out of
-                 the identity row it used to ride at the end of. Same
-                 rest-dim as the rest of the chrome, always tappable, and
-                 `chrome-hover` keeps it visible on a screen with no hover
-                 to give. When the toolbar rides the identity row, the door
-                 rides it too, as its last item (below) — this chip sat 4px
-                 above that row's centre and over its Theme button. */
-              <div
-                className="chrome-hover absolute top-1.5 z-30 pointer-events-auto select-none rounded-md bg-canvas/25 backdrop-blur-[3px] p-0.5 opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
-                style={{ right: PRICE_GUTTER_PX + 6 }}
-              >
-                {expandDoor}
               </div>
             )}
             {expanded && (
@@ -2311,149 +2492,43 @@ const Pane = ({
                 /* FULLSCREEN'S SECOND LINE (Noah, 2026-08-29: "right below it
                    is simply the ticker, timeframe, and tick price") — the
                    Pulse takeover's own legend: facts on the tape, no chip, no
-                   controls; the controls all moved up into the strip. */
-                <div className="pointer-events-none select-none flex items-baseline gap-1.5 font-mono">
-                  <span className="text-[11px] font-semibold text-textPrimary">{ticker}</span>
-                  <span className="text-[11px] text-textMuted" aria-hidden>·</span>
-                  <span className="text-[11px] text-textMuted">{tf}</span>
-                  <span className="text-[11px] text-textMuted" aria-hidden>·</span>
-                  <SpotPrice value={levels.spot} className="font-mono text-[11px] font-semibold tnum text-textPrimary" />
-                  {fQuote?.source === 'print' && fQuote.at != null && (
-                    <span className={`text-[11px] tnum ${fQuote.stale ? 'text-warn' : 'text-textMuted'}`} data-pane-print={fQuote.stale ? 'stale' : 'fresh'} title={`The index is priced off its newest option print carrying a price, ${printClock(fQuote.at)}${fQuote.stale ? ' — older than two minutes' : ''}`}>
-                      {printClock(fQuote.at)} print{fQuote.stale ? ' · stale' : ''}
-                    </span>
-                  )}
-                  {Number.isFinite(changePct) && (
-                    <span className={`text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`}>
-                      {up ? '+' : ''}
-                      {changePct.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
+                   controls; the controls all moved up into the strip. The
+                   decision strip and the crosshair readout stand under it. */
+                <>
+                  <div className="pointer-events-none select-none flex items-baseline gap-1.5 font-mono">
+                    <span className="text-[11px] font-semibold text-textPrimary">{ticker}</span>
+                    <span className="text-[11px] text-textMuted" aria-hidden>·</span>
+                    <span className="text-[11px] text-textMuted">{tf}</span>
+                    <span className="text-[11px] text-textMuted" aria-hidden>·</span>
+                    <SpotPrice value={levels.spot} className="font-mono text-[11px] font-semibold tnum text-textPrimary" />
+                    {printChip}
+                    {Number.isFinite(changePct) && (
+                      <span className={`text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`} data-dir={up ? 'up' : 'down'}>
+                        {pctSigned(changePct)}
+                      </span>
+                    )}
+                  </div>
+                  <DecisionStrip boxes={boxes} sures={railSure} room={stripInner} className="relative z-20" />
+                  {readout && <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} className="relative z-10" />}
+                </>
               ) : (
-              <div className={`chrome-hover relative z-30 pointer-events-auto max-w-full select-none flex items-center gap-2 rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 ${toolbarInline ? 'w-full' : 'w-fit'}`}>
-                {/* This strip is the one row visible at rest, so the number
-                    is legible without a pointer ever touching the desk. */}
-                {showBadge && (
-                  <span
-                    aria-hidden
-                    className={`shrink-0 w-4 h-4 rounded-[3px] font-mono text-[11px] font-bold tnum inline-flex items-center justify-center ${
-                      isActive ? 'holo-bg text-[#0a0a0a]' : 'bg-ink/[0.08] text-textPrimary'
-                    }`}
-                  >
-                    {index + 1}
-                  </span>
-                )}
-                {/*
-                  THE REPLAY BADGE — T-13, and it is the reason the rest of
-                  this is safe to ship.
-
-                  A pane in replay looks exactly like a live one: the same
-                  candles, the same rail, the same symbol. The transport is at
-                  the BOTTOM of the pane and a reader glancing at the top of a
-                  four-pane desk cannot see it. A historical chart mistaken for
-                  a live one is the worst thing this desk could show.
-
-                  So it sits in the identity row, beside the symbol, and it is
-                  NOT shed at any width: everything else in this row can go,
-                  because everything else is a convenience. This one says which
-                  world you are looking at.
-                */}
-                {replay && (
-                  <span
-                    title="This pane is replaying history — it is not live"
-                    className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold"
-                    data-replay-badge
-                  >
-                    <span className="uppercase tracking-wider">Replay</span>
-                    {rp.active ? <span className="tnum">· {isoDayLabel(rp.day)} · {printClock(rp.cursor * 1000)}</span> : <span className="font-semibold">· pick a bar</span>}
-                  </span>
-                )}
-                <span className="shrink-0 inline-flex items-center gap-1.5">
-                  <ScopeChip
-                    ticker={ticker}
-                    onPick={t => onCfg({ ticker: t })}
-                    open={menuOpen === 'symbol'}
-                    onOpenChange={o => onMenu(o ? 'symbol' : null)}
-                    /* The ring ↑/↓ walks is invisible, so the one control it
-                       moves is where it gets named. */
-                    title="Switch ticker — S · ↑ ↓ step your symbols"
-                  />
-                  {/* T-20's link chip, shell-wide since 2026-10-10 (components/link/LinkGroupChip.tsx): none, or a
-                      group A–D every room shares. Letters, not colours — the palette's inks all mean something
-                      already, and a letter reads at 9px where a fourth colour would need a legend. Unlinked it is a
-                      convenience and sheds with the compare tier; LINKED it is state and stays at every width
-                      (ID_ROW_* above). */}
-                  {(cfg.link !== null && cfg.link !== undefined || showCompareAdd) && (
-                    <LinkGroupChip size="sm" group={cfg.link ?? null} onChange={g => onCfg({ link: g })} noneHint="Stands alone — its own name" what="this pane" />
-                  )}
-                  {/* TradingView's "+" beside the symbol capsule — cross
-                      another symbol onto this tape. Per pane, like the rest.
-
-                      Last thing the row gives up (ID_ROW_NO_BADGE_PX): it is a
-                      control, and a control is worth more than a label. What
-                      it opens is still reachable — an existing comparison has
-                      its own x in the legend below — and it returns as soon as
-                      the column can hold it. */}
-                  {showCompareAdd && (
-                    <CompareControl
-                      current={ticker}
-                      compares={compares}
-                      onAdd={addCompare}
-                      onRemove={removeCompare}
-                      open={menuOpen === 'compare'}
-                      onOpenChange={o => onMenu(o ? 'compare' : null)}
-                    />
-                  )}
-                </span>
-                <span className="shrink-0">
-                  <SpotPrice value={levels.spot} />
-                </span>
-                {belowLg && rail.rows.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setNarrowLadder(v => !v)}
-                    aria-pressed={narrowLadder}
-                    title={narrowLadder ? 'Hide the strike ladder' : 'Show the strike ladder over the chart'}
-                    className={`hit shrink-0 inline-flex items-center h-5 px-1.5 rounded-[3px] font-mono text-[11px] font-semibold transition-colors ${narrowLadder ? 'bg-ink/[0.16] text-textPrimary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
-                    data-narrow-ladder
-                  >
-                    Strikes
-                  </button>
-                )}
-                {/* First thing the row gives up when the column is narrow
-                    (ID_ROW_FULL_PX) — the price it is a delta of is directly
-                    to its left, and the chart draws the same move. */}
-                {showChangePct && Number.isFinite(changePct) && (
-                  <span className={`shrink-0 font-mono text-[11px] font-semibold tnum ${up ? 'text-bull' : 'text-bear'}`}>
-                    {up ? '+' : ''}
-                    {changePct.toFixed(2)}%
-                  </span>
-                )}
-                {/* Do the timeframes agree — T-12. At rest, not on hover: the
-                    whole value of it is the glance. */}
-                {mtfForm !== 'none' && confluence.length > 0 && (
-                  <ConfluenceStrip rows={confluence} form={mtfForm} current={tf} onPick={next => onCfg({ timeframe: next })} />
-                )}
-                {/* the pane's timeframe stays named at rest even where the strip has no room (TE-1, TE-12) */}
-                {(mtfForm === 'none' || !confluence.some(c => c.tf === tf)) && (
-                  <span className="shrink-0 font-mono text-[11px] font-semibold text-textSecondary" title="This pane's timeframe — the toolbar under the pointer changes it" data-pane-tf>
-                    {tf}
-                  </span>
-                )}
-                {/* THE TOOLBAR IN THE ROW, SPREAD THE PULSE WAY (Noah, 2026-09-16: "the timeframes
-                    should be on the left side like how the Pulse page has its live charts"): the
-                    timeframes right after the identity, the cluster — replay through theme — at the
-                    far right, and the fullscreen door as the row's last item beside it ("aligned to
-                    the far right next to the full screen button"). The row spans the strip for it. */}
-                {toolbarInline && (
-                  <>
-                    <div className="flex-1 min-w-0" data-toolbar-inline>
-                      {paneToolbar(true)}
-                    </div>
-                    {expandDoor}
-                  </>
-                )}
+              /* THE ONE HEADER ROW (the Terrain UI pass, 2026-10-14; components/terrain/PaneHead.tsx): the identity and
+                 the facts the host sheds by its own budget, the age chip, the timeframe, the expiry window, the jumps,
+                 then Replay · Alerts · Layers, ? and the doors — at rest, one line, never wrapping */
+              <div className="relative z-30 pointer-events-none w-full select-none rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1" data-pane-head-row>
+                <PaneHead
+                  identity={identityControls}
+                  facts={facts}
+                  age={age}
+                  ageForm={headPlan.ageWords ? 'words' : 'dot'}
+                  timeframes={headTimeframes}
+                  tf={{ value: tf, onChange: next => onCfg({ timeframe: next }), held: offHouse ? FEED_HELD : undefined }}
+                  window={headPlan.windowForm !== 'none' ? { value: isWindowCut(railCut) ? railCut : 'book', onChange: (v: WindowValue) => onRailCut(v), form: headPlan.windowForm } : null}
+                  jump={headPlan.jumpForm !== 'none' ? { onSpan: jumpSpan, onDate: jumpDate, minDate: jumpMin, maxDate: nyIsoDate(), form: headPlan.jumpForm } : null}
+                  tools={headPlan.tools ? paneToolbar(false, HEAD_PARTS, true) : null}
+                  keys={headPlan.keys}
+                  doors={expandDoor}
+                />
               </div>
               )}
 
@@ -2485,101 +2560,19 @@ const Pane = ({
                 hover state. Fading in something that is only ever created by a
                 hover would just make it late.
               */}
-              {readout ? (
-                <div className="chrome-hover relative z-10 pointer-events-none hidden sm:block w-fit max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1">
-                  <span className="flex items-center gap-2.5 whitespace-nowrap">
-                    {showReadoutOhl && (
-                      <>
-                        <ReadoutCell k="O" v={readout.open!.toFixed(2)} />
-                        <ReadoutCell k="H" v={readout.high!.toFixed(2)} />
-                        <ReadoutCell k="L" v={readout.low!.toFixed(2)} />
-                      </>
-                    )}
-                    {/* The one part that never goes. */}
-                    <ReadoutCell k="C" v={readout.close.toFixed(2)} />
-                    {showReadoutVol && <ReadoutCell k="V" v={fmtVol(readout.volume!)} />}
-                    {showReadoutInds &&
-                      readout.indicators.map(ind => (
-                        <ReadoutCell key={ind.key} k={ind.key} v={ind.value.toFixed(2)} ink={ind.ink} />
-                      ))}
-                  </span>
-                </div>
-              ) : (
-              heavy.length > 0 && (
-                /* AT REST, QUIETLY (the audit's TE-12: the most decision-relevant line on the pane showed only under the
-                   pointer); its inks are the tokens and say what they mean (X12: "exposure colours get a legend") */
-                <div className="chrome-hover relative z-10 pointer-events-none hidden sm:block w-fit max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-55 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100" data-heaviest>
-                  <span className="flex items-center gap-2.5 whitespace-nowrap">
-                    {/* WALLS THROUGH THE DAY'S LENS, chosen in the pane while the walls are drawn — on the book's line, where the
-                        identity row's width budget is not spent */}
-                    {overlays.walls && (
-                      <span role="group" aria-label="Walls through the day — the lens" className="shrink-0 pointer-events-auto inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-walls-lens>
-                        {WALLS_LENSES.map(o => {
-                          const on = (cfg.wallsLens ?? 'gex') === o.value;
-                          return (
-                            <button key={o.value} type="button" aria-pressed={on} title={o.hint} onClick={() => onCfg({ wallsLens: o.value })} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
-                              {o.label}
-                            </button>
-                          );
-                        })}
-                      </span>
-                    )}
-                    <span className="shrink-0 font-mono text-[11px] uppercase tracking-wider text-textMuted" title="The heaviest strikes near spot, by dealer gamma — gold where hedging amplifies a move (+), ice where it absorbs one (−)">
-                      Heaviest
-                    </span>
-                    {heavy.map(row => (
-                      <span key={row.strike} className="shrink-0 font-mono text-[11px] tnum whitespace-nowrap">
-                        <span className="text-textSecondary">
-                          {row.strike % 1 === 0 ? row.strike.toFixed(0) : row.strike.toFixed(2)}
-                        </span>
-                        <span className={`ml-1.5 font-semibold ${row.value >= 0 ? 'text-[rgb(var(--ember))]' : 'text-[rgb(var(--glacier))]'}`}>
-                          {fmtUsd(row.value)}
-                        </span>
-                      </span>
-                    ))}
-                    {showHeavyKey && (
-                      <span className="shrink-0 text-[11px] text-textMuted" data-heaviest-key>
-                        <span className="text-[rgb(var(--ember))]">+</span> amplifies · <span className="text-[rgb(var(--glacier))]">−</span> absorbs
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )
-              )}
+              {/* THE DECISION STRIP (the UI pass, 2026-10-14; components/terrain/DecisionStrip.tsx): five reads at rest —
+                  Regime, Nearest levels, Priced move, Track record, Freshness — each a door into How sure at its section */}
+              {!expanded && <DecisionStrip boxes={boxes} sures={railSure} room={stripInner} className="relative z-20" />}
 
               {/* THE BEAD LEGEND, ALWAYS IN VIEW while the field is drawn (the owner's item 5 (a)): what full brightness is,
                   in money, as of when — the renderer's own reference (data-bead-ref) — with the basis (item 5 (b)) and
                   the floor (item 5 (e)) beside it */}
               {overlays.trails && beadLegend && (
-                <div className="relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-0.5 flex flex-col min-w-0 text-[11px] leading-[16px] text-textMuted tnum" title={beadLegendWords(beadLegend, beadBasis, beadFloor)} data-bead-legend data-bead-ref={beadLegend.ref} data-bead-basis={beadLegend.basis}>
+                /* ONE LINE (the UI pass, 2026-10-14): the scale's statement, truncated to the column, its second line and
+                   the basis's words in the title; the basis and the floor ride the hover row (beadControls) */
+                <div className="relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-0.5 flex items-center min-w-0 text-[11px] leading-[16px] text-textMuted tnum" title={`${beadLegendLines(beadLegend, beadBasis, beadFloor).tail} · ${beadLegendWords(beadLegend, beadBasis, beadFloor)}`} data-bead-legend data-bead-ref={beadLegend.ref} data-bead-basis={beadLegend.basis}>
                   <span className="min-w-0 truncate" data-bead-scale>
                     {beadLegendLines(beadLegend, beadBasis, beadFloor).head}
-                  </span>
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="min-w-0 truncate" data-bead-tail>
-                      {beadLegendLines(beadLegend, beadBasis, beadFloor).tail}
-                    </span>
-                    <span role="group" aria-label="What full brightness is measured against" className="ml-auto shrink-0 inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-bead-basis-pick>
-                      {(['session', 'fixed', 'prior'] as const).map(b => {
-                        const on = beadBasis === b;
-                        return (
-                          <button key={b} type="button" aria-pressed={on} title={BASIS_HINT[b]} onClick={() => onCfg({ beadBasis: b === 'session' ? undefined : b })} className={`hit h-[16px] px-1.5 rounded-[2px] text-[11px] transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
-                            {BASIS_LABEL[b]}
-                          </button>
-                        );
-                      })}
-                    </span>
-                    <span role="group" aria-label="Floor: hide the beads under a share of full brightness" title="Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead" className="shrink-0 inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-bead-floor>
-                      <span className="px-1">Floor</span>
-                      {FLOORS.map(f => {
-                        const on = beadFloor === f;
-                        return (
-                          <button key={f} type="button" aria-pressed={on} onClick={() => onCfg({ beadFloor: f > 0 ? f : undefined })} className={`hit h-[16px] px-1.5 rounded-[2px] text-[11px] tnum transition-colors ${on ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
-                            {f === 0 ? 'Off' : `${Math.round(f * 100)}%`}
-                          </button>
-                        );
-                      })}
-                    </span>
                   </span>
                 </div>
               )}
@@ -2589,8 +2582,14 @@ const Pane = ({
                   to the top strip instead, where it does not need a hover to
                   exist. */}
               {!expanded && !toolbarInline && (
-                <div className="chrome-hover chrome-tap relative z-10 pointer-events-none max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100" data-toolbar-row>
-                  {paneToolbar(false)}
+                /* OUT OF THE FLOW (the UI pass, 2026-10-14): it stands under the strip, over the plot, and only while the
+                   pointer or the keys are on the pane — so the chrome band the chart keeps clear of is the header, the
+                   strip and the legend alone, and a hover moves nothing (the band's height is what fits the scale) */
+                <div className="chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 flex-wrap" style={{ left: ownScale ? PRICE_GUTTER_PX + 6 : undefined }} data-toolbar-row>
+                  {paneToolbar(false, headPlan.tools ? HOVER_PARTS : undefined)}
+                  {!headPlan.popOut && popOutDoor}
+                  {overlays.walls && wallsLens}
+                  {overlays.trails && beadLegend && beadControls}
                 </div>
               )}
             </div>
@@ -2600,11 +2599,18 @@ const Pane = ({
                 only hand-removal outside the + menu. pointer-events are off on
                 the stack and back on for the buttons, so the legend never eats
                 a drag on the chart. */}
+            {/* THE CROSSHAIR READOUT (the UI pass): the hovered bar's figures at the plot's top-left, under the chrome —
+                only while a pointer is on the plot or a moment arrives from another pane */}
+            {readout && !expanded && (
+              <div className="pointer-events-none absolute left-3 z-10" style={{ top: stripH + 4, left: ownScale ? PRICE_GUTTER_PX : undefined }} data-chart-chrome>
+                <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} />
+              </div>
+            )}
             {compares.length > 0 && (
               <div
                 /* Unconditional, unlike the strip above: the legend rows are
                    ~106px, so even at a 369px column they clear both gutters. */
-                style={{ top: stripH + 4 + (expanded ? 44 : 0), left: ownScale ? PRICE_GUTTER_PX : undefined }}
+                style={{ top: stripH + 4 + (expanded ? 44 : 0) + (readout && !expanded ? 24 : 0), left: ownScale ? PRICE_GUTTER_PX : undefined }}
                 className="pointer-events-none absolute left-3 z-10 flex flex-col gap-0.5 opacity-70 transition-opacity duration-200 group-hover:opacity-100"
                 data-chart-chrome
               >

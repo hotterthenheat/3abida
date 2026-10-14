@@ -27,11 +27,13 @@ interface PopoverCardProps {
   width?: number;
   align?: 'start' | 'end' | 'center';
   onOpenChange?: (open: boolean) => void;
+  /** Controlled: the host holds whether the card is open (a box that opens a card at one of its sections) */
+  open?: boolean;
   testId?: string;
 }
 
-const PopoverCard = ({ trigger, title, meta, children, width = 360, align = 'end', onOpenChange, testId }: PopoverCardProps) => (
-  <Popover.Root onOpenChange={onOpenChange}>
+const PopoverCard = ({ trigger, title, meta, children, width = 360, align = 'end', onOpenChange, open, testId }: PopoverCardProps) => (
+  <Popover.Root open={open} onOpenChange={onOpenChange}>
     <Popover.Trigger asChild>{trigger}</Popover.Trigger>
     <Popover.Portal>
       {/* Never taller than the room under the trigger — a long card scrolls inside itself */}

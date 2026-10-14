@@ -2110,3 +2110,12 @@ html[data-landing-scale] {
 .day-record > button { position: relative; }
 .day-record > button::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 9999px; background: rgb(var(--silver)); }
 .day-record[aria-selected='true'] > button::after, .rdp-selected.day-record > button::after { background: rgb(var(--night)); }
+
+/* HOW SURE, OPENED AT A SECTION (the Terrain UI pass, 2026-10-14 — the decision strip's boxes): the section the box
+   named wears a silver rule down its left while the card is up */
+[data-how-sure-focus] {
+  box-shadow: inset 2px 0 0 rgb(var(--silver));
+  padding-left: 8px;
+  margin-left: -10px;
+  border-radius: 2px;
+}

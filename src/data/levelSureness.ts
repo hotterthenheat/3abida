@@ -75,6 +75,9 @@ export interface Sureness {
   /** A REPLAY (the owner's item 8): the moment the read stands at, and what it reads there — the card says nothing a
       replay could not have known at that minute (no track record, no calibration: both stand on later sessions) */
   replay?: { badge: string; lines: string[] };
+  /** THE REGIME (the Terrain UI pass, 2026-10-14 — the decision strip's first box opens here): the newest column's net
+      said as its meaning, its percentile and attribution (trailModel regimeWordsOf), and the scorecard's range line */
+  regime?: { line: string; note: string; range?: string | null };
 }
 
 /** The line every surface prints first */
