@@ -1,0 +1,1190 @@
+[
+ {
+  "region": "page",
+  "x": -1,
+  "y": -1,
+  "w": 1,
+  "text": "Skip to content",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 43,
+  "y": 60,
+  "w": 24,
+  "text": "SPY",
+  "title": "Ctrl K to switch",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 73,
+  "y": 61,
+  "w": 46,
+  "text": "$777.54",
+  "title": "Ctrl K to switch",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 125,
+  "y": 61,
+  "w": 42,
+  "text": "-0.06%",
+  "title": "Ctrl K to switch",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 189,
+  "y": 61,
+  "w": 29,
+  "text": "Ctrl K",
+  "title": "Ctrl K to switch",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 95,
+  "w": 34,
+  "text": "Pulse",
+  "title": "The live desk: chart, dealer pressure and key levels, arranged your way",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 125,
+  "w": 36,
+  "text": "Alerts",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 155,
+  "w": 56,
+  "text": "Watchlist",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 8,
+  "y": 192,
+  "w": 219,
+  "text": "Market",
+  "title": "What the market is doing, and what happened",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 220,
+  "w": 44,
+  "text": "Terrain",
+  "title": "Charts only: up to four side by side, your Pine scripts, your drawings",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 252,
+  "w": 35,
+  "text": "Trace",
+  "title": "The live tape and what it means: dark pool, net flow, footprints, 0DTE, multi-leg",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 284,
+  "w": 47,
+  "text": "Dossier",
+  "title": "The file on a ticker: news, earnings, insiders, Congress trades, how it screens",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 8,
+  "y": 329,
+  "w": 219,
+  "text": "The book",
+  "title": "Where dealer hedging pushes",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 356,
+  "w": 50,
+  "text": "Pinpoint",
+  "title": "Where dealer hedging holds and pushes price: walls, the flip, the range into the close",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 8,
+  "y": 401,
+  "w": 219,
+  "text": "Trade",
+  "title": "What to trade, and which contract",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 429,
+  "w": 58,
+  "text": "Compass",
+  "title": "Contracts that fit the levels right now, weeklies to LEAPS, plus the Tracker",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 461,
+  "w": 51,
+  "text": "Weigher",
+  "title": "Chain, watchlist and positions on one desk, and what each returns at every price",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 8,
+  "y": 506,
+  "w": 219,
+  "text": "Practice",
+  "title": "Trade with paper money, replay the past, review every trade",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 533,
+  "w": 36,
+  "text": "Paper",
+  "title": "Today’s prices with paper money, or a prop firm’s evaluation",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 565,
+  "w": 53,
+  "text": "Backtest",
+  "title": "Replay a past market minute by minute and trade it",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 45,
+  "y": 597,
+  "w": 46,
+  "text": "Journal",
+  "title": "Every closed trade on its chart, with your tags and your words",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 44,
+  "y": 825,
+  "w": 50,
+  "text": "Settings",
+  "title": "How the terminal looks, what the desk opens on, what it says out loud",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 14,
+  "y": 867,
+  "w": 24,
+  "text": "T",
+  "title": "Your account",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 48,
+  "y": 864,
+  "w": 173,
+  "text": "Trader",
+  "title": "Your account",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 48,
+  "y": 879,
+  "w": 173,
+  "text": "@",
+  "title": "Your account",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 48,
+  "y": 879,
+  "w": 173,
+  "text": "trader",
+  "title": "Your account",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 14,
+  "y": 922,
+  "w": 66,
+  "text": "slayer:~ $",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 97,
+  "y": 922,
+  "w": 40,
+  "text": "closed",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 14,
+  "y": 955,
+  "w": 166,
+  "text": "Overnight",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 65,
+  "y": 956,
+  "w": 115,
+  "text": "·",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 65,
+  "y": 956,
+  "w": 115,
+  "text": "pre-market 1:00 am",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 135,
+  "y": 974,
+  "w": 86,
+  "text": "5:59:16 pm PDT",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 931,
+  "y": 967,
+  "w": 27,
+  "text": "1",
+  "title": "1 chart — press 1",
+  "aria": "1 chart"
+ },
+ {
+  "region": "page",
+  "x": 960,
+  "y": 967,
+  "w": 27,
+  "text": "2",
+  "title": "2 charts — press 2",
+  "aria": "2 charts"
+ },
+ {
+  "region": "page",
+  "x": 990,
+  "y": 967,
+  "w": 27,
+  "text": "3",
+  "title": "3 charts — press 3",
+  "aria": "3 charts"
+ },
+ {
+  "region": "page",
+  "x": 1019,
+  "y": 967,
+  "w": 27,
+  "text": "4",
+  "title": "4 charts — press 4",
+  "aria": "4 charts"
+ },
+ {
+  "region": "page",
+  "x": 1057,
+  "y": 964,
+  "w": 71,
+  "text": "Strikes",
+  "title": "Hide every strike rail — Shift R",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1147,
+  "y": 971,
+  "w": 40,
+  "text": "Colours",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1193,
+  "y": 971,
+  "w": 44,
+  "text": "Thermal",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1280,
+  "y": 969,
+  "w": 19,
+  "text": "$",
+  "title": "Distances in dollars",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1300,
+  "y": 969,
+  "w": 23,
+  "text": "%",
+  "title": "Distances in percent of spot",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1322,
+  "y": 969,
+  "w": 33,
+  "text": "ATR",
+  "title": "Distances in average true ranges — the same distance on SPY and on NVDA",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1355,
+  "y": 969,
+  "w": 19,
+  "text": "σ",
+  "title": "Distances in implied one-day moves — how many σ the options price",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1388,
+  "y": 964,
+  "w": 95,
+  "text": "Layouts",
+  "title": "Named layouts — save this arrangement, recall another",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1491,
+  "y": 964,
+  "w": 103,
+  "text": "GLOBEX · ASIA",
+  "title": "The overnight session, Asia hours — the open is being decided out here. The session's phases can be shaded on any pane — Overlays, Session phases.",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 241,
+  "y": 5,
+  "w": 1,
+  "text": "Terrain",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 622,
+  "y": 901,
+  "w": 71,
+  "text": "Reset",
+  "title": "Reset chart view (Alt+R) — or right-click the chart",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1009,
+  "y": 520,
+  "w": 57,
+  "text": "777.54",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1009,
+  "y": 534,
+  "w": 57,
+  "text": "00:00",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 286,
+  "y": 25,
+  "w": 24,
+  "text": "SPY",
+  "title": "Switch ticker — S · ↑ ↓ step your symbols",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 403,
+  "y": 26,
+  "w": 46,
+  "text": "$777.54",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 457,
+  "y": 23,
+  "w": 42,
+  "text": "-0.06",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 457,
+  "y": 23,
+  "w": 42,
+  "text": "%",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 511,
+  "y": 21,
+  "w": 17,
+  "text": "1m",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 530,
+  "y": 24,
+  "w": 11,
+  "text": "▬",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 551,
+  "y": 21,
+  "w": 17,
+  "text": "5m",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 570,
+  "y": 24,
+  "w": 11,
+  "text": "▼",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 591,
+  "y": 21,
+  "w": 24,
+  "text": "15m",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 617,
+  "y": 24,
+  "w": 11,
+  "text": "▼",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 638,
+  "y": 21,
+  "w": 14,
+  "text": "1h",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 654,
+  "y": 24,
+  "w": 11,
+  "text": "▼",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 675,
+  "y": 21,
+  "w": 15,
+  "text": "1D",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 692,
+  "y": 24,
+  "w": 11,
+  "text": "▬",
+  "title": "1m: between its EMA21 and its VWAP · 5m: below its EMA21 and its VWAP · 15m: below its EMA21 and its VWAP · 1h: below its EMA21 and its VWAP · 1D: between its EMA21 and its VWAP",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 257,
+  "y": 57,
+  "w": 57,
+  "text": "Heaviest",
+  "title": "The heaviest strikes near spot, by dealer gamma — gold where hedging amplifies a move (+), ice where it absorbs one (−)",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 324,
+  "y": 58,
+  "w": 21,
+  "text": "778",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 352,
+  "y": 58,
+  "w": 39,
+  "text": "−$2.0B",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 400,
+  "y": 58,
+  "w": 21,
+  "text": "785",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 428,
+  "y": 58,
+  "w": 39,
+  "text": "−$1.7B",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 477,
+  "y": 58,
+  "w": 21,
+  "text": "780",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 504,
+  "y": 58,
+  "w": 39,
+  "text": "−$1.5B",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 553,
+  "y": 58,
+  "w": 7,
+  "text": "+",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 553,
+  "y": 57,
+  "w": 118,
+  "text": "amplifies ·",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 619,
+  "y": 58,
+  "w": 7,
+  "text": "−",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.heaviest",
+  "x": 553,
+  "y": 57,
+  "w": 118,
+  "text": "absorbs",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 257,
+  "y": 84,
+  "w": 706,
+  "text": "Full brightness = $2.1B gamma per 1% (session p85 of per-minute peaks, as of 4:58 pm)",
+  "title": "Full brightness = $2.1B gamma per 1% (session p85 of per-minute peaks, as of 4:58 pm) · Net per strike · clipped above full · ring above p95, $2.2B",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 257,
+  "y": 102,
+  "w": 296,
+  "text": "Net per strike · clipped above full · ring above p95, $2.2B",
+  "title": "Full brightness = $2.1B gamma per 1% (session p85 of per-minute peaks, as of 4:58 pm) · Net per strike · clipped above full · ring above p95, $2.2B",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 563,
+  "y": 102,
+  "w": 87,
+  "text": "Session so far",
+  "title": "The reference grows through the session — each minute's beads stand against the peaks up to that minute, so brightness at 10:00 am and at 3:00 pm is not comparable.",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 652,
+  "y": 102,
+  "w": 40,
+  "text": "Fixed",
+  "title": "One reference for the whole day: the 85th percentile of every minute’s peak over the 60 sessions before it, fixed before the open.",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 694,
+  "y": 102,
+  "w": 79,
+  "text": "Prior session",
+  "title": "One reference for the whole day: the session before's 85th percentile of its minutes' peaks.",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 786,
+  "y": 102,
+  "w": 35,
+  "text": "Floor",
+  "title": "Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 822,
+  "y": 102,
+  "w": 29,
+  "text": "Off",
+  "title": "Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 853,
+  "y": 102,
+  "w": 30,
+  "text": "5%",
+  "title": "Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 885,
+  "y": 102,
+  "w": 37,
+  "text": "10%",
+  "title": "Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 924,
+  "y": 102,
+  "w": 37,
+  "text": "25%",
+  "title": "Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 257,
+  "y": 132,
+  "w": 52,
+  "text": "5m",
+  "title": "Timeframe",
+  "aria": ""
+ },
+ {
+  "region": "chart.chrome",
+  "x": 471,
+  "y": 131,
+  "w": 60,
+  "text": "2",
+  "title": "Overlays",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1081,
+  "y": 10,
+  "w": 55,
+  "text": "Ladder",
+  "title": "The put and call legs at each strike, the spine through them",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1140,
+  "y": 10,
+  "w": 37,
+  "text": "Net",
+  "title": "Each strike's net as a figure and a row of dashes",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1210,
+  "y": 14,
+  "w": 33,
+  "text": "Expiry",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1248,
+  "y": 14,
+  "w": 59,
+  "text": "All expiries",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1398,
+  "y": 15,
+  "w": 75,
+  "text": "· puts ◂ ▸ calls",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1359,
+  "y": 14,
+  "w": 31,
+  "text": "Lanes",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1396,
+  "y": 14,
+  "w": 23,
+  "text": "Size",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1450,
+  "y": 10,
+  "w": 38,
+  "text": "Vol",
+  "title": "Volume profile — the session's traded volume by price, VPOC and value area, under the size lane",
+  "aria": ""
+ },
+ {
+  "region": "chart.other",
+  "x": 1492,
+  "y": 10,
+  "w": 77,
+  "text": "How sure",
+  "title": "What the walls and the flip assume, how fresh they are, and where they would sit the other way",
+  "aria": "How sure are the walls and the flip — what they assume, how fresh they are, and where they would sit the other way"
+ },
+ {
+  "region": "chart.other",
+  "x": 1573,
+  "y": 10,
+  "w": 91,
+  "text": "How to read",
+  "title": "What the two lanes mean",
+  "aria": "How to read"
+ },
+ {
+  "region": "chart.other",
+  "x": 1083,
+  "y": 935,
+  "w": 154,
+  "text": "hover a strike · click to keep it",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 338,
+  "y": 1096,
+  "w": 527,
+  "text": "Trade what you can see.",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 338,
+  "y": 1124,
+  "w": 379,
+  "text": "Most of what moves a price is public, just scattered. Slayer gathers it into one terminal.",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 338,
+  "y": 1193,
+  "w": 270,
+  "text": "Products",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 338,
+  "y": 1219,
+  "w": 32,
+  "text": "Pulse",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 410,
+  "y": 1219,
+  "w": 34,
+  "text": "Alerts",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 481,
+  "y": 1219,
+  "w": 41,
+  "text": "Terrain",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 553,
+  "y": 1219,
+  "w": 34,
+  "text": "Trace",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 338,
+  "y": 1245,
+  "w": 45,
+  "text": "Dossier",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 410,
+  "y": 1245,
+  "w": 48,
+  "text": "Pinpoint",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 481,
+  "y": 1245,
+  "w": 56,
+  "text": "Compass",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 553,
+  "y": 1245,
+  "w": 49,
+  "text": "Weigher",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 338,
+  "y": 1271,
+  "w": 48,
+  "text": "Practice",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 410,
+  "y": 1271,
+  "w": 35,
+  "text": "Paper",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 481,
+  "y": 1271,
+  "w": 51,
+  "text": "Backtest",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 553,
+  "y": 1271,
+  "w": 44,
+  "text": "Journal",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 640,
+  "y": 1193,
+  "w": 104,
+  "text": "Company",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 640,
+  "y": 1219,
+  "w": 35,
+  "text": "About",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 640,
+  "y": 1245,
+  "w": 33,
+  "text": "Press",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 640,
+  "y": 1271,
+  "w": 46,
+  "text": "Contact",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 640,
+  "y": 1297,
+  "w": 37,
+  "text": "Status",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 640,
+  "y": 1335,
+  "w": 104,
+  "text": "Social",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 640,
+  "y": 1361,
+  "w": 104,
+  "text": "@JoinSlayer on X",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 776,
+  "y": 1193,
+  "w": 89,
+  "text": "Legal",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 776,
+  "y": 1219,
+  "w": 37,
+  "text": "Terms",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 776,
+  "y": 1245,
+  "w": 44,
+  "text": "Privacy",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 776,
+  "y": 1271,
+  "w": 89,
+  "text": "Risk disclosure",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 776,
+  "y": 1297,
+  "w": 81,
+  "text": "Refund policy",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "rail",
+  "x": 776,
+  "y": 1323,
+  "w": 78,
+  "text": "Data sources",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 338,
+  "y": 1448,
+  "w": 66,
+  "text": "slayer:~ $",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 421,
+  "y": 1448,
+  "w": 40,
+  "text": "closed",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 467,
+  "y": 1448,
+  "w": 66,
+  "text": "· v2026.10",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 573,
+  "y": 1444,
+  "w": 467,
+  "text": "Slayer Terminal is not investment advice. Nothing here tells you what to buy or sell.",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1374,
+  "y": 1445,
+  "w": 124,
+  "text": "©",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1374,
+  "y": 1445,
+  "w": 124,
+  "text": "2026",
+  "title": "",
+  "aria": ""
+ },
+ {
+  "region": "page",
+  "x": 1374,
+  "y": 1445,
+  "w": 124,
+  "text": "Slayer Terminal",
+  "title": "",
+  "aria": ""
+ }
+]

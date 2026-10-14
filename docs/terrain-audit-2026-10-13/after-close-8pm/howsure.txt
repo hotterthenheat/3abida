@@ -1,0 +1,41 @@
+How sure are the walls and the flip
+
+What they assume
+
+Assumes customers sold the calls and bought the puts, so dealers hold the other side — open interest does not say who did.
+
+How fresh
+
+Open interest as of Oct 12's close — Unusual Whales' count dated Oct 13; it is counted once a day · the hedging is figured by Unusual Whales at 778.12, 1:14 pm PDT
+
+Model agreement with Unusual Whales (both naive-sign estimates)
+
+How close two estimates on the same assumed side come — not accuracy against real dealer positions, which neither can see.
+
+The field is modeled, never rescaled to the vendor. Against Unusual Whales' book on the same strikes and expiries (within 60 days, 25 books read today): strike by strike it differs by 8.7% of the book's size at the median; summed over those strikes it has the same sign in 21 of 25, at 1.98× the book's size at the median. Earlier sessions rebuilt from the vendor's dated history: Apr 2 to Oct 12, 12 sessions (UW's minute vols 12).
+
+Track record
+
+Touches counted on 2 sessions (Apr 2 to Apr 3); each level's bounce rate stands beside a strike-matched baseline's, never alone.
+
+Call wall · insufficient data (24 touches, 1 month) · held-out: insufficient (12 touches) · 96 variants tried
+Put wall · insufficient data (39 touches, 1 month) · held-out: insufficient (5 touches) · 96 variants tried
+Flip · insufficient data (17 touches, 1 month) · held-out: insufficient (20 touches) · 96 variants tried
+Top strike · insufficient data (87 touches, 1 month) · held-out: insufficient (89 touches) · 96 variants tried
+
+The hold-out (Sep 29 to Oct 12) was evaluated once, on Oct 13, under record-2026-10-13.1; kept unchanged.
+
+Expected move · calibration
+
+13 sessions · provisional (under 60)
+Close inside ±1σ / ±2σ priced at the prior close: 85% / 92% (theory 68.3% / 95.4%)
+Close inside ±1σ / ±2σ of the 10:00 am straddle: 67% / 83% on 12 sessions (theory 68.3% / 95.4%)
+Touched ±1σ / ±2σ during the session: 54% / 8% (theory about twice the finish outside: 63.5% / 9.1%)
+Median |close − prior close| ÷ σ: 0.47 (theory 0.67)
+Wednesdays, close inside ±1σ of the 10:00 am straddle: 33% on 3 sessions (a published study of 193: 71%; judged against 60–80% from 30 sessions)
+
+If the side were the other way
+
+Call wall 778 · With the side turned over there would be no wall above spot.
+Put wall 772 · With the side turned over the wall below spot would sit at 775, not 772.
+Flip 777.27 · With the side turned over the flip stays at 777.27, but its sides swap: above it hedging would amplify moves, below it absorb them.

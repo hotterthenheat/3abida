@@ -376,7 +376,7 @@ shot at 4:17 pm New York (1:17 pm PDT on the page), the same desk and scan as `a
 | # | Element | After hours | Source | Should be | Status |
 |---|---|---|---|---|---|
 | 1 / 5 | Rail price, pane head price, the chart's capsule | `$777.92` · `$777.92` · `777.92` in the one scan (`texts-now.json`); five minutes on, read in one instant with the ladder's spot pill: rail `$777.82`, head `$777.82`, capsule `777.82`, ladder `777.82` | one poll a name (price.ts `useFeedPrice`, UW's stock-state `close`, the after-hours trade); the ladder's pill is `levels.spot`, the same value as the head (ProfilePanel, `ctx.fillText(levels.spot.toFixed(2))`) | one current price on the four | **pass** — the owner's 778.10 against 777.29 (the book's price beside the trade's) does not recur; the book's own price stands in How sure alone |
-| 17 | The day tick | `13` at the first bar of the viewer's Oct 13, as live | `localCalendarBehavior` | the 8 pm case — the last bar after 8 pm New York wearing the ending day's number — needs a shot after 8 pm New York; this one was 4:17 pm | checked again after 8 pm |
+| 17 | The day tick | `13` at the first bar of the viewer's Oct 13, as live; after 8 pm New York (`after-close-8pm/`, shot at 8:59 pm New York, 5:59 pm PDT on the page) the axis reads `3:00 am · 5:00 am · 8:00 am · 11:00 am · 2:00 pm · 5:00 pm` and no day number is drawn at the right end (the canvas's drawn words hold none) | `localCalendarBehavior` | no bar wears the ending day's number after 8 pm New York | **pass** |
 
 The field after the close: 4,546 columns on the page, the residual against the 60-day books 8.7% at the median, the
 same sign in 21 of 25; no page error. The countdown read `02:37` on the 5-minute bar (after-hours bars run to 8 pm).
