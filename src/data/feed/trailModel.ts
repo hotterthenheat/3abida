@@ -126,6 +126,10 @@ export interface ServerInputs {
   /** A past session's vols as each contract traded (server/fieldBackfill.ts): flattened [minute start (ms), vol, …] —
       a minute's vol knowable at the minute's end */
   ticks?: Record<string, number[]>;
+  /** THE DAY'S RATE (the owner's section C, 2026-10-14): a session rebuilt from Theta's quotes is priced — its vols
+      inverted and its greeks figured — on the day's own rate (DTB3-derived, server/thetaRebuild.ts); absent, UW's
+      fitted 4.15% (UW_VOL_CONVENTION), the only rate UW's vols are right on */
+  rate?: number;
 }
 
 /* ---- the pure part ---------------------------------------------------------------------------------------------- */
@@ -183,6 +187,8 @@ export interface Universe {
   /** The chain reads' moments, oldest first — a column's inputs are named by the newest at or before it */
   reads: number[];
   seedDate: string | null;
+  /** The rate the universe is priced on (ServerInputs.rate); undefined: UW's convention */
+  rate?: number;
 }
 
 /** A count of open interest and the moment it became knowable: the day's published count from its publication, the
@@ -326,8 +332,11 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     obs: kept.map(c => c.obs),
     reads: [...new Set([...reads.map(r => r.receivedAt), ...tickEnds])].sort((a, b) => a - b),
     seedDate: seed?.date ?? null,
+    ...(inputs.rate != null && Number.isFinite(inputs.rate) ? { rate: inputs.rate } : {}),
   };
 }
+/** The rate a universe is priced on: its own (a Theta-rebuilt session's day rate), else UW's fitted convention */
+export const rateOf = (u: Pick<Universe, 'rate'>): number => u.rate ?? UW_VOL_CONVENTION.r;
 
 /** The index of the first of `half` strikes each side of a price — levels.ts aroundPrice's window */
 function windowAt(strikes: readonly number[], price: number, half: number): [number, number] {
@@ -415,7 +424,7 @@ export function dealerDeltaAt(u: Universe, bar: { time: number; close: number },
       if (!o) continue;
       const oi = oiAt(u.oiObs[j], knowBy);
       if (!(oi > 0)) continue;
-      const g = blackScholesGreeks(spot, k, u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS, o.iv, UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
+      const g = blackScholesGreeks(spot, k, u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS, o.iv, rateOf(u), UW_VOL_CONVENTION.q);
       out[u.part[j]] += -oi * 100 * spot * (u.call[j] ? g.deltaCall : g.deltaPut);
     }
   }
@@ -482,7 +491,7 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
       /* the count knowable at the bar's end — never one received after it */
       const oi = oiAt(u.oiObs[j], knowBy);
       if (!(oi > 0)) continue;
-      const g = blackScholesGreeks(spot, k, u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS, o.iv, UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
+      const g = blackScholesGreeks(spot, k, u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS, o.iv, rateOf(u), UW_VOL_CONVENTION.q);
       const w = oi * s2;
       const gw = w * g.gamma;
       if (u.call[j]) {
@@ -560,12 +569,14 @@ export interface PastInputsLike {
   seed: SeedRead | null;
   ticks?: Record<string, number[]>;
   total?: TotalRead | null;
+  /** The day's rate (a Theta-rebuilt session); absent, UW's convention */
+  rate?: number;
 }
 /** The positions dated the session are knowable at its open (and stand from 7:00 am, universeOf); no vol comes with them */
 export function pastInputs(p: PastInputsLike): ServerInputs {
   const [y, m, d] = p.day.split('-').map(Number);
   const open: ChainRead = { receivedAt: nyWallTime(y, m, d, 9, 30), rows: p.oi.map(([sym, oi]) => [sym, oi, null, null]) };
-  return { chains: [open], seed: p.seed, total: p.total ?? null, ticks: p.ticks ?? {} };
+  return { chains: [open], seed: p.seed, total: p.total ?? null, ticks: p.ticks ?? {}, ...(p.rate != null ? { rate: p.rate } : {}) };
 }
 /** A past session's book AT ITS OPEN: the rebuilt field's column on the opening bar — the day's published count, the
     session before's close vols and the first minute's prints, nothing knowable later (the owner, 2026-10-13: UW's
@@ -853,7 +864,7 @@ export function straddleAt(u: Universe, bar: { time: number; close: number }, ex
       const o = obsAt(u.obs[j], knowBy);
       if (!o || !(o.iv > 0)) continue;
       const t = u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS;
-      const px = blackScholesPrice(spot, u.strikes[i], t, o.iv, u.call[j] ? 'C' : 'P', UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
+      const px = blackScholesPrice(spot, u.strikes[i], t, o.iv, u.call[j] ? 'C' : 'P', rateOf(u), UW_VOL_CONVENTION.q);
       if (!Number.isFinite(px)) continue;
       tau = t;
       if (u.call[j]) {

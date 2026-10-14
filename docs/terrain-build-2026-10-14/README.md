@@ -201,3 +201,126 @@ to <date> — written N, empty N, skipped N, refused N, oldest with rows <date>"
 Rows written from today carry `f: 2`, `maxG`, `refG` and three-figure cells; every reader takes the first two figures
 (the track record, the recap, the agree check, the replay), the scorecard's loader hands pairs on. Rows of format 1
 read as before. `npm run field:agree` still compares shown against final on the net.
+
+## Section C — the history (2026-10-14; the owner: "The 13 sessions in your workspace are not my data. My data is 14 years at Theta. Build it.")
+
+Three pieces, each proven against a stand-in and NONE of them run against Theta from this workspace: there is no Theta
+Terminal here, and one terminal a key means starting one here would sign yours out (478). The first real run is yours,
+tonight; the downloader's own report (below) is where the real figures will come from — nothing in this section is a
+measurement of Theta's data.
+
+### C1 · the downloader — `npm run theta:history` (scripts/theta-history/index.ts, stream.ts)
+
+| rule asked | how it is kept |
+|---|---|
+| 127.0.0.1 only; never start or sign into a terminal | every call goes to http://127.0.0.1:25503/v3 (the probe's THETA_BASE, never "localhost" — 476); the run begins by asking /terminal/mdds/status and STOPS unless it answers CONNECTED, logging why ("start it as you always do (npm run theta:terminal); this script never starts one") |
+| in market hours leave the recorder its share; full speed outside | a clock gate re-read before every call: 3 requests in flight 09:25–16:15 New York on a weekday, 8 outside, 0 in Theta's own gap 00:00–01:45 (it waits 30 s and asks again) — HISTORY_IN_SESSION_CONCURRENCY, HISTORY_CONCURRENCY |
+| resumable, checkpointed per ticker per day; a re-run never duplicates a row | `<root>/<T>/manifest.json`: each feed's first served date, and a status a day a feed (ok · empty · denied · error, with rows, bytes, the time and the code); a file is written to `.part` and renamed whole, so a run cut short leaves no half file; a day held is never asked again (HISTORY_FORCE=1 asks everything again; HISTORY_RETRY_DENIED=1 asks what a plan refused) |
+| newest first, back to the first date each feed serves | the sessions are the terminal's own trade dates for SPY, walked newest first; a feed stops at its own first served date (/stock/list/dates/trade, /index/list/dates; a chain's is the first quote date of its earliest listed expiration) — never a date from the docs |
+| raw rows only | gzipped NDJSON of the rows as answered (format=ndjson on every data call); the quote clock (4b) and the SPX source (4a) are the rebuild's parameters |
+| the scope | below |
+| rates | /interest_rate/history/eod TREASURY_M3 a year a call where entitled; where the plan refuses (471) FRED's DTB3 CSV is kept raw (https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTB3); r = −ln(1 − d·91/360) × 365/91 with d = DTB3 ÷ 100 is applied at rebuild |
+| log each feed's first served date and every empty or denied response with its URL | `<root>/log.ndjson`: `first` (ticker, feed, date, how many dates), `empty` (472, the URL), `denied` (471, the URL), `error` (the status and the URL), `stop`; the console says each in words |
+
+| what | endpoint | file | cadence |
+|---|---|---|---|
+| daily candles with volume, every ticker in the app (+ SPY, QQQ, IWM, DIA) | /stock/history/eod | `<T>/eod-<year>.ndjson.gz` | a year a call |
+| minute candles with volume, every ticker | /stock/history/ohlc (1m, venue utp_cta) | `<T>/<day>/stock-1m.ndjson.gz` | a month a call, split a file a day |
+| SPY, QQQ minute NBBO (bid, ask, top-of-book sizes) | /stock/history/quote (1m, 09:30–16:00) | `<T>/<day>/stock-quote-1m.ndjson.gz` | a day a call |
+| SPX, NDX, RUT, VIX by minute | /index/history/price (1m, 09:30–16:15) | `<I>/<day>/index-price-1m.ndjson.gz` | a day a call |
+| the indices' candles | /index/history/eod, /index/history/ohlc | `<I>/index-eod-<year>.ndjson.gz`, `<I>/<day>/index-1m.ndjson.gz` | a year, a month |
+| the chains, SPY, QQQ, SPX, SPXW: the day's contracts | /option/list/contracts/quote | `<R>/<day>/chain-contracts.ndjson.gz` | a day a call, filtered to expirations within 60 calendar days and strikes within ±15% of the day's range (a strike over 50,000 is read in tenths of a cent) |
+| per-contract open interest | /option/history/open_interest (expiration=*) | `<R>/<day>/chain-oi.ndjson.gz` | a day a call, the same window and band |
+| one-minute quotes, an expiration at a time | /option/history/quote (1m, 09:30–16:15) | `<R>/<day>/chain-quotes-<expiry>.ndjson.gz` | a call per expiration a day |
+| the rates | /interest_rate/history/eod, else FRED | `RATES/theta-treasury_m3-<year>.ndjson.gz`, `RATES/fred-dtb3.csv` | once a run |
+
+The chains are asked after a session's bars (the band needs the day's range); SPXW is its own root on the way down
+and folds under SPX at rebuild. scripts/theta-history.cmd keeps it running under Task Scheduler the way
+recorder.cmd keeps the recorder: started again on a crash (60 s), asked again an hour after a clean finish (the
+sessions since), and STOPPED when the downloader pauses (exit 3, below).
+
+The proof, scripts/theta-history-proof.ts (in `npm test`), runs the script against a stub terminal: 13 of 13 — the
+chain filtered to the window and the band (a strike in tenths of a cent read), open interest filtered the same, a
+month of minutes split a file a day, each feed's first served date in the manifest (the chain's from its earliest
+expiration), a second run asking nothing (resumable), an empty day (472) written empty and not asked again, a denied
+feed (471) logged with its URL, no `.part` left behind, the report written after the sessions asked.
+
+### C2 · the report after five sessions
+
+After the first five sessions (HISTORY_REPORT_AFTER) and again at the end, `<root>/report.md` (kept too under
+`<root>/runs/`): a row a feed group (stock, nbbo, index, chain, rates) with the sessions walked, bytes and minutes a
+session, the sessions left to its first served date, and the projected disk and time; the projected total; and this
+machine's free disk (statfs). Per ticker: a chain root costs the chain row ÷ the roots, a stock the stock row ÷ the
+stocks. When the projection exceeds the free disk the run PAUSES (exit code 3; HISTORY_FORCE=1 goes on; HISTORY_FROM
+or HISTORY_TICKERS narrows it). The projection counts the calls' own seconds, not the gate's waiting by the clock, so
+the real wall time is longer in market hours.
+
+### C3 · the rebuild — `npm run theta:rebuild -- SPY QQQ SPX [--days N] [--again]` (server/thetaRebuild.ts, scripts/theta-rebuild.ts)
+
+Newest first, a name at a time, over every session the history holds a contracts file for; it asks nothing of any
+server. A day is THE SAME MODEL as the live field and UW's rebuild — data/feed/trailModel.ts through the store's own
+`rowsOf` — on Theta's inputs:
+
+| input | from |
+|---|---|
+| open interest, the day's count a contract | `chain-oi` (SPXW's rows under SPX: `occUnder`) |
+| vols, a contract a minute | each quote row's mid, inverted (`solveVol`, bisection on the house's Black-Scholes) on the day's rate and the model's own clock (`tauAt`: today's expiry on calendar time to its last-trading instant, a later one on whole days, as UW's vols are read) |
+| the quote clock (4b) | `quoteClock`: `last-in-interval` (a row stamped T holds the interval's last quote, the model's minute T — the default) or `at-stamp` (the quote standing at T, the minute before's) |
+| the underlying a minute | the stock's `stock-1m` bars; an index its `index-1m` candles, else its price series carried a minute; `spxSource: 'tape'` (4a) the field's per-print `tape-price.json` instead |
+| the seed | the session before it in the history: its last minute's quotes (≤ 3:59 pm) inverted the same way at its close, with its count |
+| UW's whole-book series | `series.json` where the series job kept it, so the residual in How sure stands |
+| the rate | `RATES`: Theta's TREASURY_M3 for the year where kept, else FRED's DTB3, the newest observation at or before the day; r = −ln(1 − d·91/360) × 365/91. The rate rides on the PastDay (`rate`) and prices its vols and greeks (trailModel `Universe.rate`, `rateOf`); UW's own days keep its fitted 4.15% |
+
+Written beside the field, never over UW's: `.feed-cache/field/<NAME>/<D>/theta-final.jsonl` (store rows, format 2),
+`theta-extras.jsonl` (a minute: `spread`, `bidSize`, `askSize` off the SPY/QQQ NBBO; `volume` off the bar; `vix`
+carried from VIX's series; `atmIv` — the call's and the put's vol at the strike nearest the price on the day's own
+expiry, "—" on a day with none), `theta-build.json` (the version and config, the rate and its source, the counts, the
+seconds). `finalRowsOf(name, day)` serves UW's final rows where the backfill built them, else the rebuild's — the proof
+engine (section D) reads it. A day built on the same version stands (a run resumes); `--again` or a changed version
+builds it afresh.
+
+THE TRUST GATE: where the recorder kept the day (`shown.jsonl`), the rebuilt rows are judged against it to the store's
+own tolerance (server/agree.ts, the owner's: |shown − final| ÷ |final| median ≤ 1% and p90 ≤ 5%, walls equal and the
+flip within $0.25 on ≥ 95% of the minutes) and the verdict kept in `<NAME>/theta-trust.json` (`checked`, `reached`,
+`trusted`, `stoppedAt`). A day that FAILS stops the name's walk and the CLI exits 3: older days are not built until it
+is understood. A walk with no recorder day among its sessions says so ("the rebuilt days stand unchecked").
+
+THE CHOICES THE PROBE DECIDES are `THETA_REBUILD` in server/thetaRebuild.ts — `quoteClock` (T7, U4), `spxSource` (X1,
+X2) and the rate — with `version: 'theta-rebuild-2026-10-14.1'`. Set them from docs/theta-probe's report and bump the
+version; the next run rebuilds every day on it. The flags `--quote-clock`, `--spx`, `--rate` try a choice for one run
+(the version carries the override, so its days stand apart).
+
+The proof, scripts/theta-rebuild-proof.ts (in `npm test`), writes a three-session history in the downloader's own
+files, its quotes priced by the model's pricer at a known vol on the rebuild's clock and rate, and holds the rebuild to
+it: 24 of 24 — the vols inverted equal the vols priced (first 0.200, last 0.978 — the clock, the rate and the pricer
+agree); the band and the window; the day's rate the newest DTB3 at or before it, Theta's series over FRED's where
+kept, r for d = 4% is 4.0762%; the seed from the session before with its count; the extras a minute (spread 0.02,
+sizes 40/60, the bar's volume, VIX carried, the ATM vol on a day with its own expiry and "—" without); τ on the
+model's clock; the quote clock moving a row's minute; the index's weekly root under the index, its price series or the
+tape as the underlying; the walk newest first, resumable, every file written; the gate passing an equal recorder day
+and FAILING a doubled one — the older day not built again, the trust file saying where and why; UW's final rows
+preferred; a changed version building afresh.
+
+### Tonight's run, and what to read tomorrow
+
+```
+npm run theta:history                       # the terminal CONNECTED first, as ever; or register scripts\theta-history.cmd
+npm run theta:rebuild -- SPY QQQ SPX        # after a few sessions are down; --days 5 for a first look
+```
+
+Read `.feed-cache/history/report.md` after five sessions (the bytes and minutes a session are the first real figures;
+the projection says whether the disk holds 14 years, and the run pauses itself if not), `log.ndjson` for every `first`,
+`empty` and `denied` line, and `.feed-cache/field/SPY/theta-trust.json` for the gate's verdict against your recorded
+days — THAT is the number that decides whether older days are trusted, and it does not exist until the rebuild has
+run on your machine. Expect `denied` rows where Basic refuses (the probe's 471s); they are logged, not retried.
+
+### Open, from this section
+
+- The rebuild's speed on a real SPY day is unmeasured (each day's seconds are in its theta-build.json); a quote file
+  per expiration a day is read whole, so memory grows with the chain — if a day is slow or large, say so and the reader
+  becomes a stream.
+- universeOf keeps only the symbols whose OCC root is the name (trailModel, `p.root !== t`). The rebuild folds SPXW
+  under SPX before that check; the LIVE SPX field reads UW's chain as recorded — if its symbols carry the SPXW root, the
+  live field models the monthlies alone and misses the weeklies. Worth one look at `.feed-cache/field/SPX/<day>/`'s
+  chain reads on your machine (count the symbols beginning SPXW); not changed here.
+- The probe's 4a/4b answers are not in: `THETA_REBUILD` holds the defaults named above, and the version says so.

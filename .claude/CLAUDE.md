@@ -1084,6 +1084,22 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   docs/theta-probe/<date_time>/report.md and results.json after every probe. Items 4a (Theta's SPX as the live price)
   and 4b (the 10:00 am straddle off Theta's quotes) are decided by its X1/X2 and U4/T7 rows — not built before them.
   Phase 1 waits for the owner's "go".
+- THE THETA HISTORY (2026-10-14, the owner's section C — "The 13 sessions in your workspace are not my data. My data is
+  14 years at Theta. Build it."; docs/data-feed.md "The Theta history"; the report docs/terrain-build-2026-10-14/README.md
+  section C). `npm run theta:history` (scripts/theta-history/, scripts/theta-history.cmd its loop) runs ON THE OWNER'S
+  MACHINE against the terminal already CONNECTED there — 127.0.0.1 only, never starting or signing into one; 3
+  requests in flight in market hours, 8 outside, none in Theta's gap; resumable per ticker per day (manifest.json, a
+  .part renamed whole); newest first to each feed's first served date; RAW ROWS ONLY (gzipped NDJSON under
+  .feed-cache/history/<T>/<day>/ — the 4a/4b choices are the rebuild's); every empty or denied answer logged with its
+  URL; report.md after five sessions, PAUSED (exit 3) when the projection exceeds the free disk. `npm run theta:rebuild`
+  (server/thetaRebuild.ts) builds the days newest first on THE SAME MODEL (trailModel through the store's rowsOf) —
+  vols inverted from the quote mids on the day's DTB3 rate and the model's clock, SPXW folded under SPX, the seed from
+  the session before, the extras a minute beside the rows (theta-extras.jsonl) — into theta-final.jsonl, NEVER over
+  UW's final.jsonl (`finalRowsOf` prefers UW's); THE TRUST GATE judges a rebuilt day against the recorder's shown rows
+  (server/agree.ts `tolerance`) and a FAIL stops the name's walk (theta-trust.json). THETA_REBUILD holds the probe's
+  choices (4b quoteClock, 4a spxSource, the rate) with a version — set them from the probe's report and bump it. Neither
+  has run against Theta from a workspace; the first real figures are the owner's report.md. Never start a Theta
+  Terminal in a workspace (one terminal a key).
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Theta Data alone since 2026-10-14 — Massive's
   before, `wired: true`; docs/data-feed.md "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With
   Theta Data up the Sessions page's Days card

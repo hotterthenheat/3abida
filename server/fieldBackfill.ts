@@ -120,7 +120,9 @@ export interface PastDay {
   /** Where the session's vols came from: 'minute' UW's per-contract minutes (from about 2025-04-01), 'tape' the day's
       full tape (server/tapeBackfill.ts, 2024-01-03 to 2025-03-31 — "tape vols"), 'close' the session before's close
       alone (every cell carried). Format 2 (2026-10-13); a format-1 file is read as 'minute' with ticks, else 'close'. */
-  vols: 'minute' | 'tape' | 'close';
+  vols: 'minute' | 'tape' | 'close' | 'theta';
+  /** The day's rate a Theta-rebuilt session is priced on (server/thetaRebuild.ts); absent on UW's rebuilds */
+  rate?: number;
 }
 /** The sidecar the coverage line reads (past.meta.json) */
 export interface PastMeta {
@@ -672,7 +674,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
   function coverage(rawName: string): { status: number; body: string } {
     const name = rawName.toUpperCase();
     if (!NAME_OK.test(name)) return { status: 400, body: JSON.stringify({ error: 'bad-name' }) };
-    const out: Coverage = { name, days: [], first: null, last: null, byVols: { minute: 0, tape: 0, close: 0 }, none: 0, job: { ...job } };
+    const out: Coverage = { name, days: [], first: null, last: null, byVols: { minute: 0, tape: 0, close: 0, theta: 0 }, none: 0, job: { ...job } };
     try {
       for (const d of readdirSync(join(root, name)).sort()) {
         if (!ISO.test(d)) continue;

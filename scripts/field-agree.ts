@@ -13,7 +13,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { createFeedClient } from '../server/feed';
 import { createFieldBackfill } from '../server/fieldBackfill';
-import { createFieldStore, type Bar, type StoreRow } from '../server/fieldStore';
+import { createFieldStore, type Bar } from '../server/fieldStore';
+import { tolerance } from '../server/agree';
 
 const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const flags = new Set(process.argv.slice(2).filter(a => a.startsWith('--')));
@@ -35,44 +36,6 @@ const pct = (a: number[], p: number) => {
 const f1 = (x: number) => (Number.isFinite(x) ? `${(x * 100).toFixed(1)}%` : 'n/a');
 const ny = (ms: number) => new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
 const sameFlip = (a: number | null, b: number | null) => (a == null && b == null) || (a != null && b != null && Math.abs(a - b) <= 0.25);
-
-/** The owner's tolerance, judged on the minutes both rows hold */
-function tolerance(shown: StoreRow[], final: StoreRow[]): { judged: boolean; pass: boolean; lines: string[] } {
-  const byM = new Map(shown.filter(r => r.session === 'r').map(r => [r.m, r]));
-  const rel: number[] = [];
-  let cols = 0;
-  let walls = 0;
-  let flips = 0;
-  let cells = 0;
-  const top: number[] = [];
-  for (const F of final) {
-    const S = byM.get(F.m);
-    if (!S) continue;
-    cols++;
-    if (S.cw === F.cw && S.pw === F.pw) walls++;
-    if (sameFlip(S.flip, F.flip)) flips++;
-    const fs = new Set(F.top.map(t => t[0]));
-    top.push(S.top.filter(t => fs.has(t[0])).length / Math.max(1, F.top.length));
-    const maxF = Math.max(...F.cells.map(c => Math.abs(c[1])), 1);
-    const sm = new Map(S.cells.map(c => [c[0], c[1]] as [number, number]));
-    for (const [k, v] of F.cells) {
-      if (Math.abs(v) < 0.02 * maxF) continue;
-      const sv = sm.get(k);
-      if (sv == null) continue;
-      cells++;
-      rel.push(Math.abs(sv - v) / Math.abs(v));
-    }
-  }
-  const lines: string[] = [];
-  if (!cols) return { judged: false, pass: false, lines: ['no minute holds both rows'] };
-  const m = med(rel);
-  const p90 = pct(rel, 0.9);
-  const w = walls / cols;
-  const fl = flips / cols;
-  lines.push(`${cols} minutes with both rows, ${cells} cells: |shown − final| ÷ |final| median ${f1(m)}, p90 ${f1(p90)}; walls equal ${f1(w)}, flip within $0.25 ${f1(fl)}, top-5 shared ${f1(med(top))}`);
-  const pass = m <= 0.01 && p90 <= 0.05 && w >= 0.95 && fl >= 0.95;
-  return { judged: true, pass, lines };
-}
 
 async function main() {
   const store = createFieldStore();

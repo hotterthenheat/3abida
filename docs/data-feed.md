@@ -1292,6 +1292,40 @@ clock mapping, T12's result; the log) and `results.json`, after every probe, so 
   `THETA_PROBE_BASE` are the knobs. Phase 1 (the ledger, the field from Theta, candles for every ticker, the nightly
   forward, the Terrain screen) is NOT built: it waits for the report and the owner's "go".
 
+## The Theta history: the downloader and the rebuild (2026-10-14, the owner's section C)
+
+The owner: "The 13 sessions in your workspace are not my data. My data is 14 years at Theta. Build it." Two scripts for
+the always-on machine, neither run against Theta from the workspace (no terminal there; one terminal a key):
+
+- **`npm run theta:history`** (scripts/theta-history; `scripts/theta-history.cmd` keeps it running under Task
+  Scheduler). 127.0.0.1 only; it stops unless /terminal/mdds/status answers CONNECTED and never starts or signs into a
+  terminal. A clock gate keeps 3 requests in flight in market hours (09:25–16:15 New York, weekdays — the recorder's
+  share of Theta's eight kept), 8 outside, none in Theta's gap (00:00–01:45). Resumable per ticker per day
+  (`<root>/<T>/manifest.json`; a file written to `.part` and renamed whole; a day held never asked again). Newest
+  first, back to the first date each feed serves (the terminal's date lists). Raw rows only, gzipped NDJSON. Scope:
+  daily and minute candles with volume for every ticker in the app (eod a year a call, ohlc a month a call split a file
+  a day); SPY and QQQ minute NBBO; SPX, NDX, RUT and VIX a minute; the SPY, QQQ, SPX and SPXW chains a day — contracts,
+  per-contract open interest and one-minute quotes an expiration at a time, the expirations within 60 calendar days
+  and the strikes within ±15% of the day's range (HISTORY_WINDOW_DAYS, HISTORY_MONEYNESS); the rates (Theta's
+  TREASURY_M3 where entitled, else FRED's DTB3 raw). `log.ndjson` keeps each feed's first served date and every
+  empty (472), denied (471) or failed answer with its URL. After the first five sessions `report.md`: bytes and
+  minutes a session per feed, the projection to each feed's first date, the free disk — PAUSED (exit 3) when the
+  projection exceeds it (HISTORY_FORCE=1 goes on). The env is in .env.example (HISTORY_*).
+- **`npm run theta:rebuild -- SPY QQQ SPX [--days N] [--again]`** (server/thetaRebuild.ts, scripts/theta-rebuild.ts).
+  Newest first over the history's sessions, the SAME model as the live field (trailModel through the store's
+  `rowsOf`): the day's open interest from `chain-oi` (SPXW under SPX), each contract's quote a minute inverted to a vol
+  (`solveVol`) on the day's rate and the model's clock (`tauAt`), the underlying from the stock's bars or the index's
+  series (or the tape's per-print price, `spxSource: 'tape'`), the seed from the session before, UW's `series.json` as
+  the total where kept, the rate from RATES (r = −ln(1 − d·91/360) × 365/91; it rides on the PastDay and prices the
+  day — `Universe.rate`, `rateOf`; UW's days keep 4.15%). Written beside the field, never over UW's final rows:
+  `theta-final.jsonl`, `theta-extras.jsonl` (a minute's spread, top-of-book sizes, volume, VIX, ATM vol),
+  `theta-build.json`; `finalRowsOf` serves UW's rows first, else these. THE TRUST GATE: where `shown.jsonl` exists the
+  rebuilt day is judged to the store's tolerance (server/agree.ts) into `<NAME>/theta-trust.json`; a FAIL stops the
+  name's walk (exit 3) — older days are not trusted until it is understood. The probe's choices (4b `quoteClock`, 4a
+  `spxSource`, the rate) are `THETA_REBUILD`; set them from the probe's report and bump the version.
+- Proofs in `npm test`: scripts/theta-history-proof.ts (13, a stub terminal) and scripts/theta-rebuild-proof.ts (24, a
+  synthetic history priced by the model's own pricer). The report: docs/terrain-build-2026-10-14/README.md, section C.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —
