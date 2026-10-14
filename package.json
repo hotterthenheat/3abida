@@ -19,6 +19,7 @@
     "landing:session": "node scripts/make-landing-session.mjs",
     "logos:fetch": "node scripts/fetch-logos.mjs",
     "theta:terminal": "node scripts/theta-terminal.mjs",
+    "theta:probe": "tsx scripts/theta-probe/index.ts",
     "feed:check": "tsx scripts/feed-check.ts",
     "feed:recorder": "tsx server/recorderMain.ts",
     "feed:backfill": "tsx scripts/feed-backfill.ts",

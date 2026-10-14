@@ -1212,6 +1212,45 @@ number in How sure, labelled 'mechanical drift, unvalidated'."
   mechanism (Golez-Jackwerth 2012), but no study measures index charm flows, and Cboe puts all 0DTE hedging at
   0.04–0.17% of S&P futures liquidity — it earns more only through the track record.
 
+## The Theta probe, Phase 0 (2026-10-14 — the owner's TASK: "Terrain history backfill for Slayer Terminal. Phase 0 = probes only. Report results, then STOP and wait for my 'go'")
+
+`npm run theta:probe` (scripts/theta-probe/, `index.ts` the runner) is Phase 0 as ONE SCRIPT THE OWNER RUNS ON THE
+ALWAYS-ON MACHINE against its own terminal — Theta allows one sign-in a key, so the script starts no terminal and this
+container never ran one beside the owner's. It writes the report to `docs/theta-probe/<date_time>/report.md` (the
+table: probe id, exact URL, HTTP status, error text, rows, bytes, seconds, first/last date found, one line of
+conclusion; the notes; the short list — start dates per ticker and piece, the rate entitlement, chain-day sizing, the
+clock mapping, T12's result; the log) and `results.json`, after every probe, so a run cut short keeps what came in.
+
+- **The rules it keeps**: no terminal started (1); `http://127.0.0.1:25503/v3`, never localhost (2); six calls in
+  flight through its own gate (3; T10's bursts of 8, 24 and 30 are the owner's test of the limit and go outside it);
+  no date from the docs — the probes' own lists give the recent, the busiest and the 2013 days (4); no missing input
+  filled: T12 prices under the house's UW convention and says so, SOFR reported beside T11 (5); it refuses to run
+  between 12:00 and 1:45 am New York (6); `format=ndjson` on every data call, stamps read as New York wall time (7);
+  the heavy probes — T7, T10, T11, T12 and X1 — are not run inside market hours (8). The UW key is read from .env
+  for U1–U4, X2 and the tape and written nowhere; the report scrubs it.
+- **The probes**: T1 entitlement (the terminal's startup lines from .theta/logs, MDDS status, second-order greeks, the
+  stock and index flat files), T2 the rate series (SOFR 2023, TREASURY_M3 2012 — padded or not), T3/T4 SPY and QQQ
+  trade and quote dates and 1m days (2017, 2019, 2020; QQQ 2012; nqb against utp_cta), T5 SPX's dates and minutes,
+  T6 each root's earliest expiration and first quote date, the contracts of 2012-06-01 by root, SPXW on a 2019
+  Tuesday, T7 four chain-days of 1m quotes streamed and measured (rows a contract, zero bid/ask, strike units, SPXW
+  under SPX), T8 open interest (stamps, rows against contracts), T9 IV history on the owner's dates and `expiration=*`,
+  T10 the bursts, a 1m range over a month, a multi-year EOD; T11 put-call parity fits (F against the underlying, the
+  implied rate against SOFR); T12 the bead field from Theta's inputs on this machine's rebuilt sessions through the
+  store's own `rowsOf`, under two stamp mappings, against the UW rebuild (median cell gap, p90, walls equal, flip
+  within $0.25); U1 UW's limit headers, U2 the earliest tape date and the chains round it, U3 one tape day streamed
+  (the SPX labels and their null underlying prices) and SPX's option_symbol prefixes, U4 the clock mapping on three
+  SPY contracts (Theta's 1m quote row against its ticks round 10:00, UW's intraday minutes, Terrain's stored labels,
+  an OHLC bar against its trades).
+- **Items 4a and 4b ride in it**: X1 Theta's SPX index minutes against the tape's SPX underlying a minute on five
+  past sessions (median and p99 gap, two alignments), X2 the real-time check inside the cash session (`PROBES=X2`:
+  the snapshot's and the newest 1m row's lag against the wall clock, the price against UW's newest SPX print), X3
+  the 10:00 am ATM straddle off Theta's 1m quotes beside the store's own on five sessions. The switch of the live SPX
+  price to Theta (4a) and the 10:00 straddle off Theta's quotes (4b) are built only once X1/X2 and U4/T7 say how —
+  nothing before the results.
+- `PROBES=T1,T2` runs a few; `THETA_PROBE_OUT`, `THETA_PROBE_TAPES` (tape days X1 may download, 2) and
+  `THETA_PROBE_BASE` are the knobs. Phase 1 (the ledger, the field from Theta, candles for every ticker, the nightly
+  forward, the Terrain screen) is NOT built: it waits for the report and the owner's "go".
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

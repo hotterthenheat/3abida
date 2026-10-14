@@ -981,6 +981,15 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   unvalidated" — live off the newest column, in a replay off the cursor's. Never a forecast, never more space than that
   until the track record earns it. scripts/charm-drift-proof.ts (full repricing of every contract, gap 0) runs in
   `npm test`.
+- THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
+  results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
+  `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own
+  terminal — NEVER start a terminal here (one sign-in a key: 478 / MDDS UNVERIFIED), never localhost (476), six calls in
+  flight, no date from the docs (the probes' lists), no missing input filled, not between 12:00 and 1:45 am New York,
+  format=ndjson on every data call, the heavy probes (T7, T10, T11, T12, X1) outside market hours. It writes
+  docs/theta-probe/<date_time>/report.md and results.json after every probe. Items 4a (Theta's SPX as the live price)
+  and 4b (the 10:00 am straddle off Theta's quotes) are decided by its X1/X2 and U4/T7 rows — not built before them.
+  Phase 1 waits for the owner's "go".
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Theta Data alone since 2026-10-14 — Massive's
   before, `wired: true`; docs/data-feed.md "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With
   Theta Data up the Sessions page's Days card
