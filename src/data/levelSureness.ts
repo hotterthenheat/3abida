@@ -67,6 +67,9 @@ export interface Sureness {
   alerts?: { lines: string[] };
   /** The expiry window (the owner's item 6): the header's badge, and what the field and the ladder read in it */
   window?: { badge: string; line: string | null };
+  /** THE CHARM-TO-CLOSE DRIFT (the owner's item 10): one number — the dealers' delta repriced at 3:50 pm at this minute's
+      price and vols, minus now's — "mechanical drift, unvalidated", and what it holds */
+  drift?: { head: string; line: string; note: string };
   /** A REPLAY (the owner's item 8): the moment the read stands at, and what it reads there — the card says nothing a
       replay could not have known at that minute (no track record, no calibration: both stand on later sessions) */
   replay?: { badge: string; lines: string[] };

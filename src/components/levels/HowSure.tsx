@@ -154,6 +154,14 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
             <p className="text-textSecondary">{first.field}</p>
           </div>
         )}
+        {first.drift && (
+          <div data-how-sure-drift>
+            {/* the owner's item 10, labelled as the owner asked: one number, never a forecast */}
+            <p className="text-[11px] text-textMuted">{first.drift.head}</p>
+            <p className="text-textSecondary">{first.drift.line}</p>
+            <p className="text-[11px] text-textMuted">{first.drift.note}</p>
+          </div>
+        )}
         {first.alerts && (
           <div data-how-sure-alerts>
             <p className="text-[11px] text-textMuted">Level alerts today, and how each turned out</p>

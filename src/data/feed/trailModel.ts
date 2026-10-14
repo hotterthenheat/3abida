@@ -386,6 +386,67 @@ export function readAt(u: Universe, by: number): number {
   return out;
 }
 
+/* ---- THE CHARM-TO-CLOSE DRIFT (the owner's item 10, 2026-10-14: "per minute, the projected change in aggregate dealer
+   delta (naive sign) from t to 3:50 p.m. ET (avoids the expiry discontinuity) at constant spot and IV, for the selected
+   window, as $ delta notional … Acceptance: equals model delta at (spot_t, IV_t, 3:50 p.m.) minus model delta at t, by
+   full repricing. On screen: one number in How sure, labelled 'mechanical drift, unvalidated'") ------------------------ */
+
+/** The drift's end: 3:50 pm New York, ten minutes before the day's expiry — on a half day ten minutes before its 1:00 pm
+    close — so the expiry's own step never enters */
+export function driftEndOf(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  const end = Math.min(15 * 60 + 50, closeMinuteOn(new Date(y, m - 1, d)) - 10);
+  return nyWallTime(y, m, d, Math.floor(end / 60), end % 60);
+}
+/** THE DEALERS' DELTA in dollars of the underlying (open interest × 100 × delta × price), the house's sign (each
+    contract's delta turned over — the field's delta lens, levels.ts feedStrike on the vendor's book), by expiry
+    partition: every contract `only` admits, priced at the bar's close on its vol knowable at the bar's end, its clock at
+    `clock` on UW's (today's expiry on the time left, a later one on whole days, the same all session) */
+export function dealerDeltaAt(u: Universe, bar: { time: number; close: number }, clock: number, only?: (j: number) => boolean): Float64Array {
+  const spot = bar.close;
+  const knowBy = (bar.time + 60) * 1000;
+  const out = new Float64Array(PARTS);
+  for (let i = 0; i < u.strikes.length; i++) {
+    const k = u.strikes[i];
+    for (let j = u.start[i]; j < u.start[i + 1]; j++) {
+      if (only && !only(j)) continue;
+      if (u.expires[j] <= clock) continue;
+      const o = obsAt(u.obs[j], knowBy);
+      if (!o) continue;
+      const oi = oiAt(u.oiObs[j], knowBy);
+      if (!(oi > 0)) continue;
+      const g = blackScholesGreeks(spot, k, u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS, o.iv, UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
+      out[u.part[j]] += -oi * 100 * spot * (u.call[j] ? g.deltaCall : g.deltaPut);
+    }
+  }
+  return out;
+}
+/** THE DRIFT at a minute, by expiry partition: the dealers' delta repriced at the drift's end minus at the minute — the
+    price and every vol held. On UW's clock only today's expiry's time moves inside a session (a later one is whole days,
+    the same all session, so its repricing returns the same delta — scripts/charm-drift-proof.ts prices every contract
+    and checks it), so today's contracts alone are repriced. Null at or past the end, or with none of today's contracts
+    standing. */
+export function driftToClose(u: Universe, bar: { time: number; close: number }): Float64Array | null {
+  const clock = bar.time * 1000 + 30_000;
+  const end = driftEndOf(u.day);
+  if (clock >= end) return null;
+  const today = (j: number) => !(u.years[j] > 0) && u.expires[j] > end;
+  let any = false;
+  for (let j = 0; j < u.expires.length && !any; j++) any = today(j);
+  if (!any) return null;
+  const now = dealerDeltaAt(u, bar, clock, today);
+  const then = dealerDeltaAt(u, bar, end, today);
+  for (let q = 0; q < PARTS; q++) then[q] -= now[q];
+  return then;
+}
+/** A column's drift through an expiry window — the window's partitions summed; null where the column carries none */
+export function driftOf(snap: Pick<GexSnapshot, 'drift'>, w: ExpiryWindow): number | null {
+  if (!snap.drift) return null;
+  let x = 0;
+  for (let q = 0; q <= WINDOW_TOP[w]; q++) x += snap.drift[q];
+  return x;
+}
+
 /**
  * One minute of the field: every strike round the bar's close, each contract priced on the vol knowable at the bar's end
  * and its own clock from the bar's middle. A strike no contract could be priced at is left out (a gap).
@@ -453,7 +514,8 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
     /* the house's sign (levels.ts feedStrike): the calls' gamma and every delta turned over, the puts' gamma as is */
     levels.push({ strike: k, value: -gc + gp, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, coverage });
   }
-  return { time: bar.time, levels, spot, rebuilt: true, parts: Float32Array.from(parts) };
+  const drift = driftToClose(u, bar);
+  return { time: bar.time, levels, spot, rebuilt: true, parts: Float32Array.from(parts), ...(drift ? { drift } : {}) };
 }
 
 /** A column seen through an expiry window (item 6): each strike's gamma and delta summed over the window's partitions,
@@ -481,7 +543,8 @@ export function windowView(snap: GexSnapshot, w: ExpiryWindow): GexSnapshot {
     const coverage = sum(o + 3 * PARTS) / all;
     levels.push({ strike: l.strike, value: sum(o), dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, coverage, ...(l.at != null ? { at: l.at } : {}) });
   });
-  const view: GexSnapshot = { time: snap.time, levels, spot: snap.spot, rebuilt: snap.rebuilt };
+  /* the drift by partition rides along: driftOf sums it through the window it is asked for */
+  const view: GexSnapshot = { time: snap.time, levels, spot: snap.spot, rebuilt: snap.rebuilt, ...(snap.drift ? { drift: snap.drift } : {}) };
   cache.set(snap, view);
   return view;
 }

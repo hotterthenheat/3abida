@@ -965,6 +965,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   THE OFFICIAL CLOSE is read from 4:01 pm New York and kept from 4:30 pm; a session's minute bars are kept only once it
   has closed (fieldBackfill `bars`). scripts/session-recap-proof.ts runs in `npm test` — on this machine every recap's
   numbers equal the item-2 and item-4 rows for its session.
+- THE CHARM-TO-CLOSE DRIFT (2026-10-14, item 10; docs/data-feed.md "The charm-to-close drift"): every modeled column
+  carries `drift` by expiry partition (trailModel `driftToClose`, `driftOf` through a window) — the dealers' delta in
+  dollars of the underlying (OI × 100 × delta × price, the field's delta sign: each contract's delta turned over)
+  repriced at the drift's end minus at the minute, price and vols held, on the model's own pricer and clock; the end is
+  3:50 pm New York (`driftEndOf`, ten minutes before 1:00 pm on a half day), none from then. On UW's clock a later
+  expiry's time is whole days, so inside a session only today's expiry moves and every window reads the same — How sure
+  says so. ONE NUMBER IN HOW SURE, the owner's label: "Delta to <end on the reader's clock> · mechanical drift,
+  unvalidated" — live off the newest column, in a replay off the cursor's. Never a forecast, never more space than that
+  until the track record earns it. scripts/charm-drift-proof.ts (full repricing of every contract, gap 0) runs in
+  `npm test`.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Theta Data alone since 2026-10-14 — Massive's
   before, `wired: true`; docs/data-feed.md "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With
   Theta Data up the Sessions page's Days card

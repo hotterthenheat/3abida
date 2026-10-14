@@ -1125,6 +1125,43 @@ holds 10 of its 390 minutes as final rows and it is not rebuilt yet). Seen in th
 posted in 4.1 s with their pictures, the chips, the month's marks, the day's card, no errors. Shots:
 docs/next-builds-2026-10-13/recap-*.png.
 
+## The charm-to-close drift (2026-10-14, the owner's item 10)
+
+"Per minute, the projected change in aggregate dealer delta (naive sign) from t to 3:50 p.m. ET (avoids the expiry
+discontinuity) at constant spot and IV, for the selected window, as $ delta notional. Data: existing repricing.
+Acceptance: equals model delta at (spot_t, IV_t, 3:50 p.m.) minus model delta at t, by full repricing. On screen: one
+number in How sure, labelled 'mechanical drift, unvalidated'."
+
+- **The number** (data/feed/trailModel.ts `driftToClose`, on every modeled column as `drift` by expiry partition;
+  `driftOf` sums a window): the dealers' delta in dollars of the underlying — open interest × 100 × delta × price, the
+  field's delta sign (each contract's delta turned over, as the delta lens and `feedStrike` on the vendor's book) —
+  priced again at the drift's end minus at the minute, the minute's price and each contract's vol knowable at its end
+  held, by the model's own pricer and clock. **The end is 3:50 pm New York**, ten minutes before the day's expiry
+  (`driftEndOf`; ten minutes before 1:00 pm on a half day); from then on a column carries none.
+- **What the clock does to it**: the model prices on Unusual Whales' clock — today's expiry on the time left, a later
+  one on whole calendar days, the same all session (the convention its vols were solved on; measured 2026-10-13). So
+  inside a session only today's expiry's delta moves, a later expiry's repricing returns the same delta, and every
+  expiry window reads the same drift — said in How sure, not hidden. The model reprices today's contracts alone; the
+  proof reprices every contract of every expiry and finds the same figure to the dollar.
+- **On screen**: How sure, "Delta to 12:50 pm · mechanical drift, unvalidated" (the end on the reader's clock), one line
+  — "−$180M of dealer delta by 12:50 pm at 778.65, the vols as traded by 7:01 am" — and what it holds; live off the
+  newest column, in a replay off the column at the cursor (point in time). Past the end: "nothing left to drift"; no
+  contract of the day in the field: said so.
+- **Acceptance** (scripts/charm-drift-proof.ts, `npm test`): on a built universe (today's expiry, its Friday, the
+  monthly, a later one; vols at the open, at 1:00 pm and one received at 3:55 pm) the column's drift equals every
+  contract repriced independently at 3:50 pm minus at the minute, by partition, to the dollar (gap 0); a later expiry's
+  partitions are exactly 0; every window reads the same and a window view carries it; none at 3:50 or 3:55 pm; a vol
+  received after the minute changes nothing; the price is held, not moved; one out-of-the-money call melting toward
+  zero delta turns the dealers' (turned-over) delta up. **On this machine's rebuilt sessions, 20 minutes, every column's
+  drift equals the independent full repricing (gap 0)** — SPY Oct 12: −$0.18B at 10:00 am New York, +$0.09B at noon,
+  +$0.14B at 2:00 pm, +$0.03B at 3:30 pm; QQQ Oct 9 at 2:00 pm −$0.36B.
+- **Seen in the browser** (Los Angeles): live after the close "Past 12:50 pm on Oct 13: nothing left to drift."; a
+  replay of SPY Oct 12 at 7:00 am (10:00 New York) "−$180M of dealer delta by 12:50 pm at 778.65". Shot:
+  docs/next-builds-2026-10-13/drift-howsure-replay.png.
+- **Why it earns no more space** (the owner's own words): charm-type hedge decay is part of the documented pinning
+  mechanism (Golez-Jackwerth 2012), but no study measures index charm flows, and Cboe puts all 0DTE hedging at
+  0.04–0.17% of S&P futures liquidity — it earns more only through the track record.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

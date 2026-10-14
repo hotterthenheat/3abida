@@ -1,4 +1,4 @@
-import { isoDayLabel } from '../../core/format';
+import { isoDayLabel, num, usdCompactSigned } from '../../core/format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Code2, ExternalLink, Maximize2, Minimize2, Rows3, X } from 'lucide-react';
 import { DOCK_ROOM, openEditor } from '../../data/editorDock';
@@ -98,7 +98,7 @@ import {
   type FeedOi,
   type FeedStrike, useBeadScaleRefs, measuredBooks60, measuredBooks, pastSessionsOf, useReplaySessions, type PricedMoveFeed
 } from '../../data/feed/levels';
-import { book60Window, regimeForWindow, sigmaOf, type ExpiryWindow } from '../../data/feed/trailModel';
+import { book60Window, driftEndOf, driftOf, regimeForWindow, sigmaOf, type ExpiryWindow } from '../../data/feed/trailModel';
 import ReplayStrip from '../../components/gex/ReplayStrip';
 import ReplayTools from '../../components/terrain/ReplayTools';
 import { useTerrainReplay } from '../../components/terrain/useTerrainReplay';
@@ -1497,6 +1497,30 @@ const Pane = ({
         : `${label}: the field sums the contracts in the window; Unusual Whales' book by expiry has not been read yet today, so the ladder shows every expiry.`;
     return { badge: 'repriced every minute · all windows', line };
   }, [onFeed, ticker, win, fBook60]);
+  /* THE CHARM-TO-CLOSE DRIFT IN HOW SURE (item 10): the newest column's — the cursor's in a replay — through the pane's
+     window, priced by the model (trailModel driftToClose): one number, "mechanical drift, unvalidated" */
+  const driftSure = useMemo(() => {
+    if (!onFeed || isCashIndex(ticker)) return undefined;
+    const col = rp.active ? rp.frame?.column ?? null : fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null;
+    if (!col) return undefined;
+    const at = col.time * 1000;
+    const day = nyIsoDate(at);
+    const v = driftOf(col, win);
+    const note =
+      "The day's expiry repriced ten minutes before it expires, with the price and each vol held; on Unusual Whales' clock a later expiry's time is whole days, the same all session, so it adds nothing, and every window reads the same. Dollars of the underlying, the field's delta sign (each contract's delta turned over). Unvalidated: no study measures index charm flows.";
+    const end = driftEndOf(day);
+    /* the label the owner asked for, the end on the reader's own clock */
+    const head = `Delta to ${printClock(end)} · mechanical drift, unvalidated`;
+    if (v == null)
+      return {
+        head,
+        line: at + 30_000 >= end ? `Past ${printClock(end)} on ${isoDayLabel(day)}: nothing left to drift.` : `No contract expiring on ${isoDayLabel(day)} stands in the field: on the model's clock nothing moves before ${printClock(end)}.`,
+        note,
+      };
+    const price = Number.isFinite(col.spot ?? NaN) ? ` at ${num(col.spot as number, 2)}` : '';
+    return { head, line: `${usdCompactSigned(v)} of dealer delta by ${printClock(end)}${price}, the vols as traded by ${printClock(at + 60_000)}.`, note };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFeed, ticker, rp.active, rp.frame, fTrail.snaps, win]);
   /* HOW SURE IN A REPLAY (item 8): the moment, what the ladder stands on there, and how the session is drawn — never the
      track record or the calibration (both stand on sessions after the moment) nor today's live alerts */
   const replaySure = useMemo(() => {
@@ -1516,11 +1540,11 @@ const Pane = ({
   const railSure = useMemo(
     () =>
       replaySure
-        ? rail.sure.map(x => ({ ...x, freshness: replaySure.source, ...(windowSure ? { window: windowSure } : {}), replay: { badge: replaySure.badge, lines: replaySure.lines } }))
-        : ((onFeed && (fieldLine || recordSure || moveSure || windowSure)) || alertSure) && rail.sure
-          ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
+        ? rail.sure.map(x => ({ ...x, freshness: replaySure.source, ...(windowSure ? { window: windowSure } : {}), ...(driftSure ? { drift: driftSure } : {}), replay: { badge: replaySure.badge, lines: replaySure.lines } }))
+        : ((onFeed && (fieldLine || recordSure || moveSure || windowSure || driftSure)) || alertSure) && rail.sure
+          ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(onFeed && driftSure ? { drift: driftSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
           : rail.sure,
-    [onFeed, fieldLine, recordSure, moveSure, windowSure, alertSure, rail.sure, replaySure]
+    [onFeed, fieldLine, recordSure, moveSure, windowSure, driftSure, alertSure, rail.sure, replaySure]
   );
   /* THE LADDER'S GHOST DOTS (item 8): each strike's net 10, 30 and 60 minutes before — in a replay off the field's columns
      at the cursor; live off the books the ladder itself reads (Unusual Whales' book read every minute, or its 60-day book

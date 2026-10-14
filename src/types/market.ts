@@ -86,6 +86,10 @@ export interface GexSnapshot {
   /** THE EXPIRY WINDOWS' PARTS (data/feed/trailModel.ts PART_STRIDE, the owner's item 6): each level's sums by expiry
       partition, in the levels' order — the window views add them up. Absent off the model. */
   parts?: Float32Array;
+  /** THE CHARM-TO-CLOSE DRIFT (the owner's item 10, trailModel driftToClose): the dealers' delta in dollars of the
+      underlying, house's sign, repriced at 3:50 pm New York at this moment's price and vols, minus now's — by expiry
+      partition (driftOf sums a window). Absent off the model, at or past 3:50 pm, and with none of today's contracts. */
+  drift?: Float64Array;
 }
 
 export interface Indicators {

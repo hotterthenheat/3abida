@@ -8,8 +8,10 @@
     strike-matched counts equal the baseline's;
   - the close against ±σ IS the priced move's row: the verdict the calibration counts (pricedMove dayVerdict);
   - on this machine's sessions, through the server's own build (a copy of each session's files, no network): every
-    recap's touches against the scorecard's rows over the same session list, and its move against the row
-    move-calibration.json holds for the day;
+    recap's touches against the scorecard's rows over the same session list, and its move against the row the
+    calibration builds for the day on the same copy, as the scorecard job builds it (pricedMove `calibration` with the
+    loader's 10:00 am straddles). move-calibration.json on disk is the nightly job's: a session whose rows came in
+    after it was built differs there until the next night, and the run says where;
   - the times: a session is over at 4:05 pm New York (no recap before), the official close is read from 4:01 pm and
     kept from 4:30 pm, a session's minute bars are kept only once it has closed.
 */
@@ -220,13 +222,26 @@ const offline = { get: async () => deny(), hasKey: () => true, redirectOf: deny 
       const store = createFieldStore({ root: tmp });
       const move = createPricedMove(offline, backfill, { root: tmp });
       const recap = createRecap(backfill, store, move, { root: tmp, config: cfg });
-      /* the scorecard's session list, ascending, by its own loader */
+      /* the scorecard's session list, ascending, by its own loader, and its 10:00 am straddles */
       const loaded: TrackSession[] = [];
+      const at10 = new Map<string, CalibrationDay['at10']>();
       for (const d of days) {
         const got = await loadSession(backfill, store, tmp, name, d, null);
-        if (isLoaded(got)) loaded.push(got.session);
+        if (isLoaded(got)) {
+          loaded.push(got.session);
+          at10.set(d, got.at10);
+        }
       }
-      const calib = JSON.parse(readFileSync(join(real, name, 'move-calibration.json'), 'utf8')) as { days: CalibrationDay[] };
+      /* item 4's rows on the same copy, built as the scorecard job builds them (it writes the copy's own file) */
+      await move.calibration(name, at10);
+      const calib = JSON.parse(readFileSync(join(tmp, name, 'move-calibration.json'), 'utf8')) as { days: CalibrationDay[] };
+      /* the nightly file on disk, against them: a day it holds otherwise is one whose inputs came in after it was built */
+      const nightly = JSON.parse(readFileSync(join(real, name, 'move-calibration.json'), 'utf8')) as { builtAt: number; days: CalibrationDay[] };
+      for (const r of calib.days) {
+        const was = nightly.days.find(x => x.day === r.day);
+        const differ = !was ? ['the whole row'] : (Object.keys(r) as (keyof CalibrationDay)[]).filter(k => JSON.stringify(r[k] ?? null) !== JSON.stringify(was[k] ?? null));
+        if (differ.length) console.log(`NOTE  ${name} ${r.day}: move-calibration.json on disk (built ${new Date(nightly.builtAt).toISOString()}) differs in ${differ.join(', ')} — rebuilt by the next nightly run`);
+      }
       let compared = 0;
       let touchesSame = 0;
       let moveSame = 0;
@@ -251,7 +266,7 @@ const offline = { get: async () => deny(), hasKey: () => true, redirectOf: deny 
       }
       for (const l of lines) console.log(l);
       check(`${name}: every recap's touches are the scorecard's rows for its session (${touchesSame} of ${compared})`, compared > 0 && touchesSame === compared);
-      check(`${name}: every recap's close against ±σ is move-calibration.json's row for the day (${moveSame} of ${moveRows})`, moveRows > 0 && moveSame === moveRows);
+      check(`${name}: every recap's close against ±σ is the calibration's row for the day, built on the same copy (${moveSame} of ${moveRows})`, moveRows > 0 && moveSame === moveRows);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
