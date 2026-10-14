@@ -1222,6 +1222,37 @@ number in How sure, labelled 'mechanical drift, unvalidated'."
   mechanism (Golez-Jackwerth 2012), but no study measures index charm flows, and Cboe puts all 0DTE hedging at
   0.04–0.17% of S&P futures liquidity — it earns more only through the track record.
 
+## The map's marks, the store's format 2 and the series job (2026-10-14, the owner's section B)
+
+**One solid mark per strike per candle** (gexNodesPrimitive.ts): the field's ribbon — translucent haloed ellipses, a
+bead per field minute even on a wider bar — read as soft slivers and is gone. A mark is a rect on the device-pixel
+grid, the bar's slot less a hairline wide; its height the strike's gross gamma (|calls| + |puts|, `GexLevel.gross`)
+√-scaled against the size reference (the session's p85 of per-minute peak gross, the same running count as the
+net's — the primitive keeps both, `refG` beside `ref`); its hue the net's side (ember puts, glacier calls); its colour
+strength |net| ÷ gross, grey when balanced (`markInk`, ten steps); a soft one-pixel edge for a stale or carried cell
+and nothing else. No identity ink on a mark: the axis chips and the wall-move chips name the walls and the supreme. A
+strike entering the three heaviest by size wears a hollow ring on that bar, one leaving them a grey outline, a wall
+move a two-pixel tick at the new strike. Every run of bars with no column says why on the chart (Terrain
+`gapCause` → the primitive's `findGaps`): before the open / after the close (the book is read 9:30 to 4:00 New York),
+a past session queued / being rebuilt / failed and why / beyond the ten the page asks, today's chain not read yet,
+not recorded, or the live lag in minutes.
+
+**Store format 2** (server/fieldStore.ts `STORE_FORMAT`): a row's cells are `[strike, net, gross]`, and the row carries
+`maxG` (the column's largest gross) and `refG` (the size reference). Every reader takes the first two figures (the
+track record, the recap, the agree check, the replay); rows of format 1 read as before, and the map sizes them by
+|net| with the legend saying so. The model's version is unchanged: the figures are the same, a field is added.
+
+**The series job** (server/seriesBackfill.ts, on the always-on recorder — SERIES_NAMES=SPY,QQQ,SPX, SERIES_DAYS=730,
+`off` to stop it): thirty seconds after the recorder starts, and at 5:15 pm New York for the session just over, it
+walks back from the session before today over weekdays, newest first, and writes each day's
+`/api/stock/{T}/spot-exposures?date=D` rows as answered — every field, the `_oi`, `_vol` and `_dir` gamma series, the
+price, the other greeks' series — to `.feed-cache/field/<NAME>/<D>/series.json`. A day already held (this file, the
+recorder's `total.json`, a rebuilt day's `past.json.gz` carrying the series) is skipped; a day UW answers empty is
+written empty and never asked again; a 429 waits a minute and asks again; a 5xx or the network is left for the next
+pass; one call at a time with a pause, behind the recorder's reads. The recorder's log reports each name's walk
+("series SPY: done to <date> — written N, empty N, skipped N, refused N, oldest with rows <date>").
+scripts/series-backfill-proof.ts runs the rules against a stand-in client in `npm test`.
+
 ## The Theta probe, Phase 0 (2026-10-14 — the owner's TASK: "Terrain history backfill for Slayer Terminal. Phase 0 = probes only. Report results, then STOP and wait for my 'go'")
 
 `npm run theta:probe` (scripts/theta-probe/, `index.ts` the runner) is Phase 0 as ONE SCRIPT THE OWNER RUNS ON THE

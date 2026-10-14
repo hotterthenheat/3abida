@@ -125,6 +125,15 @@ export class RunningScale {
 }
 
 /** A column's largest magnitude */
+/** A column's largest gross gamma at a strike (the owner's B3: a mark's size) — |value| where a cell keeps no gross */
+export const columnGross = (levels: readonly { value: number; gross?: number }[]): number => {
+  let m = 0;
+  for (const l of levels) {
+    const g = l.gross ?? Math.abs(l.value);
+    if (g > m) m = g;
+  }
+  return m;
+};
 export const columnMax = (levels: readonly { value: number }[]): number => {
   let m = 0;
   for (const l of levels) {

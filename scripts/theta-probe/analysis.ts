@@ -173,7 +173,7 @@ function tolerance(ref: StoreRow[], other: StoreRow[]): { cols: number; cells: n
     if (O.cw === R.cw && O.pw === R.pw) walls++;
     if (sameFlip(O.flip, R.flip)) flips++;
     const maxR = Math.max(...R.cells.map(c => Math.abs(c[1])), 1);
-    const om = new Map(O.cells);
+    const om = new Map(O.cells.map(c => [c[0], c[1]] as [number, number]));
     for (const [k, v] of R.cells) {
       if (Math.abs(v) < 0.02 * maxR) continue;
       const ov = om.get(k);

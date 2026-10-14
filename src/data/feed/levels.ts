@@ -1051,6 +1051,12 @@ export interface PastSessions {
   asked: number;
   ready: number;
   working: string | null;
+  /** BY DAY (the owner's B1, 2026-10-14 — a gap on the map says why): the days asked of the server, the ones it has built,
+      the ones queued, and the ones it could not build with its reason */
+  days: string[];
+  readyDays: string[];
+  queuedDays: string[];
+  failedWhy: Record<string, string>;
 }
 /**
  * Ask the server for the sessions before today the chart holds, and fold each built one into the field. Asked every
@@ -1080,7 +1086,7 @@ export function useServerPastSessions(on: boolean, ticker: string, bars: readonl
   );
   if (!a) return null;
   const failed = days.filter(d => a.failed && d in a.failed).length;
-  return { asked: days.length - failed, ready: Math.min(inPage, a.ready.length), working: a.working };
+  return { asked: days.length - failed, ready: Math.min(inPage, a.ready.length), working: a.working, days, readyDays: a.ready, queuedDays: a.queued ?? [], failedWhy: a.failed ?? {} };
 }
 
 /** THE TRACK RECORD (the owner's item 2, server/scorecard.ts): the level types scored against their baselines over the

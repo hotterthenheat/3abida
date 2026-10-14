@@ -512,7 +512,8 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
     for (let x = 0; x < PART_STRIDE; x++) parts.push(pv[x]);
     const coverage = fresh / all;
     /* the house's sign (levels.ts feedStrike): the calls' gamma and every delta turned over, the puts' gamma as is */
-    levels.push({ strike: k, value: -gc + gp, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, coverage });
+    /* `gross` (the owner's B3): the calls' and the puts' gamma added without sign — `all`, the strike's size on the map */
+    levels.push({ strike: k, value: -gc + gp, gross: all, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, coverage });
   }
   const drift = driftToClose(u, bar);
   return { time: bar.time, levels, spot, rebuilt: true, parts: Float32Array.from(parts), ...(drift ? { drift } : {}) };
@@ -541,7 +542,7 @@ export function windowView(snap: GexSnapshot, w: ExpiryWindow): GexSnapshot {
     const all = sum(o + 2 * PARTS);
     if (!(all > 0)) return;
     const coverage = sum(o + 3 * PARTS) / all;
-    levels.push({ strike: l.strike, value: sum(o), dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, coverage, ...(l.at != null ? { at: l.at } : {}) });
+    levels.push({ strike: l.strike, value: sum(o), gross: all, dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, coverage, ...(l.at != null ? { at: l.at } : {}) });
   });
   /* the drift by partition rides along: driftOf sums it through the window it is asked for */
   const view: GexSnapshot = { time: snap.time, levels, spot: snap.spot, rebuilt: snap.rebuilt, ...(snap.drift ? { drift: snap.drift } : {}) };

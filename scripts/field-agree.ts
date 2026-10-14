@@ -54,7 +54,7 @@ function tolerance(shown: StoreRow[], final: StoreRow[]): { judged: boolean; pas
     const fs = new Set(F.top.map(t => t[0]));
     top.push(S.top.filter(t => fs.has(t[0])).length / Math.max(1, F.top.length));
     const maxF = Math.max(...F.cells.map(c => Math.abs(c[1])), 1);
-    const sm = new Map(S.cells);
+    const sm = new Map(S.cells.map(c => [c[0], c[1]] as [number, number]));
     for (const [k, v] of F.cells) {
       if (Math.abs(v) < 0.02 * maxF) continue;
       const sv = sm.get(k);

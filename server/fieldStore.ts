@@ -63,7 +63,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statS
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { columnSummary, modelColumn, pastInputs, readAt, straddleExpiries, straddleOfMinute, TRAIL_MODEL, universeOf, type ServerInputs, type StraddleRead, PARTS, PART_STRIDE } from '../src/data/feed/trailModel';
-import { RunningScale, columnMax } from '../src/data/feed/beadScale';
+import { RunningScale, columnGross, columnMax } from '../src/data/feed/beadScale';
 /** A column's net by expiry partition — every strike's gamma parts summed */
 const partNets = (snap: { levels: readonly unknown[]; parts?: Float32Array }): number[] | undefined => {
   const p = snap.parts;
@@ -86,7 +86,9 @@ import type { MinuteBar, PastDay } from './fieldBackfill';
 
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 /** The row's own format — a change of what a row holds is a new number */
-export const STORE_FORMAT = 1;
+/* 2 since 2026-10-14 (the owner's B3): a cell carries its gross gamma as a third figure, and a row its largest gross (maxG)
+   and the size reference (refG) — a row of format 1 reads as before, the map sizing by |net| where no gross is kept */
+export const STORE_FORMAT = 2;
 /** A shown row is written this long after its minute at the latest; later, the minute is a gap */
 export const SHOWN_LATE_MS = 3 * 60_000;
 /** A minute is complete this long after its end (its bar in, its prints reported) */
@@ -123,8 +125,12 @@ export interface StoreRow {
   maxD?: number;
   /** The bead scale's reference: the session's 85th percentile of column maxima so far, this one in */
   ref: number;
-  /** Every strike drawn, [strike, value] ascending by strike */
-  cells: [number, number][];
+  /** The column's largest gross gamma at a strike, and the size reference over it (the session's p85 of per-minute
+      peak gross so far, this one in) — a mark's size on the map (the owner's B3); absent on rows of format 1 */
+  maxG?: number;
+  refG?: number;
+  /** Every strike drawn, [strike, value, gross] ascending by strike — the gross since format 2 */
+  cells: [number, number, number?][];
   /** The share of the strikes on carried vols */
   carried: number;
   /** The at-the-money straddle for the expiry settling today; null when none is listed or priced */
@@ -148,6 +154,8 @@ export interface StoreDay {
 interface State {
   written: Set<number>;
   scale: RunningScale;
+  /** the size reference's running count (the gross) */
+  scaleG: RunningScale;
   /** The newest minute written — a row never goes in before one already written */
   last: number;
   gaps: number;
@@ -205,10 +213,11 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     /* a file another writer grew since this store last saw it is read again — its minutes are written */
     if (!st || st.size !== size) {
       const gaps = st?.gaps ?? 0;
-      st = { written: new Set(), scale: new RunningScale(), last: 0, gaps, loaded: false, size };
+      st = { written: new Set(), scale: new RunningScale(), scaleG: new RunningScale(), last: 0, gaps, loaded: false, size };
       for (const r of readRows(name, day, kind)) {
         st.written.add(r.m);
         st.scale.push(r.max);
+        st.scaleG.push(r.maxG ?? r.max);
         if (r.m > st.last) st.last = r.m;
       }
       st.loaded = true;
@@ -228,7 +237,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     if (st) st.size = sizeOf(fileOf(name, day, kind));
   }
 
-  const sortedCells = (levels: readonly { strike: number; value: number }[]): [number, number][] => [...levels].sort((a, b) => a.strike - b.strike).map(l => [l.strike, l.value]);
+  const sortedCells = (levels: readonly { strike: number; value: number; gross?: number }[]): [number, number, number?][] => [...levels].sort((a, b) => a.strike - b.strike).map(l => (l.gross != null ? [l.strike, l.value, l.gross] : [l.strike, l.value]));
 
   /**
    * THE SHOWN ROWS for the minutes ended: the recorder's live inputs (its chain reads and seed, as served to Terrain)
@@ -267,6 +276,8 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       const max = columnMax(snap.levels);
       const maxD = deltaMax(snap.levels);
       const ref = st.scale.push(max);
+      const maxG = columnGross(snap.levels);
+      const refG = st.scaleG.push(maxG);
       /* a chain read inside the minute: the straddles are its NBBO mids; else the model's price at the minute — the one
          rule the replay reads too (trailModel straddleOfMinute) */
       const straddle = (expiry: string | null): StraddleRead | null => (expiry ? straddleOfMinute(u!, inputs.chains, day, bar, expiry, 'shown') : null);
@@ -288,8 +299,10 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         net: sum.net,
         max,
         maxD,
+        maxG,
         netP: partNets(snap),
         ref,
+        refG,
         cells: sortedCells(snap.levels),
         carried: sum.carried,
         str0: straddle(exps!.today),
@@ -340,6 +353,8 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       const max = columnMax(snap.levels);
       const maxD = deltaMax(snap.levels);
       const ref = st.scale.push(max);
+      const maxG = columnGross(snap.levels);
+      const refG = st.scaleG.push(maxG);
       const row: StoreRow = {
         f: STORE_FORMAT,
         kind: 'final',
@@ -355,8 +370,10 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         net: sum.net,
         max,
         maxD,
+        maxG,
         netP: partNets(snap),
         ref,
+        refG,
         cells: sortedCells(snap.levels),
         carried: sum.carried,
         str0: exps.today ? straddleOfMinute(u, [], day, bar, exps.today, 'final') : null,
@@ -378,6 +395,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     const u = universeOf(past.name, past.day, inputsOf(past));
     const exps = straddleExpiries(u.expiry, past.day);
     const scale = new RunningScale();
+    const scaleG = new RunningScale();
     const out: StoreRow[] = [];
     for (const bar of [...bars].sort((a, b) => a.time - b.time)) {
       const m = bar.time * 1000;
@@ -386,7 +404,8 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       if (!snap.levels.length) continue;
       const sum = columnSummary(snap, bar.close);
       const max = columnMax(snap.levels);
-      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), netP: partNets(snap), ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleOfMinute(u, [], past.day, bar, exps.today, 'final') : null, strW: exps.weekly ? straddleOfMinute(u, [], past.day, bar, exps.weekly, 'final') : null, age: null });
+      const maxG = columnGross(snap.levels);
+      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), maxG, netP: partNets(snap), ref: scale.push(max), refG: scaleG.push(maxG), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleOfMinute(u, [], past.day, bar, exps.today, 'final') : null, strW: exps.weekly ? straddleOfMinute(u, [], past.day, bar, exps.weekly, 'final') : null, age: null });
     }
     return out;
   }

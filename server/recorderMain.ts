@@ -17,6 +17,7 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { feedMiddleware } from './feed';
 import { tapeReader } from './tapeBackfill';
+import { createSeriesBackfill } from './seriesBackfill';
 
 function parseEnv(path: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -66,6 +67,23 @@ if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
   }, 10 * 60_000);
   progress.unref();
 }
+/* THE PER-MINUTE SPOT-EXPOSURE SERIES, BACK THROUGH UW'S WINDOW (the owner's B5, 2026-10-14 — "Its ~730-day window
+   loses a day each session"): SERIES_NAMES (SPY,QQQ,SPX) for SERIES_DAYS (730) calendar days back, newest first, one
+   call at a time behind the recorder's reads, resumable (a day held is skipped — server/seriesBackfill.ts); walked
+   again once a day after the close for the session just over. SERIES_NAMES=off turns it off. */
+const seriesNames = (env.SERIES_NAMES ?? 'SPY,QQQ,SPX')
+  .split(',')
+  .map(s => s.trim().toUpperCase())
+  .filter(n => n && n !== 'OFF');
+const seriesDays = Math.max(1, Number(env.SERIES_DAYS ?? 730) || 730);
+const series = createSeriesBackfill(handle.client, { log: l => console.log(`${stamp()} ${l}`) });
+let seriesDay = '';
+const walkSeries = (why: string) => {
+  if (!seriesNames.length || !env.UW_API_TOKEN || series.status().running) return;
+  console.log(`${stamp()} series ${seriesNames.join(', ')}: ${seriesDays} days back, newest first (${why})`);
+  void series.run(seriesNames, seriesDays).then(s => console.log(`${stamp()} series done: written ${s.written}, empty ${s.empty}, skipped ${s.skipped}, refused ${s.refused}, failed ${Object.keys(s.failed).length}`));
+};
+setTimeout(() => walkSeries('at start'), 30_000).unref();
 /* THE SCORECARD, NIGHTLY (the owner's item 2: "runs after 4:00 p.m. ET"): once a day after 4:05 pm New York, every
    recorded name but the indices; and once at start where a name has none yet */
 const nyMinuteNow = () => {
@@ -113,6 +131,11 @@ const nightly = setInterval(() => {
   if (minute >= 17 * 60 + 5 && recheckDay !== day && recapDay === day) {
     recheckDay = day;
     if (!weekend(day)) void recaps(day, 'at 5:05 pm, the official close kept');
+  }
+  /* the session just over joins the series (UW's rows for a date stand once it has closed) */
+  if (minute >= 17 * 60 + 15 && seriesDay !== day) {
+    seriesDay = day;
+    if (!weekend(day)) walkSeries('after the close');
   }
 }, 60_000);
 nightly.unref();

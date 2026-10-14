@@ -798,6 +798,9 @@ interface StrikeChartProps {
   beadFloor?: number;
   beadRefs?: Map<string, { fixed: ScaleRef | null; prior: ScaleRef | null; priorDay: string | null }> | null;
   onBeadLegend?: (l: BeadLegend | null) => void;
+  /** THE GAPS' REASONS (the owner's B1, 2026-10-14): the host's words for a run of bars with no column of the field,
+      [from, to) in epoch seconds, drawn on the plot over the run — null for a run with nothing to say */
+  fieldGapCause?: ((fromSec: number, toSec: number) => string | null) | null;
   /** The call wall, the put wall and the flip, and two more, pinned on the price axis as their prices (item 5 (h)) */
   axisLevels?: boolean;
   /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
@@ -1167,7 +1170,7 @@ const StrikeChart = ({
   barCountdown = 'measured',
   asOf = null,
   futureBars = null,
-  footBar = null, onRegime, jumpTo = null, axisChips = false, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike,
+  footBar = null, onRegime, jumpTo = null, axisChips = false, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null,
   onJumpResult, onViewEdge, onBarClick, stale = false,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
@@ -2738,6 +2741,16 @@ const StrikeChart = ({
     trails.setPaper(chartGround(themeKey) === 'light' && box ? trailPaperFrom(box) : null);
     trails.axisInks = box ? axisInksFrom(box) : null;
   }, [themeKey, appTheme, mainNonce]);
+
+  /* THE GAPS' REASONS (B1): the host's words for a run of bars with no column, handed to the field's renderer — a new
+     function (the host's state moved) redraws the labels */
+  useEffect(() => {
+    const trails = trailsRef.current;
+    if (!trails) return;
+    trails.gapCause = fieldGapCause;
+    trails.gapRev++;
+    trails.requestUpdate?.();
+  }, [fieldGapCause, mainNonce]);
 
   /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) — and the axis labels (item 5 (h)) */
   useEffect(() => {
@@ -6161,8 +6174,11 @@ const StrikeChart = ({
               {expanded && (
                 <>
                   <div className="text-[11px] text-textMuted mt-1">Estimated dealer gamma (assumed sign){feedCell ? ` · ${pastDay ? `${isoDayLabel(beadDay)}'s` : "today's"} opening positions re-priced along the price path, each contract on its latest traded vol` : ''}</div>
+                  {/* THE MARK'S SIZE AND COLOUR, SAID (B3): the gross gamma at the strike (its size) and how one-sided the book
+                      is there (its colour strength) — the live legs beside them on the newest column */}
                   <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-                    {legsHere ? `Calls ${usdCompact(Math.abs(legsHere.call))} · puts ${usdCompact(Math.abs(legsHere.put))} (the live book)` : 'Calls · puts: the field keeps the net per strike'}
+                    {lvl.gross != null && lvl.gross > 0 ? `Total ${usdCompact(lvl.gross)} at the strike (its size) · ${pct(Math.min(1, Math.abs(card.value) / lvl.gross) * 100)} one-sided (its colour)` : 'Total at the strike: this tape keeps the net alone'}
+                    {legsHere ? ` · live legs calls ${usdCompact(Math.abs(legsHere.call))}, puts ${usdCompact(Math.abs(legsHere.put))}` : ''}
                   </div>
                   <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
                     Rank at that bar: {rank > 0 ? `${rank} of ${card.snap.levels.length}` : '—'}

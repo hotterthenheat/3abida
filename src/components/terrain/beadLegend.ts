@@ -19,9 +19,12 @@ export const BASIS_HINT: Record<ScaleBasis, string> = {
 };
 export const FLOORS = [0, 0.05, 0.1, 0.25] as const;
 
-/** The legend's two lines, in the reader's words: what full brightness is, and how a bead reads against it */
+/** The legend's two lines, in the reader's words: what full size is, and how a mark reads against it (the owner's B3,
+    2026-10-14: "Legend: 'size = total gamma at the strike · colour = which side wins · grey = balanced · soft edge =
+    stale'") */
 export function beadLegendLines(l: BeadLegend, asked: ScaleBasis, floor: number): { head: string; tail: string } {
-  const head = `Full brightness = ${usdCompact(l.ref)} ${UNIT[l.greek]}`;
+  /* the size stands on the gross gamma at a strike where the tape keeps it, on |net| where it does not */
+  const head = l.sizeBy === 'gross' && l.greek === 'gex' ? `Full size = ${usdCompact(l.refG)} total gamma at a strike per 1%` : `Full size = ${usdCompact(l.refG)} ${l.greek === 'gex' ? 'net gamma per 1% (this tape keeps the net alone)' : UNIT[l.greek]}`;
   const day = nyIsoDate(l.at * 1000);
   const basis =
     l.basis === 'session'
@@ -33,7 +36,7 @@ export function beadLegendLines(l: BeadLegend, asked: ScaleBasis, floor: number)
   const hidden = floor > 0 ? ` · under ${Math.round(floor * 100)}% of full hidden` : '';
   return {
     head: `${head} (${basis}${fallback})`,
-    tail: `Net per strike · clipped above full · ring above p95, ${usdCompact(l.ring)}${hidden}`,
+    tail: `size = total gamma at the strike · colour = which side wins · grey = balanced · soft edge = stale · clipped above full${hidden}`,
   };
 }
 /** The legend as one line (its title, and the words check) */

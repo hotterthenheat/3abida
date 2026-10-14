@@ -139,11 +139,13 @@ interface Peaks {
   share: (number | undefined)[];
   /* the minute the peak was taken from (epoch s) — the card names it (the owner's second review, 2026-10-13, item 6) */
   at: (number | undefined)[];
+  /* the peak minute's gross gamma at the strike (the owner's B3) — it rides with the peak it belongs to */
+  gross: (number | undefined)[];
   /* the bucket's last price, and whether every moment in it was rebuilt (one measured moment makes it measured) */
   spot?: number;
   rebuilt: boolean;
 }
-const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], fresh: [], share: [], at: [], rebuilt: true });
+const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], fresh: [], share: [], at: [], gross: [], rebuilt: true });
 const markPeaks = (p: Peaks, snap: GexSnapshot) => {
   if (snap.spot !== undefined) p.spot = snap.spot;
   if (!snap.rebuilt) p.rebuilt = false;
@@ -174,6 +176,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[], at?: number): void =>
       p.fresh.push(l.freshAt);
       p.share.push(l.staleShare);
       p.at.push(at);
+      p.gross.push(l.gross);
     }
     return;
   }
@@ -196,6 +199,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[], at?: number): void =>
         p.fresh[i] = l.freshAt;
         p.share[i] = l.staleShare;
         p.at[i] = at;
+        p.gross[i] = l.gross;
       }
       const d = l.dex ?? 0;
       if (Math.abs(d) > Math.abs(pd[i])) pd[i] = d;
@@ -213,6 +217,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[], at?: number): void =>
       p.fresh.splice(i, 0, l.freshAt);
       p.share.splice(i, 0, l.staleShare);
       p.at.splice(i, 0, at);
+      p.gross.splice(i, 0, l.gross);
     }
     i++;
   }
@@ -227,6 +232,7 @@ const peakLevels = (p: Peaks) => {
     if (p.fresh[k] !== undefined) l.freshAt = p.fresh[k];
     if (p.share[k] !== undefined) l.staleShare = p.share[k];
     if (p.at[k] !== undefined) l.at = p.at[k];
+    if (p.gross[k] !== undefined) l.gross = p.gross[k];
     out[k] = l;
   }
   return out;

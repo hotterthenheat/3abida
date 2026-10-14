@@ -541,7 +541,7 @@ const Simulator = (() => {
       const putGex = putOI * gamma * scale * 0.53;
       const dex = callOI * 100 * u.deltaCall * spot * -0.55 + putOI * 100 * u.deltaPut * spot * -0.53;
       const vex = (callOI * -0.55 + putOI * -0.53) * 100 * u.vega * spot;
-      levels.push({ strike, value: callGex + putGex, dex, vex, callOI, putOI });
+      levels.push({ strike, value: callGex + putGex, gross: Math.abs(callGex) + Math.abs(putGex), dex, vex, callOI, putOI });
     }
     return levels;
   }
@@ -587,7 +587,7 @@ const Simulator = (() => {
       const putGex = entry.putOI * gamma * scale * 0.53;
       const dex = entry.callOI * 100 * u.deltaCall * spot * -0.55 + entry.putOI * 100 * u.deltaPut * spot * -0.53;
       const vex = (entry.callOI * -0.55 + entry.putOI * -0.53) * 100 * u.vega * spot;
-      levels.push({ strike, value: callGex + putGex, dex, vex, callOI: entry.callOI, putOI: entry.putOI });
+      levels.push({ strike, value: callGex + putGex, gross: Math.abs(callGex) + Math.abs(putGex), dex, vex, callOI: entry.callOI, putOI: entry.putOI });
     }
     return { time, levels, spot };
   }

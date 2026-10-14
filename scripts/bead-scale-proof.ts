@@ -2,19 +2,20 @@
   Acceptance test for the bead scale, legend and disclosure (the owner's item 5, 2026-10-14):
   (i)   the legend's value equals the reference the renderer used at that minute — the primitive's own hand-off, every
         column against the session's per-minute count (data/feed/beadScale.ts, the store's one code)
-  (ii)  a greyscale render keeps the magnitude order: each step's ink over the ground, at its alpha, is lighter (on the
-        dark tape) or darker (on paper) than the step below it, for both sides and every staleness step; and the two
-        sides stay apart under the three colour-vision deficiencies
-  (iii) the brightness step a bead draws at in replay equals the live capture's, on the recorder's own sessions (run
-        when this machine holds one)
-  and the pieces: ten steps a side, the floor, the ring above p95, the three staleness steps, the fixed and prior bases.
+  (ii)  THE MARK'S COLOUR (B3, 2026-10-14 — size is geometry now, so no greyscale order to keep): the side's ink mixed
+        from the neutral by the colour strength moves away from the grey monotonically (OKLab), on both grounds, both
+        sides; and the two sides stay apart from half strength up under the three colour-vision deficiencies
+  (iii) the size step a mark draws at in replay equals the live capture's, on the recorder's own sessions (run when
+        this machine holds one)
+  and the pieces: ten steps a side, the floor, the size by gross and the strength by |net| ÷ gross (B3), the three
+  staleness steps, the fixed and prior bases.
   (iv), the frame time at full zoom-out, is measured in the browser (docs/data-feed.md "The bead scale").
 */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { BEAD_STEPS, RunningScale, minuteRefs, pooledRef, stepOf, stepT, strengthOf } from '../src/data/feed/beadScale';
-import { GexTrailsPrimitive, STALE_ALPHA, STALE_COVER, coreAlpha, stepColourT } from '../src/components/gex/gexNodesPrimitive';
-import { heatRampColor, heatRampColorFor, HEAT_MODE } from '../src/components/gex/heatmap';
+import { BEAD_STEPS, RunningScale, columnGross, minuteRefs, pooledRef, stepOf, stepT, strengthOf } from '../src/data/feed/beadScale';
+import { DARK_MARK_INKS, GexTrailsPrimitive, STRENGTH_STEPS, markInk, type MarkInks } from '../src/components/gex/gexNodesPrimitive';
+import { heatRampColorFor, HEAT_MODE } from '../src/components/gex/heatmap';
 import { aggregateSnapshots } from '../src/data/timeframe';
 import { rng } from '../src/data/feed/trackRecord';
 import type { GexSnapshot } from '../src/types/market';
@@ -47,12 +48,14 @@ for (const [di, day] of days.entries()) {
     const levels = Array.from({ length: 40 }, (_, k) => {
       const v = (draw() - 0.45) * 1e9 * loud * (k === 20 ? 4 : 1) * (1 + m / 390);
       const u = draw();
-      return { strike: 560 + k, value: v, dex: v * 20, prov: u < 0.1 ? ('carried' as const) : ('modeled' as const), staleShare: u < 0.2 ? 0.6 : 0.1 };
+      /* the gross (B3): the net plus a balanced part, so |net| ÷ gross runs 0.5 to 1 */
+      return { strike: 560 + k, value: v, gross: Math.abs(v) * (1 + draw()), dex: v * 20, prov: u < 0.1 ? ('carried' as const) : ('modeled' as const), staleShare: u < 0.2 ? 0.6 : 0.1 };
     });
     base.push({ time: open + m * 60, spot: 580, levels } as unknown as GexSnapshot);
   }
 }
 const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
+const maximaG = base.map(s => columnGross(s.levels));
 
 /* (i) the legend equals the renderer's reference — and the store's count */
 {
@@ -86,6 +89,20 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
     }
     const l = prim.legend()!;
     check(`${texture}m texture: every column drawn against its last minute's reference (worst gap ${worst}); the legend's ${l.ref.toExponential(4)} is the newest column's`, worst === 0 && l.ref === prim.columnAt(cols.length - 1).ref && l.ref === ref[base.length - 1] && l.basis === 'session');
+    /* THE SIZE REFERENCE (B3): the same count over each minute's peak gross */
+    const refG = minuteRefs(
+      base.map(s => s.time),
+      maximaG,
+      nyDay
+    ).ref;
+    let worstG = 0;
+    for (let i = 0; i < cols.length; i++) {
+      const end = cols[i].time + texture * 60 - 1;
+      let j = -1;
+      for (let k = 0; k < base.length && base[k].time <= end; k++) j = k;
+      worstG = Math.max(worstG, Math.abs(prim.refAt(i).refG - refG[j]) / refG[j]);
+    }
+    check(`${texture}m texture: the size reference is the store's count over each minute's peak gross (worst gap ${worstG}); the legend's ${l.refG.toExponential(4)} sizes by ${l.sizeBy}`, worstG === 0 && l.refG === refG[base.length - 1] && l.sizeBy === 'gross');
   }
 }
 
@@ -115,63 +132,56 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
   check(`floor off: every strike above zero draws (${col.top.length} of ${lv.filter(l => l.value !== 0).length})`, col.top.length === lv.filter(l => l.value !== 0).length);
   prim.setBasis('session', 0.1);
   const col2 = prim.columnAt(lastDay);
-  check(`floor 10%: the strikes under a tenth of the reference are hidden (${col2.top.length} draw), measured against the reference`, col2.top.every(b => Math.abs(lv.find(l => l.strike === b.strike)!.value) >= 0.1 * r.ref) && col2.top.length === lv.filter(l => Math.abs(l.value) >= 0.1 * r.ref).length);
+  check(`floor 10%: the strikes under a tenth of the size reference are hidden (${col2.top.length} draw), measured on the gross against the size reference`, col2.top.every(b => lv.find(l => l.strike === b.strike)!.gross >= 0.1 * r.refG) && col2.top.length === lv.filter(l => l.gross >= 0.1 * r.refG).length);
   prim.setBasis('session', 0);
   const beads = [...prim.columnAt(lastDay).all.values()];
-  /* every column of the last session: a bead wears the ring exactly when it stands above its column's p95 */
-  let ringed = 0;
-  let wrong = 0;
-  for (let i = 780; i < base.length; i++) {
-    const ri = prim.refAt(i);
-    for (const b of prim.columnAt(i).all.values()) {
-      const above = Math.abs(base[i].levels.find(l => l.strike === b.strike)!.value) > ri.ring;
-      if (b.ring !== above) wrong++;
-      if (b.ring) ringed++;
-    }
-  }
-  check(`the ring: a bead above its column's p95 and no other (${ringed} ringed over the session, ${wrong} wrong; at the last minute p95 is ${r.ring.toExponential(3)})`, wrong === 0 && ringed > 0);
   check('staleness, three steps: carried 2, half its gamma on old vols 1, else 0', beads.every(b => {
     const l = lv.find(x => x.strike === b.strike)!;
     return b.stale === (l.prov === 'carried' ? 2 : (l.staleShare ?? 0) >= 0.5 ? 1 : 0);
   }));
-  check('a bead\'s step is its strength against the reference', beads.every(b => b.step === stepOf(strengthOf(lv.find(l => l.strike === b.strike)!.value, r.ref))));
+  /* THE ENCODING (B3): a mark's size step is √(gross ÷ the size reference) in steps; its colour strength |net| ÷ gross;
+     its side the net's sign; the three heaviest BY SIZE are the column's top set (B4's ring and ghost read it) */
+  check("a mark's step is its gross against the size reference", beads.every(b => b.step === stepOf(strengthOf(lv.find(l => l.strike === b.strike)!.gross, r.refG))));
+  check("a mark's colour strength is |net| ÷ gross, its side the net's sign", beads.every(b => {
+    const l = lv.find(x => x.strike === b.strike)!;
+    return Math.abs(b.strength - Math.min(1, Math.abs(l.value) / l.gross)) < 1e-12 && b.put === l.value >= 0 && b.gross === l.gross;
+  }));
+  const bySize = [...lv].sort((a, b) => b.gross - a.gross).slice(0, 3).map(l => l.strike);
+  check(`the top set is the three heaviest by size (${bySize.join(', ')})`, bySize.every(k => col.topSet.has(k)) && col.topSet.size === 3 && col.top[0].strike === bySize[0]);
 }
 
-/* (ii) greyscale and colour vision */
+/* (ii) the mark's colour, and colour vision */
 {
   const lin = (c: number) => {
     const s = c / 255;
     return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   };
-  const lum = (rgb: readonly number[]) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
-  const over = (ink: readonly number[], a: number, ground: readonly number[]) => ink.map((c, i) => ground[i] * (1 - a) + c * a);
-  const grounds: { name: string; rgb: number[]; paper: boolean }[] = [
-    { name: 'dark canvas', rgb: [5, 5, 5], paper: false },
-    { name: 'dark panel', rgb: [10, 10, 10], paper: false },
-    { name: 'paper canvas', rgb: [241, 240, 236], paper: true },
-    { name: 'paper panel', rgb: [255, 255, 255], paper: true },
-  ];
+  const toLin = (rgb: readonly number[]) => rgb.map(lin);
+  const oklab = (l3: readonly number[]) => {
+    const [r, g, b] = l3;
+    const L = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    const Mx = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    const S = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [0.2104542553 * L + 0.793617785 * Mx - 0.0040720468 * S, 1.9779984951 * L - 2.428592205 * Mx + 0.4505937099 * S, 0.0259040371 * L + 0.7827717662 * Mx - 0.808675766 * S];
+  };
+  const dist = (a: readonly number[], b: readonly number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const paperInks: MarkInks = { put: heatRampColorFor(1, 1, HEAT_MODE, true), call: heatRampColorFor(-1, 1, HEAT_MODE, true), neutral: [64, 67, 74] };
   let ok = true;
   const notes: string[] = [];
-  for (const g of grounds)
-    for (const side of [1, -1] as const)
-      for (const stale of [0, 1, 2] as const) {
-        const ls = Array.from({ length: BEAD_STEPS }, (_, i) => {
-          const s = stepT(i + 1);
-          const ink = g.paper ? heatRampColorFor(side, stepColourT(s), HEAT_MODE, true) : heatRampColor(side, stepColourT(s));
-          /* a stale bead's dotted fill covers part of it: what the eye averages is the ink at alpha × its cover */
-          return lum(over(ink, coreAlpha(s) * STALE_ALPHA[stale] * STALE_COVER[stale], g.rgb));
-        });
-        const mono = ls.every((l, i) => i === 0 || (g.paper ? l < ls[i - 1] : l > ls[i - 1]));
-        if (!mono) {
-          ok = false;
-          notes.push(`${g.name} ${side > 0 ? 'put' : 'call'} stale ${stale}`);
-        }
+  for (const [ground, inks] of [['dark', DARK_MARK_INKS], ['paper', paperInks]] as const)
+    for (const side of [1, -1] as const) {
+      const n = oklab(toLin(inks.neutral));
+      const ds = Array.from({ length: STRENGTH_STEPS + 1 }, (_, k) => dist(oklab(toLin(markInk(side, k / STRENGTH_STEPS, inks))), n));
+      const mono = ds.every((d, i) => i === 0 || d >= ds[i - 1] - 1e-9);
+      if (!(mono && ds[0] === 0 && ds[STRENGTH_STEPS] > 0.1)) {
+        ok = false;
+        notes.push(`${ground} ${side > 0 ? 'put' : 'call'}`);
       }
-  check(`greyscale keeps the order: every step lighter on black and darker on paper than the one below, both sides, all three staleness steps${notes.length ? ` — fails: ${notes.join(', ')}` : ''}`, ok);
+    }
+  check(`the colour strength walks from the grey to the side's ink without turning back (OKLab distance from the neutral, both grounds, both sides)${notes.length ? ` — fails: ${notes.join(', ')}` : ''}`, ok);
 
   /* the two sides apart under protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009, severity 1),
-     in OKLab, on the drawn colour over the dark ground */
+     in OKLab, from half strength up on the dark ground */
   const M: Record<string, number[][]> = {
     protan: [
       [0.152286, 1.052583, -0.204868],
@@ -189,35 +199,24 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
       [0.004733, 0.691367, 0.3039],
     ],
   };
-  const toLin = (rgb: readonly number[]) => rgb.map(lin);
   const sim = (rgb: readonly number[], m: number[][]) => {
     const l = toLin(rgb);
     return m.map(row => Math.max(0, Math.min(1, row[0] * l[0] + row[1] * l[1] + row[2] * l[2])));
-  };
-  const oklab = (l3: readonly number[]) => {
-    const [r, g, b] = l3;
-    const L = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
-    const Mx = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
-    const S = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
-    return [0.2104542553 * L + 0.793617785 * Mx - 0.0040720468 * S, 1.9779984951 * L - 2.428592205 * Mx + 0.4505937099 * S, 0.0259040371 * L + 0.7827717662 * Mx - 0.808675766 * S];
   };
   const mins: string[] = [];
   let worst = Infinity;
   for (const [name, m] of Object.entries(M)) {
     let lo = Infinity;
-    for (let k = 3; k <= BEAD_STEPS; k++) {
-      const s = stepT(k);
-      const a = coreAlpha(s);
-      const put = over(heatRampColor(1, stepColourT(s)), a, [5, 5, 5]);
-      const call = over(heatRampColor(-1, stepColourT(s)), a, [5, 5, 5]);
-      const p = oklab(sim(put, m));
-      const c = oklab(sim(call, m));
-      lo = Math.min(lo, Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]));
+    for (let k = Math.ceil(STRENGTH_STEPS / 2); k <= STRENGTH_STEPS; k++) {
+      const u = k / STRENGTH_STEPS;
+      const p = oklab(sim(markInk(1, u, DARK_MARK_INKS), m));
+      const c = oklab(sim(markInk(-1, u, DARK_MARK_INKS), m));
+      lo = Math.min(lo, dist(p, c));
     }
     worst = Math.min(worst, lo);
     mins.push(`${name} ${lo.toFixed(3)}`);
   }
-  check(`the two sides stay apart from the third step up under each deficiency (smallest OKLab distance: ${mins.join(', ')}; 0.02 is a just-noticeable difference)`, worst >= 0.04);
+  check(`the two sides stay apart from half strength up under each deficiency (smallest OKLab distance: ${mins.join(', ')}; 0.02 is a just-noticeable difference)`, worst >= 0.04);
 }
 
 /* (iii) replay equals live on the recorder's own sessions */
@@ -240,7 +239,7 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
     let read = 0;
     const cut: string[] = [];
     for (const s of sessions) {
-      type Row = { m: number; max: number; ref: number; cells: [number, number][] };
+      type Row = { m: number; max: number; ref: number; maxG?: number; refG?: number; cells: [number, number, number?][] };
       const all = readFileSync(s.file, 'utf8')
         .split('\n')
         .filter(Boolean)
@@ -270,18 +269,20 @@ const maxima = base.map(s => Math.max(...s.levels.map(l => Math.abs(l.value))));
       }
       read++;
       const pick = rng(rows.length);
+      /* THE SIZE (B3): rows of format 2 count the gross; older rows the net, on both sides alike */
       const replay = minuteRefs(
         rows.map(r => r.m / 1000),
-        rows.map(r => r.max),
+        rows.map(r => r.maxG ?? r.max),
         nyDay
       ).ref;
       for (let n = 0; n < 20; n++) {
         const i = Math.floor(pick() * rows.length);
         const r = rows[i];
         minutes++;
-        for (const [, v] of r.cells) {
+        for (const c of r.cells) {
           beads++;
-          if (stepOf(strengthOf(v, r.ref)) !== stepOf(strengthOf(v, replay[i]))) off++;
+          const g = c[2] ?? Math.abs(c[1]);
+          if (stepOf(strengthOf(g, r.refG ?? r.ref)) !== stepOf(strengthOf(g, replay[i]))) off++;
         }
       }
     }

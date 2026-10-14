@@ -58,6 +58,10 @@ export interface GexLevel {
   at?: number;
   /** Net GEX at this strike (summed across expiries), signed dollars */
   value: number;
+  /** THE GROSS GAMMA AT THE STRIKE (the owner's B3, 2026-10-14): |calls| + |puts|, sign-agnostic, the units of `value`
+      — a mark's SIZE on the map, the net's share of it the mark's colour strength. Absent where a tape keeps the net
+      alone (store rows written before 2026-10-14): the map then sizes by |net| and its legend says so. */
+  gross?: number;
   /** Net delta exposure at the same instant, signed dollars — the trails
       follow the head's Greek (2026-09-06); optional so older folds still read */
   dex?: number;

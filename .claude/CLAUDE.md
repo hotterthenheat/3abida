@@ -1055,6 +1055,26 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   and FAILS when it read none. THE DEV SERVER READS THE ALWAYS-ON RECORDER BY DEFAULT (http://127.0.0.1:5190 — FEED_RECORDER_URL
   blank; `off` to record itself; a refused port falls back to its own recorder for half a minute), so a restart cuts
   no session.
+  SECTION B, THE MAP (2026-10-14; the README's "Section B"): ONE SOLID MARK PER STRIKE PER CANDLE (gexNodesPrimitive —
+  the ribbon of translucent, haloed, sub-bar ellipses that read as slivers is gone): a rect on the device-pixel grid,
+  the slot's width less a hairline, no halo, pattern or shadow. WHAT A MARK ENCODES (B3): its HEIGHT the strike's GROSS
+  gamma (|calls| + |puts|, `GexLevel.gross` — trailModel adds it to every column, the simulator to the house's, the
+  peak-minute fold carries it) √-scaled against the SIZE reference (the same running count over per-minute peak gross:
+  `refG`, the primitive's baseRunG), its HUE the net's side (ember puts, glacier calls), its COLOUR STRENGTH |net| ÷ gross
+  (grey when balanced — `markInk`, STRENGTH_STEPS), a SOFT EDGE for a stale or carried cell and nothing else; no identity
+  ink on a mark (no supreme magenta, no wall ink, no p95 ring — the chips name them); the zoom-out rule's "heaviest" is
+  by size (`topSet`). THE CHANGE MARKS (B4): a hollow ring where a strike enters the three heaviest, a grey outline where
+  one leaves, a two-pixel tick at the new strike where a wall moves. THE LEGEND says "size = total gamma at the strike ·
+  colour = which side wins · grey = balanced · soft edge = stale"; where a tape keeps no gross (store rows of format 1)
+  the mark sizes by |net| and the legend says so. STORE FORMAT 2 (server/fieldStore.ts): cells `[strike, net, gross]`,
+  `maxG`, `refG`; readers take the first two figures. NEVER A BLANK WITHOUT A REASON (B1): a run of bars with no column
+  wears its cause on the chart (gexNodesPrimitive findGaps, the words from Terrain `gapCause`: before the open / after
+  the close, queued / rebuilding / not rebuilt and why / beyond the ten sessions asked, chain not read yet, not recorded,
+  live lag · N min); a run never crosses the open, the close or a day; the wall chips keep clear of the labels.
+  THE SERIES JOB (B5, server/seriesBackfill.ts on the always-on recorder; SERIES_NAMES=SPY,QQQ,SPX, SERIES_DAYS=730,
+  `off`): UW's per-minute spot exposures (_oi, _vol, _dir and the rest, AS ANSWERED) for every session back through
+  its window, newest first, to .feed-cache/field/<NAME>/<D>/series.json — a day held is skipped, an empty day written
+  empty, a refused call asked again next pass; scripts/series-backfill-proof.ts in `npm test`.
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

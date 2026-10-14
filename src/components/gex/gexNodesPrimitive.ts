@@ -1,5 +1,5 @@
 import { HEAT_MODE, heatRampColor, heatRampColorFor, inkFor } from './heatmap';
-import { BEAD_STEPS, FIXED_SESSIONS, RunningScale, pooledRef, stepOf, stepT, strengthOf, type ScaleBasis, type ScaleRef } from '../../data/feed/beadScale';
+import { BEAD_STEPS, FIXED_SESSIONS, RunningScale, columnGross, pooledRef, stepOf, stepT, strengthOf, type ScaleBasis, type ScaleRef } from '../../data/feed/beadScale';
 import { num } from '../../core/format';
 import type { ISeriesPrimitive, ISeriesPrimitiveAxisView, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
@@ -27,81 +27,79 @@ import { WALL_HOLD, wallMovesOf } from '../../data/feed/trailModel';
   the rest of the field steps back.
 */
 
-/* THE FIELD'S OWN INKS (Noah, 2026-08-22): the house heatmap's steel-gold
-   poles — gold = put-dominant / amplifying, steel = call-dominant /
-   absorbing — and magenta on the supreme strike, as everywhere else. Not the
-   market red/green: on THIS surface those belong to the candles, and a
-   field in the tape's ink can't be told from the tape. The legend above the
-   chart teaches the pair. Strength lives in height and alpha, never in
-   desaturation. */
-const PUT_RGB: readonly [number, number, number] = [245, 197, 66]; // honey gold
-const CALL_RGB: readonly [number, number, number] = [214, 237, 248]; // glacier ice — the absorb pole (2026-08-29)
-const SUPREME_RGB: readonly [number, number, number] = [234, 0, 255]; // magenta, restored — mirrors palette SUPREME
-/* THE WALLS LIVE HERE (Noah, 2026-08-22: "I hate how they look on the side
-   line"): each moment's call wall beads ink green, its put wall red, and the
-   flip runs as a blue tick trail — the levels ON the tape, history included,
-   instead of static lines at today's values. Same level rules as the chips
-   used (buildLevelsFor): wall = heaviest |gamma| above/below that moment's
-   close, flip = the sign-change midpoint nearest it. */
+/* THE FIELD'S OWN INKS: THE GAMMA PAIR (the owner, 2026-10-14 — B3: "Hue = side of the net: ember puts, glacier calls.
+   Colour strength = |net| ÷ gross; grey when balanced"): the dark tokens' own ember and glacier (tokens.css), the
+   neutral the text-muted ink; on paper the light set's, read off the chart's box (trailPaperFrom). Not the market
+   red/green: on THIS surface those belong to the candles. Since B3 no mark wears an identity ink — not the supreme's
+   magenta, not the walls' ("No King, glow, pulse, magnet or pin glyphs"): the axis chips and the wall-move chips name
+   them; the focus (a strike the reader picked) keeps the house's silver. */
+const PUT_RGB: readonly [number, number, number] = [245, 197, 66]; // --ember
+const CALL_RGB: readonly [number, number, number] = [122, 189, 215]; // --glacier
+const NEUTRAL_RGB: readonly [number, number, number] = [125, 125, 125]; // --text-muted on black: a balanced strike
+const SUPREME_RGB: readonly [number, number, number] = [234, 0, 255]; // the in-plot strength labels alone (a host without axis chips)
 /* THE WALLS WEAR THE GAMMA PAIR (the owner, 2026-10-14: "Wall chips: put wall ember, call wall glacier. Bull/bear is for
-   candles only"): the dark tokens' own values (tokens.css); green and red until then */
+   candles only"): the dark tokens' own values (tokens.css); green and red until then. The chips, the ticks and the
+   axis labels wear them — never a mark (B3). */
 const CW_RGB: readonly [number, number, number] = [122, 189, 215]; // --glacier
 const PW_RGB: readonly [number, number, number] = [245, 197, 66]; // --ember
 const FLIP_RGBA = 'rgba(156,163,175,0.8)'; // indecision gray — the regime border (mirrors palette FLIP); alpha raised with the 2026-08-29 weight pass
-
-/* WHEN TWO IDENTITIES SHARE A STRIKE, THE SUPREME WINS OUTRIGHT (Noah,
-   2026-08-29: "its so bright practically hard to miss especially on the
-   charts" — then, shown a supreme-on-put-wall band rendering amber: "this is
-   nowhere near neon"). The 2026-08-22 blends (wine/violet/amber) existed so
-   a wall was never swallowed, but a 50/50 mix swallows the SUPREME instead —
-   and a neon diluted is mud, not neon. The wall's identity still gets told:
-   its chip, its axis line, and the ladder's K·PW / K·CW tags all name it.
-   The band belongs to the crown. */
-const FLIPK_RGBA = 'rgba(234,0,255,0.85)'; // the supreme outranks the flip on a shared strike too
 
 /* EVERY STRIKE IN THE WINDOW DRAWS (the owner's second review, 2026-10-13, item 5: 774 stood at +$506M, half the
    reference, and drew nothing — only the twelve heaviest of a column were drawn), and since item 5 (e) every strike
    above zero: the floor is the reader's (`floor`, a share of the reference, off by default). The ranking happens ONCE,
    when the data arrives — a frame must never sort. */
 
-/* STALENESS IN THE MARK ITSELF (item 5 (g) — "reduced opacity with a dotted outline, quantized to 3 steps. Do not use
-   desaturation"): 0 a cell on today's vols, 1 a modeled cell with half or more of its gamma on vols older than an hour,
-   2 a cell priced mostly on the session before's close vol (carried). The same inks; the core and halo at these shares
-   of their alpha, filled dotted (STALE_COVER), and a dotted outline round a swelling bead. */
-export const STALE_ALPHA = [1, 0.8, 0.6] as const;
-/** The share of a stale bead its dotted fill covers (two on, one off; one on, one off) */
-export const STALE_COVER = [1, 2 / 3, 1 / 2] as const;
+/* STALENESS IS A SOFT EDGE, NOTHING ELSE (B3, 2026-10-14 — it was a dotted fill at a quieter alpha, item 5 (g)): 0 a
+   cell on today's vols, 1 a modeled cell with half or more of its gamma on vols older than an hour, 2 a cell priced
+   mostly on the session before's close vol (carried). A stale mark keeps its colour and its light and wears its edge
+   soft — a one-device-pixel border at SOFT_EDGE_ALPHA of the mark's own alpha round a core inset by that pixel. The
+   card says which of the two it is. */
+export const SOFT_EDGE_ALPHA = 0.45;
 const staleOf = (l: GexSnapshot['levels'][number]): 0 | 1 | 2 => (l.prov === 'carried' ? 2 : (l.staleShare ?? 0) >= 0.5 ? 1 : 0);
-/** A bead's core and halo alpha at a step (the halo's under the core: what makes the ribbon soft) — one function, so the
-    greyscale proof reads what is drawn */
-export const coreAlpha = (s: number) => 0.16 + s * 0.5;
-export const haloAlpha = (s: number) => 0.04 + s * 0.14;
-/** The side ramp's colour at a step: floored at 0.2 so the faintest step still whispers in hue */
-export const stepColourT = (s: number) => 0.2 + 0.8 * s;
 
-/** One bead: a strike's step against the reference, and which side owns it */
+/* THE MARK'S COLOUR (B3): the side's ink mixed from the neutral by the colour strength — grey at 0 (the two sides
+   balanced), the ink whole at 1 (one-sided); quantized to STRENGTH_STEPS so the field is a few paths a frame */
+export const STRENGTH_STEPS = 10;
+export interface MarkInks {
+  put: RGB3;
+  call: RGB3;
+  neutral: RGB3;
+}
+export const DARK_MARK_INKS: MarkInks = { put: PUT_RGB, call: CALL_RGB, neutral: NEUTRAL_RGB };
+export const markInk = (side: 1 | -1, strength: number, inks: MarkInks): RGB3 => {
+  const u = Math.max(0, Math.min(1, strength));
+  const to = side > 0 ? inks.put : inks.call;
+  const n = inks.neutral;
+  return [Math.round(n[0] + (to[0] - n[0]) * u), Math.round(n[1] + (to[1] - n[1]) * u), Math.round(n[2] + (to[2] - n[2]) * u)];
+};
+
+/** One mark: a strike's size step against the size reference, and how one-sided its book is */
 interface Bead {
   strike: number;
-  /** Its strength, √(|value| ÷ reference) clipped at 1, and the step it draws at (1..BEAD_STEPS) */
+  /** The net (the greek drawn) and the gross — |calls| + |puts|, |net| where the cell keeps none */
+  value: number;
+  gross: number;
+  /** Its size, √(gross ÷ the size reference) clipped at 1, and the step it draws at (1..BEAD_STEPS) */
   t: number;
   step: number;
+  /** |net| ÷ gross, 0 balanced to 1 one-sided; 1 where the cell keeps no gross */
+  strength: number;
   /** Sim side-coding: positive = put-dominant (amplifies), negative = call-dominant (absorbs) */
   put: boolean;
-  /** 0 fresh, 1 stale, 2 carried — STALE_ALPHA */
+  /** 0 fresh, 1 stale, 2 carried — a soft edge for either */
   stale: 0 | 1 | 2;
-  /** Above the basis's p95 — it wears a ring (item 5 (c)) */
-  ring: boolean;
 }
 
 /** One column of the field, ranked and scaled at load time */
 interface Column {
   time: number;
-  /** The strikes that draw, strongest first */
+  /** The strikes that draw, largest first (by gross) */
   top: Bead[];
   /** Every strike — only consulted for a focused strike outside the top */
   all: Map<number, Bead>;
-  /** The reference this column's beads were measured against, and what it was built with */
+  /** The references this column's beads were measured against (the net's and the size's), and what it was built with */
   ref: number;
+  refG: number;
   key: string;
   /* THIS MOMENT'S OWN LEVELS (2026-10-13): the flip and the walls of the column's own book, against its own price —
      core/walls.ts pickFlip (the sign change nearest the price; null where the book never changes sign: a gap, never the
@@ -112,8 +110,9 @@ interface Column {
   /** The moment's own price and the strikes' step — the density's distance fade reads them */
   spot: number;
   step: number;
+  /** THE TOP SET (B4): the three heaviest strikes by size — a strike entering it wears a ring, one leaving it a ghost */
+  topSet: Set<number>;
 }
-
 
 /* A WALL THAT MOVES (2026-10-13): a chip at the moment the call or put wall changes strike — "CW 780 → 785 · 11:42" —
    counted once the new strike has held three moments (a wall trading places with its neighbour for a moment is not a
@@ -165,6 +164,8 @@ type RGB3 = readonly [number, number, number];
 export interface TrailPaper {
   put: RGB3;
   call: RGB3;
+  /** the balanced mark's grey (B3) — the page's muted ink */
+  neutral: RGB3;
   cw: RGB3;
   pw: RGB3;
   supreme: RGB3;
@@ -181,6 +182,7 @@ export function trailPaperFrom(el: Element): TrailPaper {
   return {
     put: heatRampColorFor(1, 1, HEAT_MODE, true),
     call: heatRampColorFor(-1, 1, HEAT_MODE, true),
+    neutral: tokenRgb(el, '--text-muted', [64, 67, 74]),
     cw: tokenRgb(el, '--glacier', [3, 105, 161]),
     pw: tokenRgb(el, '--ember', [146, 86, 4]),
     supreme: tokenRgb(el, '--supreme', [163, 0, 179]),
@@ -214,6 +216,55 @@ interface DrawTarget {
   useBitmapCoordinateSpace(cb: (scope: BitmapScope) => void): void;
 }
 
+/** A run of bars on screen with no column of the field, and the host's reason (B1) */
+interface GapRun {
+  t0: number;
+  t1: number;
+  words: string;
+}
+/** The bars in the visible range with no column of the field, as runs, each asked its reason of the host (src.gapCause):
+    whitespace (no bar) is no gap; a run the host has no words for is left unlabelled */
+function findGaps(src: GexTrailsPrimitive, series: ISeriesApi<'Candlestick'>, ts: ReturnType<IChartApi['timeScale']>, barSec: number): GapRun[] {
+  const cause = src.gapCause;
+  const r = ts.getVisibleLogicalRange();
+  if (!cause || !r) return [];
+  const out: GapRun[] = [];
+  let run: { i0: number; i1: number; t0: number; t1: number } | null = null;
+  const close = () => {
+    if (!run) return;
+    const words = cause(run.t0, run.t1 + barSec);
+    if (words) out.push({ t0: run.t0, t1: run.t1, words });
+    run = null;
+  };
+  const from = Math.max(0, Math.ceil(r.from));
+  const to = Math.floor(r.to);
+  /* a run never crosses the open or the close (New York's 9:30 and 4:00), nor a day: each has one cause */
+  const sessionOf = (t: number): string => {
+    const m = nyMinuteOf(t);
+    return `${nyDayKey(t)}|${m < 570 ? 'pre' : m > 960 ? 'post' : 'in'}`;
+  };
+  let runSession = '';
+  for (let i = from; i <= to && i - from < 4000; i++) {
+    const d = series.dataByIndex(i) as { time?: unknown } | null;
+    const t = d && typeof d.time === 'number' ? d.time : null;
+    if (t == null || src.hasColumnAt(t)) {
+      close();
+      continue;
+    }
+    const ses = sessionOf(t);
+    if (run && run.i1 === i - 1 && ses === runSession) {
+      run.i1 = i;
+      run.t1 = t;
+    } else {
+      close();
+      run = { i0: i, i1: i, t0: t, t1: t };
+      runSession = ses;
+    }
+  }
+  close();
+  return out;
+}
+
 class TrailsPaneRenderer {
   constructor(private source: GexTrailsPrimitive) {}
 
@@ -234,26 +285,8 @@ class TrailsPaneRenderer {
       run at 60fps) blit this instead of re-filling thousands of subpaths;
       the fill cost, not the path building, was the hover jank. */
   private bmp: HTMLCanvasElement | null = null;
-  /** The stale steps' dotted fills, by ink and step — two device pixels on and one off (stale), one on and one off
-      (carried), anchored to the bitmap so a row of beads dots evenly */
-  private dotCache = new Map<string, CanvasPattern | string>();
-  dots(ctx: CanvasRenderingContext2D, css: string, stale: 1 | 2, px: number): CanvasPattern | string {
-    const key = `${css}|${stale}|${px}`;
-    let p = this.dotCache.get(key);
-    if (p) return p;
-    const c = document.createElement('canvas');
-    c.width = (stale === 2 ? 2 : 3) * px;
-    c.height = 1;
-    const g = c.getContext('2d');
-    if (g) {
-      g.fillStyle = css;
-      g.fillRect(0, 0, (stale === 2 ? 1 : 2) * px, 1);
-    }
-    p = (g && ctx.createPattern(c, 'repeat')) || css;
-    if (this.dotCache.size > 400) this.dotCache.clear();
-    this.dotCache.set(key, p);
-    return p;
-  }
+  /** THE GAPS ON SCREEN (B1): runs of bars with no column and the host's reason for each, found as the bitmap is built */
+  private gapRuns: GapRun[] = [];
 
   draw(target: DrawTarget): void {
     const src = this.source;
@@ -296,21 +329,19 @@ class TrailsPaneRenderer {
       const drawn = src.columnAt(last - 1).ref;
       if (Math.abs(drawn - src.published) > src.published * 1e-12) console.error(`bead legend out of step: the legend says ${src.published}, the newest column was drawn against ${drawn}`);
     }
-    /* WAVEFORMS, NOT DOTS (Noah, 2026-08-22, against Sovereign's close-ups):
-       a rail is a ribbon — every bead is as WIDE as its slot, so they touch,
-       and the variation is VERTICAL: the ribbon's thickness flickers with
-       each moment's strength, like an audio waveform. Weak strikes draw as
-       hairline dashes, not specks. The ribbon is translucent and layered (a
-       wider, fainter halo under a soft core) so candles show through it. */
-    /* Amplitude follows the BAR WIDTH, not a fixed pixel count, so 15m/1h
-       ribbons sit in proportion to their candles: the heaviest rail is
-       ~60% of a bar tall, a hairline is under a pixel. The strength is t, √(size ÷ the session's reference) — the scale
-       the legend states (BEAD_SCALE). */
-    const A_MIN = 0.45;
-    const A_MAX = Math.max(3, Math.min(barSpacing * 0.6, 9));
+    /* ONE SOLID MARK PER STRIKE PER CANDLE (the owner, 2026-10-14 — B2: "draw one solid mark per strike per candle (the
+       cell is the bar's peak minute), on whole device pixels, no blur or shadow"; B3 for what a mark encodes). Until
+       then the field was a RIBBON: beads as wide as their slot so they touched, their thickness the strength, a wider
+       and fainter halo under a translucent core (0.16 to 0.66 alpha, the halo 0.04 to 0.18), ellipses on fractional
+       coordinates, every sub-bar moment its own sliver — which read as soft slivers. Now a mark is a RECT on the
+       device-pixel grid: as wide as the bar's slot less a hairline, its HEIGHT the strike's size (√ of the gross
+       against the size reference, in BEAD_STEPS steps, one pixel to the strike row's share), its COLOUR the side's
+       ink mixed from the neutral by |net| ÷ gross, filled whole (the density's dims and a focus apart), a stale cell's
+       edge soft. The column is the bar's (timeframe.ts aggregateSnapshots: the cell its peak minute). */
     const focus = src.focusStrike;
     const supreme = src.supremeStrike;
     const paper = src.paper;
+    const inks: MarkInks = paper ? { put: paper.put, call: paper.call, neutral: paper.neutral } : DARK_MARK_INKS;
     const ink = paper ? (src.focusInk === 'supreme' ? paper.supreme : paper.focus) : INK_RGB[src.focusInk];
     const inkCss = `rgba(${ink[0]},${ink[1]},${ink[2]},0.95)`;
 
@@ -319,59 +350,52 @@ class TrailsPaneRenderer {
       const hr = scope.horizontalPixelRatio;
       const vr = scope.verticalPixelRatio;
       const wCss = scope.mediaSize.width;
-      /* SUB-BAR BEADS (Noah, 2026-08-22: one bead per 30m/1h bar was a row of
-         pearls): the field's clock is finer than the bars, so a bar holds
-         several beads, each placed at its own time across the bar's width.
-         On 1m/5m the slot IS the bar and nothing changes.
-         BUDGET: never more columns than the pixels can show — a slot under
-         ~3px wide is drawn every 2nd/3rd/nth, so a zoomed-out 1h chart costs
-         the same frame as a 1m one (the price-scale drag lagged without it). */
+      /* SUB-BAR MOMENTS: the field's clock can be finer than the bars (a host handing per-minute columns to a wider
+         chart); then a bar holds several marks across its width. On the chart's own fold the slot IS the bar.
+         BUDGET: never more columns than the pixels can show — a slot under ~3px wide is drawn every 2nd/3rd/nth. */
       const barSec = src.barSec;
       const slots = Math.max(1, Math.round(barSec / Math.max(1, src.stepSec)));
       const stride = Math.max(1, Math.ceil(3 / (barSpacing / slots)));
       const drawnSlots = Math.max(1, Math.ceil(slots / stride));
-      const rx = (barSpacing / drawnSlots) * 0.54 * hr;
+      const slotCss = barSpacing / drawnSlots;
       const halfW = barSpacing * 0.5;
+      /* THE MARK ON THE PIXEL GRID: one device pixel at least; the slot's width less a hairline, so neighbouring bars
+         read as marks and not one band; its height by step, from one pixel to the strike row's share (never past the
+         slot's width, so a mark is never taller than it is wide by much, nor past 14 CSS px) */
+      const px = Math.max(1, Math.round(hr));
+      const pxV = Math.max(1, Math.round(vr));
+      const wDev = Math.max(px, Math.round(slotCss * hr) - px);
+      const rowDev = (() => {
+        const c = src.columnAt(first);
+        const y0 = series.priceToCoordinate(c.spot);
+        const y1 = series.priceToCoordinate(c.spot + c.step);
+        return y0 != null && y1 != null && Math.abs(y0 - y1) > 0 ? Math.abs(y0 - y1) * vr : 12 * vr;
+      })();
+      const hMax = Math.max(2 * pxV, Math.min(Math.round(rowDev * 0.85), Math.round(Math.max(3, barSpacing * 0.9) * vr), Math.round(14 * vr)));
+      const hMin = pxV;
 
       /* The cache fingerprint — see the field notes above. */
       const firstBucket = Math.floor(col0.time / barSec) * barSec;
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? 0) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? 0) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}`;
+      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${src.focusInk}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${hMax}|${wDev}|${src.gapRev}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
-      /* BATCHED BY STEP (item 5 (d)): a bead's brightness is one of BEAD_STEPS steps a side, so the field is one Path2D
-         per ink, step, staleness and dimming — filled once each, into the BITMAP. Rings (item 5 (c)) and the stale
-         steps' dotted outlines (item 5 (g)) are a path per ink each, stroked once. */
-      const cores = new Map<string, Path2D>();
-      const halos = new Map<string, Path2D>();
+      /* BATCHED BY COLOUR: a mark's colour is one of STRENGTH_STEPS mixes a side, so the field is one Path2D per side,
+         strength step, staleness and dimming — filled once each into the BITMAP; the soft edges the same keys at
+         SOFT_EDGE_ALPHA; the change marks (B4) a path each, stroked once. */
+      const fills = new Map<string, Path2D>();
+      const edges = new Map<string, Path2D>();
       const rings = new Map<string, Path2D>();
-      const dotted = new Map<string, Path2D>();
+      const ghosts = new Path2D();
+      let ghostDrawn = false;
       const flipPath = new Path2D();
-      const flipKPath = new Path2D();
       let flipDrawn = false;
       const pathFor = (map: Map<string, Path2D>, key: string) => {
         let p = map.get(key);
         if (!p) map.set(key, (p = new Path2D()));
         return p;
-      };
-      /* RUNS (item 5 (iv), the frame at full zoom-out): a hairline bead is a rect as wide as its slot, so neighbours at a
-         strike overlap by design — a row of them at one step and staleness is ONE rect from the first's left edge to
-         the last's right, the same pixels in one fill (a path's subpaths union, so nothing doubles), a fraction of the
-         shapes. Keyed by strike and layer; a gap, a step change or a round bead between starts a new run. */
-      type Run = { map: Map<string, Path2D>; key: string; x0: number; x1: number; y0: number; h: number };
-      const runs = new Map<number, Run>();
-      const flush = (r: Run) => pathFor(r.map, r.key).rect(r.x0, r.y0, r.x1 - r.x0, r.h);
-      const runRect = (map: Map<string, Path2D>, layer: number, strike: number, key: string, x0: number, y0: number, w: number, h: number) => {
-        const id = strike * 4 + layer;
-        const r = runs.get(id);
-        if (r && r.map === map && r.key === key && r.y0 === y0 && r.h === h && x0 <= r.x1 + 0.5) {
-          if (x0 + w > r.x1) r.x1 = x0 + w;
-          return;
-        }
-        if (r) flush(r);
-        runs.set(id, { map, key, x0, x1: x0 + w, y0, h });
       };
       const yCache = new Map<number, number | null>();
       const yOf = (strike: number) => {
@@ -383,18 +407,22 @@ class TrailsPaneRenderer {
         return y;
       };
 
-      // ---- the beads (skipped whole when the cache holds) --------------------
+      // ---- the marks (skipped whole when the cache holds) --------------------
       const beadFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
       const paneHCss = scope.mediaSize.height;
       /* BEAD DENSITY (the Terrain UI pass, 2026-10-14): zoomed out past a session, a strike that is not one of the
-         column's levels — its walls, its three heaviest, the supreme, the focus — draws at a quarter of its light, and a
-         non-level strike more than fifteen steps from the column's price at six tenths; every strike still draws, the
-         levels at full light at any zoom. `density` false (the legend's "Every strike") draws every bead whole. */
+         column's levels — its walls, its three heaviest BY SIZE (B3: "'Heaviest' in the zoom-out rule uses the size
+         measure"), the focus — draws at a quarter of its light, and a non-level strike more than fifteen steps from
+         the column's price at six tenths; every strike still draws, the levels at full light at any zoom. `density`
+         false (the legend's "Every strike") draws every mark whole. */
       const zoomedOut = src.density && (last - first) * Math.max(1, src.stepSec) > 8 * 3600;
       for (let ci = cached ? last : first; ci < last; ci++) {
         const col = src.columnAt(ci);
-        const levelSet = zoomedOut || src.density ? new Set<number>([col.cw ?? NaN, col.pw ?? NaN, ...col.top.slice(0, 3).map(b => b.strike)]) : null;
-        // The bead's bar, and where inside it this moment sits
+        /* the column before, for the change marks — built if it is not yet (it is the one to the left, on screen or
+           just off it) */
+        const prev = ci > 0 ? src.columnAt(ci - 1) : null;
+        const levelSet = src.density ? new Set<number>([col.cw ?? NaN, col.pw ?? NaN, ...col.topSet]) : null;
+        // The mark's bar, and where inside it this moment sits
         const bucket = Math.floor(col.time / barSec) * barSec;
         const slot = slots > 1 ? Math.floor(((col.time - bucket) / barSec) * slots) : 0;
         if (slot % stride !== 0) continue;
@@ -402,18 +430,16 @@ class TrailsPaneRenderer {
         if (xBar === null || xBar < -halfW || xBar > wCss + halfW) continue;
         const x = slots > 1 ? xBar - halfW + ((slot / stride + 0.5) / drawnSlots) * barSpacing : xBar;
         const cx = x * hr;
+        const left = Math.round(cx - wDev / 2);
 
         // The flip: a tick per column in the field's grammar, never a solid side line — EACH COLUMN'S OWN flip
         // (2026-10-13), off its own book; a column whose book never changes sign has none, and the trail gaps there
         if (col.flip != null) {
           const fy = series.priceToCoordinate(col.flip);
           if (fy !== null) {
-            /* Taller and near-continuous (Noah, 2026-08-29: "more noticable
-               ... not color wise") — 90% slot coverage keeps it reading as a
-               dashed rule rather than a row of crumbs. */
-            const w = (barSpacing / drawnSlots) * 0.9 * hr;
-            const onK = supreme != null && Math.abs(col.flip - supreme) < 1e-6;
-            (onK ? flipKPath : flipPath).rect(cx - w / 2, fy * vr - 1.3 * vr, w, 2.6 * vr);
+            /* near-continuous: 90% slot coverage keeps it reading as a dashed rule rather than a row of crumbs */
+            const w = Math.max(px, Math.round(slotCss * 0.9 * hr));
+            flipPath.rect(Math.round(cx - w / 2), Math.round(fy * vr - 1.3 * vr), w, Math.max(pxV, Math.round(2.6 * vr)));
             flipDrawn = true;
           }
         }
@@ -430,126 +456,58 @@ class TrailsPaneRenderer {
           const isFocus = focus != null && bead.strike === focus;
           const y = yOf(bead.strike);
           if (y === null) continue;
-          /* IN RANGE ONLY (the owner's second review, 2026-10-13, item 2: "the 785 beads run along the top edge under
-             the header"): a strike under the chrome band or off the pane's foot is not drawn — the fit keeps every
-             strike in the candles' range clear of the band, and a wall beyond it is named by its pinned chip */
+          /* IN RANGE ONLY (the owner's second review, 2026-10-13, item 2): a strike under the chrome band or off the
+             pane's foot is not drawn — a wall beyond the clear area is named by its pinned chip */
           if (y < beadFloorCss || y > paneHCss) continue;
 
-          /* THE DRAWN STRENGTH IS THE STATED ONE: the step's own strength (item 5 (d)) — height, light and hue all
-             follow it, so the legend's reference is what full brightness means */
+          /* THE DRAWN SIZE IS THE STATED ONE: the step's own share of the row (item 5 (d)) — the legend's reference is
+             what full size means */
           const step = Math.max(isFocus ? 1 : 0, bead.step);
           if (step <= 0) continue;
-          const sd = stepT(step);
-          const ry = (A_MIN + sd * (A_MAX - A_MIN)) * vr;
-          const yc = y * vr;
+          const h = Math.max(hMin, Math.round(hMin + stepT(step) * (hMax - hMin)));
+          const top = Math.round(y * vr - h / 2);
           const stale = isFocus ? 0 : bead.stale;
           /* the light's factor: the field steps back behind a focus (0.3); the density's quarter and the distance's
              six tenths for a strike that is no level of its column */
           let dimA = focus != null && !isFocus ? 0.3 : 1;
-          if (levelSet && !isFocus && !(supreme != null && bead.strike === supreme) && !levelSet.has(bead.strike)) {
+          if (levelSet && !isFocus && !levelSet.has(bead.strike)) {
             if (zoomedOut) dimA *= 0.25;
             if (Math.abs(bead.strike - col.spot) > 15 * col.step) dimA *= 0.6;
           }
           const dim = dimA >= 1 ? '1' : dimA.toFixed(2);
-          /* Ink precedence: the focus wins, then THE SUPREME — above the walls
-             (Noah, 2026-08-29: the crown is never diluted; reverses the
-             2026-08-22 wall-over-supreme order, whose worry — "I don't even see
-             any put wall" — is answered by the wall's chip, axis line and
-             the ladder's K·PW tag), then today's walls, then the side. */
-          const isSupreme = supreme != null && bead.strike === supreme;
-          /* SIDE BEADS TRAVEL THE HOUSE RAMP (ember/glacier, 2026-08-29): each step's hue comes from the ramp at its
-             own strength (stepColourT), so a band heats where the book is heavy and cools where it drains; identity
-             beads (focus/supreme/walls) keep their identity inks */
-          const inkKey = isFocus
-            ? 'f'
-            : isSupreme
-              ? 'k'
-              : bead.strike === src.cwStrike
-                ? 'cw'
-                : bead.strike === src.pwStrike
-                  ? 'pw'
-                  : bead.put
-                    ? `p@${step}`
-                    : `c@${step}`;
-          const key2 = `${inkKey}|${step}|${stale}|${dim}`;
-
-          /* Each ELLIPSE bead is its OWN subpath: ellipse() draws a line
-             from the path's current point to the ellipse's start, so without
-             the moveTo every bead joined the last one. HAIRLINES DRAW AS
-             RECTS (2026-08-29): under ~2px of height an ellipse is invisible
-             arc math — the vast majority of beads — and rect() paths cost a
-             fraction. Only the swelling rails keep the round nose. */
-          const round = ry > 2 * vr;
-          // The halo: wider and taller, faint — what makes the ribbon soft.
-          // Gated on real pixels too: a halo around a sub-pixel bead is
-          // path-building with no visible return.
-          if (sd > 0.2 && ry * 1.9 > 2.2 * vr) {
-            const hx = rx * 1.15;
-            if (round) {
-              const p = pathFor(halos, key2);
-              p.moveTo(cx + hx, yc);
-              p.ellipse(cx, yc, hx, ry * 1.9, 0, 0, Math.PI * 2);
-            } else {
-              runRect(halos, 1, bead.strike, key2, cx - hx, yc - ry * 1.9, hx * 2, ry * 1.9 * 2);
-            }
-          }
-          // The core: a slot-wide bead whose height is this moment's step
-          if (round) {
-            const p = pathFor(cores, key2);
-            p.moveTo(cx + rx, yc);
-            p.ellipse(cx, yc, rx, ry, 0, 0, Math.PI * 2);
-          } else {
-            runRect(cores, 0, bead.strike, key2, cx - rx, yc - ry, rx * 2, ry * 2);
-          }
-          /* THE RING (item 5 (c)): a bead above the basis's p95 — clipped at full brightness with the rest of the top
-             step, and told apart by a hairline round it */
-          if (bead.ring && dim === '1') {
-            const g = 1.2 * vr;
-            const r = pathFor(rings, inkKey.replace(/@\d+$/, ''));
-            if (round) {
-              r.moveTo(cx + rx + g, yc);
-              r.ellipse(cx, yc, rx + g, ry + g, 0, 0, Math.PI * 2);
-            } else r.rect(cx - rx - g, yc - ry - g, (rx + g) * 2, (ry + g) * 2);
-          }
-          /* THE STALE STEPS, DOTTED (item 5 (g)): a stale bead is filled with a dotted pattern of its ink (paint below) —
-             a hairline reads as a dotted line, never a quieter solid one — and a swelling bead also wears a dotted outline.
-             (Dots drawn as shapes cost 25,000 extra rects a frame at full zoom-out; a pattern costs none.) */
-          if (stale > 0 && round) {
-            const o = pathFor(dotted, `${inkKey.replace(/@\d+$/, '')}|${stale}`);
-            const g = 0.8 * vr;
-            o.moveTo(cx + rx + g, yc);
-            o.ellipse(cx, yc, rx + g, ry + g, 0, 0, Math.PI * 2);
+          /* THE COLOUR (B3): the side's ink by how one-sided the strike is — grey when balanced; the focus the house's
+             silver */
+          const sStep = Math.round(Math.max(0, Math.min(1, bead.strength)) * STRENGTH_STEPS);
+          const key2 = isFocus ? `f|0|${stale}|${dim}` : `${bead.put ? 'p' : 'c'}|${sStep}|${stale}|${dim}`;
+          if (stale > 0 && wDev > 2 * px && h > 2 * pxV) {
+            /* THE SOFT EDGE (B3): a one-pixel border at a fraction of the mark's light, the core inset by it */
+            pathFor(edges, key2).rect(left, top, wDev, h);
+            pathFor(fills, key2).rect(left + px, top + pxV, wDev - 2 * px, h - 2 * pxV);
+          } else pathFor(fills, key2).rect(left, top, wDev, h);
+          /* THE RING (B4): a strike entering the three heaviest wears a hollow ring on the bar it entered, one device
+             pixel outside the mark, in its side's ink */
+          if (prev && !isFocus && col.topSet.has(bead.strike) && !prev.topSet.has(bead.strike)) {
+            pathFor(rings, bead.put ? 'p' : 'c').rect(left - px - 0.5, top - pxV - 0.5, wDev + 2 * px + 1, h + 2 * pxV + 1);
           }
         }
+        /* THE GHOST (B4): a strike that LEFT the three heaviest draws an outline where it stood — the slot wide, the
+           tallest mark's height, no fill, in the neutral */
+        if (prev)
+          for (const s of prev.topSet)
+            if (!col.topSet.has(s)) {
+              const y = yOf(s);
+              if (y === null || y < beadFloorCss || y > paneHCss) continue;
+              ghosts.rect(left + 0.5, Math.round(y * vr - hMax / 2) + 0.5, Math.max(1, wDev - 1), Math.max(1, hMax - 1));
+              ghostDrawn = true;
+            }
       }
 
-      for (const r of runs.values()) flush(r);
-      runs.clear();
-
-      const INKS: Record<string, readonly [number, number, number]> = paper
-        ? { f: ink, k: paper.supreme, cw: paper.cw, pw: paper.pw, p: paper.put, c: paper.call }
-        : {
-            f: ink,
-            k: SUPREME_RGB,
-            cw: CW_RGB,
-            pw: PW_RGB,
-            p: PUT_RGB,
-            c: CALL_RGB,
-          };
-      const inkOf = (inkKey: string): RGB3 => {
-        if (inkKey[1] === '@') {
-          const sd = stepColourT(stepT(Number(inkKey.slice(2))));
-          return paper ? heatRampColorFor(inkKey[0] === 'p' ? 1 : -1, sd, HEAT_MODE, true) : heatRampColor(inkKey[0] === 'p' ? 1 : -1, sd);
-        }
-        return INKS[inkKey] ?? INKS.c;
-      };
-      const paint = (tctx: CanvasRenderingContext2D, map: Map<string, Path2D>, alphaOf: (s: number) => number) => {
+      const paint = (tctx: CanvasRenderingContext2D, map: Map<string, Path2D>, edge: boolean) => {
         for (const [key2, path] of map) {
-          const [inkKey, step, stale, dim] = key2.split('|');
-          const rgb = inkOf(inkKey);
-          const a = alphaOf(stepT(Number(step))) * STALE_ALPHA[Number(stale) as 0 | 1 | 2] * Number(dim) * src.globalDim;
-          const css = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a.toFixed(3)})`;
-          tctx.fillStyle = stale === '0' ? css : this.dots(tctx, css, Number(stale) as 1 | 2, Math.max(1, Math.round(hr)));
+          const [side, sStep, , dim] = key2.split('|');
+          const rgb = side === 'f' ? ink : markInk(side === 'p' ? 1 : -1, Number(sStep) / STRENGTH_STEPS, inks);
+          const a = Number(dim) * src.globalDim * (edge ? SOFT_EDGE_ALPHA : 1);
+          tctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a.toFixed(3)})`;
           tctx.fill(path);
         }
       };
@@ -561,37 +519,85 @@ class TrailsPaneRenderer {
         bmp.height = scope.bitmapSize.height;
         const bctx = bmp.getContext('2d');
         if (bctx) {
-          paint(bctx, halos, haloAlpha);
-          paint(bctx, cores, coreAlpha);
+          paint(bctx, edges, true);
+          paint(bctx, fills, false);
           bctx.lineWidth = Math.max(1, Math.round(vr));
-          for (const [inkKey, path] of rings) {
-            const rgb = inkOf(inkKey === 'p' || inkKey === 'c' ? `${inkKey}@${BEAD_STEPS}` : inkKey);
-            bctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`;
+          for (const [side, path] of rings) {
+            const rgb = markInk(side === 'p' ? 1 : -1, 1, inks);
+            bctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.9 * src.globalDim).toFixed(3)})`;
             bctx.stroke(path);
           }
-          bctx.lineWidth = Math.max(1, Math.round(vr * 0.8));
-          for (const [k, path] of dotted) {
-            const [inkKey, stale] = k.split('|');
-            const rgb = inkOf(inkKey === 'p' || inkKey === 'c' ? `${inkKey}@${BEAD_STEPS}` : inkKey);
-            bctx.setLineDash([1 * hr, (stale === '2' ? 1.5 : 2.5) * hr]);
-            bctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${stale === '2' ? 0.55 : 0.65})`;
-            bctx.stroke(path);
+          if (ghostDrawn) {
+            const n = inks.neutral;
+            bctx.strokeStyle = `rgba(${n[0]},${n[1]},${n[2]},${(0.55 * src.globalDim).toFixed(3)})`;
+            bctx.stroke(ghosts);
           }
-          bctx.setLineDash([]);
-          /* The regime border draws OVER the field (2026-08-29): it is the
-             line the whole map hinges on, and under the beads it spent half
-             its length buried in whatever band it crossed. */
+          /* The regime border draws OVER the field (2026-08-29): it is the line the whole map hinges on, and under the
+             marks it spent half its length buried in whatever band it crossed. One ink: the supreme's magenta on it
+             went with B3 (no King) */
           if (flipDrawn) {
             bctx.fillStyle = paper ? rgba(paper.flip, 0.85) : FLIP_RGBA;
             bctx.fill(flipPath);
-            bctx.fillStyle = paper ? rgba(paper.supreme, 0.85) : FLIPK_RGBA;
-            bctx.fill(flipKPath);
           }
           this.bmp = bmp;
           this.cacheKey = key;
+          /* THE GAPS (B1), found while the cache is built: runs of bars on screen with no column, each asked its reason
+             of the host — drawn under the chrome every frame (words are cheap; the walk is not) */
+          this.gapRuns = src.gapCause ? findGaps(src, series, ts, barSec) : [];
         }
       }
       if (this.bmp) ctx.drawImage(this.bmp, 0, 0);
+
+      /* the gap labels' boxes — the wall-move chips keep clear of them */
+      const labelBoxes: { l: number; r: number; t: number; b: number }[] = [];
+      // ---- the gaps, each with its reason (B1: "Never a blank chart without a reason") ---------------------------
+      if (this.gapRuns.length) {
+        const px11 = Math.max(11, src.labelPx);
+        ctx.font = `${Math.round(px11 * vr)}px ${FONT_SANS}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const placed: { l: number; r: number; row: number }[] = [];
+        /* the wall-move chips below keep clear of these */
+        const floor = (src.chromeInset > 0 ? src.chromeInset + 3 : 0) * vr;
+        const full = (px11 + 5) * vr;
+        const padX = 4 * hr;
+        const leftMost = CHIP_LEFT * hr;
+        const rightMost = (wCss - CHIP_RIGHT) * hr;
+        const n = paper ? paper.neutral : NEUTRAL_RGB;
+        for (const g of this.gapRuns) {
+          const x0 = ts.timeToCoordinate(g.t0 as Time);
+          const x1 = ts.timeToCoordinate(g.t1 as Time);
+          if (x0 === null || x1 === null) continue;
+          const l = (x0 - halfW) * hr;
+          const r = (x1 + halfW) * hr;
+          const w = ctx.measureText(g.words).width;
+          let bl = (l + r) / 2 - w / 2 - padX;
+          let br = bl + w + 2 * padX;
+          if (bl < leftMost) {
+            bl = leftMost;
+            br = bl + w + 2 * padX;
+          }
+          if (br > rightMost) {
+            br = rightMost;
+            bl = br - w - 2 * padX;
+          }
+          if (bl < leftMost) continue;
+          /* a row where it fits (two rows), else dropped — the hairline under the words still marks the span */
+          let row = 0;
+          while (row < 2 && placed.some(p => p.row === row && bl < p.r + 4 * hr && br > p.l - 4 * hr)) row++;
+          if (row >= 2) continue;
+          placed.push({ l: bl, r: br, row });
+          const top = floor + 4 * vr + row * (full + 2 * vr);
+          labelBoxes.push({ l: bl, r: br, t: top, b: top + full + 2 * vr });
+          ctx.fillStyle = paper ? rgba(paper.pad, 0.86) : 'rgba(5,5,5,0.72)';
+          ctx.fillRect(bl, top, br - bl, full);
+          ctx.fillStyle = `rgba(${n[0]},${n[1]},${n[2]},0.95)`;
+          ctx.fillText(g.words, (bl + br) / 2, top + full / 2);
+          ctx.fillStyle = `rgba(${n[0]},${n[1]},${n[2]},0.35)`;
+          ctx.fillRect(Math.max(leftMost, l), top + full + vr, Math.max(1, Math.min(rightMost, r) - Math.max(leftMost, l)), Math.max(1, Math.round(vr)));
+        }
+      }
+
 
       // ---- the walls' moves: a chip where a wall changed strike and held --------------------------------------------
       {
@@ -604,7 +610,7 @@ class TrailsPaneRenderer {
           ctx.font = `${Math.round(px * vr)}px ${FONT_SANS}`;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
-          const boxes: { l: number; r: number; t: number; b: number }[] = [];
+          const boxes: { l: number; r: number; t: number; b: number }[] = [...labelBoxes];
           const chipFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
           const chipPaneH = scope.mediaSize.height;
           for (const m of keep) {
@@ -645,6 +651,25 @@ class TrailsPaneRenderer {
             ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.95)`;
             ctx.fillText(text, l + padX, top + full / 2);
           }
+        }
+      }
+
+      // ---- the walls' moves, as ticks (B4: "short tick when a wall moves") ------------------------------------------
+      {
+        /* every move in view wears a short vertical tick at the NEW strike on the bar it moved, two device pixels wide
+           and most of a strike row tall, in the wall's ink — the chips above name the newest three */
+        const moves = wallMovesOf(last, ci => src.columnAt(ci), WALL_HOLD, first);
+        const floorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
+        const tw = Math.max(1, Math.round(2 * hr));
+        const th = Math.max(Math.round(4 * vr), Math.round(rowDev * 0.7));
+        for (const m of moves) {
+          const bucket = Math.floor(m.time / barSec) * barSec;
+          const xBar = ts.timeToCoordinate(bucket as Time);
+          const y = series.priceToCoordinate(m.to);
+          if (xBar === null || y === null || y < floorCss || y > scope.mediaSize.height) continue;
+          const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
+          ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.95 * src.globalDim).toFixed(3)})`;
+          ctx.fillRect(Math.round(xBar * hr - tw / 2), Math.round(y * vr - th / 2), tw, th);
         }
       }
 
@@ -764,6 +789,8 @@ class TrailsPaneView {
     history's `value`; delta and vega ride beside it on every level. */
 export type TrailGreek = 'gex' | 'dex' | 'vex';
 const momentMax: Record<TrailGreek, WeakMap<GexSnapshot, number>> = { gex: new WeakMap(), dex: new WeakMap(), vex: new WeakMap() };
+/** A moment's largest gross gamma at a strike (B3's size), remembered against the snapshot object */
+const momentGross = new WeakMap<GexSnapshot, number>();
 const levelValue = (l: GexSnapshot['levels'][number], greek: TrailGreek): number => (greek === 'gex' ? l.value : greek === 'dex' ? (l.dex ?? 0) : (l.vex ?? 0));
 
 /** What the legend prints (GexTrailsPrimitive.legend) */
@@ -831,6 +858,24 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   strengthLabels = true;
   /** THE STALE STATE (the UI pass): every bead's light times this — the host sets it under 1 while its data is old */
   globalDim = 1;
+  /** THE GAPS' REASONS (B1): the host's words for a run of bars with no column, [from, to) in epoch seconds — null for
+      none to say. Set by the chart from its host (Terrain reads the store's state, the session's hours and the clock). */
+  gapCause: ((fromSec: number, toSec: number) => string | null) | null = null;
+  /** Bumped by the host when the reasons may have changed without the columns — the bitmap (and the runs) are rebuilt */
+  gapRev = 0;
+  /** Whether a column of the field stands inside the bar at `barTime` (this chart's barSec) */
+  hasColumnAt(barTime: number): boolean {
+    const s = this.snapshots;
+    const b0 = Math.floor(barTime / this.barSec) * this.barSec;
+    let lo = 0;
+    let hi = s.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (s[m].time < b0) lo = m + 1;
+      else hi = m;
+    }
+    return lo < s.length && s[lo].time < b0 + this.barSec;
+  }
   /** Its ink: the silver accent, or magenta while the focused strike is the supreme. The
       focus never follows the supreme — the strike you clicked is the strike
       you're watching; the ink reports its standing (Noah, 2026-08-22). */
@@ -911,12 +956,18 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   /** Each minute's session's first minute (an index into the base) */
   private baseFirst: number[] = [];
   private baseRun = new RunningScale();
+  /** THE SIZE REFERENCE (B3): the same running count over each minute's peak GROSS gamma at a strike — a mark's size
+      is √(gross ÷ this); where a cell keeps no gross, its |net| stands in (the legend says so) */
+  private baseMaxG: number[] = [];
+  private baseRefG: number[] = [];
+  private baseRunG = new RunningScale();
+  private dayMaximaG = new Map<string, number[]>();
   /** refAt's answers by column, kept until the base, the basis or the references change */
   private refMemo = new WeakMap<GexSnapshot, ReturnType<GexTrailsPrimitive['refAt']>>();
   private baseGreek: TrailGreek = 'gex';
   /** Each New York day's per-minute peaks in the base, for the prior and fixed bases (built as the base is) */
   private dayMaxima = new Map<string, number[]>();
-  private dayRefs = new Map<string, { prior: ScaleRef | null; fixed: ScaleRef | null; priorDay: string | null }>();
+  private dayRefs = new Map<string, { prior: ScaleRef | null; fixed: ScaleRef | null; priorG: ScaleRef | null; fixedG: ScaleRef | null; priorDay: string | null }>();
 
   /** The basis (item 5 (b)) and the floor (item 5 (e): a share of the reference; 0 = off) */
   basis: ScaleBasis = 'session';
@@ -936,11 +987,15 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       while (k > 0 && this.baseDays[k - 1] === day) k--;
     }
     if (k < this.baseIds.length) {
-      for (const d of new Set(this.baseDays.slice(k))) this.dayMaxima.delete(d);
+      for (const d of new Set(this.baseDays.slice(k))) {
+        this.dayMaxima.delete(d);
+        this.dayMaximaG.delete(d);
+      }
       this.dayRefs.clear();
     }
-    for (const arr of [this.baseIds, this.baseTimes, this.baseMax, this.baseRef, this.baseRing, this.baseDays, this.baseFirst] as unknown[][]) arr.length = k;
+    for (const arr of [this.baseIds, this.baseTimes, this.baseMax, this.baseRef, this.baseRing, this.baseDays, this.baseFirst, this.baseMaxG, this.baseRefG] as unknown[][]) arr.length = k;
     this.baseRun.reset();
+    this.baseRunG.reset();
     this.refMemo = new WeakMap();
     let day = k > 0 ? this.baseDays[k - 1] : '';
     let first = k > 0 ? this.baseFirst[k - 1] : 0;
@@ -951,6 +1006,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         day = d;
         first = i;
         this.baseRun.reset();
+        this.baseRunG.reset();
       }
       let m = memo.get(snap);
       if (m === undefined) {
@@ -961,21 +1017,32 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         }
         memo.set(snap, m);
       }
+      /* the minute's peak gross (the gamma field's own; the delta and vega fields size by their |value|) */
+      let mg = momentGross.get(snap);
+      if (mg === undefined) {
+        mg = greek === 'gex' ? columnGross(snap.levels) : m;
+        momentGross.set(snap, mg);
+      }
       this.baseIds.push(snap);
       this.baseTimes.push(snap.time);
       this.baseMax.push(m);
       this.baseRef.push(this.baseRun.push(m));
       this.baseRing.push(this.baseRun.ring());
+      this.baseMaxG.push(mg);
+      this.baseRefG.push(this.baseRunG.push(mg));
       this.baseDays.push(d);
       this.baseFirst.push(first);
       let list = this.dayMaxima.get(d);
       if (!list) this.dayMaxima.set(d, (list = []));
       list.push(m);
+      let listG = this.dayMaximaG.get(d);
+      if (!listG) this.dayMaximaG.set(d, (listG = []));
+      listG.push(mg);
     }
   }
 
   /** The prior and fixed references for a New York day: the server's where it has them, else the base's own */
-  private dayRef(day: string): { prior: ScaleRef | null; fixed: ScaleRef | null; priorDay: string | null } {
+  private dayRef(day: string): { prior: ScaleRef | null; fixed: ScaleRef | null; priorG: ScaleRef | null; fixedG: ScaleRef | null; priorDay: string | null } {
     let r = this.dayRefs.get(day);
     if (r) return r;
     const ext = this.external.get(day);
@@ -984,14 +1051,18 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     const prior = ext?.prior ?? (priorDay ? pooledRef(this.dayMaxima.get(priorDay)!, 1) : null);
     const pool = before.slice(-FIXED_SESSIONS);
     const fixed = ext?.fixed ?? (pool.length ? pooledRef(pool.flatMap(d => this.dayMaxima.get(d)!), pool.length) : null);
-    r = { prior, fixed, priorDay: ext?.priorDay ?? priorDay };
+    /* the size's twins stand on the sessions this page holds (the server's scale.json carries the net's references
+       alone — a follow-up adds the gross) */
+    const priorG = priorDay ? pooledRef(this.dayMaximaG.get(priorDay)!, 1) : null;
+    const fixedG = pool.length ? pooledRef(pool.flatMap(d => this.dayMaximaG.get(d)!), pool.length) : null;
+    r = { prior, fixed, priorG, fixedG, priorDay: ext?.priorDay ?? priorDay };
     this.dayRefs.set(day, r);
     return r;
   }
 
   /** The reference column i is measured against — the basis's, as of the column's last minute; a basis with nothing to
       stand on (no session before loaded, none on the server) falls back to the session's own, and says so */
-  refAt(i: number): { ref: number; ring: number; basis: ScaleBasis; at: number; minutes: number; sessions: number; priorDay: string | null } {
+  refAt(i: number): { ref: number; ring: number; refG: number; basis: ScaleBasis; at: number; minutes: number; sessions: number; priorDay: string | null } {
     const snap = this.snapshots[i];
     const had = this.refMemo.get(snap);
     if (had) return had;
@@ -999,7 +1070,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     this.refMemo.set(snap, got);
     return got;
   }
-  private refOf(snap: GexSnapshot): { ref: number; ring: number; basis: ScaleBasis; at: number; minutes: number; sessions: number; priorDay: string | null } {
+  private refOf(snap: GexSnapshot): { ref: number; ring: number; refG: number; basis: ScaleBasis; at: number; minutes: number; sessions: number; priorDay: string | null } {
     const end = snap.time + Math.max(60, this.stepSec) - 1;
     /* the last base minute at or before the column's end */
     let lo = 0;
@@ -1014,20 +1085,25 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     if (this.basis !== 'session') {
       const r = this.dayRef(day);
       const got = this.basis === 'prior' ? r.prior : r.fixed;
-      if (got) return { ref: got.ref, ring: got.ring, basis: this.basis, at: j >= 0 ? this.baseTimes[j] : snap.time, minutes: got.minutes, sessions: got.sessions, priorDay: r.priorDay };
+      const gotG = this.basis === 'prior' ? r.priorG : r.fixedG;
+      if (got) return { ref: got.ref, ring: got.ring, refG: gotG?.ref ?? got.ref, basis: this.basis, at: j >= 0 ? this.baseTimes[j] : snap.time, minutes: got.minutes, sessions: got.sessions, priorDay: r.priorDay };
     }
-    if (j >= 0 && this.baseDays[j] === day) return { ref: this.baseRef[j], ring: this.baseRing[j], basis: 'session', at: this.baseTimes[j], minutes: j - this.baseFirst[j] + 1, sessions: 1, priorDay: null };
-    return { ref: 0, ring: 0, basis: 'session', at: snap.time, minutes: 0, sessions: 0, priorDay: null };
+    if (j >= 0 && this.baseDays[j] === day) return { ref: this.baseRef[j], ring: this.baseRing[j], refG: this.baseRefG[j], basis: 'session', at: this.baseTimes[j], minutes: j - this.baseFirst[j] + 1, sessions: 1, priorDay: null };
+    return { ref: 0, ring: 0, refG: 0, basis: 'session', at: snap.time, minutes: 0, sessions: 0, priorDay: null };
   }
 
   /** The reference the host last handed the legend — the renderer checks the newest column against it in development
       (item 5 acceptance (i): "the legend value equals the reference the renderer used at that minute (assert)") */
   published: number | null = null;
   /** What the legend prints: the newest column's reference, the very number its beads were drawn against */
-  legend(): (ReturnType<GexTrailsPrimitive['refAt']> & { greek: TrailGreek }) | null {
+  legend(): (ReturnType<GexTrailsPrimitive['refAt']> & { greek: TrailGreek; sizeBy: 'gross' | 'net' }) | null {
     if (!this.snapshots.length) return null;
+    const last = this.snapshots[this.snapshots.length - 1];
     const r = this.refAt(this.snapshots.length - 1);
-    return r.ref > 0 ? { ...r, greek: this.greek } : null;
+    /* the size stands on the gross where the newest column keeps it (the gamma field on the feed and the house's tape);
+       on a tape that keeps the net alone (store rows before 2026-10-14) it stands on |net|, and the legend says so */
+    const sizeBy: 'gross' | 'net' = this.greek === 'gex' && last.levels.some(l => l.gross != null) ? 'gross' : 'net';
+    return r.ref > 0 ? { ...r, greek: this.greek, sizeBy } : null;
   }
 
   setBasis(basis: ScaleBasis, floor: number): void {
@@ -1089,23 +1165,23 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     let col = this.colCache.get(snap);
     const r = this.refAt(i);
     const ref = r.ref || this.ref || 1;
-    const key = `${ref}|${r.ring}|${this.floor}`;
+    const refG = r.refG || ref;
+    const key = `${ref}|${refG}|${this.floor}`;
     if (!col || col.key !== key) {
       const all = new Map<number, Bead>();
+      const gex = this.greek === 'gex';
       for (const l of snap.levels) {
         const v = this.valueOf(l);
-        /* A SQUARE-ROOT SCALE ON MAGNITUDE (2026-10-13 — the owner: "Use a square-root scale on magnitude"): one strike
-           holding a third of the book no longer leaves the rest unlit — a strike at a quarter of the reference draws at
-           half strength — quantized to its step (item 5 (d)) */
-        const t = strengthOf(v, ref);
-        all.set(l.strike, { strike: l.strike, t, step: stepOf(t), put: v >= 0, stale: staleOf(l), ring: r.ring > 0 && Math.abs(v) > r.ring });
+        /* THE SIZE (B3): √(gross ÷ the size reference) — a square-root scale on magnitude (2026-10-13), quantized to its
+           step (item 5 (d)); the gross where the cell keeps it, |net| where it does not (the delta and vega fields, and
+           store rows before 2026-10-14). THE STRENGTH: |net| ÷ gross, 1 where the gross is not kept. */
+        const gross = gex && l.gross != null && l.gross > 0 ? l.gross : Math.abs(v);
+        const t = strengthOf(gross, refG);
+        const strength = gex && l.gross != null && l.gross > 0 ? Math.min(1, Math.abs(v) / l.gross) : 1;
+        all.set(l.strike, { strike: l.strike, value: v, gross, t, step: stepOf(t), strength, put: v >= 0, stale: staleOf(l) });
       }
-      const floorAbs = this.floor * ref;
-      const top = [...snap.levels]
-        .filter(l => Math.abs(this.valueOf(l)) > 0 && Math.abs(this.valueOf(l)) >= floorAbs)
-        .sort((a, b) => Math.abs(this.valueOf(b)) - Math.abs(this.valueOf(a)))
-        .map(l => all.get(l.strike)!)
-        .filter(b => b.step > 0);
+      const floorAbs = this.floor * refG;
+      const top = [...all.values()].filter(b => b.gross > 0 && b.gross >= floorAbs && b.step > 0).sort((a, b) => b.gross - a.gross);
       /* the moment's own price — the snapshot's, else its window's middle (the house's window is centred on it) */
       const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
       const flip = snap.levels.length > 1 ? pickFlip(snap.levels, spot, l => l.value) : null;
@@ -1115,7 +1191,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         const d = Math.abs(snap.levels[i].strike - snap.levels[i - 1].strike);
         if (d > 0 && d < step) step = d;
       }
-      col = { time: snap.time, top, all, ref, key, flip, cw: walls.callWall, pw: walls.putWall, spot, step: Number.isFinite(step) ? step : 1 };
+      col = { time: snap.time, top, all, ref, refG, key, flip, cw: walls.callWall, pw: walls.putWall, spot, step: Number.isFinite(step) ? step : 1, topSet: new Set(top.slice(0, 3).map(b => b.strike)) };
       this.colCache.set(snap, col);
     }
     return col;

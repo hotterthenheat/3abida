@@ -22,7 +22,7 @@ import { pickFlip, pickWalls } from '../../core/walls';
 import { priceKey, useFeedPrice } from '../../data/feed/price';
 import { refreshFeed } from '../../data/feed/poll';
 import { uwSpotGexByStrike } from '../../data/feed/uw';
-import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes, nySessionPhase, nyWallTime } from '../../core/nyTime';
+import { nyClock as nyClockAt, clock as printClock, marketClock, nyIsoDate, nyMinutes, nyParts, nySessionPhase, nyWallTime } from '../../core/nyTime';
 import { registerDepthState } from '../../dev/depthTrap';
 import { readoutOf, remLines, SESSION_MINUTES, shareBetween, sigmasAway, sigmaRemOf, type SigmaRem } from '../../data/feed/pricedMove';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
@@ -1457,7 +1457,7 @@ const Pane = ({
   const fScale = useBeadScaleRefs(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
   const [beadLegend, setBeadLegend] = useState<BeadLegend | null>(null);
   const onBeadLegend = useCallback((l: BeadLegend | null) => {
-    setBeadLegend(prev => (prev && l && prev.ref === l.ref && prev.ring === l.ring && prev.at === l.at && prev.basis === l.basis && prev.sessions === l.sessions && prev.priorDay === l.priorDay && prev.greek === l.greek ? prev : l));
+    setBeadLegend(prev => (prev && l && prev.ref === l.ref && prev.refG === l.refG && prev.sizeBy === l.sizeBy && prev.ring === l.ring && prev.at === l.at && prev.basis === l.basis && prev.sessions === l.sessions && prev.priorDay === l.priorDay && prev.greek === l.greek ? prev : l));
   }, []);
   const beadBasis: ScaleBasis = cfg.beadBasis ?? 'session';
   const beadFloor = cfg.beadFloor ?? 0;
@@ -1928,6 +1928,52 @@ const Pane = ({
      Strikes door on the pane lays the ladder over the chart's right side, on the chart's own price rows — the rail
      beside the chart needs a desk's width, the overlay does not. Off until pressed; a slot's business, never stored. */
   const [narrowLadder, setNarrowLadder] = useState(false);
+
+  /* THE GAPS' REASONS (the owner's B1, 2026-10-14: "Never a blank chart without a reason"): a run of bars with no column
+     of the field says why, from the store's state — the session's hours (the book is read 9:30 to 4:00 New York, said on
+     the reader's clock), a past session the server has not rebuilt (queued, being rebuilt, failed and why, or beyond
+     the ten sessions this page asks), today's minutes before the recorder's first chain read (building) or before its
+     first column (not recorded), and the live edge (the newest column lags the bar by a minute or two). The chart draws
+     the words over the run (StrikeChart `fieldGapCause`, gexNodesPrimitive findGaps). */
+  const gapCause = useMemo(() => {
+    if (!onFeed || !overlays.trails) return null;
+    const snaps = fTrail.snaps;
+    const today = nyIsoDate();
+    const lastCol = snaps.length ? snaps[snaps.length - 1].time : 0;
+    let firstToday = 0;
+    for (const c of snaps)
+      if (nyIsoDate(c.time * 1000) === today) {
+        firstToday = c.time;
+        break;
+      }
+    const hours = `${marketClock(9, 30)} to ${marketClock(16, 0)}`;
+    const past = fPast;
+    const full = fTrail.full;
+    return (fromSec: number, toSec: number): string | null => {
+      const day = nyIsoDate(fromSec * 1000);
+      const wk = nyParts(fromSec * 1000).weekday;
+      if (wk === 0 || wk === 6) return 'no session';
+      const mFrom = nyMinutes(fromSec * 1000);
+      const mTo = nyMinutes(Math.max(fromSec, toSec - 60) * 1000);
+      if (mTo < 570) return `no field before the open · the book is read ${hours}`;
+      if (mFrom > 960) return 'no field after the close';
+      if (day < today) {
+        if (past?.failedWhy[day]) return `not rebuilt · ${past.failedWhy[day]}`;
+        if (past?.working === day) return 'rebuilding on the server';
+        if (past?.queuedDays.includes(day)) return 'queued to rebuild';
+        if (past?.readyDays.includes(day)) return 'rebuilt · no column at these minutes';
+        if (past && !past.days.includes(day)) return 'not rebuilt · beyond the ten sessions asked';
+        return 'not rebuilt yet';
+      }
+      if (!firstToday) return full ? 'no column today' : 'chain not read yet · building';
+      if (lastCol > 0 && fromSec >= lastCol) {
+        const lag = Math.max(1, Math.round((toSec - lastCol) / 60));
+        return `live lag · ${lag} min`;
+      }
+      if (toSec <= firstToday) return 'not recorded · before the first read';
+      return 'not recorded';
+    };
+  }, [onFeed, overlays.trails, fTrail.snaps, fTrail.full, fPast]);
 
   /* development only: what this pane stood at if React reports a render loop (src/dev/depthTrap.ts — the owner,
      2026-10-14: "log the component and state when it fires") */
@@ -2471,6 +2517,7 @@ const Pane = ({
               beadFloor={beadFloor}
               beadRefs={fScale?.gex ?? null}
               onBeadLegend={onBeadLegend}
+              fieldGapCause={gapCause}
               axisLevels
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
