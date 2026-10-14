@@ -52,7 +52,7 @@
   provisional under 60 sessions.
 ==================================================
 */
-import { usd } from '../../core/format';
+import { num, pct, usd } from '../../core/format';
 
 /** The regular session's minutes */
 export const SESSION_MINUTES = 390;
@@ -165,9 +165,9 @@ export function readoutOf(spot: number, prevClose: number, sigmaDay: number, now
 export function readoutWords(r: Readout | null): string {
   if (!r) return '';
   /* a move that rounds to nothing wears no sign ("0.0σ", never "−0.0σ") */
-  const shown = Math.abs(r.sigmas).toFixed(1);
+  const shown = num(Math.abs(r.sigmas), 1);
   const sign = Number(shown) === 0 ? '' : r.sigmas > 0 ? '+' : '−';
-  return `${sign}${shown}σ · ${Math.round(r.used * 100)}% of the day's variance used${r.pace != null ? ` · pace ${r.pace.toFixed(1)}×` : ''}`;
+  return `${sign}${shown}σ · ${Math.round(r.used * 100)}% of the day's variance used${r.pace != null ? ` · pace ${num(r.pace, 1)}×` : ''}`;
 }
 
 /* ---- THE ONE σ_remaining (the owner, 2026-10-14) ----------------------------------------------------------------- */
@@ -306,14 +306,14 @@ export function calibrate(days: readonly CalibrationDay[]): Calibration {
 /** The calibration as How sure prints it — each rate beside theory, provisional said */
 export function calibrationLines(c: Calibration): string[] {
   const pc = (r: CalibrationRate) => (r.rate == null ? '—' : `${Math.round(r.rate * 100)}%`);
-  const th = (x: number) => `${(x * 100).toFixed(1)}%`;
+  const th = (x: number) => pct(x * 100, 1);
   const head = `${c.sessions} session${c.sessions === 1 ? '' : 's'}${c.provisional ? ` · provisional (under ${CALIBRATION_MIN})` : ''}`;
   return [
     head,
     `Close inside ±1σ / ±2σ priced at the prior close: ${pc(c.closeInside.budget[0])} / ${pc(c.closeInside.budget[1])} (theory ${th(c.closeInside.budget[0].theory)} / ${th(c.closeInside.budget[1].theory)})`,
     `Close inside ±1σ / ±2σ of the 10:00 am straddle: ${pc(c.closeInside.at10[0])} / ${pc(c.closeInside.at10[1])} on ${c.closeInside.at10[0].n} session${c.closeInside.at10[0].n === 1 ? '' : 's'} (theory ${th(c.closeInside.at10[0].theory)} / ${th(c.closeInside.at10[1].theory)})`,
     `Touched ±1σ / ±2σ during the session: ${pc(c.touch[0])} / ${pc(c.touch[1])} (theory about twice the finish outside: ${th(c.touch[0].theory)} / ${th(c.touch[1].theory)})`,
-    `Median |close − prior close| ÷ σ: ${c.medianRatio.value == null ? '—' : c.medianRatio.value.toFixed(2)} (theory ${c.medianRatio.theory.toFixed(2)})`,
+    `Median |close − prior close| ÷ σ: ${c.medianRatio.value == null ? '—' : num(c.medianRatio.value, 2)} (theory ${num(c.medianRatio.theory, 2)})`,
     wednesdayLine(c.wednesdays),
   ];
 }

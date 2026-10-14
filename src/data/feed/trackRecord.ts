@@ -336,6 +336,25 @@ export function strikeMatchedOf(s: TrackSession, cfg: TrackConfig): { kind: Leve
   return row ? strikeMatchedAtOpen(row, cfg).map(l => ({ kind: l.kind, level: l.level })) : [];
 }
 
+/** TOUCHES OF ONE LEVEL ON A RUN OF BARS (the Terrain UI pass, 2026-10-14 — the axis chips' "touches today"): the
+    event study's approach rule in miniature — a touch is a bar whose range reaches within `tol` of the level after one
+    that did not, the level standing from `since` (epoch s); counted, never judged. The study itself (touchesOf) scores
+    the store's rows; this reads the chart's bars for one level the reader is looking at. */
+export function touchCountOf(bars: readonly { time: number; high: number; low: number }[], level: number, since: number, tol: number): number {
+  if (!Number.isFinite(level) || level <= 0) return 0;
+  const lo = level * (1 - tol);
+  const hi = level * (1 + tol);
+  let n = 0;
+  let touching = false;
+  for (const b of bars) {
+    if (b.time < since) continue;
+    const touched = b.low <= hi && b.high >= lo;
+    if (touched && !touching) n++;
+    touching = touched;
+  }
+  return n;
+}
+
 /* ---- the event study -------------------------------------------------------------------------------------------- */
 
 interface Formed {

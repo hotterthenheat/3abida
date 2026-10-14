@@ -5,6 +5,7 @@
   identity as it moves (data/levelAlerts.ts). Anywhere else the chart's own card opens, as before.
 */
 import { useEffect, useRef, useState } from 'react';
+import { num } from '../../core/format';
 import type { ChartLayerApi } from '../gex/StrikeChart';
 import { LEVEL_NAMES, setConfirmBars, setLevelWatch, useLevelWatches, type LevelId } from '../../data/levelAlerts';
 
@@ -19,7 +20,7 @@ interface Props {
 }
 
 const NEAR_PX = 8;
-const fmt = (k: number) => (Math.abs(k % 1) < 1e-9 ? k.toFixed(0) : k.toFixed(2));
+const fmt = (k: number) => (Math.abs(k % 1) < 1e-9 ? num(k, 0) : num(k, 2));
 
 const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
   const watches = useLevelWatches();
@@ -38,11 +39,11 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
       const y = e.clientY - box.top;
       const { levels: lv, top: tp, sigma: sg } = inputs.current;
       const cands: { id: LevelId; price: number; label: string }[] = [];
-      if (lv.flip != null) cands.push({ id: 'flip', price: lv.flip, label: `The flip · ${lv.flip.toFixed(2)}` });
+      if (lv.flip != null) cands.push({ id: 'flip', price: lv.flip, label: `The flip · ${num(lv.flip, 2)}` });
       if (lv.callWall != null) cands.push({ id: 'callWall', price: lv.callWall, label: `The call wall · ${fmt(lv.callWall)}` });
       if (lv.putWall != null) cands.push({ id: 'putWall', price: lv.putWall, label: `The put wall · ${fmt(lv.putWall)}` });
       for (const k of tp.slice(0, 3)) if (k !== lv.callWall && k !== lv.putWall) cands.push({ id: 'top3', price: k, label: `${fmt(k)} · one of the three heaviest strikes` });
-      if (sg) for (const z of [2, 1, -1, -2]) cands.push({ id: 'sigma', price: sg.prevClose + z * sg.s, label: `${z > 0 ? '+' : '−'}${Math.abs(z)}σ · ${(sg.prevClose + z * sg.s).toFixed(2)}, priced at the prior close` });
+      if (sg) for (const z of [2, 1, -1, -2]) cands.push({ id: 'sigma', price: sg.prevClose + z * sg.s, label: `${z > 0 ? '+' : '−'}${Math.abs(z)}σ · ${num(sg.prevClose + z * sg.s, 2)}, priced at the prior close` });
       let best: (typeof cands)[number] | null = null;
       let bestD = NEAR_PX;
       for (const c of cands) {

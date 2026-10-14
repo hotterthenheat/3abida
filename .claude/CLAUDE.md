@@ -998,6 +998,31 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   always on a coarse pointer. The ladder has a Net / Sides toggle, Net by default. The phone keeps the shell's top
   strip. On 1D a bar's cell stays its peak minute; the day panel shows the modeled close column with UW's end-of-day
   book beside it. The coverage bar, blocked ranges and year-long speed budgets wait for the Theta task's Phase 1.
+  PASS 2 (2026-10-14, built; docs/terrain-ui-2026-10-14/README.md "Pass 2"): THE HEADER IS ONE ROW
+  (components/terrain/PaneHead.tsx) — identity, facts, the Live / data-age chip (paneAge.ts: the newest of the last
+  bar's end, the quote and the field's newest column; a shut market says Closed, never stale), the timeframe (the tabs
+  with their trends, else the interval as a trigger), the expiry window (0DTE · Fri · OPEX · 60d or a trigger), the
+  jumps (Today · 1W · 1M · 6M · 1Y · Max and a calendar: the pane picks the timeframe that fits, StrikeChart `jumpTo`
+  shows the range), Replay · Alerts · Layers (ChartToolbar `parts` — one toolbar, three mounts), ? and the doors. A
+  MEASURED BUDGET in the Pane (`headPlan`) takes each part in the order a reader gains most while the column pays —
+  width in, content out, nothing over the ticks; the rest stands on the hover row or behind its key. THE HOVER TOOLBAR
+  ROW IS OUT OF THE FLOW (under the strip, over the plot, only under the pointer or the keys, always on a coarse
+  pointer): the chrome band the chart keeps clear of is the header, the strip and the one-line legend (its basis,
+  floor and "Every strike" on the hover row). The OHLC row and the HEAVIEST band are gone — the hovered bar's figures
+  are a crosshair readout at the plot's top-left (CrosshairReadout.tsx). THE DECISION STRIP (DecisionStrip.tsx):
+  Regime · Nearest · Move · Record · Fresh at rest, each a door into How sure at its section (HowSureBook `trigger`
+  and `focus`; PopoverCard controlled `open`); it sheds by the column and never cuts a figure. ONE REGIME READING
+  for the chip and the box (trailModel regimeReadOf / regimeWordsOf; the chart hands it to the host, `onRegime`;
+  the pane reads it off the newest column when the strip is off; the reference and UW's direction are read on the
+  feed always). THE AXIS CHIPS (StrikeChart `axisChips`, AXIS_CHIPS_SCALE_MIN_WIDTH 92): CW · Flip · Sup · Top · PW
+  as two-line chips on the price axis (the strike, then $ and σ to the close), pinned ▲/▼, stacked apart, never over
+  the candles — the library's labels and the in-plot strength chips stand down; a chip's hover is the level's card
+  (moves today, held since, touches today — trackRecord `touchCountOf` within 0.05%, the record's line). THE BEAD CARD
+  is three lines on hover and pins expanded on a click ("Replay from here", "Pin strike"; Esc lets go); calls/puts and
+  σ stand for the newest column alone (the field keeps the net per strike). BEAD DENSITY (gexNodesPrimitive `density`,
+  PaneCfg `beadDensity`). THE LADDER: Net by default (tabs Net | Sides), Δ spot and σ in the strike column, the Net
+  view a diverging bar with the figure at its tip, the read line's distance in $, % and σ (ProfilePanel `sigmaRem`).
+  EVERY FIGURE ON SCREEN goes through core/format. Open for the owner: the wall chips keep the walls' bull/bear inks.
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

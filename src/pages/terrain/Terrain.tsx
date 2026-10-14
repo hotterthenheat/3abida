@@ -1,4 +1,4 @@
-import { isoDayLabel, num, pctSigned, usd, usdCompactSigned, usdSigned } from '../../core/format';
+import { isoDayLabel, num, numSigned, pctSigned, usd, usdCompactSigned, usdSigned } from '../../core/format';
 import PaneHead, { type JumpSpan, type WindowValue } from '../../components/terrain/PaneHead';
 import DecisionStrip, { type DecisionBox } from '../../components/terrain/DecisionStrip';
 import CrosshairReadout from '../../components/terrain/CrosshairReadout';
@@ -27,7 +27,7 @@ import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface'
 import { expiryFor } from '../../core/calendar';
 import ExpiryCard, { type ExpiryChoice } from '../../components/ui/ExpiryCard';
 import StrikeChart, {
-  PRICE_SCALE_MIN_WIDTH,
+  AXIS_CHIPS_SCALE_MIN_WIDTH,
   DEFAULT_INDICATORS,
   DEFAULT_OVERLAYS,
   type ChartIndicators,
@@ -251,6 +251,9 @@ export interface PaneCfg {
       default), a fixed 60-session reference, or the prior session's — and the floor, a share of it (absent: off) */
   beadBasis?: ScaleBasis;
   beadFloor?: number;
+  /** BEAD DENSITY (the Terrain UI pass, 2026-10-14): absent, non-level strikes step back zoomed out and far from the
+      price; false, every bead draws whole ("Every strike") */
+  beadDensity?: boolean;
 }
 
 interface TerrainCfg {
@@ -591,6 +594,7 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
     wallsLens: c.wallsLens === 'dex' || c.wallsLens === 'charm' || c.wallsLens === 'gex' ? c.wallsLens : undefined,
     beadBasis: c.beadBasis === 'fixed' || c.beadBasis === 'prior' ? c.beadBasis : undefined,
     beadFloor: typeof c.beadFloor === 'number' && (FLOORS as readonly number[]).includes(c.beadFloor) && c.beadFloor > 0 ? c.beadFloor : undefined,
+    beadDensity: c.beadDensity === false ? false : undefined,
   };
 }
 
@@ -714,7 +718,8 @@ const TIME_AXIS_PX = 26;
   caught it — clearance at least as wide as the gutter, and not so much wider
   that it is throwing away chart — and this is the fix that keeps it caught.
 */
-const PRICE_GUTTER_PX = PRICE_SCALE_MIN_WIDTH + 2;
+/* the axis chips' gutter since the UI pass of 2026-10-14 (every Terrain pane draws them) */
+const PRICE_GUTTER_PX = AXIS_CHIPS_SCALE_MIN_WIDTH + 2;
 
 /*
   WHAT THE FULL CONTROL STRIP NEEDS — inside the chart column, with the price
@@ -1352,17 +1357,17 @@ const Pane = ({
   const chartTape = noBars ? indexTape : feedTape;
   /* ══ THE HEADER'S BUDGET (the Terrain UI pass, 2026-10-14) ════════════════════════════════════════════════════════
      One row, its parts measured at 1440 × 900 on 2026-10-14 (the sweep holds the geometry — nothing over an axis — not
-     these figures). THE FLOOR is the symbol chip (56), the price (47), the hairline, the timeframe trigger (56), the
-     age dot (12) and the fullscreen door (24) with their gaps; a LINKED pane wears its letter at every width. Then,
-     in the order a reader gains most, while the column pays: the tabs' shape (13 more), Replay · Alerts · Layers
-     (140), the window as a trigger (70), the jumps as a trigger (74), the change (52), the age's words (31), the
-     tabs' names (125), the badge (24), the ? (32), the compare + with the unlinked link chip (34 / 66), the pop-out
-     (28), the window whole (96 more), the jumps whole (148 more). What the row cannot pay for stands in the hover row
+     these figures). THE FLOOR is the symbol chip, the price, the timeframe trigger and the fullscreen door with their
+     gaps; a LINKED pane wears its letter at every width. Then the age chip as a dot, and,
+     in the order a reader gains most, while the column pays: the tabs' shape, the window as a trigger, the jumps as
+     a trigger, Replay · Alerts · Layers, the change, the age's words, the tabs' names, the badge, the ?, the compare +
+     with the unlinked link chip, the pop-out, the window whole, the jumps whole (the costs below). What the row cannot pay for stands in the hover row
      (the three doors, the pop-out) or behind its key (?, the window's W, the jumps' T) — never on the price ticks.
      Width in, content out: nothing here reads its own rendered width, so a tier cannot feed back and oscillate. */
   const headPlan = (() => {
-    /* the row's usable width: the strip's inner width less the row's own padding (px-2) */
-    const room = stripInner > 0 ? stripInner - 16 : 0;
+    /* the row's usable width: the strip's inner width less the row's own padding (px-2) and a few pixels of slack for
+       a wider figure than the ones measured */
+    const room = stripInner > 0 ? stripInner - 16 - 4 : 0;
     const GAPX = 8;
     const linked = cfg.link !== null && cfg.link !== undefined;
     /* measured 2026-10-14 at 1440 × 900: the symbol chip 78, the price 46, the trigger 52, the dot 10, the door 24, five
@@ -1370,18 +1375,20 @@ const Pane = ({
        before them; the window's trigger 49, its chips 158; the jumps' trigger with its calendar 83, whole 214; the
        change 44; the age's words 33 over the dot; the badge 16; the ? 24; the compare + 26 with the unlinked link chip
        32; the pop-out 24 */
-    let used = 78 + 46 + 52 + 10 + 24 + 5 * GAPX + (linked ? 32 + GAPX : 0);
+    let used = 78 + 46 + 52 + 24 + 4 * GAPX + (linked ? 32 + GAPX : 0);
     const take = (px: number): boolean => {
       if (room !== 0 && room < used + px) return false;
       used += px;
       return true;
     };
+    /* the age chip as a dot first — the least a column can hold beyond the floor */
+    const ageDot = take(10 + GAPX);
     const tabsTight = take(72);
-    const tools = take(132 + 1 + 2 * GAPX);
     const windowTrigger = onFeed && !isCashIndex(ticker) ? take(49 + GAPX) : false;
     const jumpTrigger = !noBars ? take(83 + GAPX) : false;
+    const tools = take(132 + 1 + 2 * GAPX);
     const change = take(44 + GAPX);
-    const ageWords = take(33);
+    const ageWords = ageDot && take(33);
     const tabsFull = tabsTight && take(70);
     const badge = paneCount > 1 && take(16 + GAPX);
     const keys = take(24 + GAPX);
@@ -1389,7 +1396,7 @@ const Pane = ({
     const popOut = !!onPopOut && !bare && take(24 + 4);
     const windowFull = windowTrigger && take(158 - 49);
     const jumpFull = jumpTrigger && take(214 - 83);
-    return { tabsForm: tabsFull ? ('full' as const) : tabsTight ? ('tight' as const) : ('none' as const), tools, windowForm: windowFull ? ('full' as const) : windowTrigger ? ('trigger' as const) : ('none' as const), jumpForm: jumpFull ? ('full' as const) : jumpTrigger ? ('trigger' as const) : ('none' as const), change, ageWords, badge, keys, compare, popOut };
+    return { tabsForm: tabsFull ? ('full' as const) : tabsTight ? ('tight' as const) : ('none' as const), tools, windowForm: windowFull ? ('full' as const) : windowTrigger ? ('trigger' as const) : ('none' as const), jumpForm: jumpFull ? ('full' as const) : jumpTrigger ? ('trigger' as const) : ('none' as const), change, ageDot, ageWords, badge, keys, compare, popOut };
   })();
   const showChangePct = headPlan.change;
   const mtfForm = headPlan.tabsForm;
@@ -1612,7 +1619,7 @@ const Pane = ({
     const mine = levelEvents.filter(e => nyIsoDate(e.at) === today).slice(0, 12);
     if (!mine.length) return undefined;
     const bars = offHouse ? fBars.bars ?? [] : (Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? []);
-    const pts = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}`;
+    const pts = (n: number) => numSigned(n, 2);
     const lines = mine.map(e => {
       const o = outcomesOf(e, bars);
       const said = o.map((x, i) => (x ? `+${i ? 30 : 15} min: ${x.held == null ? `${pts(x.points)} since` : `${x.held ? 'held' : 'gave way'}, ${pts(x.points)}`}` : `+${i ? 30 : 15} min: not yet`)).join(' · ');
@@ -1747,6 +1754,27 @@ const Pane = ({
       />
     );
   })();
+  /* REPLAY FROM A BEAD (the UI pass): the pane's replay turned on, then the bead's bar picked once the transport stands */
+  const pendingPick = useRef<number | null>(null);
+  const onReplayFrom = useCallback(
+    (time: number) => {
+      pendingPick.current = time;
+      if (!replay) onToggleReplay();
+      else if (rp.ctl) {
+        rp.pick(time);
+        pendingPick.current = null;
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [replay, onToggleReplay, rp.ctl]
+  );
+  useEffect(() => {
+    if (pendingPick.current == null || !rp.ctl) return;
+    const t = pendingPick.current;
+    pendingPick.current = null;
+    rp.pick(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rp.ctl]);
   /* Esc ends the replay — the top layer, as every overlay on the terminal (ui/layers.ts) */
   useEscapeLayer(replayable, onExitReplay);
   /* the keys reach the transport through refs, so the desk's handler (installed once) always plays the newest */
@@ -2053,6 +2081,10 @@ const Pane = ({
           );
         })}
       </span>
+      <label className="shrink-0 inline-flex items-center gap-1 text-[11px] text-textMuted cursor-pointer" title="Every strike at full light at any zoom — off, a strike that is no level of its column steps back zoomed out and far from the price (the levels never do)" data-bead-density>
+        <input type="checkbox" className="accent-[rgb(var(--silver))]" checked={cfg.beadDensity === false} onChange={e => onCfg({ beadDensity: e.target.checked ? false : undefined })} />
+        Every strike
+      </label>
       <span role="group" aria-label="Floor: hide the beads under a share of full brightness" title="Hide the beads under a share of full brightness — always measured against the reference, never against the single largest bead" className="shrink-0 inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px text-[11px] text-textMuted" data-bead-floor>
         <span className="px-1">Floor</span>
         {FLOORS.map(f => {
@@ -2327,6 +2359,14 @@ const Pane = ({
               pricedMove={rp.active ? rpMove : fMove}
               onRegime={onRegime}
               jumpTo={jumpTo}
+              /* THE AXIS CHIPS, the σ, the live legs, the count's date, the density and the card's doors (the UI pass) */
+              axisChips
+              sigmaRem={sigmaRem?.sigma ?? null}
+              legsNow={legs}
+              oiDate={onFeed ? fOi?.date ?? null : null}
+              beadDensity={cfg.beadDensity !== false}
+              onReplayFrom={noBars ? undefined : onReplayFrom}
+              onPinStrike={k => setFocus(cur => (cur != null && Math.abs(cur - k) < 1e-9 ? null : k))}
               beadBasis={beadBasis}
               beadFloor={beadFloor}
               beadRefs={fScale?.gex ?? null}
@@ -2519,7 +2559,7 @@ const Pane = ({
                 <PaneHead
                   identity={identityControls}
                   facts={facts}
-                  age={age}
+                  age={headPlan.ageDot ? age : null}
                   ageForm={headPlan.ageWords ? 'words' : 'dot'}
                   timeframes={headTimeframes}
                   tf={{ value: tf, onChange: next => onCfg({ timeframe: next }), held: offHouse ? FEED_HELD : undefined }}
@@ -2683,6 +2723,7 @@ const Pane = ({
               rows={rail.rows}
               /* how sure the walls and the flip are — Pinpoint's read of the same book (components/levels/HowSure) */
               sure={railSure}
+              sigmaRem={sigmaRem?.sigma ?? null}
               maxAbs={rail.maxAbs}
               legs={legs}
               openRatio={openRatio}

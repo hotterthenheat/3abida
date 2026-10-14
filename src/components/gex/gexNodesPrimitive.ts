@@ -1,5 +1,6 @@
 import { HEAT_MODE, heatRampColor, heatRampColorFor, inkFor } from './heatmap';
 import { BEAD_STEPS, FIXED_SESSIONS, RunningScale, pooledRef, stepOf, stepT, strengthOf, type ScaleBasis, type ScaleRef } from '../../data/feed/beadScale';
+import { num } from '../../core/format';
 import type { ISeriesPrimitive, ISeriesPrimitiveAxisView, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
@@ -106,6 +107,9 @@ interface Column {
   flip: number | null;
   cw: number | null;
   pw: number | null;
+  /** The moment's own price and the strikes' step — the density's distance fade reads them */
+  spot: number;
+  step: number;
 }
 
 
@@ -332,7 +336,7 @@ class TrailsPaneRenderer {
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? 0) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? 0) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}|${paper ? 'paper' : 'dark'}`;
+      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
       /* BATCHED BY STEP (item 5 (d)): a bead's brightness is one of BEAD_STEPS steps a side, so the field is one Path2D
@@ -380,8 +384,14 @@ class TrailsPaneRenderer {
       // ---- the beads (skipped whole when the cache holds) --------------------
       const beadFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
       const paneHCss = scope.mediaSize.height;
+      /* BEAD DENSITY (the Terrain UI pass, 2026-10-14): zoomed out past a session, a strike that is not one of the
+         column's levels — its walls, its three heaviest, the supreme, the focus — draws at a quarter of its light, and a
+         non-level strike more than fifteen steps from the column's price at six tenths; every strike still draws, the
+         levels at full light at any zoom. `density` false (the legend's "Every strike") draws every bead whole. */
+      const zoomedOut = src.density && (last - first) * Math.max(1, src.stepSec) > 8 * 3600;
       for (let ci = cached ? last : first; ci < last; ci++) {
         const col = src.columnAt(ci);
+        const levelSet = zoomedOut || src.density ? new Set<number>([col.cw ?? NaN, col.pw ?? NaN, ...col.top.slice(0, 3).map(b => b.strike)]) : null;
         // The bead's bar, and where inside it this moment sits
         const bucket = Math.floor(col.time / barSec) * barSec;
         const slot = slots > 1 ? Math.floor(((col.time - bucket) / barSec) * slots) : 0;
@@ -431,7 +441,14 @@ class TrailsPaneRenderer {
           const ry = (A_MIN + sd * (A_MAX - A_MIN)) * vr;
           const yc = y * vr;
           const stale = isFocus ? 0 : bead.stale;
-          const dim = focus != null && !isFocus ? 1 : 0; // the field steps back
+          /* the light's factor: the field steps back behind a focus (0.3); the density's quarter and the distance's
+             six tenths for a strike that is no level of its column */
+          let dimA = focus != null && !isFocus ? 0.3 : 1;
+          if (levelSet && !isFocus && !(supreme != null && bead.strike === supreme) && !levelSet.has(bead.strike)) {
+            if (zoomedOut) dimA *= 0.25;
+            if (Math.abs(bead.strike - col.spot) > 15 * col.step) dimA *= 0.6;
+          }
+          const dim = dimA >= 1 ? '1' : dimA.toFixed(2);
           /* Ink precedence: the focus wins, then THE SUPREME — above the walls
              (Noah, 2026-08-29: the crown is never diluted; reverses the
              2026-08-22 wall-over-supreme order, whose worry — "I don't even see
@@ -484,7 +501,7 @@ class TrailsPaneRenderer {
           }
           /* THE RING (item 5 (c)): a bead above the basis's p95 — clipped at full brightness with the rest of the top
              step, and told apart by a hairline round it */
-          if (bead.ring && !dim) {
+          if (bead.ring && dim === '1') {
             const g = 1.2 * vr;
             const r = pathFor(rings, inkKey.replace(/@\d+$/, ''));
             if (round) {
@@ -528,7 +545,7 @@ class TrailsPaneRenderer {
         for (const [key2, path] of map) {
           const [inkKey, step, stale, dim] = key2.split('|');
           const rgb = inkOf(inkKey);
-          const a = alphaOf(stepT(Number(step))) * STALE_ALPHA[Number(stale) as 0 | 1 | 2] * (dim === '1' ? 0.3 : 1);
+          const a = alphaOf(stepT(Number(step))) * STALE_ALPHA[Number(stale) as 0 | 1 | 2] * Number(dim);
           const css = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a.toFixed(3)})`;
           tctx.fillStyle = stale === '0' ? css : this.dots(tctx, css, Number(stale) as 1 | 2, Math.max(1, Math.round(hr)));
           tctx.fill(path);
@@ -598,7 +615,7 @@ class TrailsPaneRenderer {
                stands at the edge with an arrow — never on a strike it does not name */
             const pin = yAt < chipFloorCss ? '▲ ' : yAt > chipPaneH ? '▼ ' : '';
             const y = pin === '▲ ' ? chipFloorCss : pin === '▼ ' ? chipPaneH : yAt;
-            const fmt = (k: number) => (k % 1 === 0 ? k.toFixed(0) : k.toFixed(2));
+            const fmt = (k: number) => (k % 1 === 0 ? num(k, 0) : num(k, 2));
             const text = `${pin}${m.kind} ${fmt(m.from)} → ${fmt(m.to)} · ${nyClock(m.time * 1000)}`;
             const w = ctx.measureText(text).width;
             const padX = 4 * hr;
@@ -630,8 +647,9 @@ class TrailsPaneRenderer {
       }
 
       // ---- axis-side strength labels for the heaviest strikes ---------------
+      /* off where the host names the heaviest strike on its axis chips (the Terrain UI pass): no chip over the candles */
       const latest = src.snapshots[src.snapshots.length - 1];
-      if (!latest) return;
+      if (!latest || !src.strengthLabels) return;
       const total = latest.levels.reduce((s, l) => s + Math.abs(src.valueOf(l)), 0);
       if (total <= 0) return;
 
@@ -665,7 +683,7 @@ class TrailsPaneRenderer {
         const pin = yAt < labelFloorCss ? '▲ ' : yAt > hCss ? '▼ ' : '';
         const y = pin === '▲ ' ? labelFloorCss : pin === '▼ ' ? hCss : yAt;
         const pct = Math.round((Math.abs(lvl.value) / total) * 100);
-        const strikeLabel = lvl.strike % 1 === 0 ? lvl.strike.toFixed(0) : lvl.strike.toFixed(2);
+        const strikeLabel = lvl.strike % 1 === 0 ? num(lvl.strike, 0) : num(lvl.strike, 2);
         const text = `${pin}${strikeLabel} · ${pct}%`;
 
         // Dark backing pad so the label survives whatever sits behind it
@@ -805,6 +823,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   stepSec = 60;
   /** The level view's strike — its beads lead, the field steps back. */
   focusStrike: number | null = null;
+  /** BEAD DENSITY (the Terrain UI pass): non-level strikes step back zoomed out and far from the price; off, every bead whole */
+  density = true;
+  /** The in-plot "772 · 9%" chips at the right edge — off where the host's axis chips name the heaviest strike */
+  strengthLabels = true;
   /** Its ink: the silver accent, or magenta while the focused strike is the supreme. The
       focus never follows the supreme — the strike you clicked is the strike
       you're watching; the ink reports its standing (Noah, 2026-08-22). */
@@ -1084,7 +1106,12 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
       const flip = snap.levels.length > 1 ? pickFlip(snap.levels, spot, l => l.value) : null;
       const walls = pickWalls(snap.levels, spot, l => l.value);
-      col = { time: snap.time, top, all, ref, key, flip, cw: walls.callWall, pw: walls.putWall };
+      let step = Infinity;
+      for (let i = 1; i < snap.levels.length; i++) {
+        const d = Math.abs(snap.levels[i].strike - snap.levels[i - 1].strike);
+        if (d > 0 && d < step) step = d;
+      }
+      col = { time: snap.time, top, all, ref, key, flip, cw: walls.callWall, pw: walls.putWall, spot, step: Number.isFinite(step) ? step : 1 };
       this.colCache.set(snap, col);
     }
     return col;

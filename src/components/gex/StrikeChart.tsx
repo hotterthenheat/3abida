@@ -1,7 +1,7 @@
 import { coneOf, readoutOf, readoutWords, remLine, SESSION_MINUTES, sigmaRemOf } from '../../data/feed/pricedMove';
 import { alpha } from './paletteInk';
-import { netOf, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeReadOf, regimeWordsOf, type RegimeRead, type RegimeReference } from '../../data/feed/trailModel';
-import { nyMinuteOf } from '../../data/feed/trackRecord';
+import { netOf, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeReadOf, regimeWordsOf, wallMovesOf, type RegimeRead, type RegimeReference } from '../../data/feed/trailModel';
+import { nyMinuteOf, touchCountOf } from '../../data/feed/trackRecord';
 import { pickWalls } from '../../core/walls';
 import {
   useCallback, useEffect, useMemo, useRef, useReducer, useState,
@@ -54,7 +54,7 @@ import {
 import { GexTrailsPrimitive, axisInksFrom, trailPaperFrom, type BeadHit, type BeadLegend } from './gexNodesPrimitive';
 import type { ScaleBasis, ScaleRef } from '../../data/feed/beadScale';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
-import { isoDayLabel, num, pct, usdCompact, usdCompactSigned } from '../../core/format';
+import { isoDayLabel, num, pct, pctSigned, usd, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
@@ -557,6 +557,9 @@ export const DEFAULT_OVERLAYS: ChartOverlays = {
  * One number, one place, both consumers reading it.
  */
 export const PRICE_SCALE_MIN_WIDTH = 74;
+/** THE GUTTER WITH THE AXIS CHIPS ON (the Terrain UI pass, 2026-10-14): a two-line chip — "CW 780" over "+$11.31 · 4.2σ"
+    — needs this much; Terrain's chrome clears the same number (its PRICE_GUTTER_PX reads it) */
+export const AXIS_CHIPS_SCALE_MIN_WIDTH = 92;
 
 export interface PriceProjection {
   /** y in CSS px from the top of the plot, or null if the series is gone. */
@@ -836,6 +839,24 @@ interface StrikeChartProps {
       `nonce` with a span or a day, and the time scale shows it — a span from the last bar back (today: from the
       session's open), a day centred, at the zoom the chart has. The host picks the timeframe first. */
   jumpTo?: { nonce: number; kind: 'span'; span: 'today' | '1w' | '1m' | '6m' | '1y' | 'max' } | { nonce: number; kind: 'day'; day: string } | null;
+  /** THE AXIS CHIPS (the Terrain UI pass, 2026-10-14): the call wall, the flip, the put wall, the supreme and the field's
+      heaviest strike as two-line chips ON THE PRICE AXIS — the strike, then its distance from the price in dollars and in
+      σ to the close — pinned ▲/▼ at the clear area's edges, stacked apart, never over the candles; a chip's hover shows
+      the level's moves today, how long it has stood, its touches today and the track record's line. In place of the
+      library's one-line axis labels and the in-plot strength chips. */
+  axisChips?: boolean;
+  /** The one σ_remaining in dollars (pricedMove sigmaRemOf) — the chips' and the cards' σ distances; null without one */
+  sigmaRem?: number | null;
+  /** THE BEAD CARD'S LIVE LEGS: the newest book's put and call hedging per strike — the card prints them for a bead on
+      the newest column alone (the field keeps the net per strike) */
+  legsNow?: ReadonlyMap<number, { put: number; call: number }> | null;
+  /** The open interest count's date today ("2026-10-14") — the bead card's "OI dated" line */
+  oiDate?: string | null;
+  /** BEAD DENSITY (the UI pass): off, every bead draws whole at any zoom (the legend's "Every strike") */
+  beadDensity?: boolean;
+  /** The bead card's doors: a replay from the bead's minute, and the strike kept as the pane's focus */
+  onReplayFrom?: (time: number) => void;
+  onPinStrike?: (strike: number) => void;
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -1051,6 +1072,20 @@ const FIT_GAP_PX = 6;
 /** The drawing rail docked left: 6 px in, 44 wide, 6 clear — the plot starts after it (the owner, 2026-10-13: "the
     floating drawing toolbar covers candles on the left edge") */
 const RAIL_LEFT_INSET_PX = 56;
+
+/* THE AXIS CHIPS' ROWS (the Terrain UI pass, 2026-10-14) */
+type AxisChipKey = 'cw' | 'pw' | 'flip' | 'supreme' | 'top';
+interface AxisChipRow {
+  key: AxisChipKey;
+  price: number;
+  line1: string;
+  line2: string;
+  bg: string;
+  fg: string;
+  title: string;
+}
+/** The ink that reads on a chip's ground: dark on a light pad, light on a dark one */
+const inkFor = (rgb: readonly [number, number, number]): string => (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] > 150 ? '#0a0a0a' : '#ffffff');
 /** Bars a chart opens with — more than a screen at any pitch; the rest of the
     store loads when the reader scrolls to their left edge (see onRange) */
 const INITIAL_BARS = 1000;
@@ -1122,7 +1157,7 @@ const StrikeChart = ({
   barCountdown = 'measured',
   asOf = null,
   futureBars = null,
-  footBar = null, onRegime, jumpTo = null,
+  footBar = null, onRegime, jumpTo = null, axisChips = false, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
   const asOfRef = useRef<number | null>(asOf);
@@ -1348,6 +1383,23 @@ const StrikeChart = ({
   /* THE FIELD'S HOVER (2026-10-13): the bead under the pointer — its strike, New York's minute, its net, its share of
      the moment's book, its change since the 09:30 moment, and whether the moment was measured or rebuilt */
   const [beadCard, setBeadCard] = useState<BeadHit | null>(null);
+  /* A BEAD PINNED (the UI pass): a click on a bead keeps its card up, expanded, with its doors; Esc or a click elsewhere
+     lets it go. The hover card is the collapsed three lines. */
+  const [pinnedBead, setPinnedBead] = useState<BeadHit | null>(null);
+  useEffect(() => setPinnedBead(null), [ticker, timeframe, replay]);
+  useEffect(() => {
+    if (!pinnedBead) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPinnedBead(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pinnedBead]);
+  /* THE LEVEL CHIP'S HOVER CARD: the level's moves today, how long it has stood, its touches today, the record's line */
+  const [levelCard, setLevelCard] = useState<{ key: AxisChipKey; price: number; y: number; lines: string[] } | null>(null);
+  const levelChipsRef = useRef<HTMLDivElement | null>(null);
+  const sigmaRemRef = useRef(sigmaRem);
+  sigmaRemRef.current = sigmaRem;
   const levelRafRef = useRef(0);
   /** Time of that bar, and the seconds one bar covers — what the runway is
       built from, kept in refs so the time-scale subscription can read them
@@ -1728,6 +1780,180 @@ const StrikeChart = ({
     chart.priceScale('right').applyOptions({ autoScale: true });
     showRecent();
   }, [showRecent]);
+
+  useEffect(() => {
+    chartRef.current?.applyOptions({ rightPriceScale: { minimumWidth: axisChips ? AXIS_CHIPS_SCALE_MIN_WIDTH : priceTag ? PRICE_SCALE_MIN_WIDTH : 0 } });
+  }, [axisChips, priceTag]);
+  /* THE AXIS CHIPS' ROWS (the UI pass): the walls, the flip, the supreme and the field's heaviest strike, each its strike
+     and its distance from the one price — dollars and σ to the close — in the level's own ink (axisInksFrom: the walls'
+     bull and bear, the flip's grey, the supreme's magenta, the heaviest strike's side) */
+  const axisChipRows = useMemo<AxisChipRow[]>(() => {
+    if (!axisChips) return [];
+    const box = containerRef.current;
+    const inks = box ? axisInksFrom(box) : null;
+    if (!inks) return [];
+    const price = quote != null && Number.isFinite(quote) ? quote : levels.spot;
+    const rows: AxisChipRow[] = [];
+    const fin = (v: number) => Number.isFinite(v) && v > 0;
+    const k = (v: number) => num(v, v % 1 === 0 ? 0 : 2);
+    const dist = (p: number) => {
+      const d = p - price;
+      const sg = sigmaRem && sigmaRem > 0 ? Math.abs(d) / sigmaRem : null;
+      return `${usdSigned(d)}${sg != null ? ` · ${num(sg, 1)}σ` : ''}`;
+    };
+    const css = (rgb: readonly [number, number, number]) => `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    const taken = new Set<number>();
+    if (fin(levels.callWall)) {
+      rows.push({ key: 'cw', price: levels.callWall, line1: `CW ${k(levels.callWall)}`, line2: dist(levels.callWall), bg: css(inks.cw), fg: inkFor(inks.cw), title: 'The call wall — the heaviest call-dominant strike above the price' });
+      taken.add(levels.callWall);
+    }
+    if (fin(levels.putWall) && !taken.has(levels.putWall)) {
+      rows.push({ key: 'pw', price: levels.putWall, line1: `PW ${k(levels.putWall)}`, line2: dist(levels.putWall), bg: css(inks.pw), fg: inkFor(inks.pw), title: 'The put wall — the heaviest put-dominant strike below the price' });
+      taken.add(levels.putWall);
+    }
+    if (fin(levels.flip)) {
+      rows.push({ key: 'flip', price: levels.flip, line1: `Flip ${num(levels.flip, 2)}`, line2: dist(levels.flip), bg: css(inks.flip), fg: inkFor(inks.flip), title: "The flip — where the book's net changes sign, nearest the price" });
+    }
+    if (fin(levels.supreme) && !taken.has(levels.supreme)) {
+      rows.push({ key: 'supreme', price: levels.supreme, line1: `Sup ${k(levels.supreme)}`, line2: dist(levels.supreme), bg: css(inks.supreme), fg: inkFor(inks.supreme), title: 'The supreme — the heaviest strike in the book either way' });
+      taken.add(levels.supreme);
+    }
+    /* the field's heaviest strike now, with its share of the column */
+    const hist = bookHistory();
+    const newest = hist.length ? hist[hist.length - 1] : null;
+    if (newest && newest.levels.length) {
+      const total = newest.levels.reduce((a, l) => a + Math.abs(l.value), 0);
+      const top = [...newest.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))[0];
+      if (top && total > 0 && fin(top.strike) && !taken.has(top.strike)) {
+        rows.push({ key: 'top', price: top.strike, line1: `Top ${k(top.strike)} · ${Math.round((Math.abs(top.value) / total) * 100)}%`, line2: dist(top.strike), bg: css(top.value >= 0 ? inks.put : inks.call), fg: inkFor(top.value >= 0 ? inks.put : inks.call), title: "The field's heaviest strike now, and its share of the column" });
+      }
+    }
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [axisChips, levels.callWall, levels.putWall, levels.flip, levels.supreme, levels.spot, quote, sigmaRem, revision, mainNonce, themeKey, appTheme]);
+  /* THE CHIPS RIDE THE AXIS: each frame the chip of each level is set at its price's y — pinned at the clear area's
+     edges with ▲/▼ when it is off the plot — and the chips are pushed apart where they would overlap, the price tag's
+     band kept clear; nothing is written that has not changed */
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = candleSeriesRef.current;
+    const host = levelChipsRef.current;
+    if (!axisChips || !chart || !series || !host) return;
+    let raf = 0;
+    const shownY = new Map<string, number>();
+    const shownPin = new Map<string, string>();
+    let shownW = -1;
+    const frame = () => {
+      raf = requestAnimationFrame(frame);
+      const gw = Math.round(chart.priceScale('right').width());
+      if (gw > 0 && gw !== shownW) {
+        host.style.width = `${gw}px`;
+        shownW = gw;
+      }
+      let paneH = 0;
+      try {
+        paneH = chart.paneSize(0).height;
+      } catch {
+        paneH = 0;
+      }
+      const floor = chromeInsetRef.current > 0 ? chromeInsetRef.current + 3 : 0;
+      const chips = [...host.querySelectorAll<HTMLElement>('[data-axis-chip]')];
+      const want: { el: HTMLElement; y: number; h: number; pin: string }[] = [];
+      for (const el of chips) {
+        const price = Number(el.dataset.strike);
+        const y = series.priceToCoordinate(price);
+        const h = el.offsetHeight || 28;
+        if (y == null || paneH <= 0) {
+          if (el.style.opacity !== '0') el.style.opacity = '0';
+          continue;
+        }
+        const pin = y - h / 2 < floor ? '▲ ' : y + h / 2 > paneH ? '▼ ' : '';
+        const at = pin === '▲ ' ? floor + h / 2 : pin === '▼ ' ? paneH - h / 2 : y;
+        want.push({ el, y: at, h, pin });
+      }
+      /* the price tag's band stays clear: the quote's row, the tag's height */
+      const q = quoteRef.current ?? lastCloseRef.current;
+      const qy = q != null ? series.priceToCoordinate(q) : null;
+      const tagH = priceTagRef.current?.offsetHeight ?? 0;
+      want.sort((a, b) => a.y - b.y);
+      for (let i = 0; i < want.length; i++) {
+        const c = want[i];
+        if (qy != null && tagH > 0 && Math.abs(c.y - qy) < (c.h + tagH) / 2) c.y = c.y < qy ? qy - (c.h + tagH) / 2 - 1 : qy + (c.h + tagH) / 2 + 1;
+        if (i > 0) {
+          const p = want[i - 1];
+          const minY = p.y + p.h / 2 + c.h / 2 + 1;
+          if (c.y < minY) c.y = minY;
+        }
+      }
+      for (const c of want) {
+        const top = Math.round(c.y);
+        const key = c.el.dataset.axisChip ?? '';
+        if (shownY.get(key) !== top) {
+          c.el.style.transform = `translateY(${top}px) translateY(-50%)`;
+          c.el.style.opacity = '1';
+          shownY.set(key, top);
+        }
+        if (shownPin.get(key) !== c.pin) {
+          const pinEl = c.el.querySelector<HTMLElement>('[data-pin]');
+          if (pinEl) pinEl.textContent = c.pin;
+          c.el.dataset.pinned = c.pin ? (c.pin === '▲ ' ? 'above' : 'below') : '';
+          shownPin.set(key, c.pin);
+        }
+      }
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [axisChips, axisChipRows.length, mainNonce]);
+  /* THE LEVEL CARD'S WORDS, on a chip's hover: the wall's moves today (trailModel wallMovesOf, the chips' own rule), how
+     long the level has stood at this strike, its touches today on the chart's own bars (trackRecord touchCountOf, within
+     0.05%), and the track record's line for its kind */
+  const levelCardFor = useCallback(
+    (row: AxisChipRow, y: number) => {
+      const lines: string[] = [];
+      /* the field's own minutes (bookHistory), each column's walls off its own book — the primitive's columns are the
+         pane's bars, not these minutes, so they are not read here */
+      const hist = bookHistory();
+      const today = nyIsoDateOf(nowMs());
+      const n = hist.length;
+      let start = 0;
+      while (start < n && nyIsoDateOf(hist[start].time * 1000) !== today) start++;
+      const wallsMemo = new Map<number, { cw: number | null; pw: number | null; time: number }>();
+      const colAt = (i: number) => {
+        let c = wallsMemo.get(i);
+        if (!c) {
+          const h = hist[i];
+          const w = pickWalls(h.levels, h.spot ?? h.levels[Math.floor(h.levels.length / 2)]?.strike ?? 0, l => l.value);
+          c = { cw: w.callWall, pw: w.putWall, time: h.time };
+          wallsMemo.set(i, c);
+        }
+        return c;
+      };
+      if ((row.key === 'cw' || row.key === 'pw') && n > start) {
+        const kind = row.key === 'cw' ? 'CW' : 'PW';
+        const moves = wallMovesOf(n, colAt, undefined, start).filter(m => m.kind === kind);
+        lines.push(moves.length ? `Moves today: ${moves.slice(-3).map(m => `${num(m.from, m.from % 1 ? 2 : 0)} → ${num(m.to, m.to % 1 ? 2 : 0)} · ${readerClock(m.time * 1000)}`).join(' · ')}` : 'No move today: the wall has stood at this strike all session');
+        /* how long it has stood: back from the newest column while the wall is this strike */
+        let i = n - 1;
+        while (i > start && (kind === 'CW' ? colAt(i - 1).cw : colAt(i - 1).pw) === row.price) i--;
+        const since = hist[i].time;
+        const mins = Math.max(0, Math.round((nowMs() / 1000 - since) / 60));
+        lines.push(`Held since ${readerClock(since * 1000)} (${mins} min)`);
+        const bars = baseBars().filter(b => nyIsoDateOf(b.time * 1000) === today);
+        lines.push(`Touches today: ${touchCountOf(bars, row.price, since, 0.0005)} (a bar reaching within 0.05% after one that did not)`);
+      } else if (row.key === 'flip' || row.key === 'supreme' || row.key === 'top') {
+        const bars = baseBars().filter(b => nyIsoDateOf(b.time * 1000) === today);
+        const since = n > start ? hist[start].time : bars[0]?.time ?? 0;
+        lines.push(`Touches today: ${touchCountOf(bars, row.price, since, 0.0005)} (a bar reaching within 0.05% after one that did not)`);
+      }
+      const kind = row.key === 'cw' ? 'call wall' : row.key === 'pw' ? 'put wall' : row.key === 'flip' ? 'flip' : 'top strike';
+      const line = recordLines?.[kind];
+      if (line) lines.push(line);
+      setLevelCard({ key: row.key, price: row.price, y, lines });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [recordLines]
+  );
 
   /* A JUMP OF THE VIEW (the Terrain UI pass, 2026-10-14): the host's span or day, applied once the bars of the pane's
      timeframe stand — a span runs from the last bar back (today: from New York's 09:30 of the last bar's day), a little
@@ -2165,7 +2391,7 @@ const StrikeChart = ({
       // the plot, on top of the strip where lightweight-charts flush-rights its
       // price-line titles, and ate the date off every dark-pool print near spot.
       // 68 + 4 + 2 clear. Charts without the capsule keep the default 0.
-      rightPriceScale: { borderColor: s0.line, minimumWidth: priceTag ? PRICE_SCALE_MIN_WIDTH : 0 },
+      rightPriceScale: { borderColor: s0.line, minimumWidth: axisChips ? AXIS_CHIPS_SCALE_MIN_WIDTH : priceTag ? PRICE_SCALE_MIN_WIDTH : 0 },
       timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: nyClock || tapeRef.current?.clock === 'ny' ? nyTickMarks : localTickMarks },
       crosshair: {
         vertLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
@@ -2451,11 +2677,15 @@ const StrikeChart = ({
   useEffect(() => {
     const trails = trailsRef.current;
     if (!trails) return;
-    trails.axisLabels = axisLevels;
+    /* the library's one-line labels and the in-plot strength chips stand down where the host's axis chips name the levels */
+    trails.axisLabels = axisLevels && !axisChips;
+    trails.strengthLabels = !axisChips;
+    trails.density = beadDensity;
     trails.setBasis(beadBasis, beadFloor);
+    trails.requestUpdate?.();
     publishBeadLegend();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [beadBasis, beadFloor, axisLevels, mainNonce]);
+  }, [beadBasis, beadFloor, axisLevels, axisChips, beadDensity, mainNonce]);
   useEffect(() => {
     const trails = trailsRef.current;
     if (!trails) return;
@@ -3864,7 +4094,7 @@ const StrikeChart = ({
         return;
       }
 
-      const p = price.toFixed(2);
+      const p = num(price, 2);
       if (p !== shownPrice) {
         priceEl.textContent = p;
         shownPrice = p;
@@ -5142,6 +5372,18 @@ const StrikeChart = ({
           setEventCard(null);
           setBeadCard(null);
         }}
+        onClick={e => {
+          /* A BEAD PINNED (the UI pass): a click on a bead keeps its card up with its doors; one elsewhere lets it go.
+             Not while picking a replay bar or drawing — those own the click. */
+          if (picking || drawing) return;
+          if ((e.target as HTMLElement).closest('[data-bead-card], [data-axis-chips], [data-chart-chrome]')) return;
+          const tr = trailsRef.current;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const plotW = chartRef.current?.paneSize(0).width ?? rect.width;
+          const px = e.clientX - rect.left;
+          const bead = tr && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
+          setPinnedBead(bead);
+        }}
       >
         {picking && pickFade && (
           <>
@@ -5211,6 +5453,43 @@ const StrikeChart = ({
           >
             <div className="font-mono text-[12px] font-bold leading-[14px] tnum text-textPrimary" />
             <div className="font-mono text-[11px] leading-[11px] tnum text-textMuted" />
+          </div>
+        )}
+        {/* THE AXIS CHIPS (the UI pass, 2026-10-14): the levels as two-line chips on the price axis, set at their prices
+            each frame (the effect above), pinned ▲/▼ at the clear area's edges, stacked apart — the strike, then its
+            distance from the price in dollars and σ; a hover opens the level's card over the plot's right edge */}
+        {axisChips && !replay && !rewound && axisChipRows.length > 0 && (
+          <div ref={levelChipsRef} className="absolute top-0 right-0 bottom-0 z-[9] pointer-events-none" data-axis-chips>
+            {axisChipRows.map(c => (
+              <div
+                key={c.key}
+                data-axis-chip={c.key}
+                data-strike={c.price}
+                title={c.title}
+                className="absolute right-0 left-0 pointer-events-auto rounded-[3px] mx-[2px] px-1 py-[2px] text-right leading-[12px] opacity-0 shadow-sm shadow-black/40 cursor-default"
+                style={{ background: c.bg, color: c.fg }}
+                onMouseEnter={() => levelCardFor(c, Number((levelChipsRef.current?.querySelector(`[data-axis-chip="${c.key}"]`) as HTMLElement | null)?.style.transform.match(/translateY\(([-\d.]+)px\)/)?.[1] ?? 0))}
+                onMouseLeave={() => setLevelCard(null)}
+              >
+                <div className="font-mono text-[11px] font-bold tnum whitespace-nowrap">
+                  <span data-pin />
+                  {c.line1}
+                </div>
+                <div className="font-mono text-[11px] tnum whitespace-nowrap opacity-90">{c.line2}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {levelCard && (
+          <div className="absolute z-30 pointer-events-none border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[340px]" style={{ top: Math.max(4, levelCard.y - 30), right: (chartRef.current?.priceScale('right').width() ?? 74) + 8 }} data-level-card={levelCard.key}>
+            <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
+              {levelCard.key === 'cw' ? 'Call wall' : levelCard.key === 'pw' ? 'Put wall' : levelCard.key === 'flip' ? 'Flip' : levelCard.key === 'supreme' ? 'Supreme' : 'Heaviest strike'} {num(levelCard.price, levelCard.price % 1 ? 2 : 0)}
+            </div>
+            {levelCard.lines.map(l => (
+              <div key={l} className="font-mono text-[11px] text-textSecondary tnum whitespace-normal">
+                {l}
+              </div>
+            ))}
           </div>
         )}
 
@@ -5719,24 +5998,22 @@ const StrikeChart = ({
           </span>
         )}
 
-        {/* THE FIELD'S HOVER CARD (2026-10-13) — the event card's own style, beside the bead */}
-        {beadCard && !eventCard && (() => {
+        {/* THE FIELD'S HOVER CARD (2026-10-13; collapsed and expanded since the UI pass of 2026-10-14) — the event card's
+            own style, beside the bead: three lines under the pointer, the rest when the bead is pinned by a click */}
+        {(pinnedBead ?? beadCard) && !eventCard && (() => {
+          const card = pinnedBead ?? beadCard!;
+          const expanded = !!pinnedBead;
           /* THE CELL AND ITS CLOCK (the owner's second review, 2026-10-13, item 6): on a bar wider than a minute the
              cell is the bar's heaviest minute (timeframe.ts aggregateSnapshots keeps each strike's peak minute, with
              that minute's own vols and provenance), knowable at that minute's end — never a vol past the bar's end */
           const cellBar = trailsRef.current?.barSec ?? 60;
-          const cellAt = beadCard.level.at ?? beadCard.time;
-          const meta = trailMeta(beadCard.snap);
-          const lvl = beadCard.level;
+          const cellAt = card.level.at ?? card.time;
+          const meta = trailMeta(card.snap);
+          const lvl = card.level;
           const w = containerRef.current?.clientWidth ?? 400;
-          const k = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
-          /* the cell's provenance on the feed: priced on today's vols or carried from the session before's close, and how
-             old the oldest vol it stands on is; the measured reference beside it, never blended in */
-          /* a cell of the feed's field — its own column, or the peak a folded bar kept (which carries its cell's
-             provenance but not the column's record) */
+          const k = (v: number) => num(v, v % 1 === 0 ? 0 : 2);
           const feedCell = !!meta || !!lvl.prov;
-          /* a session before today (server/fieldBackfill.ts): its vols are the ones traded through it, minute by minute */
-          const beadDay = nyIsoDateOf(beadCard.time * 1000);
+          const beadDay = nyIsoDateOf(card.time * 1000);
           const pastDay = beadDay < nyIsoDateOf(nowMs());
           const prov = !feedCell
             ? null
@@ -5745,13 +6022,8 @@ const StrikeChart = ({
               : pastDay
                 ? `Modeled · vols as traded ${meta?.readAt ? `by ${nyClockOf(meta.readAt)}` : `on ${isoDayLabel(beadDay)}`}`
                 : `Modeled · vols read ${meta?.readAt ? `at ${nyClockOf(meta.readAt)}` : 'today'}`;
-          const staleAt = lvl.staleSince ? `${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : '';
-          /* a bound: the vendor stamped the vol's print with a later batch time, so its own time is known only to be at or
-             before this */
-          /* THE VOLS IN USE (the Terrain audit, item 3): the newest vol the cell stands on, and how much of the strike
-             stands on one older than an hour — the oldest named last, since on a strike of thirty contracts it is a
-             far expiry's few lots (778 on Oct 12: a Nov 27 call, 4 contracts, last traded 10:17 am) */
-          const freshAt = lvl.freshAt ? `${nyClockOf(lvl.freshAt)}${nyIsoDateOf(lvl.freshAt) !== nyIsoDateOf(beadCard.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.freshAt))}` : ''}` : '';
+          const staleAt = lvl.staleSince ? `${nyClockOf(lvl.staleSince)}${nyIsoDateOf(lvl.staleSince) !== nyIsoDateOf(card.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.staleSince))}` : ''}` : '';
+          const freshAt = lvl.freshAt ? `${nyClockOf(lvl.freshAt)}${nyIsoDateOf(lvl.freshAt) !== nyIsoDateOf(card.time * 1000) ? ` ${isoDayLabel(nyIsoDateOf(lvl.freshAt))}` : ''}` : '';
           const oldest = lvl.staleSince ? `oldest ${lvl.staleBound ? 'at or before ' : ''}${staleAt}` : '';
           const share = lvl.staleShare;
           const stale = !feedCell || !lvl.staleSince
@@ -5759,53 +6031,96 @@ const StrikeChart = ({
             : lvl.prov === 'carried'
               ? `vols ${lvl.staleBound ? 'from prints at or before' : 'as traded to'} ${staleAt}`
               : `vols as traded to ${freshAt || staleAt}${share != null && share >= 0.005 ? ` · ${pct(share * 100)} of the strike's gamma on a vol older than an hour (${oldest})` : ' · every vol within the hour'}`;
-          const measured = feedCell ? measuredAt(ticker, beadCard.strike, beadCard.time) : null;
+          const measured = feedCell ? measuredAt(ticker, card.strike, card.time) : null;
+          /* the expanded figures: the rank at that bar, the price then and the strike's distance, the change over the
+             thirty minutes before, the live legs for a bead on the newest column, the count's date */
+          const hist = bookHistory();
+          const newest = hist.length ? hist[hist.length - 1] : null;
+          const rank = [...card.snap.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).findIndex(l => l.strike === card.strike) + 1;
+          const spotThen = card.snap.spot ?? null;
+          const isNewest = !!newest && newest.time === card.snap.time;
+          const sg = isNewest && spotThen != null && sigmaRem && sigmaRem > 0 ? Math.abs(card.strike - spotThen) / sigmaRem : null;
+          const before = hist.filter(h => h.time <= card.time - 30 * 60);
+          const col30 = before.length ? before[before.length - 1] : null;
+          const v30 = col30?.levels.find(l => l.strike === card.strike)?.value;
+          const legsHere = isNewest ? legsNow?.get(card.strike) ?? null : null;
+          const side = card.value >= 0 ? 'puts amplify' : 'calls absorb';
+          const oiLine = !feedCell ? null : pastDay ? `OI the count dated that session` : oiDate ? `OI dated ${isoDayLabel(oiDate)}${nyMinuteOf(card.time * 1000) < 7 * 60 ? " (before 7:00 am the session before's count)" : ''}` : null;
           return (
             <div
-              className="absolute z-30 pointer-events-none border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[300px]"
-              style={{ top: Math.max(4, beadCard.y - 72), ...(beadCard.x > w - 310 ? { right: Math.max(4, w - beadCard.x + 10) } : { left: beadCard.x + 10 }) }}
-              data-bead-card
+              className={`absolute z-30 border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[320px] ${expanded ? 'pointer-events-auto' : 'pointer-events-none'}`}
+              style={{ top: Math.max(4, card.y - 72), ...(card.x > w - 330 ? { right: Math.max(4, w - card.x + 10) } : { left: card.x + 10 }) }}
+              data-bead-card={expanded ? 'pinned' : 'hover'}
             >
               <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
-                {k(beadCard.strike)} · {cellBar > 60 ? barSpanLabel(beadCard.time, beadCard.time + cellBar) : nyClockOf(beadCard.time * 1000, { zone: true })}
-              </div>
-              <div className="text-[11px] text-textMuted">Estimated dealer gamma (assumed sign)</div>
-              {feedCell && <div className="text-[11px] text-textMuted">{pastDay ? `${isoDayLabel(beadDay)}'s` : "Today's"} opening positions re-priced along the price path, each contract on its latest traded vol</div>}
-              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-                {usdCompact(beadCard.value)} · {pct(beadCard.share * 100)} of the book
-              </div>
-              {/* a CHANGE since the session's first column at or after the open (the Terrain audit, item 6) */}
-              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-                Change since the open ({marketClock(9, 30, { on: beadCard.time * 1000 })}): {beadCard.open == null ? '—' : usdCompactSigned(beadCard.value - beadCard.open)}
+                {k(card.strike)} · {cellBar > 60 ? barSpanLabel(card.time, card.time + cellBar) : nyClockOf(card.time * 1000, { zone: true })}
               </div>
               <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
-                Flip {beadCard.flip == null ? '—' : k(beadCard.flip)}
-                {beadCard.crossings.length ? ` · crossings near ${beadCard.crossings.map(k).join(', ')}` : ''}
+                {usdCompactSigned(card.value)} · {pct(card.share * 100)} of the book · {side}
               </div>
-              {(() => {
-                /* THE TRACK RECORD'S LINE (the owner's item 2: "The same line appears in the hover card when the cursor is
-                   on that level"): the hovered strike as the column's call wall, put wall, or one of its three heaviest */
-                if (!recordLines) return null;
-                const spot = beadCard.snap.spot ?? beadCard.snap.levels[Math.floor(beadCard.snap.levels.length / 2)]?.strike ?? 0;
-                const walls = pickWalls(beadCard.snap.levels, spot, l => l.value);
-                const heaviest = [...beadCard.snap.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3);
-                const kind = walls.callWall === lvl.strike ? 'call wall' : walls.putWall === lvl.strike ? 'put wall' : heaviest.some(h => h.strike === lvl.strike) ? 'top strike' : null;
-                const line = kind ? recordLines[kind] : null;
-                return line ? <div className="font-mono text-[11px] text-textMuted whitespace-normal max-w-[360px]">{line}</div> : null;
-              })()}
-              {feedCell && (
-                <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">
-                  {cellBar > 60 && cellAt !== beadCard.time ? `The bar's heaviest minute, ${nyClockOf(cellAt * 1000)} · knowable by ${nyClockOf((cellAt + 60) * 1000)}` : `Knowable by ${nyClockOf((cellAt + 60) * 1000)}`}
-                </div>
+              <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                Since the open ({marketClock(9, 30, { on: card.time * 1000 })}): {card.open == null ? '—' : usdCompactSigned(card.value - card.open)}
+                {!expanded && <span className="ml-2 text-textMuted">Details › click</span>}
+              </div>
+              {expanded && (
+                <>
+                  <div className="text-[11px] text-textMuted mt-1">Estimated dealer gamma (assumed sign){feedCell ? ` · ${pastDay ? `${isoDayLabel(beadDay)}'s` : "today's"} opening positions re-priced along the price path, each contract on its latest traded vol` : ''}</div>
+                  <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                    {legsHere ? `Calls ${usdCompact(Math.abs(legsHere.call))} · puts ${usdCompact(Math.abs(legsHere.put))} (the live book)` : 'Calls · puts: the field keeps the net per strike'}
+                  </div>
+                  <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                    Rank at that bar: {rank > 0 ? `${rank} of ${card.snap.levels.length}` : '—'}
+                  </div>
+                  <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                    Price then {spotThen != null ? num(spotThen, 2) : '—'}{spotThen != null ? ` · strike ${usdSigned(card.strike - spotThen)} (${pctSigned(((card.strike - spotThen) / spotThen) * 100)})${sg != null ? ` · ${num(sg, 1)}σ now` : ''}` : ''}
+                  </div>
+                  <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                    30 min before: {v30 != null && Number.isFinite(v30) ? `${usdCompactSigned(card.value - v30)} since ${nyClockOf(col30!.time * 1000)}` : '—'}
+                  </div>
+                  <div className="font-mono text-[11px] text-textSecondary tnum whitespace-nowrap">
+                    Flip {card.flip == null ? '—' : k(card.flip)}
+                    {card.crossings.length ? ` · crossings near ${card.crossings.map(k).join(', ')}` : ''}
+                  </div>
+                  {(() => {
+                    if (!recordLines) return null;
+                    const spot = card.snap.spot ?? card.snap.levels[Math.floor(card.snap.levels.length / 2)]?.strike ?? 0;
+                    const walls = pickWalls(card.snap.levels, spot, l => l.value);
+                    const heaviest = [...card.snap.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3);
+                    const kind = walls.callWall === lvl.strike ? 'call wall' : walls.putWall === lvl.strike ? 'put wall' : heaviest.some(h => h.strike === lvl.strike) ? 'top strike' : null;
+                    const line = kind ? recordLines[kind] : null;
+                    return line ? <div className="font-mono text-[11px] text-textMuted whitespace-normal max-w-[360px]">{line}</div> : null;
+                  })()}
+                  {oiLine && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">{oiLine}</div>}
+                  {feedCell && (
+                    <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">
+                      {cellBar > 60 && cellAt !== card.time ? `The bar's heaviest minute, ${nyClockOf(cellAt * 1000)} · knowable by ${nyClockOf((cellAt + 60) * 1000)}` : `Knowable by ${nyClockOf((cellAt + 60) * 1000)}`}
+                    </div>
+                  )}
+                  {prov && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">{prov}</div>}
+                  {prov && stale && <div className="font-mono text-[11px] text-textMuted">Vol age: {stale}</div>}
+                  {feedCell && (
+                    <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
+                      {measured ? `Unusual Whales' book (${measured.universe}), ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : pastDay ? 'Unusual Whales serves no book by strike for a past minute' : "No book of Unusual Whales' read by then"}
+                    </div>
+                  )}
+                  {feedCell && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta?.model ?? TRAIL_MODEL.version}</div>}
+                  <div className="mt-1.5 pt-1.5 border-t border-borderSubtle/60 flex items-center gap-2">
+                    {onReplayFrom && (
+                      <button type="button" onClick={() => { onReplayFrom(card.time); setPinnedBead(null); }} className="hit h-6 px-2 rounded-[3px] bg-ink/[0.14] font-mono text-[11px] font-semibold text-textPrimary" data-bead-replay>
+                        Replay from here
+                      </button>
+                    )}
+                    {onPinStrike && (
+                      <button type="button" onClick={() => onPinStrike(card.strike)} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-bead-pin-strike>
+                        Pin strike
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setPinnedBead(null)} aria-label="Let the card go" title="Let the card go — Esc" className="hit ml-auto h-6 w-6 inline-flex items-center justify-center rounded text-textMuted hover:text-textPrimary">
+                      ×
+                    </button>
+                  </div>
+                </>
               )}
-              {prov && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">{prov}</div>}
-              {prov && stale && <div className="font-mono text-[11px] text-textMuted">{stale[0].toUpperCase() + stale.slice(1)}</div>}
-              {feedCell && (
-                <div className="font-mono text-[11px] text-textMuted tnum whitespace-nowrap">
-                  {measured ? `Unusual Whales' book (${measured.universe}), ${nyClockOf(measured.at)}: ${usdCompact(measured.value)}` : pastDay ? 'Unusual Whales serves no book by strike for a past minute' : "No book of Unusual Whales' read by then"}
-                </div>
-              )}
-              {feedCell && <div className="font-mono text-[11px] text-textMuted whitespace-nowrap">Model {meta?.model ?? TRAIL_MODEL.version}</div>}
             </div>
           );
         })()}

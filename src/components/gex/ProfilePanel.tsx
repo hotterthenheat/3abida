@@ -54,6 +54,7 @@
 */
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { num, pct, pctSigned, usdSigned } from '../../core/format';
 import { Info, X } from 'lucide-react';
 import Simulator from '../../core/simulator';
 import Term from '../ui/Term';
@@ -197,7 +198,7 @@ const useSplitPref = () => useSyncExternalStore(splitSubscribe, splitSnapshot, s
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
 
-const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? num(v, 0) : num(v, 2));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 const rgba = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16);
@@ -389,6 +390,9 @@ interface ProfilePanelProps {
   /** HOW SURE THE LEVELS ARE (data/levelSureness.ts, the ideas' rank 3 — Pinpoint's door, 2026-10-10): given, the head
       carries one "How sure" door that reads the walls and the flip each way */
   sure?: Sureness[];
+  /** THE ONE σ_remaining in dollars (the Terrain UI pass, 2026-10-14): the wide strike column prints each strike's
+      distance in σ to the close beside its Δ from spot, and the read line says it; null without one */
+  sigmaRem?: number | null;
   className?: string;
 }
 
@@ -407,7 +411,7 @@ interface Hover {
 
 const ProfilePanel = ({
   rows, maxAbs, legs, openRatio = null, lagged = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
-  ticker, volBars, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6, sure,
+  ticker, volBars, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6, sure, sigmaRem = null,
 }: ProfilePanelProps) => {
   const mode = modeOf(palette);
   /* ON A LIGHT GROUND the ramps are the paper ramps (heatmap.ts) and the canvas's inks the light set's tokens */
@@ -429,7 +433,11 @@ const ProfilePanel = ({
      spine — or the net: each strike's net as a figure and a row of dashes, one per tenth of the
      largest net on screen, walking the ramp the legs wear (ember where hedging amplifies, glacier
      where it absorbs). */
-  const [view, setView] = useState<'ladder' | 'net'>('ladder');
+  /* NET BY DEFAULT since the UI pass of 2026-10-14 (the owner: "ladder Net/Sides toggle default Net"): the strike, its
+     Δ from spot and σ, a diverging net bar and the net figure; Sides is the legs with the spine through them */
+  const [view, setView] = useState<'ladder' | 'net'>('net');
+  const sigmaRemRef = useRef(sigmaRem);
+  sigmaRemRef.current = sigmaRem;
   /* where the rows start this frame — the head, plus the key when it is drawn */
   const headBandRef = useRef(HEAD_TOP);
   /* whether the rows PRINT their figures this frame — the card carries them only when they
@@ -1111,82 +1119,52 @@ const ProfilePanel = ({
         return `rgb(${rr},${gg},${bb})`;
       };
       if (showSize && view === 'net') {
-        /* THE NET VIEW — THE PARTNER'S ROW, VERBATIM, IN OUR INKS (Noah, 2026-09-16): the strike
-           in the column at the left, the net figure right after it in the sign's colour, and the
-           dashes on their own line UNDER the figure — one dash per share of the largest net on
-           screen, in the same colour; when the chart's pitch is too tight for two lines the
-           dashes sit beside the figure. The length eases the way the legs do. */
+        /* THE NET VIEW — A DIVERGING BAR (the Terrain UI pass, 2026-10-14; the partner's row of dashes until then): from
+           the lane's centre line, a bar to the right where hedging amplifies (puts, the put ramp's ink) and to the left
+           where it absorbs (calls, the call ramp's), its length the strike's |net| against the largest |net| on screen,
+           the net figure at its tip in the sign's ink; the length eases the way the legs do, and a kept strike's ring
+           stands round its bar. */
         const laneW = sizeR - sizeL;
-        const twoLine = pitch >= 24;
-        const figures = laneW >= 90 && barH >= 8;
+        const mid = sizeL + laneW / 2;
+        const figures = laneW >= 110 && barH >= 8;
         figuresRef.current = figures;
-        const x0 = sizeL + 8;
-        const DASH = 5;
-        const DASH_H = 3;
-        const GAP = 3;
         ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${FIG}`;
         const figW = figures ? Math.ceil(ctx.measureText('−$999.9M').width) : 0;
-        const dashX0 = twoLine || !figures ? x0 : x0 + figW + 8;
-        const track = Math.max(DASH, sizeR - 8 - dashX0);
-        const maxN = Math.max(1, Math.floor((track + GAP) / (DASH + GAP)));
-        /* THE ROW IS THE STRIKE'S TOTAL, SPLIT (Noah, with the partner's Net view up close: "the
-           net gamma should look like this, in our colors"): ONE row of dashes under the figure —
-           the put gamma's share first in the put side's ink, the call gamma's after it in the
-           call side's, the row's whole length the strike's total against the largest total on
-           screen (fourteen dashes at most). No legs known, the net alone in its sign's ink. */
-        const legOf = (k: number, v: number) => {
-          const l = legs?.get(k);
-          if (l) return { put: Math.abs(l.put), call: Math.abs(l.call) };
-          return v >= 0 ? { put: Math.abs(v), call: 0 } : { put: 0, call: Math.abs(v) };
-        };
-        let totalMax = 0;
+        const reach = Math.max(6, laneW / 2 - figW - 10);
+        const barHN = Math.max(3, Math.min(9, Math.round(barH * 0.55)));
+        let netMax = 0;
+        for (const r of placed) netMax = Math.max(netMax, Math.abs(r.value));
+        if (!netMax) netMax = maxAbs || 1;
+        /* the centre line */
+        ctx.strokeStyle = ink.divider;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(mid) + 0.5, HEAD_BAND);
+        ctx.lineTo(Math.round(mid) + 0.5, H - FOOT_BAND);
+        ctx.stroke();
         for (const r of placed) {
-          const l = legOf(r.strike, r.value);
-          totalMax = Math.max(totalMax, l.put + l.call);
-        }
-        if (!totalMax) totalMax = maxAbs || 1;
-        for (const r of placed) {
-          const l = legOf(r.strike, r.value);
-          const total = l.put + l.call;
-          if (total <= 0) continue;
+          if (r.value === 0) continue;
           const sign: 1 | -1 = r.value >= 0 ? 1 : -1;
-          /* the shares in dashes, the leading side never rounded away */
-          let nPut = Math.round((l.put / totalMax) * 14);
-          let nCall = Math.round((l.call / totalMax) * 14);
-          if (nPut + nCall === 0) {
-            if (sign > 0) nPut = 1;
-            else nCall = 1;
-          }
-          const over = nPut + nCall - maxN;
-          if (over > 0) {
-            if (nPut >= nCall) nPut -= over;
-            else nCall -= over;
-          }
-          const n = nPut + nCall;
-          const target = n * (DASH + GAP) - GAP;
-          const e = ease(`n:${r.strike}`, target, '', 0, DASH_H);
-          const figY = twoLine ? r.y - 5 : r.y;
-          const dashY = twoLine ? Math.round(r.y + 4) : Math.round(r.y - DASH_H / 2);
-          if (figures && r.value !== 0) {
+          const target = (Math.abs(r.value) / netMax) * reach;
+          const e = ease(`n:${r.strike}`, target, sideInk(sign), 0, barHN);
+          const len = Math.max(1, e.len);
+          const y = Math.round(r.y - e.h / 2);
+          const x0 = sign > 0 ? mid : mid - len;
+          ctx.fillStyle = sideInk(sign);
+          ctx.fillRect(x0, y, len, Math.max(1, e.h));
+          if (figures) {
             ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${FIG}`;
             ctx.fillStyle = sideInk(sign);
             ctx.textBaseline = 'middle';
-            ctx.textAlign = 'left';
-            ctx.fillText(`${sign > 0 ? '' : '−'}${fmtUsd(Math.abs(r.value))}`, x0, figY + 0.5);
-          }
-          for (let i = 0; i < n; i++) {
-            const dx = dashX0 + i * (DASH + GAP);
-            const w = Math.min(DASH, e.len - i * (DASH + GAP));
-            if (w <= 0) break;
-            ctx.fillStyle = sideInk(i < nPut ? 1 : -1);
-            ctx.fillRect(dx, dashY, w, DASH_H);
+            ctx.textAlign = sign > 0 ? 'left' : 'right';
+            ctx.fillText(`${sign > 0 ? '' : '−'}${fmtUsd(Math.abs(r.value))}`, sign > 0 ? mid + len + 4 : mid - len - 4, r.y + 0.5);
           }
           const ring = ringFor(r.strike);
           if (ring) {
             ctx.strokeStyle = ring;
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.roundRect(dashX0 - 2.5, dashY - 2, e.len + 5, DASH_H + 4, 2);
+            ctx.roundRect(x0 - 2.5, y - 2, len + 5, Math.max(1, e.h) + 4, 2);
             ctx.stroke();
           }
         }
@@ -1442,22 +1420,23 @@ const ProfilePanel = ({
         ctx.textAlign = wide ? 'left' : 'center';
         ctx.fillText(fmtStrike(k), wide ? colL + 6 : cx, r.y);
         if (wide) {
-          if (view === 'net') {
-            /* the net view's column carries the role tag after the strike (CW · PW · SUP ★), not the Δ */
-            const tag = near(k, levels.callWall) ? { t: 'CW', c: ink.callWall } : near(k, levels.putWall) ? { t: 'PW', c: ink.putWall } : near(k, levels.supreme) ? { t: 'SUP ★', c: ink.supreme } : null;
-            if (tag) {
-              const sw = ctx.measureText(fmtStrike(k)).width;
-              ctx.font = `700 9px ${FIG}`;
-              ctx.fillStyle = tag.c;
-              ctx.fillText(tag.t, colL + 6 + sw + 5, r.y + 0.5);
-            }
-          } else {
-            const d = ((k - levels.spot) / levels.spot) * 100;
-            ctx.font = `9px ${FIG}`;
+          /* THE Δ FROM SPOT AND THE σ TO THE CLOSE (the UI pass, 2026-10-14) in the column's right, both views — the
+             role is the strike's own ink, and the read line names it */
+          const d = ((k - levels.spot) / levels.spot) * 100;
+          const sr = sigmaRemRef.current;
+          const sg = sr && sr > 0 && Number.isFinite(levels.spot) ? Math.abs(k - levels.spot) / sr : null;
+          ctx.font = `9px ${FIG}`;
+          ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : ink.ink3;
+          ctx.textAlign = 'right';
+          const dWords = pctSigned(d);
+          if (sg != null) {
+            const sWords = ` ${num(sg, 1)}σ`;
+            const sw = ctx.measureText(sWords).width;
+            ctx.fillStyle = ink.ink3;
+            ctx.fillText(sWords, colR - 6, r.y);
             ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : ink.ink3;
-            ctx.textAlign = 'right';
-            ctx.fillText(`${d > 0 ? '+' : ''}${d.toFixed(2)}%`, colR - 6, r.y);
-          }
+            ctx.fillText(dWords, colR - 6 - sw, r.y);
+          } else ctx.fillText(dWords, colR - 6, r.y);
         }
       });
       /* Culled rows, counted */
@@ -1513,7 +1492,7 @@ const ProfilePanel = ({
         ctx.fillStyle = ink.spotChipText;
         ctx.font = `700 10px ${FIG}`;
         ctx.textAlign = 'center';
-        ctx.fillText(levels.spot.toFixed(2), cx, spotY + 0.5);
+        ctx.fillText(num(levels.spot, 2), cx, spotY + 0.5);
       }
 
       /* THE MIRROR (Noah, 2026-09-06: "i love how this section zooms out… i
@@ -1654,7 +1633,7 @@ const ProfilePanel = ({
         </span>
         <span className={`font-mono text-[11px] tnum ${cardRow.strike > levels.spot ? 'text-bull' : cardRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`}>
           {cardRow.strike > levels.spot ? '+' : ''}
-          {(((cardRow.strike - levels.spot) / levels.spot) * 100).toFixed(2)}% from spot
+          {pctSigned(((cardRow.strike - levels.spot) / levels.spot) * 100)} from spot
         </span>
         {readRole && (
           <span className="ml-auto text-[11px] font-medium" style={{ color: readRole.c }}>
@@ -1725,9 +1704,10 @@ const ProfilePanel = ({
             </span>
           )}
           {!tiny && (
-            <span className={`font-mono tnum ${readRow.strike > levels.spot ? 'text-bull' : readRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`}>
-              {readRow.strike > levels.spot ? '+' : ''}
-              {(((readRow.strike - levels.spot) / levels.spot) * 100).toFixed(2)}%{tight ? '' : ' from spot'}
+            <span className={`font-mono tnum ${readRow.strike > levels.spot ? 'text-bull' : readRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`} data-dir={readRow.strike > levels.spot ? 'up' : readRow.strike < levels.spot ? 'down' : undefined}>
+              {tight ? pctSigned(((readRow.strike - levels.spot) / levels.spot) * 100) : `${usdSigned(readRow.strike - levels.spot)} · ${pctSigned(((readRow.strike - levels.spot) / levels.spot) * 100)}`}
+              {sigmaRem && sigmaRem > 0 ? ` · ${num(Math.abs(readRow.strike - levels.spot) / sigmaRem, 1)}σ` : ''}
+              {tight ? '' : ' from spot'}
             </span>
           )}
           {view === 'net' && readLegs ? (
@@ -1743,7 +1723,7 @@ const ProfilePanel = ({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="text-textMuted">Share</span>
-                <span className="font-mono tnum text-textPrimary">{readShare != null ? `${readShare.toFixed(1)}%` : '—'}</span>
+                <span className="font-mono tnum text-textPrimary">{readShare != null ? pct(readShare) : '—'}</span>
               </span>
             </>
           ) : (
@@ -1853,7 +1833,7 @@ const ProfilePanel = ({
      of the expiry button") */
   const viewTabs = showSize && (
     <span className="pointer-events-auto shrink-0 inline-flex items-center gap-1" data-profile-views>
-      {(['ladder', 'net'] as const).map(v => (
+      {(['net', 'ladder'] as const).map(v => (
         <button
           key={v}
           type="button"
@@ -1863,9 +1843,9 @@ const ProfilePanel = ({
           className={`inline-flex items-center h-6 px-2 rounded-md border bg-chip font-mono text-[11px] font-semibold select-none transition-colors ${
             view === v ? 'border-silver/50 text-textPrimary' : 'border-borderSubtle text-textMuted hover:border-borderMuted hover:text-textPrimary'
           }`}
-          title={v === 'ladder' ? 'The put and call legs at each strike, the spine through them' : "Each strike's net as a figure and a row of dashes"}
+          title={v === 'ladder' ? 'Sides — the put and call legs at each strike, the spine through them' : "Net — each strike's net as a diverging bar and a figure"}
         >
-          {v === 'ladder' ? 'Ladder' : 'Net'}
+          {v === 'ladder' ? 'Sides' : 'Net'}
         </button>
       ))}
     </span>
