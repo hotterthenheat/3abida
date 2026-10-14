@@ -122,6 +122,16 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
             </span>
           )}
         </p>
+        {first.replay && (
+          <div data-how-sure-replay>
+            <p className="text-[11px] text-textMuted">{first.replay.badge}</p>
+            {first.replay.lines.map(l => (
+              <p key={l} className="text-textSecondary">
+                {l}
+              </p>
+            ))}
+          </div>
+        )}
         {first.window?.line && (
           <div data-how-sure-window>
             <p className="text-[11px] text-textMuted">The expiry window</p>

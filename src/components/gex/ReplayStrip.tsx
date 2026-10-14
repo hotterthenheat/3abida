@@ -150,16 +150,24 @@ interface Props {
       the back doors are shut at it, and say why in `minTitle` (the audit's PR-11, 2026-10-10) */
   minPos?: number;
   minTitle?: string;
+  /** THE PACES OFFERED, where a host has its own (Terrain's replay, the owner's item 8: 1×, 5×, 20×, 60× of the market's
+      own time — on the 'seconds' unit, 60 is a minute of tape a second) — the house's lists unless given */
+  paces?: { value: number; label: string }[];
+  /** A host's own step (a bar of its chart, to the bar's end — data/replayFrame.ts stepCursor); the transport's step
+      buttons call it in place of a seek by `step` */
+  onStep?: (dir: 1 | -1) => void;
+  /** More of the host's controls, beside the way out (Terrain's: go to a time, a random start, hide the future) */
+  tools?: ReactNode;
   className?: string;
 }
 
 const iconBtn = 'shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-textSecondary transition-colors';
 const doorBtn = 'shrink-0 inline-flex items-center gap-1.5 h-6 rounded-md border border-borderSubtle hover:border-borderMuted font-mono text-[11px] text-textSecondary hover:text-textPrimary transition-colors';
 
-const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace, onPace, onSeek, onExit, compact = false, words, marks, paceUnit = 'seconds', candleMin = 1, step = 60, counter, wordsAt, exitWords = 'Back to live', stateWord = 'replaying', minPos = 0, minTitle, className = '' }: Props) => {
+const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace, onPace, onSeek, onExit, compact = false, words, marks, paceUnit = 'seconds', candleMin = 1, step = 60, counter, wordsAt, exitWords = 'Back to live', stateWord = 'replaying', minPos = 0, minTitle, paces, onStep, tools, className = '' }: Props) => {
   /* candles a real second at a pace: a chart's own bars ARE candles; a session clock's seconds are folded into the host's candle */
   const perSecond = (p: number) => (paceUnit === 'bars' ? p : p / (60 * Math.max(1 / 60, candleMin)));
-  const paceOptions: DropdownOption<number>[] = (paceUnit === 'bars' ? BAR_PACES : CLOCK_PACES).map(o => ({ ...o, hint: o.value === 1 && paceUnit === 'seconds' ? `As it happened — ${candlePace(perSecond(1)).long.toLowerCase()}` : candlePace(perSecond(o.value)).long }));
+  const paceOptions: DropdownOption<number>[] = (paces ?? (paceUnit === 'bars' ? BAR_PACES : CLOCK_PACES)).map(o => ({ ...o, hint: o.value === 1 && paceUnit === 'seconds' ? `As it happened — ${candlePace(perSecond(1)).long.toLowerCase()}` : candlePace(perSecond(o.value)).long }));
   const trackRef = useRef<HTMLDivElement | null>(null);
   const dragging = useRef(false);
   /** The pointer over the track, 0..1 — the tag that says the moment under it */
@@ -278,13 +286,18 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
       {playing ? <Pause className={size === 'md' ? 'w-3.5 h-3.5' : 'w-3 h-3'} /> : <Play className={`${size === 'md' ? 'w-3.5 h-3.5' : 'w-3 h-3'} translate-x-[1px]`} />}
     </button>
   );
+  const stepOnce = (dir: 1 | -1) => {
+    if (!onStep) return stepTo(pos + dir * step);
+    if (playing) onPlay(false);
+    onStep(dir);
+  };
   const stepBack = (
-    <button type="button" onClick={() => stepTo(pos - step)} disabled={atStart} title={backTitle('One step back')} aria-label="One step back" className={iconBtn} data-replay-step="back">
+    <button type="button" onClick={() => stepOnce(-1)} disabled={atStart} title={backTitle('One step back')} aria-label="One step back" className={iconBtn} data-replay-step="back">
       <StepBack className="w-3.5 h-3.5" />
     </button>
   );
   const stepOn = (
-    <button type="button" onClick={() => stepTo(pos + step)} disabled={atEnd} title="One step on" aria-label="One step on" className={iconBtn} data-replay-step="on">
+    <button type="button" onClick={() => stepOnce(1)} disabled={atEnd} title="One step on" aria-label="One step on" className={iconBtn} data-replay-step="on">
       <StepForward className="w-3.5 h-3.5" />
     </button>
   );
@@ -330,7 +343,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
       <div
         /* 600, not 760 (Noah, 2026-09-20: "needs to become a bit shorter in width") — the least that still holds the pace card,
            the five transport buttons in the true middle and the way out on one line, with an hour mark every ~45px */
-        className={`pointer-events-auto ${state === 'folded' ? '' : 'w-full max-w-[600px]'} rounded-xl border border-borderMuted bg-panel shadow-[0_14px_40px_rgba(0,0,0,0.5)] animate-soft-in`}
+        className={`pointer-events-auto ${state === 'folded' ? '' : tools ? 'w-full max-w-[680px]' : 'w-full max-w-[600px]'} rounded-xl border border-borderMuted bg-panel shadow-[0_14px_40px_rgba(0,0,0,0.5)] animate-soft-in`}
         data-chart-chrome
         data-replay-strip={state}
       >
@@ -346,7 +359,10 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
         <span className="min-w-0 truncate font-mono text-[11px]" style={{ color: SILVER }}>
           Select a bar on the chart <span className="text-[11px] uppercase tracking-widest">· the replay starts there</span>
         </span>
-        <span className="ml-auto">{exitDoor(true)}</span>
+        <span className="ml-auto flex items-center gap-1">
+          {tools}
+          {exitDoor(true)}
+        </span>
       </div>,
       'pick'
     );
@@ -408,7 +424,10 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
             </button>
           )}
         </span>
-        <span className="flex justify-end">{exitDoor(!narrow)}</span>
+        <span className="flex items-center justify-end gap-1">
+          {tools}
+          {exitDoor(!narrow)}
+        </span>
       </div>
     </>,
     'play'

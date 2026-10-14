@@ -62,7 +62,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import { columnSummary, lastTradeOf, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, uwYears, type ServerInputs, type StraddleRead , PARTS, PART_STRIDE } from '../src/data/feed/trailModel';
+import { columnSummary, modelColumn, pastInputs, readAt, straddleExpiries, straddleOfMinute, TRAIL_MODEL, universeOf, type ServerInputs, type StraddleRead, PARTS, PART_STRIDE } from '../src/data/feed/trailModel';
 import { RunningScale, columnMax } from '../src/data/feed/beadScale';
 /** A column's net by expiry partition — every strike's gamma parts summed */
 const partNets = (snap: { levels: readonly unknown[]; parts?: Float32Array }): number[] | undefined => {
@@ -267,14 +267,9 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       const max = columnMax(snap.levels);
       const maxD = deltaMax(snap.levels);
       const ref = st.scale.push(max);
-      /* a chain read inside the minute: the straddles are its NBBO mids; else the model's price at the minute */
-      const read = inputs.chains.find(c => c.receivedAt >= m && c.receivedAt < end) ?? null;
-      const straddle = (expiry: string | null): StraddleRead | null => {
-        if (!expiry) return null;
-        /* the read's NBBO mids, its vol solved on UW's clock at the read; else the model's price at the minute */
-        const tau = expiry === day ? Math.max(0, (lastTradeOf(expiry) - (bar.time * 1000 + 30_000)) / (365 * 864e5)) : uwYears(bar.time * 1000 + 30_000, lastTradeOf(expiry), expiry, day);
-        return (read ? straddleFromChain(read.rows, expiry, bar.close, tau) : null) ?? straddleAt(u!, bar, expiry);
-      };
+      /* a chain read inside the minute: the straddles are its NBBO mids; else the model's price at the minute — the one
+         rule the replay reads too (trailModel straddleOfMinute) */
+      const straddle = (expiry: string | null): StraddleRead | null => (expiry ? straddleOfMinute(u!, inputs.chains, day, bar, expiry, 'shown') : null);
       const r = readAt(u, end);
       let book = 0;
       for (const b of books) if (b.receivedAt <= end && b.receivedAt > book) book = b.receivedAt;
@@ -364,8 +359,8 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         ref,
         cells: sortedCells(snap.levels),
         carried: sum.carried,
-        str0: exps.today ? straddleAt(u, bar, exps.today) : null,
-        strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null,
+        str0: exps.today ? straddleOfMinute(u, [], day, bar, exps.today, 'final') : null,
+        strW: exps.weekly ? straddleOfMinute(u, [], day, bar, exps.weekly, 'final') : null,
         age: null,
       };
       append(name, day, 'final', row);
@@ -391,7 +386,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       if (!snap.levels.length) continue;
       const sum = columnSummary(snap, bar.close);
       const max = columnMax(snap.levels);
-      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), netP: partNets(snap), ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleAt(u, bar, exps.today) : null, strW: exps.weekly ? straddleAt(u, bar, exps.weekly) : null, age: null });
+      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), netP: partNets(snap), ref: scale.push(max), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleOfMinute(u, [], past.day, bar, exps.today, 'final') : null, strW: exps.weekly ? straddleOfMinute(u, [], past.day, bar, exps.weekly, 'final') : null, age: null });
     }
     return out;
   }

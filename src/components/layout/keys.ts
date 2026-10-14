@@ -93,6 +93,8 @@ export const KEY_GROUPS: KeyGroup[] = [
       { keys: ['↑', '↓'], alt: true, does: 'Flip its name through the watchlist (K and J too)' },
       { keys: ['−', '='], alt: true, does: 'Step its timeframe down, up' },
       { keys: ['P'], does: 'Replay — pick a bar, then play' },
+      { keys: ['Shift', '↓'], does: 'In a replay: play, and pause' },
+      { keys: ['Shift', '→'], does: 'In a replay: one bar on' },
       { keys: ['D'], does: 'Draw mode — the tools in hand' },
       { keys: ['R'], does: 'Its strike rail — on or off' },
     ],

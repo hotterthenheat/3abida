@@ -460,6 +460,11 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
         const r = backfill.ask(past[1], url.searchParams.get('days') ?? '');
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
+      const rc = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/recorded\/(\d{4}-\d{2}-\d{2})$/.exec(url.pathname);
+      if (rc) {
+        const r = recorder.recorded(rc[1], rc[2]);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
       const pd = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/day\/(\d{4}-\d{2}-\d{2})$/.exec(url.pathname);
       if (pd) {
         const r = backfill.day(pd[1], pd[2]);

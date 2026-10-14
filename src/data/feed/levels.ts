@@ -59,7 +59,7 @@ import { PARTS, pastInputs, sigmaOf, type RegimeReference, type StraddleRead } f
 import type { ScaleRef } from './beadScale';
 import { isoDayLabel } from '../../core/format';
 import type { FeedBook60 } from './trailModel';
-import { useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { clock, nyDay, nyIsoDate, nyMinutes, nyWallTime } from '../../core/nyTime';
 import { isTradingDay } from '../../core/calendar';
@@ -94,7 +94,7 @@ import { massiveBars } from './massive';
 import type { DarkPoolPrint } from '../../types/gex';
 import type { TapeEarnings } from '../events';
 import { bookSureness } from '../levelSureness';
-import { setMeasuredSource, takePastSession, takeServerInputs, type ChainRead, type SeedRead, type TotalRead } from './trailField';
+import { setMeasuredSource, takePastSession, takeRecordedSession, takeServerInputs, type ChainRead, type SeedRead, type TotalRead } from './trailField';
 
 /* ---- the switch ------------------------------------------------------------------------------------------------ */
 
@@ -1157,6 +1157,94 @@ export function usePricedMove(on: boolean, ticker: string): PricedMoveFeed | nul
     rem: newestRem.get(key)?.rem ?? null,
     close: move.data.close ?? null,
   };
+}
+
+/* ---- THE REPLAY'S SESSIONS (the owner's item 8, 2026-10-14) ----------------------------------------------------------
+   A replay reads, for each session the chart holds: the recorder's own record of it where the recorder kept the whole
+   session (server/fieldRecorder.ts recorded — drawn as it was on screen), and its priced move (the budget off the session
+   before's 4:00 pm straddle, the time-of-day profile from the sessions before it — server/pricedMove.ts, the same route the
+   live day reads). Each is asked once a session and kept for the page's life: a past session does not change. */
+type Kept = { complete: boolean; why: string | null };
+const recordedKept = new Map<string, Kept>();
+const recordedAsking = new Set<string>();
+const replaySubs = new Set<() => void>();
+const ringReplay = () => replaySubs.forEach(f => f());
+async function loadRecorded(t: string, day: string): Promise<void> {
+  const key = `${t}|${day}`;
+  /* today's session is the live trail's own (the recorder's reads as they come) */
+  if (day >= nyIsoDate() || recordedKept.has(key) || recordedAsking.has(key)) return;
+  recordedAsking.add(key);
+  try {
+    const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/recorded/${day}`)) as FeedResult<{ complete: boolean; why: string | null; chains: ChainRead[]; seed: SeedRead | null; total: TotalRead | null }>;
+    if (!r.ok || !r.data) return;
+    if (r.data.complete) takeRecordedSession(t, day, { chains: r.data.chains, seed: r.data.seed, total: r.data.total });
+    recordedKept.set(key, { complete: r.data.complete, why: r.data.why });
+    ringReplay();
+  } finally {
+    recordedAsking.delete(key);
+  }
+}
+/** The day's priced move for a replay: its budget and profile (never its calibration or its official close — both stand
+    on sessions after the cursor), or null where the server has none */
+export interface DayMove {
+  prevClose: number;
+  sigma: number;
+  from: PricedMoveFeed['from'];
+  strike: number;
+  profile: number[];
+  profileSessions: number;
+}
+const movesKept = new Map<string, DayMove | null>();
+const movesAsking = new Set<string>();
+async function loadDayMove(t: string, day: string): Promise<void> {
+  const key = `${t}|${day}`;
+  if (movesKept.has(key) || movesAsking.has(key)) return;
+  movesAsking.add(key);
+  try {
+    const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/move?day=${day}`)) as FeedResult<{ budget: { prevClose: number; today: { read: { strike: number }; sigma: number; from: PricedMoveFeed['from'] } | null } | null; profile: { share: number[]; sessions: number } }>;
+    if (!r.ok) return;
+    const b = r.data.budget;
+    movesKept.set(key, b?.today ? { prevClose: b.prevClose, sigma: b.today.sigma, from: b.today.from, strike: b.today.read.strike, profile: r.data.profile.share, profileSessions: r.data.profile.sessions } : null);
+    ringReplay();
+  } finally {
+    movesAsking.delete(key);
+  }
+}
+let replayStamp = 0;
+replaySubs.add(() => replayStamp++);
+/**
+ * The replay's sessions for a name: for each day, whether the recorder kept it whole, and its priced move (undefined
+ * while asked, null where none). Asked once a session, only while `on`.
+ */
+export function useReplaySessions(on: boolean, ticker: string, days: readonly string[], moves: boolean): { recorded: Map<string, Kept>; moves: Map<string, DayMove | null | undefined> } {
+  const t = ticker.toUpperCase();
+  const list = days.join(',');
+  useEffect(() => {
+    if (!on || !t) return;
+    for (const d of days) {
+      void loadRecorded(t, d);
+      if (moves) void loadDayMove(t, d);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on, t, list, moves]);
+  const stamp = useSyncExternalStore(
+    fn => {
+      replaySubs.add(fn);
+      return () => replaySubs.delete(fn);
+    },
+    () => replayStamp
+  );
+  return useMemo(() => {
+    const recorded = new Map<string, Kept>();
+    const mv = new Map<string, DayMove | null | undefined>();
+    for (const d of days) {
+      const k = recordedKept.get(`${t}|${d}`);
+      if (k) recorded.set(d, k);
+      mv.set(d, movesKept.has(`${t}|${d}`) ? movesKept.get(`${t}|${d}`) : undefined);
+    }
+    return { recorded, moves: mv };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, list, stamp]);
 }
 
 /** THE BEAD SCALE'S REFERENCES (the owner's item 5 (b), server/scaleRef.ts): by New York day, the fixed p85 over the 60

@@ -816,6 +816,18 @@ interface StrikeChartProps {
       minutes) — the count runs to the bar's own end; 'measured' (the default) times the gap between bar arrivals, the
       house tape's cadence. */
   barCountdown?: 'grid' | 'measured';
+  /** A REWOUND CLOCK (the owner's item 8, 2026-10-14 — Terrain's replay, driven by its host): the host hands a tape cut at
+      its cursor, and this is the instant the cursor's minute is knowable (epoch ms). The chart draws that tape exactly as
+      it draws a live one — the replay's frame is the live frame — reading this as its "now" (the day for the regime and
+      the priced move, the bead card's earlier session), and leaves off what only the live session has: the bar's
+      countdown, the calendar's markers, the alerts' lines, the house's session levels. */
+  asOf?: number | null;
+  /** HIDE THE FUTURE, OFF (item 8): the rest of the replayed session, faded right of the cursor — never in the price
+      scale's fit, never read by an overlay. Null or absent: nothing past the cursor is drawn (the default). */
+  futureBars?: readonly Candle[] | null;
+  /** A HOST'S BAR at the foot of the price pane (PaneFoot) — Terrain's replay transport (item 8), where the chart's own
+      replay bar stands */
+  footBar?: ReactNode;
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -1100,7 +1112,19 @@ const StrikeChart = ({
   fitCandles = false,
   quote = null,
   barCountdown = 'measured',
+  asOf = null,
+  futureBars = null,
+  footBar = null,
 }: StrikeChartProps) => {
+  /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
+  const asOfRef = useRef<number | null>(asOf);
+  asOfRef.current = asOf;
+  const nowMs = () => asOfRef.current ?? Date.now();
+  const rewound = asOf != null;
+  /** Whether the tape last loaded was a replay's — the way back to live lands on the live edge */
+  const rewoundLoadRef = useRef(false);
+  /** The kind of source last loaded — the house's or a host's tape, live or rewound */
+  const srcKindRef = useRef('');
   const historyShareRef = useRef(historyShare);
   historyShareRef.current = historyShare;
   /* WHERE THE BARS COME FROM — the simulator, or the host's tape. Every read below goes through these four. */
@@ -2639,7 +2663,7 @@ const StrikeChart = ({
       }
     }
     const barSec = tfMinutes(timeframe) * 60;
-    const today = nyIsoDateOf(Date.now());
+    const today = nyIsoDateOf(nowMs());
     const buckets = regimeRef ? regimeBucketsFor(regimeRef, today) : null;
     /* a bar's net is its LAST minute's column — the regime as it stood when the bar closed */
     const byBar = new Map<number, { net: number; at: number }>();
@@ -3314,7 +3338,12 @@ const StrikeChart = ({
        the bucket that was forming when it left has to be finished. More than a minute on (or any way back) reloads the
        series; the view holds, as it does for a theme. */
     const baseLast = base[base.length - 1].time;
-    const jumped = !!tapeRef.current && tapeLastRef.current > 0 && (baseLast < tapeLastRef.current || baseLast - tapeLastRef.current > 60);
+    /* the source changing kind — the house's tape to a host's (a replay on the house's market cuts its tape), a live clock
+       to a rewound one, and back — is a jump whatever the times say: the series is loaded afresh */
+    const srcKind = `${tapeRef.current ? 'tape' : 'house'}|${asOfRef.current != null ? 'rewound' : 'live'}`;
+    const kindChanged = srcKindRef.current !== '' && srcKindRef.current !== srcKind;
+    srcKindRef.current = srcKind;
+    const jumped = kindChanged || (!!tapeRef.current && tapeLastRef.current > 0 && (baseLast < tapeLastRef.current || baseLast - tapeLastRef.current > 60));
     tapeLastRef.current = tapeRef.current ? baseLast : 0;
 
     lastCloseRef.current = bars.length ? bars[bars.length - 1].close : null;
@@ -3390,6 +3419,14 @@ const StrikeChart = ({
           window.setTimeout(lift, 40);
         }
       }
+      /* A REPLAY'S JUMP (item 8) — a pick, a go-to, a random start, a step back, and the way in and out of a replay — lands
+         the reader on the cursor as a chart opens, the bars to its left; a minute played on keeps the view the reader has */
+      if (!newWorld && jumped && (asOfRef.current != null || rewoundLoadRef.current)) {
+        /* a fresh greeting, as a new name is: the price scale follows the candles again (the pick's own click froze it) */
+        chart.priceScale('right').applyOptions({ autoScale: true });
+        showRecent();
+      }
+      rewoundLoadRef.current = asOfRef.current != null;
       loadedRef.current = { ticker, timeframe, theme: themeTag, clock: barClock, full };
       /* ARMED A FRAME LATER: the library reports a range on the setData
          itself, before it has laid the view out (−83..6 was measured on a
@@ -3578,7 +3615,7 @@ const StrikeChart = ({
     /* THE PRICED MOVE ON THE FEED (item 4): the day's ±1σ/±2σ off the prior close's 4:00 pm straddle, the cone of the
        live straddle's remaining 1σ spread by the time-of-day profile, the readout at its head */
     if (pricedMove && bars.length) {
-      const today = nyIsoDateOf(Date.now());
+      const today = nyIsoDateOf(nowMs());
       const first = bars.find(b => nyIsoDateOf(b.time * 1000) === today && nyMinuteOf(b.time * 1000) >= 9 * 60 + 30);
       const lastBar = bars[bars.length - 1];
       if (first) {
@@ -3651,7 +3688,7 @@ const StrikeChart = ({
   useEffect(() => {
     const prim = eventsPrimRef.current;
     if (!prim) return;
-    if (!overlays.events || replay || altSpec) {
+    if (!overlays.events || replay || rewound || altSpec) {
       prim.setData(null);
       setEventCard(null);
       return;
@@ -3686,7 +3723,7 @@ const StrikeChart = ({
       barMinutes: mins,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker, timeframe, revision, overlays.events, replay, mainNonce, flowPrints, altSpec]);
+  }, [ticker, timeframe, revision, overlays.events, replay, rewound, mainNonce, flowPrints, altSpec]);
 
   /*
     THE LIVE PRICE, as a card on the right scale.
@@ -3712,7 +3749,7 @@ const StrikeChart = ({
   useEffect(() => {
     const series = candleSeriesRef.current;
     if (!series) return;
-    const on = priceTag && !replay;
+    const on = priceTag && !replay && !rewound;
     series.applyOptions({ lastValueVisible: !on });
     if (!on) return;
 
@@ -3843,7 +3880,7 @@ const StrikeChart = ({
       cancelAnimationFrame(priceTagRafRef.current);
       candleSeriesRef.current?.applyOptions({ lastValueVisible: true });
     };
-  }, [priceTag, timeframe, replay, mainNonce, altSpec]);
+  }, [priceTag, timeframe, replay, rewound, mainNonce, altSpec]);
 
   // Dark-pool whisper lines — same grammar as the flow board minis
   useEffect(() => {
@@ -4056,7 +4093,7 @@ const StrikeChart = ({
   useEffect(() => {
     /* ALERTS WATCH THE REAL PRICE (2026-10-12): while the shell's watcher reads the feed it alone judges — a chart on the
        house's tape never rings an alert beside the market's own price (components/gex/alertMarket.ts) */
-    if (replay || alertMarket() === 'feed') return;
+    if (replay || rewound || alertMarket() === 'feed') return;
     const close = lastCloseRef.current;
     if (close == null) return;
     const waiting = alerts.filter(a => !a.firedAt);
@@ -4107,7 +4144,7 @@ const StrikeChart = ({
       if (verdict.fire) markFired(ticker, a.id, now);
       else if (verdict.armed) commitArm(ticker, verdict.armed);
     }
-  }, [alerts, ticker, revision, replay, timeframe, flowPrints]);
+  }, [alerts, ticker, revision, replay, rewound, timeframe, flowPrints]);
 
 
 
@@ -4290,7 +4327,7 @@ const StrikeChart = ({
       chart.unsubscribeClick(onClick);
       chart.unsubscribeCrosshairMove(onHover);
       setPickFade(null);
-      const tagOn = priceTag && !replay;
+      const tagOn = priceTag && !replay && !rewound;
       const sx = chartSurface(themeRef.current);
       chart.applyOptions({
         crosshair: {
@@ -4299,7 +4336,7 @@ const StrikeChart = ({
         },
       });
     };
-  }, [picking, pickTime, priceTag, replay, mainNonce]);
+  }, [picking, pickTime, priceTag, replay, rewound, mainNonce]);
 
   /* The host's clock moves the position: the last bar at or before its time */
   const replayTimeRef = useRef<number | null>(replayTime);
@@ -4386,6 +4423,55 @@ const StrikeChart = ({
     }, Math.round(1000 / replaySpeed));
     return () => window.clearInterval(id);
   }, [replay, replayPlaying, replaySpeed]);
+
+  /* HIDE THE FUTURE, OFF (the owner's item 8): the rest of the replayed session faded right of the cursor — its own series,
+     out of the price scale's fit (autoscaleInfoProvider), its bars from the bucket after the cursor's (the cursor's own is
+     the main series' forming bar). Off, nothing past the cursor is on the chart. */
+  const futureSeriesRef = useRef<{ chart: IChartApi; s: ISeriesApi<'Candlestick'> } | null>(null);
+  useEffect(() => {
+    const chart = chartRef.current;
+    const drop = () => {
+      const f = futureSeriesRef.current;
+      if (f && f.chart === chart) {
+        try {
+          chart?.removeSeries(f.s);
+        } catch {
+          /* a chart mid-teardown */
+        }
+      }
+      futureSeriesRef.current = null;
+    };
+    if (!chart || !futureBars || !futureBars.length) {
+      drop();
+      return;
+    }
+    const mins = tfMinutes(timeframe);
+    const shown = barsFor(mins);
+    const lastMain = shown.length ? shown[shown.length - 1].time : -Infinity;
+    const fut = aggregateCandles([...futureBars], Math.max(1, mins)).filter(b => b.time > lastMain);
+    if (!fut.length) {
+      drop();
+      return;
+    }
+    let f = futureSeriesRef.current;
+    if (!f || f.chart !== chart) {
+      const el = boxElRef.current ?? undefined;
+      const s = chart.addSeries(CandlestickSeries, {
+        upColor: readToken('--ink', 0.14, el),
+        downColor: readToken('--ink', 0.07, el),
+        borderUpColor: readToken('--ink', 0.3, el),
+        borderDownColor: readToken('--ink', 0.3, el),
+        wickUpColor: readToken('--ink', 0.3, el),
+        wickDownColor: readToken('--ink', 0.3, el),
+        priceLineVisible: false,
+        lastValueVisible: false,
+        autoscaleInfoProvider: () => null,
+      });
+      f = futureSeriesRef.current = { chart, s };
+    }
+    f.s.setData(fut.map(b => ({ time: b.time as UTCTimestamp, open: b.open, high: b.high, low: b.low, close: b.close })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [futureBars, timeframe, mainNonce, themeTag, revision]);
 
   // ---- drawings -------------------------------------------------------------
   // Per-ticker load; marks are the user's, so they persist across sessions
@@ -5042,7 +5128,7 @@ const StrikeChart = ({
             with the white left accent, right-aligned, the countdown a
             whisper under the price. The gutter-measured width is HIS — the
             one part of the ported card worth keeping. */}
-        {priceTag && !replay && (
+        {priceTag && !replay && !rewound && (
           <div
             ref={priceTagRef}
             aria-hidden
@@ -5583,7 +5669,7 @@ const StrikeChart = ({
           const feedCell = !!meta || !!lvl.prov;
           /* a session before today (server/fieldBackfill.ts): its vols are the ones traded through it, minute by minute */
           const beadDay = nyIsoDateOf(beadCard.time * 1000);
-          const pastDay = beadDay < nyIsoDateOf(Date.now());
+          const pastDay = beadDay < nyIsoDateOf(nowMs());
           const prov = !feedCell
             ? null
             : lvl.prov === 'carried'
@@ -5681,6 +5767,7 @@ const StrikeChart = ({
         {/* 2026-09-20: a card that FLOATS above the time axis (ReplayStrip's head note) — the axis stays readable under it,
             and the wrapper lets the pointer through to the plot either side of the card */}
         {/* …and at the foot of the PRICE pane, so an indicator's own pane under it is never covered (PaneFoot, 2026-09-20) */}
+        {footBar && <PaneFoot chart={() => chartRef.current}>{footBar}</PaneFoot>}
         {replay && !external && (
           <PaneFoot chart={() => chartRef.current}>
             <ReplayStrip

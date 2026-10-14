@@ -15,7 +15,7 @@ import {
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { useFeedPrice } from '../../data/feed/price';
-import { nyClock as nyClockAt, clock as printClock, nyIsoDate } from '../../core/nyTime';
+import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes } from '../../core/nyTime';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
 import { expiryFor } from '../../core/calendar';
@@ -35,6 +35,7 @@ import StrikeChart, {
   type CrosshairSync,
   type PriceProjection,
   type PriceScale,
+  type ChartTape,
 } from '../../components/gex/StrikeChart';
 import type { BeadLegend } from '../../components/gex/gexNodesPrimitive';
 import { BASIS_HINT, BASIS_LABEL, FLOORS, beadLegendLines, beadLegendWords } from '../../components/terrain/beadLegend';
@@ -51,12 +52,13 @@ import ProfileGuide from '../../components/gex/ProfileGuide';
 import GuideFocus from '../../components/ui/GuideFocus';
 import { buildFlowFromRows } from '../../data/hedgeFlow';
 import useFocusTrap from '../../components/ui/useFocusTrap';
+import { useEscapeLayer } from '../../components/ui/layers';
 import { useIsBelowLg, useIsPhone } from '../../components/ui/useMediaQuery';
 import ScopeChip from '../../components/ui/ScopeChip';
 import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { CANDLE_THEMES, chartGround, pageDefaultCandleKey, usePageDefaultCandleKey, type CandleThemeKey } from '../../components/gex/candleTheme';
-import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
+import { TIMEFRAMES, tfMinutes, type Timeframe } from '../../data/timeframe';
 import { TREND_GLYPH, buildConfluence, trendWords, type ConfluenceRow } from '../../data/confluence';
 import { OPENING_RANGES, type OpeningRange } from '../../data/sessionLevels';
 import { isBarClock } from '../../data/altBars';
@@ -67,7 +69,7 @@ import { flipRing, stepSymbol, stepTf } from './paneKeys';
 import TerrainLayers from '../../components/terrain/TerrainLayers';
 import { openPopOut } from '../../components/layout/deskChannel';
 import { WALLS_LENSES, type WallsLens } from '../../components/terrain/wallsHeatPrimitive';
-import { useFeedTrailField, totalOf } from '../../data/feed/trailField';
+import { useFeedTrailField, totalOf, straddlesAtMinute } from '../../data/feed/trailField';
 import { econMacro, useFeedEcon } from '../../data/feed/news';
 import {
   feedFreshness,
@@ -94,12 +96,16 @@ import {
   useTerrainSource,
   type FeedBook,
   type FeedOi,
-  type FeedStrike, useBeadScaleRefs, measuredBooks60
+  type FeedStrike, useBeadScaleRefs, measuredBooks60, measuredBooks, pastSessionsOf, useReplaySessions, type PricedMoveFeed
 } from '../../data/feed/levels';
-import { book60Window, regimeForWindow, type ExpiryWindow } from '../../data/feed/trailModel';
+import { book60Window, regimeForWindow, sigmaOf, type ExpiryWindow } from '../../data/feed/trailModel';
+import ReplayStrip from '../../components/gex/ReplayStrip';
+import ReplayTools from '../../components/terrain/ReplayTools';
+import { useTerrainReplay } from '../../components/terrain/useTerrainReplay';
+import { laggedAt, sessionSpan, type ReplayFrame } from '../../data/replayFrame';
 import { useFeedNamePrints } from '../../data/feed/trace';
 import type { WallsSource } from '../../components/terrain/wallsHeatPrimitive';
-import type { Candle } from '../../types/market';
+import type { Candle, GexSnapshot } from '../../types/market';
 
 /*
 ==================================================
@@ -453,6 +459,33 @@ function feedRail(book: FeedBook, rowsAsc: readonly FeedStrike[], oi: FeedOi | n
   return { ...railShape(rows, spot), levels: levelsOf(rows, spot), legs, sure: [sure['call wall'], sure['put wall'], sure.flip].map(x => ({ ...x, freshness: fresh })) };
 }
 const emptyRail = (spot: number): RailData => ({ rows: [], core: [], maxAbs: 1, spot, step: 1, levels: { spot, callWall: spot, putWall: spot, flip: spot, supreme: spot }, legs: new Map(), sure: [] });
+/** THE RAIL AT A REPLAY'S CURSOR (the owner's item 8): the field's column at the minute — the modeled net per strike (the
+    model keeps the net, so no put and call legs) — its walls and flip by the store's own summary (data/replayFrame.ts
+    frameAt); a minute the field has no column for is an empty rail whose levels are "—", never the price */
+function frameRail(f: ReplayFrame): RailData {
+  const spot = f.spot;
+  if (!f.column) return { rows: [], core: [], maxAbs: 1, spot, step: 1, levels: { spot, callWall: NaN, putWall: NaN, flip: NaN, supreme: NaN }, legs: new Map(), sure: [] };
+  const asc = [...f.column.levels].sort((a, b) => a.strike - b.strike).map(l => ({ strike: l.strike, value: l.value }));
+  const rows = [...asc].reverse();
+  const sure = bookSureness(asc.map(r => ({ strike: r.strike, netGex: r.value })), spot);
+  return {
+    ...railShape(rows, spot),
+    levels: { spot, callWall: f.cw ?? NaN, putWall: f.pw ?? NaN, flip: f.flip ?? NaN, supreme: f.top[0]?.[0] ?? NaN },
+    legs: new Map(),
+    sure: [sure['call wall'], sure['put wall'], sure.flip],
+  };
+}
+const EMPTY_COLS: GexSnapshot[] = [];
+/** The replay's paces (the owner's item 8): multiples of the market's own time, on the bar's 'seconds' unit — 60 is a
+    minute of tape a second */
+/** New York's minute of an epoch second */
+const nyMinutesOf = (t: number): number => nyMinutes(t * 1000);
+const REPLAY_PACES = [
+  { value: 1, label: '1×' },
+  { value: 5, label: '5×' },
+  { value: 20, label: '20×' },
+  { value: 60, label: '60×' },
+];
 let feedRev = 0;
 const EMPTY_FLOW: never[] = [];
 
@@ -976,6 +1009,8 @@ interface PaneProps {
   replay: boolean;
   onToggleReplay: () => void;
   onExitReplay: () => void;
+  /** THE REPLAY'S KEYS (item 8): the pane hands the desk its play-and-pause and its step, for Shift ↓ and Shift → */
+  registerReplayKeys?: (k: { toggle: () => void; step: () => void; playing: () => boolean } | null) => void;
   /*
     DRAW MODE, and it sits beside replay for the same two reasons.
 
@@ -1027,7 +1062,7 @@ interface PaneProps {
 
 const Pane = ({
   cfg, onCfg, revision, expanded, onToggleExpand, index, tall,
-  onCrosshair, registerSync, replay, onToggleReplay, onExitReplay,
+  onCrosshair, registerSync, replay, onToggleReplay, onExitReplay, registerReplayKeys,
   drawing, onToggleDrawing, onExitDraw,
   isActive, onActivate, paneCount, closing = false, menuOpen, onMenu,
   boxRef, cell = '', palette, railCut, onRailCut, onPopOut, bare = false,
@@ -1261,12 +1296,66 @@ const Pane = ({
     const rows = dateRows ? [...dateRows].filter(r => fBook.rows.some(b => b.strike === r.strike)).sort((a, b) => a.strike - b.strike) : fBook.rows;
     return feedRail(fBook, rows, fOi, !dateRows, fDay?.price ?? null);
   }, [onFeed, fBook, fOi, fByDate, cutDate, fDay, fBook60]);
-  const railData = houseRail ?? feedRailData ?? emptyRail(fBook?.spot ?? 0);
-  const levels = railData.levels;
-  const changePct = useMemo(
-    () => (offHouse ? fDay?.changePct ?? NaN : spotChangePct(ticker)),
+  const liveRail = houseRail ?? feedRailData ?? emptyRail(fBook?.spot ?? 0);
+  /* ══ THE REPLAY (the owner's item 8, 2026-10-14) ═══════════════════════════════════════════════════════════════
+     The pane reads everything at the replay's cursor (components/terrain/useTerrainReplay.ts): the chart a tape cut there,
+     the ladder and the levels the field's column there. On the feed the field is the replay's twin — a session the
+     recorder kept whole is drawn as it was shown, the rest as the live chart draws them — and each session's priced move
+     is asked once; the house's tape and field are held as they stood when the replay began. An index has no bars on
+     these plans: nothing to replay. */
+  const replayable = replay && !(onFeed && isCashIndex(ticker));
+  const fTrailRec = useFeedTrailField(onFeed && replayable, ticker, fBars.bars, fFieldRead, trailCut, win, true);
+  const replayPast = useMemo(() => (onFeed && replayable ? pastSessionsOf(fBars.bars) : []), [onFeed, replayable, fBars.bars]);
+  const replayDays = useMemo(() => [...replayPast, nyIsoDate()], [replayPast]);
+  const rpSessions = useReplaySessions(onFeed && replayable, ticker, replayDays, true);
+  const houseReplay = useMemo(
+    () => (replayable && !offHouse ? { bars: [...(Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? [])], cols: [...(Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? [])] } : null),
+    [replayable, offHouse, ticker]
+  );
+  const budgetOf = useCallback((d: string): boolean | null => (onFeed ? !!rpSessions.moves.get(d) : null), [onFeed, rpSessions]);
+  const sigmaFor = useCallback(
+    (d: string) => {
+      const m = rpSessions.moves.get(d);
+      return m ? { prevClose: m.prevClose, s: m.sigma } : null;
+    },
+    [rpSessions]
+  );
+  const rp = useTerrainReplay({
+    on: replayable,
+    ticker,
+    minutes: tfMinutes(offHouse && timeframe === '15s' ? '1m' : timeframe),
+    bars: onFeed ? fBars.bars : houseReplay?.bars ?? null,
+    cols: onFeed ? fTrailRec.snaps : houseReplay?.cols ?? EMPTY_COLS,
+    daily: onFeed ? fDaily : null,
+    compareBars,
+    budgetOf,
+    step: liveRail.step,
+    sigmaOf: sigmaFor,
+  });
+  const rpRail = useMemo(() => (rp.frame ? frameRail(rp.frame) : null), [rp.frame]);
+  /* a new name ends the replay — it was recorded in another world */
+  const tickerSeen = useRef(ticker);
+  useEffect(() => {
+    if (tickerSeen.current !== ticker && replay) onExitReplay();
+    tickerSeen.current = ticker;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ticker, revision, offHouse, fDay]
+  }, [ticker]);
+  const railData = rp.active && rpRail ? rpRail : liveRail;
+  const levels = railData.levels;
+  /* in a replay, the cursor's price against the session before's close: the official close the priced move stands on (the
+     feed), the house's last bar of the session before */
+  const rpPrevClose = useMemo(() => {
+    if (!rp.active) return NaN;
+    if (onFeed) return rpSessions.moves.get(rp.day)?.prevClose ?? NaN;
+    const bars = houseReplay?.bars ?? [];
+    const open = sessionSpan(rp.day).first;
+    for (let i = bars.length - 1; i >= 0; i--) if (bars[i].time < open) return bars[i].close;
+    return NaN;
+  }, [rp.active, rp.day, onFeed, rpSessions, houseReplay]);
+  const changePct = useMemo(
+    () => (rp.active ? (Number.isFinite(rpPrevClose) && rpPrevClose > 0 ? (levels.spot / rpPrevClose - 1) * 100 : NaN) : offHouse ? fDay?.changePct ?? NaN : spotChangePct(ticker)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ticker, revision, offHouse, fDay, rp.active, rpPrevClose, levels.spot]
   );
   // Deterministic per ticker, so the dark-pool lines do not wander on a tick — on the feed, the session's three largest crosses
   const housePrints = useMemo(
@@ -1300,13 +1389,32 @@ const Pane = ({
     [noBars, feedIv, ticker, fField, fMacro]
   );
   const chartTape = noBars ? indexTape : feedTape;
+  /* THE REPLAY'S TAPE: the live tape's kind, cut at the cursor — the house's held as it stood (item 8) */
+  const replayTape = useMemo<ChartTape | undefined>(() => {
+    if (!rp.active || !rp.cut) return undefined;
+    const base: ChartTape = chartTape ?? { bars: [], iv: Simulator.TICKERS[Simulator.ensureTicker(ticker)]?.iv ?? 0, key: ticker };
+    return { ...base, bars: rp.cut.bars, book: rp.cut.cols, daily: rp.cut.daily, compareBars: rp.cut.compareBars ?? base.compareBars };
+  }, [rp.active, rp.cut, chartTape, ticker]);
+  const replayRev = useMemo(() => (feedRev += 1), [replayTape]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* THE PRICED MOVE AT THE CURSOR: the cursor's day's budget and profile, and the 1σ left to the close off the straddle at
+     the cursor's minute (the store's own rule — trailModel straddleOfMinute); never its calibration or its official
+     close, both known only after the moment */
+  const rpMove = useMemo<PricedMoveFeed | null>(() => {
+    if (!rp.active || !rp.frame?.bar || !onFeed) return null;
+    const m = rpSessions.moves.get(rp.day);
+    if (!m) return null;
+    const st = straddlesAtMinute(ticker, trailCut, true, rp.frame.bar);
+    const sg = sigmaOf(st?.today ?? null);
+    return { ...m, calibration: null, rem: sg != null && st?.today ? { sigma: sg, src: st.today.src, at: rp.frame.bar.time * 1000 } : null, close: null };
+  }, [rp.active, rp.frame, rp.day, rpSessions, ticker, trailCut, onFeed]);
   /* the walls through the day on the feed: the books this terminal read today, charm's template off the newest book */
   const wallsSource = useMemo<WallsSource | null>(() => {
     if (!onFeed) return null;
     const charm = new Map<number, { charm: number; gamma: number }>();
-    for (const r of fBook?.rows ?? []) charm.set(r.strike, { charm: r.charm.net, gamma: r.gex.net });
-    return { hist: fField, charm };
-  }, [onFeed, fField, fBook]);
+    /* charm's template is the newest book's — a replay has no book of its minute, so its charm lens stands empty */
+    if (!rp.active) for (const r of fBook?.rows ?? []) charm.set(r.strike, { charm: r.charm.net, gamma: r.gex.net });
+    return { hist: rp.active && rp.cut ? rp.cut.cols : fField, charm };
+  }, [onFeed, fField, fBook, rp.active, rp.cut]);
   /* The rail's rows come off the SAME snapshot `levels` was reduced from. The
      header's three-strike read uses them too, so the line and the column can
      never name different strikes. Read even when the rail is hidden, because
@@ -1387,13 +1495,107 @@ const Pane = ({
         : `${label}: the field sums the contracts in the window; Unusual Whales' book by expiry has not been read yet today, so the ladder shows every expiry.`;
     return { badge: 'repriced every minute · all windows', line };
   }, [onFeed, ticker, win, fBook60]);
+  /* HOW SURE IN A REPLAY (item 8): the moment, what the ladder stands on there, and how the session is drawn — never the
+     track record or the calibration (both stand on sessions after the moment) nor today's live alerts */
+  const replaySure = useMemo(() => {
+    if (!rp.active || !rp.frame) return null;
+    const when = printClock(rp.cursor * 1000);
+    const kept = rpSessions.recorded.get(rp.day)?.complete;
+    const lines = [
+      rp.frame.column
+        ? `The ladder and the levels are the field's column at ${when} — the modeled net per strike (estimated dealer gamma, assumed sign) from what was knowable by the minute's end. Unusual Whales serves no book by strike for a past minute.`
+        : `The field has no column at ${when}, so no level is drawn.`,
+      'The track record and the priced move’s calibration are left out: both stand on sessions after this moment.',
+    ];
+    /* how fresh: how the session is drawn */
+    const source = !onFeed ? "The house's tape and field as they stood when the replay began." : rp.day === nyIsoDate() ? "Today's session as the recorder read it, each minute on the vols traded by then." : kept ? 'This session is drawn as the recorder showed it live.' : "This session is rebuilt from Unusual Whales' dated history, each minute on the vols traded by then.";
+    return { badge: `Replay · ${isoDayLabel(rp.day)} · ${when}`, lines, source };
+  }, [rp.active, rp.frame, rp.cursor, rp.day, rpSessions, onFeed]);
   const railSure = useMemo(
     () =>
-      ((onFeed && (fieldLine || recordSure || moveSure || windowSure)) || alertSure) && rail.sure
-        ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
-        : rail.sure,
-    [onFeed, fieldLine, recordSure, moveSure, windowSure, alertSure, rail.sure]
+      replaySure
+        ? rail.sure.map(x => ({ ...x, freshness: replaySure.source, ...(windowSure ? { window: windowSure } : {}), replay: { badge: replaySure.badge, lines: replaySure.lines } }))
+        : ((onFeed && (fieldLine || recordSure || moveSure || windowSure)) || alertSure) && rail.sure
+          ? rail.sure.map(x => ({ ...x, ...(onFeed && fieldLine ? { field: fieldLine } : {}), ...(onFeed && recordSure ? { record: recordSure } : {}), ...(onFeed && moveSure ? { move: moveSure } : {}), ...(onFeed && windowSure ? { window: windowSure } : {}), ...(alertSure ? { alerts: alertSure } : {}) }))
+          : rail.sure,
+    [onFeed, fieldLine, recordSure, moveSure, windowSure, alertSure, rail.sure, replaySure]
   );
+  /* THE LADDER'S GHOST DOTS (item 8): each strike's net 10, 30 and 60 minutes before — in a replay off the field's columns
+     at the cursor; live off the books the ladder itself reads (Unusual Whales' book read every minute, or its 60-day book
+     through the window, every five; the house's own minutes) — never a column beside a book. A listed date has no
+     history of its book: no dots. */
+  const liveLagged = useMemo(() => {
+    if (replay) return null;
+    const nowMin = Math.floor(Date.now() / 60_000) * 60;
+    if (!offHouse) return laggedAt(Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? [], nowMin);
+    if (!onFeed || cutDate) return null;
+    if (win !== 'all') {
+      const books = measuredBooks60(ticker)
+        .map(b => book60Window(b, win))
+        .filter((b): b is NonNullable<typeof b> => !!b)
+        .map(b => ({ time: Math.floor(b.at / 60_000) * 60, levels: b.rows.map(r => ({ strike: r.strike, value: r.net })) }));
+      return laggedAt(books, nowMin, undefined, 6);
+    }
+    return laggedAt(measuredBooks(ticker).map(b => ({ time: Math.floor(b.at / 60_000) * 60, levels: b.rows.map(r => ({ strike: r.strike, value: r.gex.net })) })), nowMin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replay, offHouse, onFeed, cutDate, win, ticker, revision, fFieldRead]);
+  const lagged = rp.active ? rp.lagged : liveLagged;
+  /* THE TRANSPORT (item 8): under the chart, at the foot of the price pane — the house's replay bar on the session's regular
+     hours, at Terrain's paces (1×, 5×, 20× and 60× the market's own time), stepping a bar of the chart to its end, with go
+     to, a random start and hide the future beside the way out */
+  const replayBar = (() => {
+    const c = rp.ctl;
+    if (!c) return null;
+    const day = rp.day || rp.days[rp.days.length - 1] || nyIsoDate();
+    /* the track: New York's regular hours on the feed; the house's sessions keep their own hours, so its track is the span
+       the day's minutes cover */
+    const own = !onFeed && rp.minutesOfDay.length ? { first: rp.minutesOfDay[0], last: rp.minutesOfDay[rp.minutesOfDay.length - 1] } : sessionSpan(day);
+    const first = c.phase === 'play' ? Math.min(own.first, rp.cursor) : own.first;
+    const last = c.phase === 'play' ? Math.max(own.last, rp.cursor) : own.last;
+    const tools = (
+      <ReplayTools
+        days={rp.days}
+        day={day}
+        onJump={rp.jump}
+        onRandom={rp.random}
+        ready={rp.readiness.filter(r => r.ready).length}
+        hideFuture={c.hideFuture}
+        onHideFuture={rp.setHideFuture}
+        picked={c.phase === 'play'}
+      />
+    );
+    return (
+      <ReplayStrip
+        phase={c.phase}
+        pos={rp.cursor - first}
+        length={Math.max(60, last - first)}
+        startMin={onFeed ? 9 * 60 + 30 : nyMinutesOf(first)}
+        playing={c.playing}
+        onPlay={rp.setPlaying}
+        pace={c.speed}
+        onPace={v => rp.setSpeed(v as (typeof rp.speeds)[number])}
+        paces={REPLAY_PACES}
+        candleMin={Math.max(1, tfMinutes(offHouse && timeframe === '15s' ? '1m' : timeframe))}
+        onSeek={pos => rp.seekTo(first + pos)}
+        onStep={rp.stepBy}
+        onExit={onExitReplay}
+        words={c.phase === 'play' ? `${isoDayLabel(day)} · ${printClock(rp.cursor * 1000)}` : undefined}
+        wordsAt={pos => printClock((first + pos) * 1000)}
+        stateWord="replay"
+        tools={tools}
+      />
+    );
+  })();
+  /* Esc ends the replay — the top layer, as every overlay on the terminal (ui/layers.ts) */
+  useEscapeLayer(replayable, onExitReplay);
+  /* the keys reach the transport through refs, so the desk's handler (installed once) always plays the newest */
+  const rpRef = useRef(rp);
+  rpRef.current = rp;
+  useEffect(() => {
+    registerReplayKeys?.({ toggle: () => rpRef.current.togglePlay(), step: () => rpRef.current.stepBy(1), playing: () => !!rpRef.current.ctl?.playing });
+    return () => registerReplayKeys?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
 
@@ -1464,9 +1666,9 @@ const Pane = ({
      now for the spine's ghost — the size lane draws the strike ladder's rows */
   const legs = railData.legs;
   const openRatio = useMemo(
-    () => (offHouse ? feedOpenRatio(fField) : netSinceOpenRatio(ticker)),
+    () => (rp.active && rp.cut ? feedOpenRatio(rp.cut.cols, rp.asOf ?? undefined) : offHouse ? feedOpenRatio(fField) : netSinceOpenRatio(ticker)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ticker, revision, offHouse, fField]
+    [ticker, revision, offHouse, fField, rp.active, rp.cut, rp.asOf]
   );
   /* The panel's "How to read", as a focus over this pane — the Map's own card */
   const [guideOpen, setGuideOpen] = useState(false);
@@ -1595,9 +1797,12 @@ const Pane = ({
       {replay && (
         <span
           title="This pane is replaying history — it is not live"
-          className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold uppercase tracking-wider"
+          className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold"
+          data-replay-badge
         >
-          Replay
+          <span className="uppercase tracking-wider">Replay</span>
+          {/* the moment on screen (item 8: "REPLAY - <date> <time>" so a replay is never mistaken for live) */}
+          {rp.active ? <span className="tnum">· {isoDayLabel(rp.day)} · {printClock(rp.cursor * 1000)}</span> : <span className="font-semibold">· pick a bar</span>}
         </span>
       )}
       <span className="shrink-0 inline-flex items-center gap-1.5">
@@ -1825,20 +2030,21 @@ const Pane = ({
             <StrikeChart
               ticker={ticker}
               paneId={`terrain:${index + 1}`}
-              revision={offHouse ? feedRevision : revision}
+              revision={rp.active ? replayRev : offHouse ? feedRevision : revision}
               levels={levels}
               timeframe={tf}
-              flowPrints={paneFlow}
+              flowPrints={rp.active ? EMPTY_FLOW : paneFlow}
               height={tall ? 260 : 200}
               overlays={paneOverlays}
               indicators={indicators}
               chartStyle={chartStyle}
               themeKey={theme}
               barClock={clock}
-              prints={prints}
+              prints={rp.active ? EMPTY_FLOW : prints}
               compares={paneCompares}
-              /* ON THE FEED: the real bars and the books read today (data/feed/levels.ts); an index's tape has no bars */
-              tape={chartTape}
+              /* ON THE FEED: the real bars and the books read today (data/feed/levels.ts); an index's tape has no bars — and in
+                 a replay the same kind of tape cut at the cursor (item 8) */
+              tape={rp.active ? replayTape : chartTape}
               priceScale={priceScale}
               sessionOr={sessionOr}
               drawing={drawing}
@@ -1849,8 +2055,13 @@ const Pane = ({
               onEnterDraw={onToggleDrawing}
               /* Only the takeover has a top band to spare. */
               railTopOk={expanded}
-              replay={replay}
-              onExitReplay={onExitReplay}
+              /* THE REPLAY (item 8): the pane drives it — the pick, then a rewound clock over a cut tape, the transport at
+                 the foot of the price pane */
+              pickTime={!!rp.ctl && rp.ctl.phase === 'pick'}
+              onPickTime={rp.pick}
+              asOf={rp.asOf}
+              futureBars={rp.future}
+              footBar={replayBar}
               focusPrice={focus}
               priceTag
               onCrosshair={onCrosshair}
@@ -1863,13 +2074,13 @@ const Pane = ({
               /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
                  not a third of the chart (X11) */
               nyClock
-              recordLines={fRecord?.lines}
+              recordLines={rp.active ? undefined : fRecord?.lines}
               /* the window's own reference (item 6); UW's directional series and the scorecard's ranges stand on every
                  expiry, so a window says neither */
               regimeRef={regimeForWindow(fRegime, win)}
-              regimeDir={win === 'all' ? regimeDir : null}
-              regimeRanges={win === 'all' ? fRecord?.main.regime?.ranges ?? null : null}
-              pricedMove={fMove}
+              regimeDir={win === 'all' && !rp.active ? regimeDir : null}
+              regimeRanges={win === 'all' && !rp.active ? fRecord?.main.regime?.ranges ?? null : null}
+              pricedMove={rp.active ? rpMove : fMove}
               beadBasis={beadBasis}
               beadFloor={beadFloor}
               beadRefs={fScale?.gex ?? null}
@@ -1881,7 +2092,7 @@ const Pane = ({
               fitCandles={8 * (railData.step || 1)}
               /* the rail's quote on the capsule, and the bar's count on the clock's grid, on the feed (the audit, items 1
                  and 15) */
-              quote={onFeed ? fDay?.price ?? null : null}
+              quote={rp.active ? (Number.isFinite(levels.spot) ? levels.spot : null) : onFeed ? fDay?.price ?? null : null}
               barCountdown={onFeed ? 'grid' : 'measured'}
               frameless
               /* WALLS THROUGH THE DAY and THE SESSION'S PHASES (the ideas report, 2026-10-09) — drawn behind the candles
@@ -1889,8 +2100,8 @@ const Pane = ({
               layer={api => (
                 <>
                   <TerrainLayers api={api} ticker={ticker} walls={!!paneOverlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} wallsSource={wallsSource} />
-                  {/* a right-click on a level: an alert that follows it (the owner's item 7) */}
-                  <LevelAlertMenu api={api} ticker={ticker} levels={axisLevels} top={top3} sigma={fMove ? { prevClose: fMove.prevClose, s: fMove.sigma } : null} />
+                  {/* a right-click on a level: an alert that follows it (the owner's item 7) — a live watch, so not from a replay */}
+                  {!rp.active && <LevelAlertMenu api={api} ticker={ticker} levels={axisLevels} top={top3} sigma={fMove ? { prevClose: fMove.prevClose, s: fMove.sigma } : null} />}
                 </>
               )}
             />
@@ -2104,9 +2315,11 @@ const Pane = ({
                 {replay && (
                   <span
                     title="This pane is replaying history — it is not live"
-                    className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold uppercase tracking-wider"
+                    className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold"
+                    data-replay-badge
                   >
-                    Replay
+                    <span className="uppercase tracking-wider">Replay</span>
+                    {rp.active ? <span className="tnum">· {isoDayLabel(rp.day)} · {printClock(rp.cursor * 1000)}</span> : <span className="font-semibold">· pick a bar</span>}
                   </span>
                 )}
                 <span className="shrink-0 inline-flex items-center gap-1.5">
@@ -2413,13 +2626,14 @@ const Pane = ({
               maxShare={belowLg ? 0.82 : !expanded && paneCount >= 3 ? 0.4 : 0.6}
               /* the Vol switch: the session's traded volume by price — the house's tape, or on the feed the minutes */
               ticker={ticker}
-              volBars={offHouse ? fBars.bars : undefined}
+              volBars={rp.active && rp.cut ? rp.cut.bars : offHouse ? fBars.bars : undefined}
               rows={rail.rows}
               /* how sure the walls and the flip are — Pinpoint's read of the same book (components/levels/HowSure) */
               sure={railSure}
               maxAbs={rail.maxAbs}
               legs={legs}
               openRatio={openRatio}
+              lagged={lagged}
               palette={palette}
               step={rail.step}
               levels={levels}
@@ -2823,6 +3037,8 @@ const Terrain = () => {
     reasoning as draw mode.
   */
   const [replaying, setReplaying] = useState<boolean[]>(() => [false, false, false, false]);
+  /* each replaying pane's play-and-pause and step, for Shift ↓ and Shift → (item 8) */
+  const replayKeys = useRef(new Map<number, { toggle: () => void; step: () => void; playing: () => boolean }>());
   const replayingRef = useRef<boolean[]>(replaying);
   replayingRef.current = replaying;
   const setPaneReplay = (i: number, on: boolean) =>
@@ -2906,6 +3122,23 @@ const Terrain = () => {
         setAnnounce(say({ ...q, ...delta }));
       };
 
+      /* THE REPLAY'S KEYS (the owner's item 8, TradingView's): Shift ↓ plays and pauses, Shift → steps a bar — on the active
+         pane while it replays; elsewhere Shift ↓ is ↓ as before */
+      if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight') && (replayingRef.current[i] ?? false)) {
+        const k = replayKeys.current.get(i);
+        if (k) {
+          e.preventDefault();
+          if (e.key === 'ArrowDown') {
+            const was = k.playing();
+            k.toggle();
+            setAnnounce(was ? 'Replay paused' : 'Replay playing');
+          } else {
+            k.step();
+            setAnnounce('Replay one bar on');
+          }
+          return;
+        }
+      }
       switch (e.key) {
         case '1': case '2': case '3': case '4': {
           e.preventDefault();
@@ -3498,6 +3731,10 @@ const Terrain = () => {
             tall={cfg.layout === 1}
             onCrosshair={t => emitCrosshair(i, t)}
             registerSync={apply => registerSync(i, apply)}
+            registerReplayKeys={k => {
+              if (k) replayKeys.current.set(i, k);
+              else replayKeys.current.delete(i);
+            }}
             replay={replaying[i] ?? false}
             onToggleReplay={() => setPaneReplay(i, !(replaying[i] ?? false))}
             /* The chart calls this itself on a ticker or timeframe change —

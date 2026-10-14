@@ -341,6 +341,16 @@ function windowAt(strikes: readonly number[], price: number, half: number): [num
   return [Math.max(0, lo - half), Math.min(strikes.length, lo + half)];
 }
 
+/* ---- THE POINT-IN-TIME PROBE (the owner's item 8, 2026-10-14: "the data layer asserts every read <= cursor") ------
+   Set by an audit (scripts/replay-proof.ts), every observation a column or a straddle reads reports the moment it became
+   knowable — a vol, a count of open interest, a chain read — and the audit counts any past its cursor. Unset in use: one
+   branch a read. */
+export type PitKind = 'vol' | 'open interest' | 'chain read';
+let pitProbe: ((what: PitKind, at: number) => void) | null = null;
+export function setPitProbe(fn: ((what: PitKind, at: number) => void) | null): void {
+  pitProbe = fn;
+}
+
 /** The newest observation knowable by `by`, or null */
 function obsAt(list: readonly Obs[], by: number): Obs | null {
   let out: Obs | null = null;
@@ -348,16 +358,20 @@ function obsAt(list: readonly Obs[], by: number): Obs | null {
     if (o.at > by) break;
     out = o;
   }
+  if (pitProbe && out) pitProbe('vol', out.at);
   return out;
 }
 
 /** The newest count of open interest received by `by`, 0 for none yet */
 export function oiAt(list: readonly OiObs[], by: number): number {
   let out = 0;
+  let at = 0;
   for (const o of list) {
     if (o.at > by) break;
     out = o.oi;
+    at = o.at;
   }
+  if (pitProbe && at) pitProbe('open interest', at);
   return out;
 }
 
@@ -368,6 +382,7 @@ export function readAt(u: Universe, by: number): number {
     if (r > by) break;
     out = r;
   }
+  if (pitProbe && out) pitProbe('chain read', out);
   return out;
 }
 
@@ -730,6 +745,20 @@ export function straddleAt(u: Universe, bar: { time: number; close: number }, ex
     if (c != null && p != null) return { expiry, strike: u.strikes[i], value: c + p, src: 'model', call: civ, put: piv, iv: straddleVol(spot, u.strikes[i], tau, c + p), tau, spot };
   }
   return null;
+}
+/**
+ * THE STRADDLE AT A MINUTE — one rule for the recorder's shown rows, the rebuild's final rows and the replay (the owner's
+ * item 8: the replay's frame is the live frame). 'shown': the NBBO mids of a chain read received inside the minute, its
+ * vol solved on UW's clock at the minute's middle, else the model's price at the minute; 'final': the model's price alone.
+ */
+export function straddleOfMinute(u: Universe, chains: readonly { receivedAt: number; rows: readonly ChainRow[] }[], day: string, bar: { time: number; close: number }, expiry: string, kind: 'shown' | 'final'): StraddleRead | null {
+  if (kind === 'final') return straddleAt(u, bar, expiry);
+  const m = bar.time * 1000;
+  const end = m + 60_000;
+  const read = chains.find(c => c.receivedAt >= m && c.receivedAt < end) ?? null;
+  if (read && pitProbe) pitProbe('chain read', read.receivedAt);
+  const tau = expiry === day ? Math.max(0, (lastTradeOf(expiry) - (m + 30_000)) / YEAR_MS) : uwYears(m + 30_000, lastTradeOf(expiry), expiry, day);
+  return (read ? straddleFromChain(read.rows, expiry, bar.close, tau) : null) ?? straddleAt(u, bar, expiry);
 }
 /** The at-the-money straddle off a chain read's NBBOs: the strike nearest spot whose call and put both carry a bid and
     an ask; null where the read carries none (a read before 2026-10-13, or outside quoting hours). `tau` — the years to

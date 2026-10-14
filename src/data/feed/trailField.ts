@@ -124,8 +124,8 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { nyIsoDate, nyWallTime } from '../../core/nyTime';
 import type { Candle, GexSnapshot } from '../../types/market';
 import type { FeedBook, FeedBook60 } from './levels';
-import { TRAIL_MODEL, oiPublishedAt, universeOf, readAt, modelColumn, fieldResidual, residualFigures, windowView, book60Window } from './trailModel';
-import type { ServerInputs, Universe, TotalRead, ExpiryWindow } from './trailModel';
+import { TRAIL_MODEL, oiPublishedAt, universeOf, readAt, modelColumn, fieldResidual, residualFigures, windowView, book60Window, straddleExpiries, straddleOfMinute } from './trailModel';
+import type { ServerInputs, Universe, TotalRead, ExpiryWindow, StraddleRead } from './trailModel';
 
 export * from './trailModel';
 
@@ -185,6 +185,24 @@ export function takePastSession(ticker: string, day: string, inputs: ServerInput
   for (const s of trails.values()) if (s.t === t) schedule();
 }
 
+/* THE RECORDER'S OWN SESSIONS (the owner's item 8, 2026-10-14: "at 20 random minutes on recorder sessions, the replay
+   frame equals the live frame"): a session before today the recorder kept whole — its chain reads, its seed, UW's
+   whole-book series, as received — so a replay draws what was on screen that day. The live chart keeps the rebuild
+   (above); a replay reads these where they are, the rebuild where they are not. */
+const recordedByName = new Map<string, Map<string, { inputs: ServerInputs; version: number }>>();
+/** levels.ts hands in a past session the recorder kept whole (server/fieldRecorder.ts recorded) */
+export function takeRecordedSession(ticker: string, day: string, inputs: ServerInputs): void {
+  const t = ticker.toUpperCase();
+  let m = recordedByName.get(t);
+  if (!m) recordedByName.set(t, (m = new Map()));
+  if (m.has(day)) return;
+  /* a version of its own, so a universe built on the rebuild is never taken for one built on the record */
+  m.set(day, { inputs, version: 1_000_001 });
+  for (const s of trails.values()) if (s.t === t && s.rec) schedule();
+}
+/** The sessions the recorder kept whole for a name, New York dates */
+export const recordedIn = (ticker: string): string[] => [...(recordedByName.get(ticker.toUpperCase())?.keys() ?? [])];
+
 /** UW's whole-book series as the recorder read it today — [minute ms, price, _oi, _vol, _dir] rows — for the
     attribution chip (the owner's item 3): the newest minute's `_dir` sign against the house's net */
 export function totalOf(ticker: string): TotalRead | null {
@@ -235,6 +253,8 @@ interface NameTrail {
   t: string;
   day: string;
   cut: string | null;
+  /** The replay's twin: the recorder's own sessions where it kept them whole, the live trail's columns for every other */
+  rec: boolean;
   bars: readonly Candle[];
   /** Each session's universe, with the inputs' version it was built on */
   us: Map<string, { u: Universe; version: number }>;
@@ -286,8 +306,10 @@ function work() {
   const t0 = performance.now();
   let more = false;
   for (const s of trails.values()) {
-    if (!subs.get(s.key)?.size) continue;
-    const days = inputsByName.get(s.t);
+    /* a live trail works while it or its replay twin is read */
+    if (!subs.get(s.key)?.size && !(!s.rec && subs.get(twinKey(s.key))?.size)) continue;
+    /* the twin prices the recorder's own sessions alone; every other session is the live trail's */
+    const days = s.rec ? recordedByName.get(s.t) : inputsByName.get(s.t);
     if (!days) continue;
     let did = false;
     /* today first, then the sessions before, newest first */
@@ -336,7 +358,18 @@ function work() {
   if (more) schedule();
 }
 
+const twinKey = (key: string) => `${key}|rec`;
 function publish(s: NameTrail) {
+  if (s.rec) {
+    /* the recorder's sessions from its own columns, every other session from the live trail's */
+    const live = trails.get(s.key.slice(0, -4));
+    const own = new Set([...s.cols.values()].map(c => barDay(c.snap.time)));
+    const mine = [...s.cols.values()].map(c => c.snap);
+    s.out = [...(live?.out ?? []).filter(c => !own.has(barDay(c.time))), ...mine].sort((a, b) => a.time - b.time);
+    s.residual = live?.residual ?? null;
+    ring(s.key);
+    return;
+  }
   s.out = [...s.cols.values()].map(c => c.snap).sort((a, b) => a.time - b.time);
   const t0 = performance.now();
   /* the residual is today's: UW's 60-day books read today against today's columns, on the strikes both hold */
@@ -344,14 +377,16 @@ function publish(s: NameTrail) {
   s.residual = s.cut ? null : fieldResidual(todays, books60Of(s.t));
   s.cost.ms += performance.now() - t0;
   ring(s.key);
+  const twin = trails.get(twinKey(s.key));
+  if (twin) publish(twin);
 }
 
-function stateOf(t: string, cut: string | null): NameTrail {
+function stateOf(t: string, cut: string | null, rec = false): NameTrail {
   const day = nyIsoDate();
-  const key = `${t}|${cut ?? 'all'}`;
+  const key = `${t}|${cut ?? 'all'}${rec ? '|rec' : ''}`;
   let s = trails.get(key);
   if (!s || s.day !== day) {
-    s = { key, t, day, cut, bars: [], us: new Map(), cols: new Map(), out: [], residual: null, cost: { ms: 0, minutes: 0 } };
+    s = { key, t, day, cut, rec, bars: [], us: new Map(), cols: new Map(), out: [], residual: null, cost: { ms: 0, minutes: 0 } };
     trails.set(key, s);
   }
   return s;
@@ -372,18 +407,21 @@ export interface TrailField {
  * `cut` is one listed date, or null for every expiry; `reads` are the books read — the measured reference (their
  * residual moves when they do, never the field). `on` false (the house's market, an index) asks nothing.
  */
-export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Candle[] | null, reads: readonly GexSnapshot[], cut: string | null = null, window: ExpiryWindow = 'all'): TrailField {
+export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Candle[] | null, reads: readonly GexSnapshot[], cut: string | null = null, window: ExpiryWindow = 'all', recorded = false): TrailField {
   const t = ticker.toUpperCase();
   const live = on && !!t && !!bars;
-  const key = `${t}|${cut ?? 'all'}`;
+  const key = `${t}|${cut ?? 'all'}${recorded ? '|rec' : ''}`;
   useEffect(() => {
     if (!live || !bars) return;
-    const s = stateOf(t, cut);
-    if (s.bars !== bars) {
-      s.bars = bars;
-      schedule();
-    }
-  }, [live, t, cut, bars]);
+    /* the replay's twin reads the live trail's columns for every session the recorder did not keep: both stand */
+    const pair = recorded ? [stateOf(t, cut), stateOf(t, cut, true)] : [stateOf(t, cut)];
+    for (const s of pair)
+      if (s.bars !== bars) {
+        s.bars = bars;
+        schedule();
+      }
+    if (recorded) publish(pair[1]);
+  }, [live, t, cut, bars, recorded]);
   /* a new book read moves the residual, never the field */
   useEffect(() => {
     const s = trails.get(key);
@@ -418,13 +456,39 @@ export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Ca
   if (view) return { snaps: view, full, residual };
   return { snaps, full, residual: s?.residual ?? null };
 }
-/** The window's view of a column list, the last one kept (a tick replaces the list; the columns' views are cached) */
-let lastView: { src: readonly GexSnapshot[]; w: ExpiryWindow; out: GexSnapshot[] } | null = null;
+/** The window's view of a column list, kept a list (a tick replaces the list; the columns' views are cached) — the live
+    trail and its replay twin each keep theirs */
+const views = new WeakMap<readonly GexSnapshot[], Map<ExpiryWindow, GexSnapshot[]>>();
 function windowedOf(src: GexSnapshot[], w: ExpiryWindow): GexSnapshot[] {
-  if (lastView && lastView.src === src && lastView.w === w) return lastView.out;
-  const out = src.map(c => windowView(c, w));
-  lastView = { src, w, out };
+  let m = views.get(src);
+  if (!m) views.set(src, (m = new Map()));
+  let out = m.get(w);
+  if (!out) m.set(w, (out = src.map(c => windowView(c, w))));
   return out;
+}
+
+/**
+ * THE STRADDLE AT A MINUTE ON THIS PAGE'S UNIVERSE (the owner's item 8 — the replay's σ left to the close): the store's
+ * own rule (trailModel straddleOfMinute) on the universe this page built for the minute's session — today's on the
+ * recorder's reads as shown, a recorded session's as shown, a rebuilt one's by the model alone (its final rows' rule).
+ * The day's own expiry and the weekly, as the store keeps them; null before the session's universe is built.
+ */
+export function straddlesAtMinute(ticker: string, cut: string | null, recorded: boolean, bar: { time: number; close: number }): { today: StraddleRead | null; weekly: StraddleRead | null } | null {
+  const t = ticker.toUpperCase();
+  const day = barDay(bar.time);
+  const key = `${t}|${cut ?? 'all'}`;
+  /* a session the recorder kept whole is priced on the twin's universe; every other on the live trail's */
+  const rec = recorded ? recordedByName.get(t)?.get(day) : undefined;
+  const own = (rec ? trails.get(twinKey(key)) : trails.get(key))?.us.get(day);
+  const inp = rec ?? inputsByName.get(t)?.get(day);
+  if (!own || !inp) return null;
+  /* the recorder's reads (today's, a kept session's) as shown; a rebuilt session by the model alone, as its final rows */
+  const kind = rec || day === nyIsoDate() ? 'shown' : 'final';
+  const exps = straddleExpiries(own.u.expiry, day);
+  return {
+    today: exps.today ? straddleOfMinute(own.u, inp.inputs.chains, day, bar, exps.today, kind) : null,
+    weekly: exps.weekly ? straddleOfMinute(own.u, inp.inputs.chains, day, bar, exps.weekly, kind) : null,
+  };
 }
 
 if (typeof window !== 'undefined')

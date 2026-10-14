@@ -57,9 +57,10 @@
 */
 
 import { PARTS, partOf, windowEnds } from '../src/data/feed/trailModel';
+import { recordingComplete } from '../src/data/replayFrame';
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import type { FeedClient } from './feed';
 import type { createFieldBackfill, MinuteBar, PastDay } from './fieldBackfill';
@@ -670,6 +671,56 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     };
   }
 
+  /**
+   * GET /feed/field/<NAME>/recorded/<D>: a session before today as the recorder kept it — its chain reads, its seed and
+   * UW's whole-book series, as received — and whether it kept the whole session (data/replayFrame.ts recordingComplete).
+   * A replay draws such a session as it was on screen (the owner's item 8); the files are read, never written.
+   */
+  function recorded(rawName: string, day: string): { status: number; body: string } {
+    const name = rawName.toUpperCase();
+    if (!NAME_OK.test(name) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return { status: 400, body: JSON.stringify({ error: 'bad-request' }) };
+    if (day >= nyParts(clock()).day) return { status: 400, body: JSON.stringify({ error: 'today-is-live' }) };
+    const dir = dirOf(name, day);
+    const text = (file: string): string | null => {
+      for (const f of [file, `${file}.gz`])
+        try {
+          const b = readFileSync(join(dir, f));
+          return f.endsWith('.gz') ? gunzipSync(b).toString('utf8') : b.toString('utf8');
+        } catch {
+          /* the other spelling, or none */
+        }
+      return null;
+    };
+    const lines = <T>(file: string): T[] => {
+      const t = text(file);
+      if (!t) return [];
+      const out: T[] = [];
+      for (const l of t.split('\n'))
+        if (l)
+          try {
+            out.push(JSON.parse(l) as T);
+          } catch {
+            /* a line cut short by a restart */
+          }
+      return out;
+    };
+    const one = <T>(file: string): T | null => {
+      const t = text(file);
+      try {
+        return t ? (JSON.parse(t) as T) : null;
+      } catch {
+        return null;
+      }
+    };
+    /* a read written twice (two recorders before 2026-10-13's lock) is one read */
+    const seen = new Set<number>();
+    const chains = lines<RecordedChain>('chain.jsonl').filter(c => !seen.has(c.receivedAt) && (seen.add(c.receivedAt), true)).sort((a, b) => a.receivedAt - b.receivedAt);
+    const seed = (x => (x && x.rows.length && x.rows[0].length >= 4 ? x : null))(one<RecordedSeed>('seed.json'));
+    const total = one<RecordedTotal>('total.json');
+    const done = recordingComplete(day, chains.map(c => c.receivedAt), !!seed);
+    return { status: 200, body: JSON.stringify({ name, day, ...done, chains: done.complete ? chains : [], seed: done.complete ? seed : null, total: done.complete ? total : null }) };
+  }
+
   /* the always-on names start at once, whether or not a tab ever asks */
   if (always.size && client.hasKey('uw')) for (const n of always) watch(n);
 
@@ -686,5 +737,5 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     releaseLock();
   }
 
-  return { serve, tick, settle, stop, watched: () => [...watched.keys()], always: () => [...always] };
+  return { serve, recorded, tick, settle, stop, watched: () => [...watched.keys()], always: () => [...always] };
 }

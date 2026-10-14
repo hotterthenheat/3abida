@@ -898,6 +898,77 @@ these sessions the flip is the loudest trigger by far; two or three confirmation
 **Shots** (the two events in them were written into the log by the check, to show the delivery):
 docs/next-builds-2026-10-13/level-alert-card.png (the right-click on +1σ), level-alert-chips.png, level-alert-drawer.png.
 
+## The replay (2026-10-14, the owner's item 8)
+
+A Terrain pane's replay is a CURSOR — one minute of the tape, the start of the newest one-minute bar the frame holds,
+knowable at its end — and the pane reads everything at it (components/terrain/useTerrainReplay.ts, data/replayFrame.ts).
+`P` (or the toolbar's Replay) starts it; a bar picked on the chart, a session and a time (Go to), or a random start puts
+the cursor down.
+
+- **A frame is the live page on a tape cut at the cursor.** The chart takes the same kind of tape it draws live — the
+  minutes, the field's columns, the day bars (the sessions before whole, the cursor's day folded from its minutes so far),
+  the compares — cut at the cursor and grown in place as the cursor moves on (`GrowingCut`, so the chart's folds keep
+  their work), and draws it through the code that draws it live, with a rewound clock (StrikeChart `asOf`: its "now" for
+  the regime's day and the priced move, no bar countdown, no calendar markers, no alert lines). The bead reference, the
+  regime strip, the walls through the day and the open's ghost read only the cut. The levels, the ladder and the axis
+  labels are the field's column at the cursor by the store's own summary (`frameAt` — what a shown row records); the
+  ladder draws its net per strike (the model keeps the net: no put and call legs); a minute the field has no column for
+  draws no level ("—"), never the price.
+- **The priced move at the cursor**: the cursor's day's budget and profile (/feed/field/<NAME>/move?day=, asked once a
+  session) and the 1σ left to the close off the straddle at the cursor's minute — the store's one rule
+  (trailModel `straddleOfMinute`: the NBBO mids of a chain read inside the minute, else the model's price; a rebuilt
+  session by the model alone). Never its calibration or its official close: both are known only after the moment.
+- **Left out of a replay**: the track record and the move's calibration (they stand on sessions after the cursor), the
+  regime's attribution chip and scorecard ranges, the dark-pool lines and the prints' band, the right-click alert (a live
+  watch); How sure says so, names the moment, and says how the session is drawn.
+- **The sessions**: today's from the recorder's reads as they came; a session before today that the recorder KEPT WHOLE
+  — its seed with counts and chain reads from the open's first ten minutes to the close's last 25, no gap over 25
+  minutes (`recordingComplete`; GET /feed/field/<NAME>/recorded/<D>) — as the recorder showed it live (the field's replay
+  twin, trailField `useFeedTrailField(…, recorded)`); every other session from the rebuild, as the live chart draws it.
+  On the house's market, its tape and field as they stood when the replay began (its sessions keep their own hours).
+- **The transport** at the foot of the price pane (ReplayStrip, the house's bar): play and pause; a bar on or back — to
+  the end of the bar the cursor stands in, on the chart's own timeframe (`stepCursor`); 1×, 5×, 20× and 60× the
+  market's own time (1× a minute of tape a minute, 60× a minute a second), the words saying it in the chart's candles;
+  the track over the session's regular hours; **Go to** — a session the tape holds and a time typed on the reader's own
+  clock ("10:42 am", "1042"; without am or pm the reading inside the session — `minuteFromText`; never a 24-hour time
+  printed); **a random start** — a session the replay can draw whole and a time in it with half an hour left
+  (`readinessOf`, `randomStart`); **hide the future** — on by default; off, the rest of the session stands faded right
+  of the cursor (StrikeChart `futureBars`, out of the price scale's fit, read by nothing). A jump lands the reader on
+  the cursor with the price scale following the candles again. **Keys** (TradingView's): Shift ↓ plays and pauses,
+  Shift → steps a bar; Esc ends the replay (the top layer). The badge in the pane's head: "Replay · Oct 13 · 10:42 am",
+  never shed at any width.
+- **The ghost dots** (the ladder's spine, item 8's "each strike's value 10, 30 and 60 min before"): a filled dot 10
+  minutes before, a fainter 30, a ring 60, on the spine's own scale (ProfilePanel `lagged`, the key says so) — in a
+  replay off the field's columns at the cursor; live off the books the ladder itself reads (Unusual Whales' book read
+  every minute, its 60-day book through a window every five; the house's own minutes), never a column beside a book; a
+  listed date has no history of its book, so no dots.
+- **The level alerts** watched on the name are judged on each minute the cursor moves on by one, on the frame's levels
+  and the cursor's knowable instant, into the replay's own log (item 7's clause); a jump starts the engine again.
+
+**Acceptance** (scripts/replay-cursor-proof.ts, `npm test`):
+- (i) **Zero reads past the cursor.** Every frame of a whole session, each read through a guard stamped with the
+  moment the thing read became knowable — every bar, every column, each column's own observations (the model's probe,
+  trailModel `setPitProbe`: each vol, count of open interest and chain read it priced on), the frame, the ghost dots,
+  the day bars, the straddle under the priced move: a synthetic session (390 frames, chain reads every ten minutes from
+  04:00, the count published at 07:00) 899,106 reads, 0 past the cursor; QQQ's rebuilt Oct 12 (390 frames) 384,246
+  reads, 0. Three planted look-aheads are caught (a cut a minute long, a column priced on observations twenty minutes
+  on; a day bar of the cursor's own day is not one — it is folded from the minutes).
+- (ii) **The replay frame equals the live frame** on the recorder's own sessions (shown.jsonl — what Terrain drew live):
+  the column priced the way the page prices it from the recorder's own reads, at random minutes, against the shown row
+  of the minute — every cell, the walls, the flip, the five heaviest strikes, the net, the price, the straddle under the
+  priced move and the bead reference's step: all equal. **On this machine 11 minutes of 1 session** (SPY Oct 13, read to
+  3:52 pm New York, where two recorders wrote the same minutes before the lock) — fewer than the 20 asked, because no
+  more clean recorder minutes exist here; on the always-on recorder's days it runs 20 a session.
+- (iii) **The random start never lands on a session with an input missing**: 10,000 draws over sessions missing one
+  minute's bar, one minute's column, the priced move, or still open — none landed on one; every ready session was
+  reached (a half day among them); every start leaves half an hour to play.
+
+**Seen in the browser** (Los Angeles, SPY on the feed): the pick, a step (1:09 → 1:10 pm), 60× for 4.2 s (four
+minutes), Go to 7:00 am, a random start (Oct 1, Oct 2, Oct 8), the future faded, How sure in a replay, Esc back to live;
+an hour of Oct 13 at 60× wrote seven events to the replay log (a Tier-1 flip cross, Tier-2 top-3 and wall-move notices)
+and none to the live log. Its call wall at the cursor flapped 780 → 785 → 780 → 785 within 30 minutes — the modeled
+field's own walls, written as they moved. Shots: docs/next-builds-2026-10-13/replay-*.png.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

@@ -913,6 +913,21 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   half a strike away in a later minute; three Tier-1 in 15 minutes across every name (global), the rest "capped"; inputs
   over two minutes old drop Tier 1 to Tier 2 "stale". Outcomes at +15/+30 on the track record's rules (How sure). A
   replay writes to its own log. Never a trade call in the words.
+- THE REPLAY (2026-10-14, item 8; docs/data-feed.md "The replay"): a Terrain pane's replay is a CURSOR (one minute,
+  knowable at its end — components/terrain/useTerrainReplay.ts, data/replayFrame.ts) and the pane reads EVERYTHING at it:
+  the chart takes the live kind of tape CUT AT THE CURSOR (grown in place as it moves on) and draws it through the live
+  code with a rewound clock (StrikeChart `asOf`) — so a replay's frame is the live frame; the levels, the ladder and the
+  axis labels are the field's column at the cursor (`frameAt`, the store's own summary), no column → "—", never the
+  price. NEVER A READ PAST THE CURSOR: no track record, no calibration, no official close, no live alerts, no live book
+  in a replay (charm's walls lens stands empty); a new overlay that reads data must read the cut tape or say why it is
+  left out. A recorder session kept whole (`recordingComplete`, /feed/field/<NAME>/recorded/<D>) replays as it was shown
+  (the field's replay twin); others as the live chart draws them. The transport (ReplayStrip at the price pane's foot):
+  play/pause, a bar on/back to the bar's end (`stepCursor`), 1×/5×/20×/60× the market's own time, Go to (a time typed on
+  the reader's clock, `minuteFromText`), a random start (only a session drawable whole, `readinessOf`), hide the future
+  (on by default; off, the session's rest faded, read by nothing). Shift ↓ plays/pauses, Shift → steps; Esc ends it. The
+  badge "Replay · Oct 13 · 10:42 am" is never shed. The ladder's ghost dots (10 filled, 30 fainter, 60 a ring, on the
+  spine's scale) come off the same source the ladder reads — columns in a replay, the books read live — never mixed.
+  scripts/replay-cursor-proof.ts (i)–(iii) runs in `npm test`.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

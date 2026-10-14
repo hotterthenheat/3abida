@@ -330,6 +330,10 @@ interface ProfilePanelProps {
   legs?: ReadonlyMap<number, { put: number; call: number }>;
   /** Per strike, the net at the open as a ratio of now — the spine's dashed ghost */
   openRatio?: ReadonlyMap<number, number> | null;
+  /** THE GHOST DOTS (the owner's item 8, 2026-10-14: "each strike's value 10, 30 and 60 min before the cursor"): per
+      strike, its net then, in the rows' own units — a dot on the spine's scale for each, null where there was none.
+      The ladder view draws them; the net view does not. */
+  lagged?: ReadonlyMap<number, readonly (number | null)[]> | null;
   /** The ramp the legs and the flow wear — the thermal by default, or the house gold and
       ice. The host's choice (Terrain's desk bar carries the card: a rail's head is 132px
       on a three-up desk and cannot hold another card). */
@@ -402,7 +406,7 @@ interface Hover {
 }
 
 const ProfilePanel = ({
-  rows, maxAbs, legs, openRatio = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
+  rows, maxAbs, legs, openRatio = null, lagged = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
   ticker, volBars, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6, sure,
 }: ProfilePanelProps) => {
   const mode = modeOf(palette);
@@ -561,7 +565,7 @@ const ProfilePanel = ({
   }, [mode]);
   useEffect(() => {
     dataRev.current++;
-  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, vp, view, paper, pageTheme]);
+  }, [rows, maxAbs, legs, openRatio, lagged, mode, step, levels, flow, lane, focusPrice, vp, view, paper, pageTheme]);
 
   const showSize = lane !== 'flow';
   const showFlow = lane !== 'size';
@@ -788,6 +792,21 @@ const ProfilePanel = ({
          with their words, the spine, the ghost at the open — ONLY WHILE ONE IS DRAWN (the audit of 2026-10-13: the
          key named "at the open" before today's first 9:30 column, with no ghost on the panel) — the supreme's magenta */
       const hasGhost = !!openRatio && placed.some(r => openRatio.has(r.strike));
+      /* the ghost dots stand on the ladder view's spine alone */
+      const hasLagged = !!lagged && showSize && view !== 'net' && placed.some(r => lagged.get(r.strike)?.some(v => v != null));
+      /** A ghost dot: 10 minutes before a filled dot, 30 a smaller fainter one, 60 a ring */
+      const ghostDot = (x: number, y: number, k: number) => {
+        ctx.beginPath();
+        ctx.arc(x, y, k === 0 ? 2.4 : k === 1 ? 1.9 : 2.1, 0, Math.PI * 2);
+        if (k === 2) {
+          ctx.strokeStyle = ink.alpha(ink.ink, 0.5);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = ink.alpha(ink.ink, k === 0 ? 0.8 : 0.5);
+          ctx.fill();
+        }
+      };
       if (keyOn) {
         const ky = headTop + KEY_BAND / 2 + 0.5;
         let kx = 8;
@@ -837,6 +856,15 @@ const ProfilePanel = ({
           ctx.restore();
           kx += 16;
           word(full ? 'at the open' : 'open');
+        }
+        if (hasLagged) {
+          /* the three dots, as the spine wears them: 10 minutes the strongest, 60 a ring */
+          for (let k = 0; k < 3; k++) {
+            ghostDot(kx + 3, ky, k);
+            kx += 8;
+          }
+          kx += 2;
+          word(full ? '10 · 30 · 60 min before' : '10·30·60m');
         }
         ctx.fillStyle = ink.supreme;
         ctx.fillRect(kx, ky - 3, 6, 6);
@@ -1283,6 +1311,17 @@ const ProfilePanel = ({
           ctx.strokeStyle = ink.spine;
           ctx.lineWidth = 1.5;
           ctx.stroke(new Path2D(splinePath(pts.map(q => ({ x: clampX(q.x), y: q.y })), sizeL + 2, sizeR - netCol - 2)));
+          /* THE GHOST DOTS on the spine's own scale: where each strike's net stood 10, 30 and 60 minutes before (item 8) */
+          if (hasLagged)
+            for (const r of placed) {
+              const vals = lagged!.get(r.strike);
+              if (!vals) continue;
+              for (let k = vals.length - 1; k >= 0; k--) {
+                const v = vals[k];
+                if (v == null || !Number.isFinite(v)) continue;
+                ghostDot(clampX(mid - Math.max(-1.6, Math.min(1.6, v / netMax)) * lean), r.y, k);
+              }
+            }
           /* the strike in hand, marked on the spine */
           const mark = placed.find(r => isFocus(r.strike) || isHover(r.strike));
           if (mark) {
@@ -1518,7 +1557,7 @@ const ProfilePanel = ({
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [rows, maxAbs, legs, openRatio, mode, step, levels, flow, lane, focusPrice, projection, showSize, showFlow, vp, liveSplit, view, paper]);
+  }, [rows, maxAbs, legs, openRatio, lagged, mode, step, levels, flow, lane, focusPrice, projection, showSize, showFlow, vp, liveSplit, view, paper]);
 
   /* THE POINTER — the nearest strike by height, anywhere in the lanes */
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
