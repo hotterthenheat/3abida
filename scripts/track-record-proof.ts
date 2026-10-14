@@ -9,7 +9,7 @@
   strike-matched baseline is never a real level.
 */
 import { readFileSync } from 'node:fs';
-import { nyMinuteOf, recordLine, rng, touchesOf, trackRecord, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
+import { nyMinuteOf, recordLine, rng, strikeMatchedOf, touchesOf, trackRecord, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
 import { buildRegimeReference, ordinal, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeQuantiles } from '../src/data/feed/trailModel';
 
 let pass = 0;
@@ -159,6 +159,50 @@ const b2 = one.filter(t => t.base === 'B2');
 const bad = b2.find(t => { const row = rowsAt.get(t.m - 60_000); return !row || !Number.isInteger(t.level) || t.level === row.cw || t.level === row.pw; });
 if (bad) console.log('  a strike-matched touch off the rule:', JSON.stringify({ level: bad.level, id: bad.id, row: rowsAt.get(bad.m - 60_000) ? { cw: rowsAt.get(bad.m - 60_000)!.cw, pw: rowsAt.get(bad.m - 60_000)!.pw } : null }));
 check('a strike-matched level is a listed strike and never the real level of its minute', b2.length > 0 && !bad);
+/* B2 FIXED AT THE OPEN (the owner: "Baseline levels use only information available at the open"): the strike-matched
+   levels are the open's column's alone — every column after the open rewritten, the set is the same — each a listed strike
+   under the open's median |gamma|, never a real level then; every B2 touch is one of them */
+{
+  const s0 = sessions[7];
+  const set = strikeMatchedOf(s0, quick);
+  const edited: TrackSession = { ...s0, rows: s0.rows.map((r, i) => (i === 0 ? r : { ...r, cells: r.cells.map(([k, v]) => [k, -v * 3] as [number, number]), cw: r.cw != null ? r.cw + 1 : null, pw: r.pw != null ? r.pw - 1 : null })) };
+  const setEdited = strikeMatchedOf(edited, quick);
+  const open = s0.rows[0];
+  const mags = open.cells.map(c => Math.abs(c[1])).sort((a, b) => a - b);
+  const med = mags.length % 2 ? mags[mags.length >> 1] : (mags[mags.length / 2 - 1] + mags[mags.length / 2]) / 2;
+  const realAtOpen = new Set([open.cw, open.pw, ...open.top.slice(0, quick.topK).map(t => t[0])]);
+  const rule = set.every(l => {
+    const cell = open.cells.find(c => c[0] === l.level);
+    return !!cell && Math.abs(cell[1]) < med && !realAtOpen.has(l.level);
+  });
+  /* every B2 touch over forty sessions is one of its session's open-picked levels, and never the real level of its minute */
+  let touchedB2 = 0;
+  let offSet = 0;
+  let onReal = 0;
+  for (const sx of sessions.slice(0, 40)) {
+    const keys = new Set(strikeMatchedOf(sx, quick).map(l => `${l.kind}:${l.level}`));
+    const rowAt = new Map(sx.rows.map(r => [r.m, r]));
+    for (const t of touchesOf(sx, quick, cfg.tol.default, null, null)) {
+      if (t.base !== 'B2') continue;
+      touchedB2++;
+      if (!keys.has(`${t.kind}:${t.level}`)) offSet++;
+      const row = rowAt.get(t.m - 60_000);
+      if (row && (t.level === row.cw || t.level === row.pw || row.top.slice(0, quick.topK).some(x => x[0] === t.level))) onReal++;
+    }
+  }
+  check(`strike-matched levels come from the open's column alone: ${set.length} on the first day, each a listed strike under the open's median |gamma| and no real level then; every column after the open rewritten, the same ${setEdited.length}; over forty sessions each of the ${touchedB2} B2 touches is one of its open's (${offSet} off) and none the real level of its minute (${onReal})`, set.length > 0 && rule && JSON.stringify(set) === JSON.stringify(setEdited) && touchedB2 > 0 && offSet === 0 && onReal === 0);
+  const c15 = rec.cells.find(c => c.kind === 'call wall' && c.split === 'all' && c.horizon === 15 && c.tol === cfg.tol.default)!;
+  check(`and they stand long enough to be touched — a baseline with a count: ${c15.B2.n} strike-matched call-wall touches with a 15-minute outcome (real ${c15.real.n})`, c15.B2.n >= 100);
+}
+/* NO STRIKE-MATCHED TOUCH, NO RATE: columns whose strikes all carry the same |gamma| leave none under the median — a
+   full record beside an empty baseline says insufficient and prints no percentage */
+{
+  const flat = sessions.slice(0, 12).map(sx => ({ ...sx, rows: sx.rows.map(r => ({ ...r, cells: r.cells.map(([k, v]) => [k, Math.sign(v || 1) * 1e9] as [number, number]) })) }));
+  const loose: TrackConfig = { ...quick, minTouches: 10, minMonths: 1 };
+  const fr = trackRecord(flat, loose);
+  const fc2 = fr.cells.find(c => c.kind === 'call wall' && c.split === 'all' && c.horizon === 15 && c.tol === cfg.tol.default)!;
+  check(`with no strike-matched touch beside ${fc2.real.n} real ones the line says so and prints no rate: "${recordLine(fc2)}"`, fc2.real.n >= 10 && fc2.B2.n === 0 && fc2.insufficient?.baseline === 0 && recordLine(fc2).includes('no strike-matched touch') && !recordLine(fc2).includes('%'));
+}
 check('random levels stand from the open and are drawn within the band', one.filter(t => t.base === 'B1').every(t => sessions.slice(5, 11).some(s => s.day === t.day && Math.abs(t.level - s.bars[0].open) <= 3)));
 check('the regime tests run: ranges by tercile over 30 and 60 minutes, the last half hour by sign', rec.regime.ranges.length === 2 && rec.regime.ranges[0].terciles.every(t => t.n > 0) && rec.regime.lastHalfHour.some(l => l.source === 'house' && l.n > 10));
 

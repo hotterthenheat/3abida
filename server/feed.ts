@@ -43,6 +43,7 @@ import { createFieldRecorder } from './fieldRecorder';
 import { createFieldBackfill } from './fieldBackfill';
 import { createFieldStore } from './fieldStore';
 import { createScorecard } from './scorecard';
+import { createRecap } from './recap';
 import { createPricedMove } from './pricedMove';
 import { createScaleRef } from './scaleRef';
 import { nyWallTime } from '../src/core/nyTime';
@@ -540,6 +541,9 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
   /* THE BEAD SCALE'S REFERENCES (server/scaleRef.ts, item 5): the fixed 60-session and the prior session's p85 a day */
   const scale = createScaleRef(backfill, store);
   const scorecard = createScorecard(backfill, store, { move, scale });
+  /* THE SESSION RECAP (server/recap.ts, item 9): the session's crossings, walls, touches, close against ±σ and regime path,
+     built once it is over */
+  const recap = createRecap(backfill, store, move);
   let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
   const PROBE_TTL = MIN;
 
@@ -609,6 +613,16 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
         const r = scorecard.serveRegime(rg[1]);
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
+      const rp = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/recap$/.exec(url.pathname);
+      if (rp) {
+        const r = await recap.serve(rp[1], url.searchParams.get('day') ?? '', url.searchParams.get('field') === '1');
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
+      /* before the name's own route, which would read "recaps" as a name */
+      if (url.pathname === '/feed/field/recaps') {
+        const r = recap.index(url.searchParams.get('days') ?? '');
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
       const sc = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/scorecard$/.exec(url.pathname);
       if (sc) {
         const r = scorecard.serve(sc[1]);
@@ -656,5 +670,5 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     }
   };
   /* the standalone recorder (server/recorderMain.ts) reaches the job and the store through the handler */
-  return Object.assign(handler, { backfill, recorder, store, client, scorecard, move, scale, close });
+  return Object.assign(handler, { backfill, recorder, store, client, scorecard, move, scale, recap, close });
 }

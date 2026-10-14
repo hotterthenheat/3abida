@@ -5,6 +5,7 @@ import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
 import { pickFlip, pickWalls, zeroCrossings } from '../../core/walls';
 import { nyClock } from '../../core/nyTime';
+import { WALL_HOLD, wallMovesOf } from '../../data/feed/trailModel';
 
 /*
   Exposure nodes — the ORIGINAL trail form, back by request (Noah,
@@ -110,8 +111,7 @@ interface Column {
 
 /* A WALL THAT MOVES (2026-10-13): a chip at the moment the call or put wall changes strike — "CW 780 → 785 · 11:42" —
    counted once the new strike has held three moments (a wall trading places with its neighbour for a moment is not a
-   move), the newest few on screen. */
-const WALL_HOLD = 3;
+   move), the newest few on screen. The rule is trailModel's wallMovesOf (WALL_HOLD), the session recap's too. */
 /** The wall chips keep this far in from the pane's left (the drawing rail) and right (the strength chips), CSS px */
 const CHIP_LEFT = 58;
 const CHIP_RIGHT = 96;
@@ -576,39 +576,8 @@ class TrailsPaneRenderer {
 
       // ---- the walls' moves: a chip where a wall changed strike and held --------------------------------------------
       {
-        type Move = { kind: 'CW' | 'PW'; from: number; to: number; time: number; i: number };
-        const moves: Move[] = [];
-        for (const kind of ['CW', 'PW'] as const) {
-          let held: number | null = null;
-          let cand: number | null = null;
-          let candAt = -1;
-          let run = 0;
-          for (let ci = first; ci < last; ci++) {
-            const c = src.columnAt(ci);
-            const w = kind === 'CW' ? c.cw : c.pw;
-            if (w == null) continue;
-            if (held == null) {
-              held = w;
-              continue;
-            }
-            if (w === held) {
-              cand = null;
-              run = 0;
-              continue;
-            }
-            if (w !== cand) {
-              cand = w;
-              candAt = ci;
-              run = 1;
-            } else run++;
-            if (run >= WALL_HOLD && cand != null) {
-              moves.push({ kind, from: held, to: cand, time: src.columnAt(candAt).time, i: candAt });
-              held = cand;
-              cand = null;
-              run = 0;
-            }
-          }
-        }
+        /* the rule is the session recap's too (trailModel wallMovesOf) */
+        const moves = wallMovesOf(last, ci => src.columnAt(ci), WALL_HOLD, first);
         moves.sort((a, b) => b.time - a.time);
         const keep = moves.slice(0, WALL_CHIPS);
         if (keep.length) {

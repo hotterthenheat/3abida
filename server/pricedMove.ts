@@ -57,6 +57,7 @@ import { gunzipSync } from 'node:zlib';
 import { lastTradeOf, parseOcc, sigmaOf, straddleExpiries, straddleFromChain, straddleVol, uwYears, type ChainRow, type StraddleRead } from '../src/data/feed/trailModel';
 import { calibrate, calibrationLines, profileOf, UW_IMPLIED_SHARE, type Calibration, type CalibrationDay, type MoveBar } from '../src/data/feed/pricedMove';
 import { nyMinuteOf } from '../src/data/feed/trackRecord';
+import { nyWallTime } from '../src/core/nyTime';
 import { INDEX_ROOTS } from './tapeBackfill';
 import type { FeedClient } from './feed';
 import type { createFieldBackfill, MinuteBar } from './fieldBackfill';
@@ -143,9 +144,11 @@ export function createPricedMove(client: FeedClient, backfill: FieldBackfill, op
       /* not kept yet */
     }
     const [y, m, d] = day.split('-').map(Number);
-    /* the session is over once it is past 4:00 pm New York on the day (20:00 UTC in daylight time, 21:00 in standard —
-       the later, so a reading never comes early) */
-    if (clock() < Date.UTC(y, m - 1, d, 21, 0)) return null;
+    /* THE SESSION IS OVER AT 4:00 PM NEW YORK (2026-10-14 — the session recap at 4:05 pm, the owner's item 9; this waited
+       for 21:00 UTC, 5:00 pm in daylight time): the regular session's daily bar is read from 4:01 pm and KEPT from 4:30
+       pm, so a bar the vendor is still settling is read again rather than kept */
+    if (clock() < nyWallTime(y, m, d, 16, 1)) return null;
+    const keep = clock() >= nyWallTime(y, m, d, 16, 30);
     let got: { close: number; from: Budget['closeFrom'] } | null = null;
     if (INDICES.has(name)) {
       const bars = await backfill.minutes(name, day);
@@ -158,7 +161,7 @@ export function createPricedMove(client: FeedClient, backfill: FieldBackfill, op
       const c = num(rows?.find(x => String(x.date) === day && x.market_time === 'r')?.close);
       got = c && c > 0 ? { close: c, from: 'daily-bar' } : null;
     }
-    if (got) {
+    if (got && keep) {
       mkdirSync(join(root, name, day), { recursive: true });
       writeFileSync(file, JSON.stringify(got));
     }
@@ -340,22 +343,35 @@ export function createPricedMove(client: FeedClient, backfill: FieldBackfill, op
     return profileOf(sessions, nyMinuteOf);
   }
 
+  /** THE PRICED MOVE'S ROW FOR ONE SESSION — what the calibration counts and the session recap (server/recap.ts)
+      prints, so the two read one row: the budget, the regular minutes' high and low, the official close (the last
+      regular minute's only while the official one is not in, said in `closeFrom`); `at10` off the session's rows */
+  async function calibrationDay(rawName: string, day: string, at10: CalibrationDay['at10']): Promise<{ row: CalibrationDay; from: StraddleFrom } | { why: string }> {
+    const name = rawName.toUpperCase();
+    const has = existsSync(join(root, name, day, 'bars.json.gz')) || existsSync(join(root, name, day, 'tape-price.json'));
+    if (!has) return { why: 'No minute bars for the session on this machine.' };
+    const b = await budget(name, day);
+    if (!b?.today) return { why: 'No budget for the session: the session before has no chain or no close, or no expiry settles on the day.' };
+    const bars = await backfill.minutes(name, day);
+    const reg = bars ? asMove(bars).sort((x, y) => x.time - y.time) : [];
+    if (reg.length < 300) return { why: `Only ${reg.length} regular minutes for the session.` };
+    /* the session's official close, never its 3:59 pm bar while the official one is in */
+    const official = await officialClose(name, day);
+    const close = official?.close ?? reg[reg.length - 1].close;
+    return {
+      row: { day, prevClose: b.prevClose, sigmaDay: b.today.sigma, close, high: Math.max(...reg.map(x => x.high)), low: Math.min(...reg.map(x => x.low)), at10: at10 ?? null, closeFrom: official ? 'official' : 'bar' },
+      from: b.today.from,
+    };
+  }
+
   /** THE CALIBRATION over every session on disk with a budget and bars; `at10` handed in by the scorecard job (it has
       the session's rows) */
   async function calibration(rawName: string, at10: Map<string, CalibrationDay['at10']>): Promise<Calibration> {
     const name = rawName.toUpperCase();
     const days: CalibrationDay[] = [];
     for (const day of daysOn(name)) {
-      const has = existsSync(join(root, name, day, 'bars.json.gz')) || existsSync(join(root, name, day, 'tape-price.json'));
-      if (!has) continue;
-      const b = await budget(name, day);
-      if (!b?.today) continue;
-      const bars = await backfill.minutes(name, day);
-      const reg = bars ? asMove(bars).sort((x, y) => x.time - y.time) : [];
-      if (reg.length < 300) continue;
-      /* the session's official close, never its 3:59 pm bar */
-      const close = (await officialClose(name, day))?.close ?? reg[reg.length - 1].close;
-      days.push({ day, prevClose: b.prevClose, sigmaDay: b.today.sigma, close, high: Math.max(...reg.map(x => x.high)), low: Math.min(...reg.map(x => x.low)), at10: at10.get(day) ?? null });
+      const got = await calibrationDay(name, day, at10.get(day) ?? null);
+      if ('row' in got) days.push(got.row);
     }
     const c = calibrate(days);
     mkdirSync(join(root, name), { recursive: true });
@@ -381,6 +397,6 @@ export function createPricedMove(client: FeedClient, backfill: FieldBackfill, op
     return { status: 200, body: JSON.stringify({ budget: b, profile: p, calibration: calib, close: close?.close ?? null }) };
   }
 
-  return { budget, profile, calibration, officialClose, serve };
+  return { budget, profile, calibration, calibrationDay, officialClose, serve };
 }
 export type PricedMove = ReturnType<typeof createPricedMove>;

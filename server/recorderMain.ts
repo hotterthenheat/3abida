@@ -86,11 +86,33 @@ const score = async (why: string) => {
   }
 };
 for (const n of names) if (!handle.scorecard.read(n)) void score('first run').then(() => undefined);
+/* THE SESSION RECAP (the owner's item 9: "at 4:05 p.m. ET, generate … Post it to the Journal room"): every recorded name's,
+   at 4:05 pm ahead of the scorecard (which can take a while over two years of sessions), and once more at 5:05 pm — the
+   official close is kept from 4:30 pm (server/pricedMove.ts); a recap whose figures did not change keeps its version, so
+   the Journal's entry moves only when one did. A weekend has no session. */
+let recapDay = '';
+let recheckDay = '';
+const recaps = async (day: string, why: string) => {
+  for (const n of names) {
+    try {
+      const r = await handle.recap.build(n, day, true);
+      console.log(`${stamp()} recap ${n} ${day} (${why}): ${'recap' in r ? `${r.recap.source ?? 'no rows'}, version ${r.recap.version}` : r.why}`);
+    } catch (e) {
+      console.error(`${stamp()} recap ${n} ${day} failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+};
+const weekend = (day: string) => [0, 6].includes(new Date(`${day}T12:00:00Z`).getUTCDay());
 const nightly = setInterval(() => {
   const { day, minute } = nyMinuteNow();
   if (minute >= 16 * 60 + 5 && scoredDay !== day) {
     scoredDay = day;
-    void score('after the close');
+    recapDay = day;
+    void (weekend(day) ? Promise.resolve() : recaps(day, 'at 4:05 pm')).then(() => score('after the close'));
+  }
+  if (minute >= 17 * 60 + 5 && recheckDay !== day && recapDay === day) {
+    recheckDay = day;
+    if (!weekend(day)) void recaps(day, 'at 5:05 pm, the official close kept');
   }
 }, 60_000);
 nightly.unref();

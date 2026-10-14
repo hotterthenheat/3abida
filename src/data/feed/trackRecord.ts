@@ -35,11 +35,20 @@
        the open, drawn uniformly within the largest
        open-to-high or open-to-low distance of the
        prior month's sessions (Osler), seeded;
-    B2 strike-matched — at each minute, for each real
-       level, a listed strike on the same side at the
-       same distance (within a step) whose |gamma| is
-       under the column's median: round numbers and
-       distance alike, the gamma not;
+    B2 strike-matched — FIXED AT THE OPEN (the owner:
+       "Baseline levels use only information available
+       at the open"; until 2026-10-14 it was re-picked
+       every minute, so it almost never stood the minute
+       a touch needs — SPY's twelve sessions counted 9
+       touches with a 15-minute outcome against 293
+       real): for each real level of
+       the open's column, the listed strikes in the same
+       distance band from the open's price (within a step
+       of the level's distance, either side) whose
+       |gamma| is under that column's median, never a
+       real level then — and a minute it is one of that
+       minute's real levels it is not counted: round
+       numbers and distance alike, the gamma not;
     B3 distance-matched — the mirror: a price at the
        real level's distance from spot when the level
        formed, on the other side, kept until the level
@@ -157,7 +166,7 @@ export interface Cell {
   mfe: Record<number, number | null>;
   mae: Record<number, number | null>;
   /** The record is too thin to carry a rate: touches under minTouches or months under minMonths */
-  insufficient: { touches: number; months: number } | null;
+  insufficient: { touches: number; months: number; baseline: number } | null;
 }
 export interface RegimeRange {
   horizon: number;
@@ -282,31 +291,38 @@ function levelsBefore(row: TrackRow, cfg: TrackConfig): Live[] {
   return out;
 }
 
-/** B2 — for each real level, a listed strike on the same side at the same distance (within a step) with |gamma| under
-    the column's median, never a real level; the nearest in distance, the lower strike on a tie */
-function strikeMatched(row: TrackRow, real: Live[]): Live[] {
-  const out: Live[] = [];
-  if (!row.cells.length) return out;
+/** B2, FIXED AT THE OPEN: for each real level of the open's column, the listed strikes in the same distance band from
+    the open's price — within a step of the level's distance, either side — whose |gamma| is under that column's median,
+    never a real level then; one level a kind and strike, standing all session */
+function strikeMatchedAtOpen(row: TrackRow, cfg: TrackConfig): Live[] {
+  const out = new Map<string, Live>();
+  if (!row.cells.length) return [];
   const step = stepOf(row.cells);
   const med = median(row.cells.map(c => Math.abs(c[1]))) ?? 0;
+  const real = levelsBefore(row, cfg);
   const taken = new Set(real.map(l => l.level));
   for (const r of real) {
     const d = Math.abs(r.level - row.spot);
-    const above = r.level >= row.spot;
-    let best: [number, number] | null = null;
-    let bestGap = Infinity;
     for (const c of row.cells) {
-      if (taken.has(c[0]) || (c[0] >= row.spot) !== above) continue;
-      const gap = Math.abs(Math.abs(c[0] - row.spot) - d);
-      if (gap > step || Math.abs(c[1]) >= med) continue;
-      if (gap < bestGap - 1e-9 || (Math.abs(gap - bestGap) <= 1e-9 && best && c[0] < best[0])) {
-        best = c;
-        bestGap = gap;
-      }
+      if (taken.has(c[0]) || Math.abs(c[1]) >= med) continue;
+      if (Math.abs(Math.abs(c[0] - row.spot) - d) > step + 1e-9) continue;
+      const id = `B2:${r.kind}:${c[0]}`;
+      if (!out.has(id)) out.set(id, { kind: r.kind, base: 'B2', id, level: c[0], sign: c[1] > 0 ? 1 : c[1] < 0 ? -1 : 0, size: Math.abs(c[1]) });
     }
-    if (best) out.push({ kind: r.kind, base: 'B2', id: `B2:${r.id}:${best[0]}`, level: best[0], sign: best[1] > 0 ? 1 : best[1] < 0 ? -1 : 0, size: Math.abs(best[1]) });
   }
-  return out;
+  return [...out.values()];
+}
+
+/** The open's column: the row of the session's first minute bar, else its earliest row */
+function openRowOf(s: TrackSession): TrackRow | null {
+  if (!s.rows.length) return null;
+  const first = s.bars.length ? Math.min(...s.bars.map(b => b.time)) * 1000 : null;
+  return (first != null ? s.rows.find(r => r.m === first) : undefined) ?? [...s.rows].sort((a, b) => a.m - b.m)[0];
+}
+/** A session's strike-matched levels (B2) — what the open's column picks, standing all session */
+export function strikeMatchedOf(s: TrackSession, cfg: TrackConfig): { kind: LevelKind; level: number }[] {
+  const row = openRowOf(s);
+  return row ? strikeMatchedAtOpen(row, cfg).map(l => ({ kind: l.kind, level: l.level })) : [];
 }
 
 /* ---- the event study -------------------------------------------------------------------------------------------- */
@@ -331,6 +347,9 @@ export function touchesOf(s: TrackSession, cfg: TrackConfig, tol: number, random
     for (let i = 0; i < cfg.random.perSide; i++) random.push({ kind: 'flip', base: 'B1', id: `B1:up:${i}`, level: open + draw() * randomBand, sign: 0, size: 0 });
     for (let i = 0; i < cfg.random.perSide; i++) random.push({ kind: 'flip', base: 'B1', id: `B1:dn:${i}`, level: open - draw() * randomBand, sign: 0, size: 0 });
   }
+  /* B2: the open's column — the first minute's row — read once, its strikes standing all session */
+  const openRow = openRowOf(s);
+  const matched = openRow ? strikeMatchedAtOpen(openRow, cfg) : [];
   const age = new Map<string, { level: number; since: number }>();
   const touching = new Set<string>();
   const counts = new Map<string, number>();
@@ -343,7 +362,9 @@ export function touchesOf(s: TrackSession, cfg: TrackConfig, tol: number, random
     const live: Live[] = [];
     if (row) {
       const real = levelsBefore(row, cfg);
-      live.push(...real, ...strikeMatched(row, real));
+      const realNow = new Set(real.map(l => l.level));
+      /* a strike-matched level is never the real level of its minute */
+      live.push(...real, ...matched.filter(l => openRow!.m <= row.m && !realNow.has(l.level)));
       /* B3: the mirror — a price at the real level's distance from spot when it formed, on the other side, kept until
          the real level changes: the distance is the real level's, the gamma is nobody's */
       for (const r of real) {
@@ -504,6 +525,7 @@ function cellOf(kind: LevelKind, split: string, pick: (t: Touch) => boolean, h: 
     mae[e] = median(real.map(t => t.mae[e]).filter((v): v is number => v != null));
   }
   const n = rateOf(real, h).n;
+  const b2Rate = rateOf(b2, h);
   return {
     kind,
     split,
@@ -518,7 +540,9 @@ function cellOf(kind: LevelKind, split: string, pick: (t: Touch) => boolean, h: 
     months: monthsWon(real, b2, h),
     mfe,
     mae,
-    insufficient: n < cfg.minTouches || months < cfg.minMonths ? { touches: n, months } : null,
+    /* a real rate with no strike-matched touch beside it would be a bare rate (2026-10-14: near the money every strike
+       carries more than the column's median |gamma|, so on SPY's walls the baseline is often empty) */
+    insufficient: n < cfg.minTouches || months < cfg.minMonths || b2Rate.n === 0 ? { touches: n, months, baseline: b2Rate.n } : null,
   };
 }
 
@@ -636,6 +660,13 @@ function randomBandOf(prior: TrackSession[], cfg: TrackConfig): number | null {
   return band > 0 ? band : null;
 }
 
+/** ONE SESSION'S ROWS as the record counts them: its touches at `tol`, the random band and the regime's terciles off the
+    sessions before it (`sessions` ascending by day) — the session recap (data/feed/sessionRecap.ts) reads the same rows */
+export function sessionTouches(sessions: readonly TrackSession[], idx: number, cfg: TrackConfig, tol = cfg.tol.default): Touch[] {
+  const prior = sessions.slice(0, idx);
+  return touchesOf(sessions[idx], cfg, tol, randomBandOf(prior, cfg), regimeCutsBefore(prior, cfg));
+}
+
 /** The whole record over these sessions (ascending by day) at the config's parameters */
 export function trackRecord(input: TrackSession[], cfg: TrackConfig): TrackRecord {
   const sessions = [...input].sort((a, b) => a.day.localeCompare(b.day));
@@ -643,10 +674,7 @@ export function trackRecord(input: TrackSession[], cfg: TrackConfig): TrackRecor
   const touchesByTol = new Map<number, Touch[]>();
   for (const tol of tols) {
     const all: Touch[] = [];
-    sessions.forEach((s, idx) => {
-      const prior = sessions.slice(0, idx);
-      all.push(...touchesOf(s, cfg, tol, randomBandOf(prior, cfg), regimeCutsBefore(prior, cfg)));
-    });
+    sessions.forEach((_, idx) => all.push(...sessionTouches(sessions, idx, cfg, tol)));
     touchesByTol.set(tol, all);
   }
   const cells: Cell[] = [];
@@ -690,7 +718,7 @@ export function trackRecord(input: TrackSession[], cfg: TrackConfig): TrackRecor
 /** One line a level type, as How sure prints it — never a bare rate */
 export function recordLine(c: Cell): string {
   const name = c.kind === 'top strike' ? 'Top strike' : c.kind[0].toUpperCase() + c.kind.slice(1);
-  if (c.insufficient) return `${name} · insufficient data (${c.insufficient.touches} touches, ${c.insufficient.months} month${c.insufficient.months === 1 ? '' : 's'})`;
+  if (c.insufficient) return `${name} · insufficient data (${c.insufficient.touches} touches, ${c.insufficient.months} month${c.insufficient.months === 1 ? '' : 's'}${c.insufficient.baseline === 0 ? ', no strike-matched touch' : ''})`;
   const pc = (x: number) => `${(x * 100).toFixed(0)}%`;
   const pts = (x: number) => `${x >= 0 ? '+' : '−'}${(Math.abs(x) * 100).toFixed(1)} pts`;
   const ci = c.ci ? ` (95% CI ${pts(c.ci[0])} to ${pts(c.ci[1])})` : '';

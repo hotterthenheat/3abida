@@ -573,8 +573,14 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     }
     try {
       const b = await barsOf(name, day);
-      mkdirSync(join(root, name, day), { recursive: true });
-      writeFileSync(file, gzipSync(Buffer.from(JSON.stringify(b.bars))));
+      /* KEPT ONLY ONCE THE SESSION HAS CLOSED (2026-10-14): a scorecard run by hand mid-session asked today's bars and
+         kept the morning's for good, so the 4:05 pm recap and the calibration read half a session — before 4:05 pm New
+         York on the day they are handed back and asked again next time */
+      const at = nyMinute(clock());
+      if (day < at.day || (day === at.day && at.minute >= 16 * 60 + 5)) {
+        mkdirSync(join(root, name, day), { recursive: true });
+        writeFileSync(file, gzipSync(Buffer.from(JSON.stringify(b.bars))));
+      }
       return b.bars;
     } catch {
       return null;

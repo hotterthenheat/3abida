@@ -856,8 +856,13 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   pid); the store re-reads a grown file before writing; a minute in a file twice reads as its first row.
 - THE TRACK RECORD (2026-10-13, the owner's item 2; docs/data-feed.md "The track record"): data/feed/trackRecord.ts
   (pure) scores the call wall, put wall, flip and three heaviest strikes on the store's FINAL rows against baselines on
-  the same days — B1 random levels (Osler), B2 strike-matched (same side, same distance, |gamma| under the column's
-  median, never a real level), B3 the mirror — a level counting only once it has stood a minute, a touch once an
+  the same days — B1 random levels (Osler), B2 strike-matched FIXED AT THE OPEN (2026-10-14 — the owner's "Baseline
+  levels use only information available at the open"; re-picked every minute it seldom stood a minute: 9 touches with a
+  15-minute outcome against 293 on SPY's twelve sessions): the open column's strikes in each real level's distance band, either side, |gamma| under
+  that column's median, never a real level then nor in a minute it is one (trackRecord `strikeMatchedOf`) — still thin by
+  the data near the money (every strike within a few dollars carries more than the median |gamma|), so a cell with NO
+  strike-matched touch says "insufficient data (…, no strike-matched touch)" and prints no rate; whether the band takes
+  its own lowest-|gamma| strikes instead is the owner's call, not built — B3 the mirror — a level counting only once it has stood a minute, a touch once an
   approach, a bounce the close on the approach side at 15 and 30 minutes, MFE/MAE in points; real − B2 with a seeded
   day-block bootstrap interval and the months won; the regime's next-range by tercile and Baltussen's last half hour.
   Every parameter is server/scorecard.config.json, the variants tried print beside every line, the most recent six
@@ -945,6 +950,21 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   badge "Replay · Oct 13 · 10:42 am" is never shed. The ladder's ghost dots (10 filled, 30 fainter, 60 a ring, on the
   spine's scale) come off the same source the ladder reads — columns in a replay, the books read live — never mixed.
   scripts/replay-cursor-proof.ts (i)–(iii) runs in `npm test`.
+- THE SESSION RECAP (2026-10-14, item 9; docs/data-feed.md "The session recap"): a session is over at 4:05 pm New York;
+  its recap is BUILT FROM THE OTHER ITEMS' OWN FUNCTIONS, never a second count — the rows by the scorecard's loader
+  (scorecard.ts `loadSession`), the levels touched the track record's rows (`touchesOf`; every field but the tercile,
+  the strike-matched counts beside, never a rate), the close against ±σ and max σ used the priced move's row
+  (pricedMove.ts `calibrationDay`) through the verdict `calibrate` counts (`dayVerdict`), the wall moves the chips'
+  function (trailModel `wallMovesOf`), the flip crossings the level alerts' side rule at one minute, the regime path the
+  strip's percentiles (quantiles kept in the recap); the browser adds the session's alerts with `outcomesOf` at +15 and
+  +30 and the picture — the house's chart off-screen, `takeScreenshot(true, false)` (lightweight-charts 5.2's
+  addTopLayer), on the panel's ground, ±1σ held in view, no wall widening the axis. server/recap.ts keeps recap.json
+  (a version a figure; built again when an input changed), the recorder builds it at 4:05 pm and 5:05 pm, the watcher
+  (components/review/RecapWatcher.tsx) posts it to the paper Journal's day (data/review/recaps.ts — figures in
+  slayer_journal_recaps, pictures in IndexedDB), the month marks the day with the candles glyph, a quiet chip says so.
+  THE OFFICIAL CLOSE is read from 4:01 pm New York and kept from 4:30 pm; a session's minute bars are kept only once it
+  has closed (fieldBackfill `bars`). scripts/session-recap-proof.ts runs in `npm test` — on this machine every recap's
+  numbers equal the item-2 and item-4 rows for its session.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Theta Data alone since 2026-10-14 — Massive's
   before, `wired: true`; docs/data-feed.md "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With
   Theta Data up the Sessions page's Days card

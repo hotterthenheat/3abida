@@ -78,6 +78,50 @@ export function loadConfig(path = CONFIG): TrackConfig {
   return JSON.parse(readFileSync(path, 'utf8')) as TrackConfig;
 }
 
+export interface LoadedSession {
+  session: TrackSession;
+  source: 'final' | 'rebuilt';
+  at10: CalibrationDay['at10'];
+}
+/** A session the track record cannot read: why, and the regular bars it has (the session recap still reads them) */
+export interface NoSession {
+  why: string;
+  bars: TrackSession['bars'];
+}
+/**
+ * A SESSION'S ROWS AND BARS as the track record reads them — the store's final rows where the recorder wrote 90% of the
+ * session's minutes, else the session rebuilt (its past.json.gz through the store's rowsOf, the same code path) — and its
+ * 10:00 am straddle. One function for the scorecard and the session recap (server/recap.ts).
+ */
+export async function loadSession(backfill: FieldBackfill, store: FieldStore, root: string, name: string, day: string, prevClose: number | null): Promise<LoadedSession | NoSession> {
+  const bars = await backfill.minutes(name, day);
+  if (!bars?.length) return { why: 'No minute bars for the session on this machine.', bars: [] };
+  const trackBars = bars
+    .filter(b => b.session === 'r' && b.open != null && b.high != null && b.low != null)
+    .map(b => ({ time: b.time, open: b.open!, high: b.high!, low: b.low!, close: b.close }));
+  if (trackBars.length < 30) return { why: `Only ${trackBars.length} regular minute bars for the session.`, bars: trackBars };
+  const final = store.readRows(name, day, 'final');
+  let rows: StoreRow[] = final;
+  let source: 'final' | 'rebuilt' = 'final';
+  let dir: [number, number][] | undefined;
+  if (rows.length < trackBars.length * 0.9) {
+    const file = join(root, name, day, 'past.json.gz');
+    if (!existsSync(file))
+      return { why: `The store holds ${final.length} of the session's ${trackBars.length} minutes as final rows and the session has not been rebuilt — the track record reads a session from 90%.`, bars: trackBars };
+    const past = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')) as PastDay;
+    rows = store.rowsOf(past, bars);
+    source = 'rebuilt';
+    if (past.total?.rows.some(r => r.length >= 5)) dir = past.total.rows.filter(r => r[4] != null).map(r => [r[0], r[4] as number]);
+  }
+  if (!rows.length) return { why: 'The rebuilt session holds no columns.', bars: trackBars };
+  /* the 10:00 am straddle (the calibration's second budget): the row of 10:00 New York, its σ to the close */
+  const r10 = rows.find(r => nyMinuteOf(r.m) === 10 * 60);
+  const s10 = r10 ? sigmaOf(r10.str0) : null;
+  const at10: CalibrationDay['at10'] = r10 && s10 != null && s10 > 0 ? { spot: r10.spot, sigma: s10, src: r10.str0?.src ?? 'model' } : null;
+  return { session: { day, rows: rows.map(r => ({ m: r.m, spot: r.spot, flip: r.flip, cw: r.cw, pw: r.pw, top: r.top, net: r.net, netP: r.netP, cells: r.cells, str0: r.str0 })), bars: trackBars, prevClose, dir }, source, at10 };
+}
+export const isLoaded = (x: LoadedSession | NoSession): x is LoadedSession => 'session' in x;
+
 const isoAdd = (iso: string, days: number) => {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
@@ -104,31 +148,9 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
   }
 
   /** A session's rows and bars: the store's final rows where the recorder wrote them, else the rebuilt session's */
-  async function sessionOf(name: string, day: string, prevClose: number | null): Promise<{ session: TrackSession; source: 'final' | 'rebuilt'; at10: CalibrationDay['at10'] } | null> {
-    const bars = await backfill.minutes(name, day);
-    if (!bars?.length) return null;
-    const trackBars = bars
-      .filter(b => b.session === 'r' && b.open != null && b.high != null && b.low != null)
-      .map(b => ({ time: b.time, open: b.open!, high: b.high!, low: b.low!, close: b.close }));
-    if (trackBars.length < 30) return null;
-    const final = store.readRows(name, day, 'final');
-    let rows: StoreRow[] = final;
-    let source: 'final' | 'rebuilt' = 'final';
-    let dir: [number, number][] | undefined;
-    if (rows.length < trackBars.length * 0.9) {
-      const file = join(root, name, day, 'past.json.gz');
-      if (!existsSync(file)) return null;
-      const past = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')) as PastDay;
-      rows = store.rowsOf(past, bars);
-      source = 'rebuilt';
-      if (past.total?.rows.some(r => r.length >= 5)) dir = past.total.rows.filter(r => r[4] != null).map(r => [r[0], r[4] as number]);
-    }
-    if (!rows.length) return null;
-    /* the 10:00 am straddle (the calibration's second budget): the row of 10:00 New York, its σ to the close */
-    const r10 = rows.find(r => nyMinuteOf(r.m) === 10 * 60);
-    const s10 = r10 ? sigmaOf(r10.str0) : null;
-    const at10: CalibrationDay['at10'] = r10 && s10 != null && s10 > 0 ? { spot: r10.spot, sigma: s10, src: r10.str0?.src ?? 'model' } : null;
-    return { session: { day, rows: rows.map(r => ({ m: r.m, spot: r.spot, flip: r.flip, cw: r.cw, pw: r.pw, top: r.top, net: r.net, netP: r.netP, cells: r.cells, str0: r.str0 })), bars: trackBars, prevClose, dir }, source, at10 };
+  async function sessionOf(name: string, day: string, prevClose: number | null): Promise<LoadedSession | null> {
+    const got = await loadSession(backfill, store, root, name, day, prevClose);
+    return isLoaded(got) ? got : null;
   }
 
   /** The job for one name: every session on disk, the main record and the hold-out, written as scorecard.json */

@@ -639,15 +639,17 @@ cursor is on the column's call wall, put wall or one of its three heaviest strik
   (the net over the trailing 60 sessions' rows, point in time), the time bucket and the touch number.
 - **Baselines on the same days, by the same rules**: B1 random (twenty levels above and twenty below the open,
   uniform within the prior month's largest open-to-high or open-to-low distance, seeded — Osler), B2 strike-matched
-  (at each minute, for each real level, a listed strike on the same side at the same distance within a step whose
-  |gamma| is under the column's median, never a real level), B3 distance-matched (the mirror: the real level's
+  (FIXED AT THE OPEN since 2026-10-14, below: for each real level of the open's column, the listed strikes in the same
+  distance band from the open's price — within a step of the level's distance, either side — whose |gamma| is under
+  that column's median, never a real level then, nor in a minute it is that minute's real level), B3 distance-matched (the mirror: the real level's
   distance from spot when it formed, on the other side, kept until the level changes). The real rate minus B2's
   carries a 95% interval from a day-block bootstrap (1,000 reps, seeded) and the months won as k of n with a
   two-sided binomial p. Median MFE and MAE beside.
 - **Regime tests**: the realized range over the next 30 and 60 minutes by regime tercile, raw and over the straddle's
   implied move; the last half hour (Baltussen et al. 2021): the 3:30 to 4:00 return on the prior-close to 3:30
   return, by the regime's sign at 3:30, for the house's net and for UW's `_dir` series.
-- **Multiple testing**: every parameter is in server/scorecard.config.json (`record-2026-10-13.1`); the variants
+- **Multiple testing**: every parameter is in server/scorecard.config.json (`record-2026-10-14.1` — `.13.1` until B2
+  was corrected, below); the variants
   tried (96: three tolerances, two horizons, ten splits, four level types, the tolerance variants on the whole
   alone) stand beside every line; the most recent six months are a hold-out evaluated ONCE per config version and
   kept in the file with the moment and the version — a run under a new version evaluates it again and says so.
@@ -659,6 +661,31 @@ cursor is on the column's call wall, put wall or one of its three heaviest strik
   level that changes every minute never counts; a strike-matched level is a listed strike and never a real level.
 - **On screen** (2026-10-13, SPY on 12 rebuilt sessions): every line reads "insufficient data", as it must until the
   backfill at home has run — the job scored 2 main sessions and a 10-session hold-out.
+
+### The strike-matched baseline, corrected (2026-10-14)
+
+Found while building the session recap (item 9), which prints the strike-matched counts beside the real touches: **B2
+almost never had a touch.** It was re-picked every minute from that minute's column — the strike at the real level's
+distance from the price, which is the level's own neighbour, and which changes as the price moves — so it seldom stood
+the minute a touch needs. Over SPY's 12 sessions on this machine B2 had 9 touches with a 15-minute outcome against 293
+real (call wall 0, put wall 0, flip 8, heaviest strikes 1); QQQ's 24 against 320. The owner's spec says "Baseline
+levels use only information available at the open", so B2 is now **fixed at the open** (trackRecord
+`strikeMatchedOf`): the open's column picks it, and it stands all session (a minute in which it is one of that minute's
+real levels is not counted for it). The config is `record-2026-10-14.1`, so the hold-out was evaluated again and says
+so.
+
+**What the data says about it, plainly:** fixed at the open, B2 is still thin near the money, and that is the data, not
+the code. Within a few dollars of SPY's price every listed strike carries more than the column's median |gamma| — gamma
+peaks at the money — so the only strikes under the median at a wall's distance are ten to thirty dollars out, often on
+the far side of the price (SPY Oct 12: the open's B2 strikes sat at 773 for the call wall at 785 and the put wall at
+772, while the session ranged 777.05 to 779.40). After the fix SPY's 12 sessions have 23 B2 touches (flip 21,
+heaviest strikes 2, either wall 0), QQQ's 57. So a cell whose baseline has no touch now says
+"insufficient data (…, no strike-matched touch)" and prints no rate — a real rate with nothing beside it would be the
+bare rate the owner ruled out. The proof (track-record-proof) checks that B2 comes from the open's column alone, that
+rewriting every column after the open leaves it as it was, that each B2 touch is one of the open's strikes and never
+the real level of its minute, and the empty-baseline line. **For the owner to decide:** whether the band should take
+the lowest-|gamma| strikes within it (relative to the band, not the column's median), which would give the walls a
+baseline near the money; it is not built — the definition is the owner's.
 
 ### SPX's price, checked (2026-10-13 — the owner: "per minute, compute SPX_tape / SPY_bar_close over 5 past sessions
 and today. Pass if the ratio stays within ±0.02% of that day's median in ≥99% of regular minutes")
@@ -742,7 +769,9 @@ budget and the calibration (server/pricedMove.ts, `GET /feed/field/<NAME>/move?d
   otherwise ending at the last bar over (or under) the candles it spans, on the pane's ground — never at the right
   edge, where the pinned strike chips stand. After the close the lines end at the 4:00 pm bar and the readout measures
   the session to its OFFICIAL close (UW's daily bar, `close.json`, served with the budget), never the 3:59 pm bar or
-  the evening's last trade; a move that rounds to nothing reads "0.0σ".
+  the evening's last trade; a move that rounds to nothing reads "0.0σ". The official close is read from 4:01 pm New
+  York and kept from 4:30 pm (2026-10-14, for the 4:05 pm recap: it waited for 21:00 UTC, 5:00 pm in daylight time,
+  so the 4:05 pm calibration stood on the 3:59 pm bar); a read before 4:30 pm is asked again rather than kept.
 - **The calibration** (How sure, "Expected move · calibration"; written nightly with the scorecard as
   `move-calibration.json`, every close the session's official one): the close inside ±1σ and ±2σ of the prior close's budget and of the 10:00 am straddle
   (against the 10:00 spot), the touch of ±1σ and ±2σ (bar highs and lows), the median |close − prior close| ÷ σ,
@@ -1028,6 +1057,73 @@ minutes), Go to 7:00 am, a random start (Oct 1, Oct 2, Oct 8), the future faded,
 an hour of Oct 13 at 60× wrote seven events to the replay log (a Tier-1 flip cross, Tier-2 top-3 and wall-move notices)
 and none to the live log. Its call wall at the cursor flapped 780 → 785 → 780 → 785 within 30 minutes — the modeled
 field's own walls, written as they moved. Shots: docs/next-builds-2026-10-13/replay-*.png.
+
+## The session recap (2026-10-14, the owner's item 9)
+
+"At 4:05 p.m. ET, generate flip crossings, wall moves, alerts fired with +15/+30 min outcomes, close vs ±1 and ±2
+sigma, max sigma used, the regime path, and a chart image via takeScreenshot({ addTopLayer: true }) … Post it to the
+Journal room. Data: snapshot store, alert log. Acceptance: the recap's numbers equal the item-2 and item-4 rows for that
+session." Built from what the track record and the priced move already read, through their own functions — the recap
+is pure (src/data/feed/sessionRecap.ts), the server builds and keeps it (server/recap.ts), the shell posts it
+(components/review/RecapWatcher.tsx) and the Journal's day shows it (components/review/SessionRecap.tsx).
+
+- **When**: a session is over at 4:05 pm New York on its day. The always-on recorder builds every recorded name's recap
+  at 4:05 pm, ahead of the scorecard (which can take a while over two years of sessions), and again at 5:05 pm, once the
+  official close is kept; a dev server builds one on its first ask. Kept as `.feed-cache/field/<NAME>/<D>/recap.json`
+  and built again when something it read changed (the store's final rows grown, the session rebuilt, the close kept,
+  the config) — a version a figure, so the Journal's entry moves only when a figure did. `GET /feed/field/<NAME>/recap?
+  day=<D>` (`&field=1` adds the rows' columns and the day's budget for the picture), `GET /feed/field/recaps?days=<N>`
+  (the recorded names' sessions — a name the recorder wrote rows for; a name Terrain only opened has rebuilt sessions
+  and no recap).
+- **The rows**: the scorecard's own loader (server/scorecard.ts `loadSession`, shared): the store's final rows where
+  the recorder wrote 90% of the session, else the session rebuilt; neither, and the recap says why and still carries
+  the close.
+- **Flip crossings**: each minute's close against the column's flip that minute, against the side the last close stood
+  on, the side carried over a minute with no flip — the level alerts' rule at one confirmation minute, every crossing,
+  no cooldown. **Wall moves**: the field's chips' rule, one function for both (trailModel `wallMovesOf`, a new strike
+  held three minutes), each in strikes of its column's grid.
+- **Levels touched**: the track record's own rows for the session (trackRecord `touchesOf` at the scorecard's
+  tolerance — `sessionTouches` is what the record counts) — each real level's touches with their +15 and +30 minutes,
+  every field but the tercile, and the strike-matched levels' counts the same session beside them; counts, never a
+  rate ("One session is not a record").
+- **The close against ±σ, and max σ used**: the priced move's row for the day (server/pricedMove.ts `calibrationDay`,
+  the calibration's own) through its verdict (pricedMove `dayVerdict`, which `calibrate` now counts): the close in σ,
+  inside ±1σ and ±2σ, touched ±1σ and ±2σ, the farthest the session went in σ and the minute it did, and from 10:00 am
+  against the straddle then; the official close, or the 3:59 pm minute's while it was not in (said so, and posted
+  again when it is).
+- **The regime path**: the net at each half-hour's last minute and its percentile against the same half-hour over the
+  sessions before (regimeBucketsFor — the quantiles kept in the recap, since the reference moves past the day), and the
+  minutes its sign turned. Estimated dealer gamma on an assumed sign, never the flip's side.
+- **The alerts** (the browser's — the logs are on the machine): every level alert of the session (data/levelAlerts.ts,
+  not a replay's) with its +15 and +30 minutes by `outcomesOf` on the recap's own bars — held or through, the points —
+  and the house's alerts read off the feed's figures with the move since; a horizon past the session is said so.
+- **The picture**: the house's chart drawn off-screen (1280 × 720, five-minute bars) on the session's minutes and its
+  rows' columns as the field, the priced move's ±1σ held in view with its lines and readout, the regime strip, the
+  wall chips, then `takeScreenshot(true, false)` — lightweight-charts 5.2's positional form of
+  `takeScreenshot({ addTopLayer: true })`, the top layer and its primitives in, no crosshair — laid on the panel's
+  ground (the chart is frameless; a picture with no ground reads wrong on any other). The levels handed to it name no
+  wall, so a wall twenty strikes off never widens the axis. Kept in IndexedDB (`slayer_recaps`), the figures in
+  `slayer_journal_recaps` (the newest sixty sessions); taken again only when what it draws changed.
+- **Posted**: the paper Journal's day opens with "The session" under it (a tab a name), the month marks the day with
+  the candles glyph, and a quiet chip in the notices' column says "SPY's session recap is in the Journal" (a press
+  opens the day). The first look on a machine posts the newest session alone; after that every session since, so a
+  Friday the terminal was shut through is posted on Monday's first look.
+
+**Acceptance** (scripts/session-recap-proof.ts, `npm test`): on thirty built sessions the recap's touches ARE the
+track record's rows for each session (610 rows) and its strike-matched counts the baseline's own; the wall moves the
+chips' one for one; the calibration counts the days' verdicts; the version keys. **On this machine, through the
+server's own build on a copy of each session's files (no vendor asked): SPY 13 of 13 and QQQ 12 of 12 recaps' touches
+equal the scorecard's rows for the session, and 13 of 13 and 12 of 12 closes equal move-calibration.json's row for the
+day.** The times: no recap at 4:04 pm, one at 4:05 pm; the official close read at 4:10 pm and not kept, kept at 4:40
+pm; a session's minute bars handed back at 2:00 pm and not kept (a scorecard run by hand mid-session kept the morning's
+for good before), kept at 4:10 pm.
+
+**What the sessions here say** (SPY, the last twelve rebuilt plus Oct 13 from its close alone): the close inside ±1σ on
+11 of 13 (Apr 3, 2025 at −2.56σ and Oct 5 at +1.00σ outside); ±1σ touched on 7 of 13; flip crossings from 0 to 88 a
+session (Apr 2, 2025: 88; Oct 12: 12, whipsaws round 777.37 in the afternoon); Oct 13 has no level rows here (the store
+holds 10 of its 390 minutes as final rows and it is not rebuilt yet). Seen in the browser (Los Angeles, dark): both
+posted in 4.1 s with their pictures, the chips, the month's marks, the day's card, no errors. Shots:
+docs/next-builds-2026-10-13/recap-*.png.
 
 ## The Backtest reads real days (2026-10-12)
 

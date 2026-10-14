@@ -35,7 +35,7 @@
 ==================================================
 */
 
-import { ChevronLeft, ChevronRight, PenLine } from 'lucide-react';
+import { CandlestickChart, ChevronLeft, ChevronRight, PenLine } from 'lucide-react';
 import { card } from './DeskShell';
 import { dirInk, pct, usdSigned } from './words';
 import { monthWeeks, monthWords, shiftMonth, type DayTotal } from '../../data/review/journalFigures';
@@ -68,11 +68,13 @@ interface Props {
   onPick: (day: string | null) => void;
   /** Days with words of their own */
   noted: ReadonlySet<string>;
+  /** Days with a session recap (the owner's item 9) */
+  recapped?: ReadonlySet<string>;
   /** The word on today's day — the backtest's book says "Clock's day": its today is the replayed one */
   todayWord?: string;
 }
 
-const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted, todayWord = 'Today' }: Props) => {
+const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted, recapped, todayWord = 'Today' }: Props) => {
   const weeks = monthWeeks(month);
   const inMonth = [...days.values()].filter(d => d.day.startsWith(month));
   const net = inMonth.reduce((x, d) => x + d.net, 0);
@@ -143,7 +145,7 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                       type="button"
                       onClick={() => onPick(on ? null : d)}
                       aria-pressed={on}
-                      title={`${DAYS[date.getDay()]}, ${monthName} ${date.getDate()} — ${t ? `${t.n} closed, ${usdSigned(t.net)}` : future ? 'still to come' : 'nothing closed'} · ${on ? 'close the day' : 'open the day'}`}
+                      title={`${DAYS[date.getDay()]}, ${monthName} ${date.getDate()} — ${t ? `${t.n} closed, ${usdSigned(t.net)}` : future ? 'still to come' : 'nothing closed'}${recapped?.has(d) ? ' · the session has a recap' : ''} · ${on ? 'close the day' : 'open the day'}`}
                       className={`hit relative min-w-0 min-h-[52px] lg:min-h-[76px] rounded-md lg:rounded-lg border px-1 lg:px-2.5 py-1 lg:py-1.5 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-silver/60 ${on ? 'ring-2 ring-silver border-transparent' : isToday ? 'border-silver/60' : 'border-borderSubtle hover:border-borderMuted'} ${!t ? 'hover:bg-ink/[0.03]' : ''}`}
                       style={ink ? { background: `rgb(var(--${ink}) / calc(${wash.toFixed(3)} * var(--day-wash)))`, borderColor: on ? undefined : `rgb(var(--${ink}) / ${(0.3 + wash).toFixed(3)})` } : undefined}
                       data-journal-day={d}
@@ -153,7 +155,13 @@ const JournalMonth = ({ month, onMonth, home, days, today, picked, onPick, noted
                       <span className="flex items-center gap-1.5">
                         <span className={`font-mono text-[11px] font-bold tnum ${isToday || on ? 'text-silver' : t ? 'text-textPrimary' : future ? 'text-textMuted/80' : 'text-textMuted'}`}>{date.getDate()}</span>
                         {isToday && <span className="max-lg:hidden font-mono text-[11px] font-semibold uppercase tracking-widest text-silver">{todayWord}</span>}
-                        {noted.has(d) && <PenLine className="ml-auto w-3 h-3 text-silver" strokeWidth={2} aria-label="This day has words of its own" data-journal-day-noted />}
+                        {(noted.has(d) || recapped?.has(d)) && (
+                          <span className="ml-auto inline-flex items-center gap-1">
+                            {/* a mark says what it is (2026-09-26): the pen, words of its own; the candles, the session's recap */}
+                            {recapped?.has(d) && <CandlestickChart className="w-3 h-3 text-silver" strokeWidth={2} aria-label="This session has a recap" data-journal-day-recap-mark />}
+                            {noted.has(d) && <PenLine className="w-3 h-3 text-silver" strokeWidth={2} aria-label="This day has words of its own" data-journal-day-noted />}
+                          </span>
+                        )}
                       </span>
                       {t && (
                         <span className="mt-1.5 block">

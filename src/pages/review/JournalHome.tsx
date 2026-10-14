@@ -88,6 +88,7 @@ import { PERIODS, byDelta, byDte, byFlip, byHour, byIv, byKept, byMistake, byMoo
 import RulesKept from '../../components/review/RulesKept';
 import { useJournalSource, type JournalKind } from '../../data/review/journalSource';
 import { contractWords } from '../../data/review/quotes';
+import { usePostedRecaps } from '../../data/review/recaps';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -218,6 +219,10 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
     for (const c of account ? [{ id: account }] : source.containers) for (const [d, n] of Object.entries(source.notesOf(c.id))) if ((n.plan ?? '').trim() || (n.review ?? '').trim()) out.add(d);
     return out;
   }, [source, account]);
+
+  /* the days with a session recap (the owner's item 9) — the paper book's, whose days are the market's */
+  const recapsPosted = usePostedRecaps();
+  const recapped = useMemo(() => (kind === 'paper' ? new Set(Object.values(recapsPosted).map(r => r.day)) : new Set<string>()), [recapsPosted, kind]);
 
   /* ---- THE PERIOD, DRAWN ---- */
   const run = useMemo(() => runningOf(rows), [rows]);
@@ -416,7 +421,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
           day — a four-figure day is 60px wide at 14px and spilled); from 1400 a day has 86px+, at 1440 the 92px he saw */}
       <div className="grid gap-3 items-stretch min-[1400px]:grid-cols-[minmax(0,1fr)_340px]">
         <Swap key={monthKey} out={monthOut} late={alive.current} className="min-w-0 min-h-0" data-journal-month-region>
-          <JournalMonth month={month} onMonth={m => set({ month: m === restMonth ? null : m })} home={home} days={days} today={today} picked={livePicked} onPick={openDay} noted={noted} todayWord={kind === 'backtest' ? 'Clock’s day' : 'Today'} />
+          <JournalMonth month={month} onMonth={m => set({ month: m === restMonth ? null : m })} home={home} days={days} today={today} picked={livePicked} onPick={openDay} noted={noted} recapped={recapped} todayWord={kind === 'backtest' ? 'Clock’s day' : 'Today'} />
         </Swap>
         <Swap key={periodKey} out={periodOut} late={alive.current} className="min-w-0 min-h-0" data-journal-stats-region>
           <JournalStats rows={rows} periodDays={periodDays} periodLabel={periodLabel} />
@@ -426,7 +431,7 @@ export const JournalHome = ({ kind: liveKind, books = false }: { kind: JournalKi
       {/* ---- THE DAY, under the month, across the page ---- */}
       {picked && (
         <Swap key={dayKey} out={dayOut} late={alive.current} data-journal-day-region>
-          <JournalDay day={picked} total={pickedTotal} holders={holders} onDayNote={source.setDayNote} onOpen={openTrade} onClose={() => openDay(null)} today={today} columns={dayColumns} testId={testId} />
+          <JournalDay day={picked} total={pickedTotal} holders={holders} onDayNote={source.setDayNote} onOpen={openTrade} onClose={() => openDay(null)} today={today} columns={dayColumns} testId={testId} recaps={kind === 'paper'} />
         </Swap>
       )}
 

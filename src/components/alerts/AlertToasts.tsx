@@ -43,6 +43,8 @@ import { nyClock } from '../../core/nyTime';
 import { UndoToasts } from '../ui/undo';
 import { notifyIfHidden, speak } from '../layout/shellPrefs';
 import { useLevelLog } from '../../data/levelAlerts';
+import { usePostedRecaps } from '../../data/review/recaps';
+import { isoDayLabel } from '../../core/format';
 
 /** How long a snooze from the chip rests the alert */
 export const SNOOZE_MS = 15 * 60_000;
@@ -72,6 +74,11 @@ const AlertToasts = () => {
   const levelShown = useLevelLog()
     .filter(e => e.tier <= 2 && now - e.at < TOAST_MS)
     .slice(0, AT_MOST);
+  /* A SESSION'S RECAP POSTED TO THE JOURNAL (the owner's item 9) — a quiet chip, no chime; a press opens the day */
+  const recapShown = Object.values(usePostedRecaps())
+    .filter(r => now - r.updatedAt < TOAST_MS)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 2);
   /* the paper account's, in the same column — a verdict stays twice as long as a fill */
   const paperShown = paper.filter(t => now - t.at < (t.kind === 'failed' || t.kind === 'passed' ? TOAST_MS * 2 : TOAST_MS)).slice(0, AT_MOST);
 
@@ -104,8 +111,8 @@ const AlertToasts = () => {
 
   /* wake when the oldest chip on screen is due to leave */
   useEffect(() => {
-    if (shown.length === 0 && paperShown.length === 0 && levelShown.length === 0) return;
-    const soonest = Math.min(...shown.map(x => x.r.at + TOAST_MS), ...levelShown.map(e => e.at + TOAST_MS), ...paperShown.map(t => t.at + (t.kind === 'failed' || t.kind === 'passed' ? TOAST_MS * 2 : TOAST_MS))) - Date.now();
+    if (shown.length === 0 && paperShown.length === 0 && levelShown.length === 0 && recapShown.length === 0) return;
+    const soonest = Math.min(...shown.map(x => x.r.at + TOAST_MS), ...levelShown.map(e => e.at + TOAST_MS), ...recapShown.map(r => r.updatedAt + TOAST_MS), ...paperShown.map(t => t.at + (t.kind === 'failed' || t.kind === 'passed' ? TOAST_MS * 2 : TOAST_MS))) - Date.now();
     const id = window.setTimeout(() => wake(t => t + 1), Math.max(0, soonest) + 20);
     return () => window.clearTimeout(id);
   });
@@ -163,6 +170,23 @@ const AlertToasts = () => {
             Snooze 15m
           </button>
         </span>
+      ))}
+      {recapShown.map(r => (
+        <button
+          key={`recap:${r.key}:${r.version}`}
+          type="button"
+          onClick={() => navigate(`/practice/journal?day=${r.day}`)}
+          title="Open the day in the Journal"
+          className="shell-toast pointer-events-auto inline-flex items-center gap-2 h-7 pl-2.5 pr-3 rounded-md border bg-canvas/85 backdrop-blur-md backdrop-saturate-150 shadow-lg shadow-black/40 font-mono text-[11px] select-none"
+          style={{ color: 'rgb(var(--silver))', borderColor: alpha('rgb(var(--silver))', 0.5) }}
+          data-recap-toast={r.key}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgb(var(--silver))' }} aria-hidden />
+          <span className="text-textPrimary">
+            {r.name}&rsquo;s session recap is in the Journal{r.updatedAt !== r.postedAt ? ', its figures changed' : ''}
+          </span>
+          <span className="text-textMuted">{isoDayLabel(r.day)}</span>
+        </button>
       ))}
       {levelShown.map(e => {
         const ink = e.tier === 1 ? ALERT : 'rgb(var(--silver))';

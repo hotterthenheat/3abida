@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
-    "test": "tsx scripts/terrain-setups-proof.ts && tsx scripts/alerts-proof.ts && tsx scripts/feed-proof.ts && tsx scripts/feed-rooms-proof.ts && tsx scripts/trail-field-proof.ts && tsx scripts/field-backfill-proof.ts && tsx scripts/field-store-proof.ts && tsx scripts/track-record-proof.ts && tsx scripts/priced-move-proof.ts && tsx scripts/bead-scale-proof.ts && tsx scripts/expiry-window-proof.ts && tsx scripts/level-alerts-proof.ts && tsx scripts/replay-cursor-proof.ts",
+    "test": "tsx scripts/terrain-setups-proof.ts && tsx scripts/alerts-proof.ts && tsx scripts/feed-proof.ts && tsx scripts/feed-rooms-proof.ts && tsx scripts/trail-field-proof.ts && tsx scripts/field-backfill-proof.ts && tsx scripts/field-store-proof.ts && tsx scripts/track-record-proof.ts && tsx scripts/priced-move-proof.ts && tsx scripts/bead-scale-proof.ts && tsx scripts/expiry-window-proof.ts && tsx scripts/level-alerts-proof.ts && tsx scripts/replay-cursor-proof.ts && tsx scripts/session-recap-proof.ts",
     "theme:audit": "node scripts/theme-audit.mjs",
     "links:check": "node scripts/check-links.mjs",
     "words:check": "node scripts/check-words.mjs",

@@ -28,6 +28,8 @@
                    each when more than one traded the day),
                    kept as they are typed with the house's
                    "Kept" (the trade page's grammar)
+    under them     THE SESSION — its recap, posted after the
+                   close (the owner's item 9), a tab a name
 ==================================================
 */
 
@@ -43,6 +45,7 @@ import { dirInk, pct, usdSigned } from './words';
 import { fmtClockLocal } from '../gex/chartTime';
 import { titleOf, type DayNote, type JournalRow } from '../../data/review/journal';
 import { runningOf, type DayTotal } from '../../data/review/journalFigures';
+import SessionRecaps from './SessionRecap';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -129,9 +132,11 @@ interface Props {
   /** The journal's columns — the same the period's table wears */
   columns: Column<JournalRow>[];
   testId: string;
+  /** The session's recaps under the day (the owner's item 9) — the paper book's days; the backtest's are replayed ones */
+  recaps?: boolean;
 }
 
-const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, columns, testId }: Props) => {
+const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, columns, testId, recaps = false }: Props) => {
   const rows = total?.rows ?? [];
   const newestFirst = useMemo(() => [...rows].reverse(), [rows]);
   const curve = useMemo(() => runningOf(rows), [rows]);
@@ -235,6 +240,8 @@ const JournalDay = ({ day, total, holders, onDayNote, onOpen, onClose, today, co
           )}
         </div>
       </div>
+      {/* THE SESSION — its recap, posted after the close (components/review/SessionRecap.tsx) */}
+      {recaps && <SessionRecaps day={day} />}
     </div>
   );
 };

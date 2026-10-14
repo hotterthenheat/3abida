@@ -10,6 +10,7 @@ import AlertsDrawer from '../alerts/AlertsDrawer';
 import WatchlistDrawer from './WatchlistDrawer';
 import AlertWatcher from '../alerts/AlertWatcher';
 import LevelAlertWatcher from '../alerts/LevelAlertWatcher';
+import RecapWatcher from '../review/RecapWatcher';
 import AlertToasts from '../alerts/AlertToasts';
 import PaperRunner from '../paper/PaperRunner';
 import ScrollHome from './ScrollHome';
@@ -318,6 +319,8 @@ const AppShell = () => {
       <AlertWatcher />
       {/* the tiered level alerts (the owner's item 7): the levels a name's watch follows, a minute at a time */}
       <LevelAlertWatcher />
+      {/* the session recap (the owner's item 9): posted to the Journal at 4:05 pm New York, its picture taken off-screen */}
+      <RecapWatcher />
       {/* A PAPER ACCOUNT'S ORDERS, WATCHED ON EVERY PAGE (2026-09-22) — a stop fills while the reader is elsewhere, and the
           chip above says so (data/paper/store.ts) */}
       <PaperRunner />

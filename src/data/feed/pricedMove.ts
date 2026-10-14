@@ -174,6 +174,38 @@ export interface CalibrationDay {
   low: number;
   /** 10:00 am New York: the spot and the remaining 1σ to the close off the straddle then */
   at10?: { spot: number; sigma: number; src: 'nbbo' | 'model' } | null;
+  /** Where the close came from: the session's official close, or its last regular minute's while the official one was
+      not in yet (server/pricedMove.ts officialClose) — absent on a row written before 2026-10-14 */
+  closeFrom?: 'official' | 'bar';
+}
+/** ONE SESSION AGAINST ITS BUDGET — the calibration counts these and the session recap (item 9) prints them, so the two
+    never disagree on a day */
+export interface DayVerdict {
+  /** (close − prior close) ÷ σ_day */
+  sigmas: number;
+  /** The close inside ±1σ and ±2σ of the prior close */
+  inside: [boolean, boolean];
+  /** The session's highs and lows reached ±1σ and ±2σ */
+  touched: [boolean, boolean];
+  /** The farthest the session went from the prior close, in σ_day, signed (+ above): the high's or the low's, the larger */
+  max: number;
+  /** From 10:00 am: the close against the spot then, in the 1σ left to the close then, and inside ±1σ and ±2σ of it */
+  at10: { sigmas: number; inside: [boolean, boolean] } | null;
+}
+export function dayVerdict(d: CalibrationDay): DayVerdict | null {
+  if (!(d.sigmaDay > 0 && d.prevClose > 0 && Number.isFinite(d.close))) return null;
+  const inside = (k: 1 | 2) => Math.abs(d.close - d.prevClose) <= k * d.sigmaDay;
+  const touch = (k: 1 | 2) => d.high >= d.prevClose + k * d.sigmaDay || d.low <= d.prevClose - k * d.sigmaDay;
+  const up = (d.high - d.prevClose) / d.sigmaDay;
+  const down = (d.prevClose - d.low) / d.sigmaDay;
+  const a = d.at10 && d.at10.sigma > 0 ? d.at10 : null;
+  return {
+    sigmas: (d.close - d.prevClose) / d.sigmaDay,
+    inside: [inside(1), inside(2)],
+    touched: [touch(1), touch(2)],
+    max: up >= down ? up : -down,
+    at10: a ? { sigmas: (d.close - a.spot) / a.sigma, inside: [Math.abs(d.close - a.spot) <= a.sigma, Math.abs(d.close - a.spot) <= 2 * a.sigma] } : null,
+  };
 }
 export interface CalibrationRate {
   k: number;
@@ -198,10 +230,12 @@ const rate = (k: number, n: number, theory: number): CalibrationRate => ({ k, n,
 const PHI_IN = { 1: 0.6826895, 2: 0.9544997 } as const;
 export function calibrate(days: readonly CalibrationDay[]): Calibration {
   const ok = days.filter(d => d.sigmaDay > 0 && d.prevClose > 0 && Number.isFinite(d.close));
-  const inside = (k: 1 | 2) => ok.filter(d => Math.abs(d.close - d.prevClose) <= k * d.sigmaDay).length;
-  const touch = (k: 1 | 2) => ok.filter(d => d.high >= d.prevClose + k * d.sigmaDay || d.low <= d.prevClose - k * d.sigmaDay).length;
+  /* each day's verdict, the one the session recap prints */
+  const verdict = new Map(ok.map(d => [d, dayVerdict(d)!]));
+  const inside = (k: 1 | 2) => ok.filter(d => verdict.get(d)!.inside[k - 1]).length;
+  const touch = (k: 1 | 2) => ok.filter(d => verdict.get(d)!.touched[k - 1]).length;
   const tens = ok.filter(d => d.at10 && d.at10.sigma > 0);
-  const inside10 = (k: 1 | 2) => tens.filter(d => Math.abs(d.close - d.at10!.spot) <= k * d.at10!.sigma).length;
+  const inside10 = (k: 1 | 2) => tens.filter(d => verdict.get(d)!.at10!.inside[k - 1]).length;
   const weds = tens.filter(d => new Date(`${d.day}T12:00:00Z`).getUTCDay() === 3);
   const ratios = ok.map(d => Math.abs(d.close - d.prevClose) / d.sigmaDay).sort((a, b) => a - b);
   const med = ratios.length ? (ratios.length % 2 ? ratios[ratios.length >> 1] : (ratios[ratios.length / 2 - 1] + ratios[ratios.length / 2]) / 2) : null;
@@ -213,7 +247,7 @@ export function calibrate(days: readonly CalibrationDay[]): Calibration {
       at10: [rate(inside10(1), tens.length, PHI_IN[1]), rate(inside10(2), tens.length, PHI_IN[2])],
     },
     touch: [rate(touch(1), ok.length, 2 * (1 - PHI_IN[1])), rate(touch(2), ok.length, 2 * (1 - PHI_IN[2]))],
-    wednesdays: { ...rate(weds.filter(d => Math.abs(d.close - d.at10!.spot) <= d.at10!.sigma).length, weds.length, PHI_IN[1]), study: 0.71, band: [0.6, 0.8], judgedFrom: 30 },
+    wednesdays: { ...rate(weds.filter(d => verdict.get(d)!.at10!.inside[0]).length, weds.length, PHI_IN[1]), study: 0.71, band: [0.6, 0.8], judgedFrom: 30 },
     medianRatio: { value: med, theory: 0.6745, n: ratios.length },
   };
 }

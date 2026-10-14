@@ -572,6 +572,9 @@ export interface RegimeReference {
   sessions: number;
   buckets: (number[] | null)[];
   before: (number[] | null)[];
+  /** `before`'s own reach: its newest session and how many it holds (absent on a file written before 2026-10-14) */
+  beforeThrough?: string;
+  beforeSessions?: number;
   /** The sessions a reference reaches back over */
   trailing: number;
   /** THE SAME BY EXPIRY WINDOW (item 6): the nets of the window's partitions, over the sessions whose rows carry them —
@@ -599,14 +602,14 @@ export function buildRegimeReference(name: string, sessions: readonly { day: str
     }
     return by.map(regimeQuantiles);
   };
-  const base = { name, through: sorted[sorted.length - 1]?.day ?? '', sessions: Math.min(trailing, sorted.length), buckets: build(sorted), before: build(sorted.slice(0, -1)), trailing };
+  const base = { name, through: sorted[sorted.length - 1]?.day ?? '', sessions: Math.min(trailing, sorted.length), buckets: build(sorted), before: build(sorted.slice(0, -1)), beforeThrough: sorted[sorted.length - 2]?.day ?? '', beforeSessions: Math.min(trailing, Math.max(0, sorted.length - 1)), trailing };
   /* per window: the sessions whose rows carry their partitions, each row's net the window's */
   const windows: NonNullable<RegimeReference['windows']> = {};
   for (const w of ['0dte', 'fri', 'opex'] as const) {
     const held = sorted
       .filter(s => s.rows.length && s.rows.every(r => windowNet(r, w) != null))
       .map(s => ({ day: s.day, rows: s.rows.map(r => ({ m: r.m, net: windowNet(r, w) as number })) }));
-    if (held.length) windows[w] = { name, through: held[held.length - 1].day, sessions: Math.min(trailing, held.length), buckets: build(held), before: build(held.slice(0, -1)), trailing };
+    if (held.length) windows[w] = { name, through: held[held.length - 1].day, sessions: Math.min(trailing, held.length), buckets: build(held), before: build(held.slice(0, -1)), beforeThrough: held[held.length - 2]?.day ?? '', beforeSessions: Math.min(trailing, Math.max(0, held.length - 1)), trailing };
   }
   return Object.keys(windows).length ? { ...base, windows } : base;
 }
@@ -615,6 +618,14 @@ export function regimeBucketsFor(ref: RegimeReference, day: string): (number[] |
   if (!ref.through) return null;
   if (day > ref.through) return ref.buckets;
   if (day === ref.through) return ref.before;
+  return null;
+}
+/** What the quantiles a page on `day` reads reach over — their newest session and how many (regimeBucketsFor's own
+    choice); null where they are none, the count null on a file that does not say it */
+export function regimeReachFor(ref: RegimeReference, day: string): { through: string; sessions: number | null } | null {
+  if (!ref.through) return null;
+  if (day > ref.through) return { through: ref.through, sessions: ref.sessions };
+  if (day === ref.through) return { through: ref.beforeThrough ?? '', sessions: ref.beforeSessions ?? null };
   return null;
 }
 /** "12th" */
@@ -656,6 +667,53 @@ export function columnSummary(snap: GexSnapshot, spot = snap.spot ?? NaN): Colum
     if (l.prov === 'carried') carried++;
   }
   return { flip, cw: walls.callWall, pw: walls.putWall, top, net, cells: snap.levels.length, carried: snap.levels.length ? carried / snap.levels.length : 0 };
+}
+
+/** A WALL THAT MOVED (the field's wall chips, 2026-10-13): the call or put wall changed strike and the new strike held
+    `hold` columns in a row — a wall trading places with its neighbour for a moment is not a move. `time` and `i` are
+    the first column of the new strike. One rule for the chart's chips (gexNodesPrimitive) and the session recap. */
+export interface WallMove {
+  kind: 'CW' | 'PW';
+  from: number;
+  to: number;
+  time: number;
+  i: number;
+}
+export const WALL_HOLD = 3;
+export function wallMovesOf(end: number, columnAt: (i: number) => { cw: number | null; pw: number | null; time: number }, hold = WALL_HOLD, start = 0): WallMove[] {
+  const moves: WallMove[] = [];
+  for (const kind of ['CW', 'PW'] as const) {
+    let held: number | null = null;
+    let cand: number | null = null;
+    let candAt = -1;
+    let run = 0;
+    for (let ci = start; ci < end; ci++) {
+      const c = columnAt(ci);
+      const w = kind === 'CW' ? c.cw : c.pw;
+      if (w == null) continue;
+      if (held == null) {
+        held = w;
+        continue;
+      }
+      if (w === held) {
+        cand = null;
+        run = 0;
+        continue;
+      }
+      if (w !== cand) {
+        cand = w;
+        candAt = ci;
+        run = 1;
+      } else run++;
+      if (run >= hold && cand != null) {
+        moves.push({ kind, from: held, to: cand, time: columnAt(candAt).time, i: candAt });
+        held = cand;
+        cand = null;
+        run = 0;
+      }
+    }
+  }
+  return moves;
 }
 
 /** The expiries the store's straddles stand on: the one settling today (null when none is listed) and the weekly — the
