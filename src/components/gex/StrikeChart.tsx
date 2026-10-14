@@ -838,7 +838,17 @@ interface StrikeChartProps {
   /** A JUMP OF THE VIEW (the UI pass — the header's Today · 1W · 1M · 6M · 1Y · Max and its calendar): the host bumps
       `nonce` with a span or a day, and the time scale shows it — a span from the last bar back (today: from the
       session's open), a day centred, at the zoom the chart has. The host picks the timeframe first. */
-  jumpTo?: { nonce: number; kind: 'span'; span: 'today' | '1w' | '1m' | '6m' | '1y' | 'max' } | { nonce: number; kind: 'day'; day: string } | null;
+  jumpTo?: { nonce: number; kind: 'span'; span: 'today' | '1w' | '1m' | '6m' | '1y' | 'max' } | { nonce: number; kind: 'day'; day: string } | { nonce: number; kind: 'live' } | null;
+  /** A day jump's answer: whether the tape holds a bar of that day (the host's "no data" card otherwise) */
+  onJumpResult?: (r: { day: string; found: boolean; first: string | null; last: string | null }) => void;
+  /** THE LIVE EDGE (the UI pass): told when the view's right edge leaves the last bar, and when it returns — the host's
+      "Back to live" pill. Fired on change alone. */
+  onViewEdge?: (atLive: boolean) => void;
+  /** A CLICK ON A BAR while nothing else owns the click (no pick, no drawing, no bead under the pointer) — the host's day
+      panel on a daily chart */
+  onBarClick?: (time: number) => void;
+  /** THE STALE STATE (the UI pass): the host's data is old — the candles draw at six tenths, the beads at four */
+  stale?: boolean;
   /** THE AXIS CHIPS (the Terrain UI pass, 2026-10-14): the call wall, the flip, the put wall, the supreme and the field's
       heaviest strike as two-line chips ON THE PRICE AXIS — the strike, then its distance from the price in dollars and in
       σ to the close — pinned ▲/▼ at the clear area's edges, stacked apart, never over the candles; a chip's hover shows
@@ -1158,6 +1168,7 @@ const StrikeChart = ({
   asOf = null,
   futureBars = null,
   footBar = null, onRegime, jumpTo = null, axisChips = false, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike,
+  onJumpResult, onViewEdge, onBarClick, stale = false,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
   const asOfRef = useRef<number | null>(asOf);
@@ -1458,6 +1469,13 @@ const StrikeChart = ({
   onCrosshairRef.current = onCrosshair;
   const onRegimeRef = useRef(onRegime);
   onRegimeRef.current = onRegime;
+  const onViewEdgeRef = useRef(onViewEdge);
+  onViewEdgeRef.current = onViewEdge;
+  const atLiveRef = useRef<boolean | null>(null);
+  const onBarClickRef = useRef(onBarClick);
+  onBarClickRef.current = onBarClick;
+  const onJumpResultRef = useRef(onJumpResult);
+  onJumpResultRef.current = onJumpResult;
   /* the regime reading last handed to the host, so a tick that changes nothing hands nothing */
   const regimeHandedRef = useRef<string>('');
   const handRegime = (r: (RegimeRead & { words: string; range: string | null }) | null) => {
@@ -1955,6 +1973,17 @@ const StrikeChart = ({
     [recordLines]
   );
 
+  /* THE STALE STATE: the candles at six tenths (the chart's own canvases), the beads at four (the primitive's dim) */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) el.style.opacity = stale ? '0.6' : '';
+    const tr = trailsRef.current;
+    if (tr) {
+      tr.globalDim = stale ? 0.4 / 0.6 : 1;
+      tr.requestUpdate?.();
+    }
+  }, [stale, mainNonce]);
+
   /* A JUMP OF THE VIEW (the Terrain UI pass, 2026-10-14): the host's span or day, applied once the bars of the pane's
      timeframe stand — a span runs from the last bar back (today: from New York's 09:30 of the last bar's day), a little
      room ahead as the opening view keeps; a day is centred at the zoom the chart has. Nothing the host did not ask. */
@@ -1971,6 +2000,11 @@ const StrikeChart = ({
     const last = bars[bars.length - 1].time;
     const first = bars[0].time;
     const barSec = Math.max(60, mins * 60);
+    if (jumpTo.kind === 'live') {
+      chart.priceScale('right').applyOptions({ autoScale: true });
+      showRecent();
+      return;
+    }
     if (jumpTo.kind === 'span') {
       const DAY = 86_400;
       const spans: Record<typeof jumpTo.span, number> = { today: 0, '1w': 7 * DAY, '1m': 31 * DAY, '6m': 183 * DAY, '1y': 366 * DAY, max: Infinity };
@@ -1984,11 +2018,12 @@ const StrikeChart = ({
       ts.setVisibleRange({ from: Math.min(from, last - barSec) as UTCTimestamp, to: to as UTCTimestamp });
       return;
     }
-    /* a day: the bar nearest its middle, the current zoom kept round it */
+    /* a day: the bar nearest its middle, the current zoom kept round it; the host hears whether the day is on the tape */
     let idx = bars.findIndex(b => nyIsoDateOf(b.time * 1000) >= jumpTo.day);
     if (idx < 0) idx = bars.length - 1;
     const sameDay = bars.map((b, i) => (nyIsoDateOf(b.time * 1000) === jumpTo.day ? i : -1)).filter(i => i >= 0);
     if (sameDay.length) idx = sameDay[Math.floor(sameDay.length / 2)];
+    onJumpResultRef.current?.({ day: jumpTo.day, found: sameDay.length > 0, first: nyIsoDateOf(first * 1000), last: nyIsoDateOf(last * 1000) });
     const range = ts.getVisibleLogicalRange();
     const span = range ? Math.max(20, range.to - range.from) : 120;
     chart.priceScale('right').applyOptions({ autoScale: true });
@@ -2455,6 +2490,18 @@ const StrikeChart = ({
        installed once with the chart and never re-subscribed. */
     const onRange = () => {
       ensureRunway(lastBarTimeRef.current, bucketSecRef.current);
+      /* THE LIVE EDGE: the view's right edge within two bars of the last one — said to the host on change alone */
+      {
+        const r = chart.timeScale().getVisibleLogicalRange();
+        const n = barCountRef.current;
+        if (r && n > 0) {
+          const live = r.to >= n - 2.5;
+          if (atLiveRef.current !== live) {
+            atLiveRef.current = live;
+            onViewEdgeRef.current?.(live);
+          }
+        }
+      }
       /* THE HISTORY ARRIVES WHEN THE READER SCROLLS TO IT (2026-09-06, the
          perf sweep): only the recent bars are loaded on open; reaching the
          left edge of them asks for the whole store, once per world. */
@@ -4555,6 +4602,28 @@ const StrikeChart = ({
   const [replayMarks, setReplayMarks] = useState<{ u: number; label: string }[]>([]);
   const external = replayTime != null;
   const picking = pickTime || (replay && !external && ownPhase === 'pick');
+  /* A CLICK ON A BAR for the host (the UI pass — the day panel on a daily chart): while nothing else owns the click */
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !onBarClick || picking || drawing) return;
+    const h = (p: MouseEventParams<Time>) => {
+      if (!p.point) return;
+      const tr = trailsRef.current;
+      if (tr && tr.beadAt(p.point.x, p.point.y)) return;
+      /* the bar under the pointer — by its logical index where the click fell between two bars' slots (a daily chart
+         stretched wide has whitespace between its bars) */
+      let t: number | null = typeof p.time === 'number' ? (p.time as number) : null;
+      if (t == null && p.logical != null) {
+        const d = candleSeriesRef.current?.dataByIndex(Math.round(p.logical as number)) as { time?: unknown } | null;
+        if (d && typeof d.time === 'number') t = d.time;
+      }
+      if (t == null) return;
+      onBarClickRef.current?.(t);
+    };
+    chart.subscribeClick(h);
+    return () => chart.unsubscribeClick(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!onBarClick, picking, drawing, mainNonce]);
 
   /* PICKING A BAR: the crosshair turns into a silver line without a horizontal
      arm, and a click hands the bar's time up; on the way out the crosshair

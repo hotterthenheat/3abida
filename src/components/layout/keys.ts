@@ -81,6 +81,7 @@ export const KEY_GROUPS: KeyGroup[] = [
       { keys: ['1', '2', '3', '4'], alt: true, does: 'How many charts — one to four' },
       { keys: ['[', ']'], alt: true, does: 'Walk the charts — the one before, the one after' },
       { keys: ['Shift', 'R'], does: 'The strike rail beside every chart — on or off' },
+      { keys: ['W'], does: 'Cycle the expiry window — all 60 days, 0DTE, to Friday, to monthly OPEX' },
     ],
   },
   {
@@ -97,6 +98,8 @@ export const KEY_GROUPS: KeyGroup[] = [
       { keys: ['Shift', '→'], does: 'In a replay: one bar on' },
       { keys: ['D'], does: 'Draw mode — the tools in hand' },
       { keys: ['R'], does: 'Its strike rail — on or off' },
+      { keys: ['T'], does: 'Jump to a date — the calendar' },
+      { keys: ['L'], does: 'The bead legend — on or off' },
     ],
   },
   {

@@ -336,7 +336,7 @@ class TrailsPaneRenderer {
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? 0) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? 0) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}`;
+      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${supreme}|${src.cwStrike}|${src.pwStrike}|${src.flipPrice}|${src.focusInk}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
       /* BATCHED BY STEP (item 5 (d)): a bead's brightness is one of BEAD_STEPS steps a side, so the field is one Path2D
@@ -545,7 +545,7 @@ class TrailsPaneRenderer {
         for (const [key2, path] of map) {
           const [inkKey, step, stale, dim] = key2.split('|');
           const rgb = inkOf(inkKey);
-          const a = alphaOf(stepT(Number(step))) * STALE_ALPHA[Number(stale) as 0 | 1 | 2] * Number(dim);
+          const a = alphaOf(stepT(Number(step))) * STALE_ALPHA[Number(stale) as 0 | 1 | 2] * Number(dim) * src.globalDim;
           const css = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a.toFixed(3)})`;
           tctx.fillStyle = stale === '0' ? css : this.dots(tctx, css, Number(stale) as 1 | 2, Math.max(1, Math.round(hr)));
           tctx.fill(path);
@@ -827,6 +827,8 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   density = true;
   /** The in-plot "772 · 9%" chips at the right edge — off where the host's axis chips name the heaviest strike */
   strengthLabels = true;
+  /** THE STALE STATE (the UI pass): every bead's light times this — the host sets it under 1 while its data is old */
+  globalDim = 1;
   /** Its ink: the silver accent, or magenta while the focused strike is the supreme. The
       focus never follows the supreme — the strike you clicked is the strike
       you're watching; the ink reports its standing (Noah, 2026-08-22). */

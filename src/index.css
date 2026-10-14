@@ -2119,3 +2119,9 @@ html[data-landing-scale] {
   margin-left: -10px;
   border-radius: 2px;
 }
+
+/* BUILDING / CATCHING UP (the Terrain UI pass, 2026-10-14): a chip whose ground is hatched — the field or the earlier
+   sessions are still being read; the ink is the ground's own at a whisper, never a colour */
+.stripes {
+  background-image: repeating-linear-gradient(135deg, rgb(var(--ink) / 0.09) 0 4px, transparent 4px 9px);
+}

@@ -1023,6 +1023,24 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   PaneCfg `beadDensity`). THE LADDER: Net by default (tabs Net | Sides), Δ spot and σ in the strike column, the Net
   view a diverging bar with the figure at its tip, the read line's distance in $, % and σ (ProfilePanel `sigmaRem`).
   EVERY FIGURE ON SCREEN goes through core/format. Open for the owner: the wall chips keep the walls' bull/bear inks.
+  PASS 3 (2026-10-14, built; the README's "Pass 3"): THE SOURCED STATES — BUILDING / CATCHING UP is a hatched chip at
+  the plot's foot (`.stripes`, `data-trail-since`: "Building · the chain is being read" / "Catching up · earlier
+  sessions N of M in"); STALE (paneAge 'old' on the feed): the candles at six tenths and the beads at four (StrikeChart
+  `stale`, the primitive's `globalDim`), the header's chip and the price in the warn ink, a banner at the plot's foot
+  naming the last repriced minute with Retry (poll.ts `refreshFeed` on the bars, the book and the price); NO DATA for a
+  day the tape lacks: a centred card with the tape's span and Previous / Next session doors (the chart's `onJumpResult`
+  answers a day jump); a shut market is "Closed", never stale. HISTORY: "Back to live" at the plot's foot when the view
+  has left the last bar (`onViewEdge`, `jumpTo` kind 'live' → showRecent); on a daily chart a bar's click (`onBarClick`,
+  by the bar's slot) opens THE DAY PANEL — the close, the regime, the walls and the flip at the day's last modeled
+  column, the three strikes nearest the close, Unusual Whales' end-of-day book beside it (spot-exposures/strike?date=,
+  the date's END state, through levels.ts `bookFrom`), "Open this session · 5m" (jumpDate with a wanted timeframe) and
+  "Replay this day" (the pane's replay from the day's 09:30). THE KEYS (keys.ts, the ? sheet): T the calendar (PaneHead
+  `openDateNonce`), W cycles the desk's window on the feed, L the legend (PaneCfg `legend`, the hover row's Legend door).
+  THE PHONE: the controls row stands in the flow as one line that scrolls sideways; the ladder's PEEK at the plot's foot
+  (the three strikes nearest the price) opens the ladder; the axis chips pin as on a desk. THE SPEED SCRIPT (the
+  README's table, measured 2026-10-14 at 1440 × 900 headless): a pan at 59.6 fps, the hover's readout in 24–48 ms, the
+  1Y jump 526 ms, the window switch 148 ms, the timeframe 123 ms, the ticker 216 ms to the header (335 to the strip —
+  over the 150 ms budget: a new name rebuilds the pane). The header's small menus close on a pick.
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

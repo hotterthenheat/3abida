@@ -126,6 +126,60 @@ that session" (the backfill's), not a printed date.
 in `--bear`, as the axis labels did); the decision said the gamma pair goes everywhere gamma appears — a wall is a
 level, not a gamma figure, so they were left. Say the word and they move to ember/glacier.
 
+## Pass 3 — the states, history, the keys, the phone, the speed budgets
+
+**The sourced states** (shots/state-building.png, shots/state-stale.png, shots/state-no-data.png):
+
+| state | source | what the pane shows |
+|---|---|---|
+| building / catching up | the field not yet full (`fTrail.full`), earlier sessions still coming (`fPast.ready < asked`) | a hatched chip at the plot's foot: "Building · the chain is being read" / "Catching up · earlier sessions N of M in" |
+| stale | the newest of the last bar's end, the quote and the field's newest column past a bar plus a poll (paneAge.ts), on the feed, the market open | candles at six tenths, beads at four tenths, the header's chip and the price in the warn ink, a banner at the plot's foot: "Data 2m old · last repriced 10:59 am · Retry" (Retry asks the bars, the book and the price again) |
+| closed | the same age past its window with the market shut | the chip says "Closed · 4:00 pm" in the quiet ink — a shut market is not stale data |
+| no data | a day jump the tape does not hold (the chart's `onJumpResult`) | a centred card: "No data for Oct 11 · The tape holds Oct 9 to Oct 14 on this timeframe" with Previous session, Next session, Back to live |
+| blocked | Phase 1's ledger | waits (no source yet) |
+
+**History** (shots/state-back-to-live.png, shots/day-panel.png): "Back to live" stands at the plot's foot when the
+view has left the last bar (`onViewEdge`), and goes to the opening view. On a daily chart a bar's click opens the day
+panel — the close, the regime, the walls and the flip at the day's last modeled column, the three strikes nearest
+the close, Unusual Whales' end-of-day book by strike beside it as the measured reference (its own walls and flip,
+figured at its own price), "Open this session · 5m" and "Replay this day" (the pane's replay from the day's 09:30).
+The 1D rule stays: a bar's cell is its peak minute. The Building band over a range of sessions is the chip alone for
+now (a band drawn across the sessions still coming needs the chart's time scale; listed below).
+
+**The keys** (keys.ts; the ? sheet and Settings › Keyboard read the same list): T the calendar, W cycles the expiry
+window on the feed (all 60 days · 0DTE · to Friday · to monthly OPEX), L the bead legend. The house map stands.
+
+**The phone** (shots/phone-390.png, shots/phone-ladder.png): the header holds the chip, the price, the age dot, the
+timeframe trigger and the fullscreen door; the decision strip wraps to two lines of short words; the legend is one
+line; the controls row stands in the flow as ONE line that scrolls sideways; the chart wears the pinned axis chips;
+the ladder's PEEK at the plot's foot (the three strikes nearest the price with their nets) opens the ladder over the
+chart. No bottom tabs — the shell's top strip stays.
+
+**The speed budgets** (scripts/terrain-speed.mjs — `node scripts/terrain-speed.mjs` against a running dev server;
+measured 2026-10-14 at 1440 × 900, headless Chromium without a GPU, SPY on the feed with the 13 sessions this machine
+holds; one pane):
+
+| budget | asked | measured |
+|---|---|---|
+| pan | 60 fps | median 16.7 ms a frame (59.6 fps), p95 16.8 ms, one frame of 166 over 20 ms |
+| hover → the readout | < 50 ms | 24–48 ms (seven probes; three probes on an unchanged bar timed out and are not latency) |
+| the 1Y jump | < 2 s | 526 ms (the timeframe to 1D and the range) |
+| the window switch (W) | < 150 ms | 126 ms to the header, 148 ms to the strip's re-summed words |
+| the timeframe switch (=) | < 150 ms | 123 ms |
+| the ticker switch (↓) | < 150 ms | **216 ms** to the header, 335 ms to the strip — over budget: a new name rebuilds the pane (its chart, field and ladder) |
+
+**Multi-pane**: the crosshair is synced by time across panes (as before), each pane prints its own OHLC readout, and
+the bead card opens only in the pane under the pointer.
+
+**Seen on the way, not changed**: on a daily chart the axis printed "11" and "13" under the bars of Oct 12 and Oct 14
+in the 6M shot (shots/jump-6m-1D.png) — a day bar's stamp against the viewer's calendar; the day panel reads its day
+twelve hours on from the stamp, so it names the session right, and the axis is a follow-up to check against the
+audit's day-tick rule.
+
+**Fields with no existing source, added in pass 3**: a Building band across the sessions still coming (the chip says
+the count; a band on the time scale is a follow-up); the "blocked" state (Phase 1's ledger); a day panel's regime
+percentile for a day the reference does not cover prints "no reference".
+
 ## Fields of the prompt with no existing source (left out, listed)
 
 - The coverage bar "Built / Building / Pending / Blocked from Jun 1, 2012": no ledger exists until Phase 1 of the
@@ -135,4 +189,4 @@ level, not a gamma figure, so they were left. Say the word and they move to embe
 - Bottom room tabs on the phone: the shell has a top strip; the owner kept it.
 - The pass-2 list above (calls/puts and σ on a past bead, the touch rule, a past column's OI date).
 
-(The states, the history panel, the keys, the phone, the speed script and the rest of the report are pass 3.)
+(Pass 3 above closes the prompt's list; the Theta task's Phase 1 waits for the owner's "go".)

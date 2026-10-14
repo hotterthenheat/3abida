@@ -19,8 +19,10 @@ import {
 } from './layouts';
 import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
-import { useFeedPrice } from '../../data/feed/price';
-import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes, nySessionPhase } from '../../core/nyTime';
+import { priceKey, useFeedPrice } from '../../data/feed/price';
+import { refreshFeed } from '../../data/feed/poll';
+import { uwSpotGexByStrike } from '../../data/feed/uw';
+import { nyClock as nyClockAt, clock as printClock, nyIsoDate, nyMinutes, nySessionPhase, nyWallTime } from '../../core/nyTime';
 import { readoutOf, remLines, SESSION_MINUTES, shareBetween, sigmasAway, sigmaRemOf, type SigmaRem } from '../../data/feed/pricedMove';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
@@ -83,6 +85,8 @@ import {
   isCashIndex,
   listedDates,
   shortDay,
+  sessionBefore,
+  bookFrom,
   useFeedBars,
   useFeedBook,
   useFeedByExpiry,
@@ -254,6 +258,8 @@ export interface PaneCfg {
   /** BEAD DENSITY (the Terrain UI pass, 2026-10-14): absent, non-level strikes step back zoomed out and far from the
       price; false, every bead draws whole ("Every strike") */
   beadDensity?: boolean;
+  /** THE BEAD LEGEND (the UI pass — the L key, the hover row's Legend door): false hides the legend's line */
+  legend?: boolean;
 }
 
 interface TerrainCfg {
@@ -595,6 +601,7 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
     beadBasis: c.beadBasis === 'fixed' || c.beadBasis === 'prior' ? c.beadBasis : undefined,
     beadFloor: typeof c.beadFloor === 'number' && (FLOORS as readonly number[]).includes(c.beadFloor) && c.beadFloor > 0 ? c.beadFloor : undefined,
     beadDensity: c.beadDensity === false ? false : undefined,
+    legend: c.legend === false ? false : undefined,
   };
 }
 
@@ -967,6 +974,8 @@ const HEAD_PARTS: Partial<Record<ToolbarPart, boolean>> = { timeframes: false, i
 const HOVER_PARTS: Partial<Record<ToolbarPart, boolean>> = { replay: false, alerts: false, overlays: false };
 
 interface PaneProps {
+  /** Bumped by the desk when the T key asks this pane for its calendar */
+  openDateNonce?: number;
   cfg: PaneCfg;
   onCfg: (patch: Partial<PaneCfg>) => void;
   revision: number;
@@ -1051,7 +1060,7 @@ const Pane = ({
   onCrosshair, registerSync, replay, onToggleReplay, onExitReplay, registerReplayKeys,
   drawing, onToggleDrawing, onExitDraw,
   isActive, onActivate, paneCount, closing = false, menuOpen, onMenu,
-  boxRef, cell = '', palette, railCut, onRailCut, onPopOut, bare = false,
+  boxRef, cell = '', palette, railCut, onRailCut, onPopOut, bare = false, openDateNonce = 0,
 }: PaneProps) => {
   const { ticker, timeframe, overlays, indicators, chartStyle, clock, compares, priceScale, sessionOr, ladder } = cfg;
   /* its own theme, else the page's default — Glacier on the dark terminal, Stone on paper — re-read on a flip */
@@ -1518,7 +1527,17 @@ const Pane = ({
   /* A JUMP OF THE VIEW (the header's Today · 1W · 1M · 6M · 1Y · Max and its calendar): the timeframe that fits the
      span first — the pane's own intraday one for the session, 15 m for a week, hourly for a month, day bars beyond —
      then the chart's range (StrikeChart `jumpTo`) */
-  const [jumpTo, setJumpTo] = useState<{ nonce: number; kind: 'span'; span: JumpSpan } | { nonce: number; kind: 'day'; day: string } | null>(null);
+  const [jumpTo, setJumpTo] = useState<{ nonce: number; kind: 'span'; span: JumpSpan } | { nonce: number; kind: 'day'; day: string } | { nonce: number; kind: 'live' } | null>(null);
+  /* A DAY THE TAPE DOES NOT HOLD (the UI pass — the "no data" card): the chart's answer to a day jump */
+  const [noDay, setNoDay] = useState<{ day: string; first: string | null; last: string | null } | null>(null);
+  const onJumpResult = useCallback((r: { day: string; found: boolean; first: string | null; last: string | null }) => setNoDay(r.found ? null : { day: r.day, first: r.first, last: r.last }), []);
+  /* THE LIVE EDGE: the view's right edge on the last bar, or back in the past (the "Back to live" pill) */
+  const [atLive, setAtLive] = useState(true);
+  const onViewEdge = useCallback((v: boolean) => setAtLive(v), []);
+  const backToLive = useCallback(() => {
+    setNoDay(null);
+    setJumpTo({ nonce: ++jumpNonce.current, kind: 'live' });
+  }, []);
   const jumpNonce = useRef(0);
   const jumpSpan = useCallback(
     (span: JumpSpan) => {
@@ -1530,16 +1549,24 @@ const Pane = ({
     [timeframe, onCfg]
   );
   const jumpDate = useCallback(
-    (day: string) => {
-      /* a day the minutes reach keeps an intraday pane; an older one takes the day bars */
+    (day: string, wanted?: Timeframe) => {
+      /* a day the minutes reach keeps an intraday pane; an older one takes the day bars — unless the host names one */
       const ageDays = (Date.now() - new Date(`${day}T12:00:00`).getTime()) / 86_400_000;
       const m = tfMinutes(timeframe);
-      const next: Timeframe = ageDays > 30 ? '1D' : m >= 1 && m <= 60 ? timeframe : '15m';
+      const next: Timeframe = wanted ?? (ageDays > 30 ? '1D' : m >= 1 && m <= 60 ? timeframe : '15m');
       if (next !== timeframe) onCfg({ timeframe: next });
+      setNoDay(null);
       setJumpTo({ nonce: ++jumpNonce.current, kind: 'day', day });
     },
     [timeframe, onCfg]
   );
+  /* the sessions either side of a day the tape lacks (weekends skipped; a holiday is found by the tape's own answer) */
+  const nextSession = (iso: string): string => {
+    const d = new Date(`${iso}T12:00:00Z`);
+    do d.setUTCDate(d.getUTCDate() + 1);
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+    return d.toISOString().slice(0, 10);
+  };
   const jumpMin = useMemo(() => {
     const first = (fDaily && fDaily.length ? fDaily[0] : null) ?? (fBars.bars && fBars.bars.length ? fBars.bars[0] : null) ?? (!offHouse ? (Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? [])[0] : null);
     return first ? nyIsoDate(first.time * 1000) : undefined;
@@ -1560,6 +1587,66 @@ const Pane = ({
     return a;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rp.active, noBars, offHouse, fBars.bars, tf, fTrail.snaps, fQuote, revision]);
+  /* THE STALE STATE (the UI pass): on the feed with the newest data past its window — the candles at six tenths, the
+     beads at four, an amber chip in the header and on the price, a banner naming the last repriced minute, Retry */
+  const stale = onFeed && age?.kind === 'old';
+  const lastRepriced = fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1].time * 1000 + 60_000 : age?.at ?? null;
+  const retryFeed = useCallback(() => {
+    const t = ticker.toUpperCase();
+    for (const k of [`levels:bars:${t}`, `levels:bars-new:${t}`, `levels:book:${t}`, priceKey(t)]) refreshFeed(k);
+  }, [ticker]);
+  /* THE LEGEND'S SWITCH (the L key, the hover row's door) */
+  const legendOn = cfg.legend !== false;
+  /* THE DAY PANEL (the UI pass — history on a daily chart): a click on a day's bar opens its card — the close, the regime
+     and the levels at the day's last modeled column, the three strikes nearest the close, and Unusual Whales' end-of-day
+     book by strike beside it as the measured reference (spot-exposures/strike?date=, the date's END state) */
+  const [dayPanel, setDayPanel] = useState<string | null>(null);
+  useEffect(() => setDayPanel(null), [ticker, tf]);
+  const onBarClick = useCallback(
+    (t: number) => {
+      if (tfMinutes(tf) < 1440) return;
+      /* a day bar's stamp is its day's start on one clock or another (the fold's UTC midnight, the feed's noon UTC, the
+         house's 09:30 New York): twelve hours on lands inside the session's own New York date on every one of them */
+      setDayPanel(nyIsoDate((t + 12 * 3600) * 1000));
+    },
+    [tf]
+  );
+  const [dayBook, setDayBook] = useState<{ day: string; book: FeedBook | null; failed: boolean } | null>(null);
+  useEffect(() => {
+    if (!dayPanel || !onFeed || isCashIndex(ticker)) return;
+    let gone = false;
+    const day = dayPanel;
+    setDayBook(null);
+    void uwSpotGexByStrike(ticker, { date: day, limit: 500 }).then(r => {
+      if (gone) return;
+      setDayBook({ day, book: r.ok && r.data ? bookFrom(ticker, r.data) : null, failed: !r.ok });
+    });
+    return () => {
+      gone = true;
+    };
+  }, [dayPanel, onFeed, ticker]);
+  const dayRead = useMemo(() => {
+    if (!dayPanel) return null;
+    const day = dayPanel;
+    const bar = (fDaily ?? (!offHouse ? Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? [] : [])).find(b => nyIsoDate(b.time * 1000) === day) ?? null;
+    const cols = (offHouse ? fTrail.snaps : Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? []).filter(c => nyIsoDate(c.time * 1000) === day);
+    const last = cols.length ? cols[cols.length - 1] : null;
+    const close = bar?.close ?? last?.spot ?? null;
+    const spot = last ? last.spot ?? close ?? 0 : 0;
+    const walls = last ? pickWalls(last.levels, spot, l => l.value) : null;
+    const flip = last ? pickFlip(last.levels, spot, l => l.value) : null;
+    const regime = last ? regimeReadOf(netOf(last.levels), nyMinutes(last.time * 1000), day, regimeForWindow(fRegime, win), null, last.time) : null;
+    const nearest = last && close != null ? [...last.levels].sort((a, b) => Math.abs(a.strike - close) - Math.abs(b.strike - close)).slice(0, 3) : [];
+    const uw = dayBook && dayBook.day === day && dayBook.book ? (() => {
+      const b = dayBook.book!;
+      const rows = b.rows.map(r => ({ strike: r.strike, value: r.gex.net }));
+      return { walls: pickWalls(rows, b.spot, l => l.value), flip: pickFlip(rows, b.spot, l => l.value), spot: b.spot, at: b.at };
+    })() : null;
+    return { day, close, last, walls, flip, regime: regime ? regimeWordsOf(regime, usdCompactSigned, ms => printClock(ms)) : null, nearest, uw, uwFailed: dayBook?.day === day && dayBook.failed, uwWaiting: onFeed && !isCashIndex(ticker) && (!dayBook || dayBook.day !== day) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayPanel, fDaily, offHouse, ticker, fTrail.snaps, fRegime, win, dayBook, onFeed]);
+  /* THE LADDER'S PEEK ON A PHONE (the UI pass): the three strikes nearest the price, a tap opening the ladder */
+  const peek = useMemo(() => (belowLg && rail.rows.length ? [...rail.rows].sort((a, b) => Math.abs(a.strike - levels.spot) - Math.abs(b.strike - levels.spot)).slice(0, 3).sort((a, b) => b.strike - a.strike) : []), [belowLg, rail.rows, levels.spot]);
   /* THE LEVELS A RIGHT-CLICK CAN FOLLOW (item 7): the book's walls and flip, and its three heaviest strikes */
   const axisLevels = useMemo(() => {
     const fin = (v: number) => (Number.isFinite(v) && v > 0 ? v : null);
@@ -2029,11 +2116,13 @@ const Pane = ({
   );
   const facts = (
     <>
-      <span className="shrink-0">
+      <span className={`shrink-0 ${stale ? 'text-warn [&_*]:!text-warn' : ''}`} data-price-stale={stale ? '' : undefined} title={stale ? 'The price is as old as the data' : undefined}>
         <SpotPrice value={levels.spot} />
       </span>
       {printChip}
-      {belowLg && rail.rows.length > 0 && (
+      {/* under lg the ladder's door is the peek over the chart's foot (the UI pass); the Strikes button stands only
+          where the peek has nothing to show */}
+      {belowLg && rail.rows.length > 0 && peek.length === 0 && (
         <button
           type="button"
           onClick={() => setNarrowLadder(v => !v)}
@@ -2367,6 +2456,10 @@ const Pane = ({
               beadDensity={cfg.beadDensity !== false}
               onReplayFrom={noBars ? undefined : onReplayFrom}
               onPinStrike={k => setFocus(cur => (cur != null && Math.abs(cur - k) < 1e-9 ? null : k))}
+              onJumpResult={onJumpResult}
+              onViewEdge={onViewEdge}
+              onBarClick={tfMinutes(tf) >= 1440 ? onBarClick : undefined}
+              stale={stale}
               beadBasis={beadBasis}
               beadFloor={beadFloor}
               beadRefs={fScale?.gex ?? null}
@@ -2438,10 +2531,96 @@ const Pane = ({
             */}
             {/* WHILE THE FIELD IS EMPTY on the feed (2026-10-13): the server has not read the chain yet, or there is no bar of
                 today — the line goes as the first modeled minute lands (the house's pane has no such line) */}
+            {/* BUILDING / CATCHING UP (the UI pass): a hatched chip while the field fills or the earlier sessions come in */}
             {onFeed && overlays.trails && !noBars && (!fTrail.full || (fPast && fPast.ready < fPast.asked)) && (
-              <div className="absolute left-14 bottom-8 z-20 pointer-events-none select-none rounded bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textMuted" data-trail-since>
-                Trail · {[!fTrail.full ? 'it fills as the chain is read' : '', fPast && fPast.ready < fPast.asked ? `earlier sessions ${fPast.ready} of ${fPast.asked} in` : ''].filter(Boolean).join(' · ')}
+              <div className={`stripes absolute left-14 ${stale ? 'bottom-[3.75rem]' : 'bottom-8'} z-20 pointer-events-none select-none rounded border border-ink/[0.10] bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textSecondary tnum`} data-trail-since data-building={!fTrail.full ? 'field' : 'past'}>
+                {!fTrail.full ? 'Building · the chain is being read' : `Catching up · earlier sessions ${fPast!.ready} of ${fPast!.asked} in`}
               </div>
+            )}
+            {/* THE STALE BANNER: the newest data is old — when it was last repriced, and a way to ask again */}
+            {stale && age && (
+              <div className="absolute left-14 bottom-8 z-20 flex items-center gap-2 rounded-md border border-warn/40 bg-warn/[0.10] backdrop-blur-[3px] px-2 py-1 text-[11px] text-warn tnum" role="status" data-stale-banner>
+                <span>Data {age.words} · last repriced {lastRepriced ? printClock(lastRepriced) : '—'}</span>
+                <button type="button" onClick={retryFeed} className="hit h-5 px-1.5 rounded-[3px] border border-warn/50 font-semibold text-warn hover:bg-warn/[0.12]" data-stale-retry>
+                  Retry
+                </button>
+              </div>
+            )}
+            {/* NO DATA for a day the tape does not hold: the reason, and the sessions either side */}
+            {noDay && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" data-no-day>
+                <div className="pointer-events-auto rounded-md border border-borderMuted bg-panel/95 px-3 py-2.5 shadow-xl shadow-black/50 max-w-[360px] text-[12px]">
+                  <p className="font-semibold text-textPrimary">No data for {isoDayLabel(noDay.day)}</p>
+                  <p className="text-textSecondary tnum">{noDay.first && noDay.last ? `The tape holds ${isoDayLabel(noDay.first)} to ${isoDayLabel(noDay.last)} on this timeframe.` : 'The tape holds no bars on this timeframe yet.'}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button type="button" onClick={() => jumpDate(sessionBefore(noDay.day))} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-no-day-prev>
+                      ‹ Previous session
+                    </button>
+                    <button type="button" onClick={() => jumpDate(nextSession(noDay.day))} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-no-day-next>
+                      Next session ›
+                    </button>
+                    <button type="button" onClick={backToLive} className="hit ml-auto h-6 px-2 rounded-[3px] bg-ink/[0.14] font-mono text-[11px] font-semibold text-textPrimary" data-no-day-live>
+                      Back to live
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* BACK TO LIVE: the view has left the last bar */}
+            {!atLive && !rp.active && !noBars && (
+              <button type="button" onClick={backToLive} className="hit absolute bottom-8 z-20 h-6 px-2 rounded-[3px] bg-ink/[0.14] font-mono text-[11px] font-semibold text-textPrimary backdrop-blur-[3px]" style={{ right: PRICE_GUTTER_PX + 8 }} data-back-to-live>
+                Back to live ›
+              </button>
+            )}
+            {/* THE DAY PANEL on a daily chart */}
+            {dayRead && (
+              <div className="absolute left-3 z-40 rounded-md border border-borderMuted bg-panel/95 px-3 py-2.5 shadow-xl shadow-black/50 max-w-[380px] text-[12px]" style={{ top: stripH + 4 }} data-day-panel={dayRead.day}>
+                <div className="flex items-baseline gap-2">
+                  <p className="font-semibold text-textPrimary">{isoDayLabel(dayRead.day)}</p>
+                  {dayRead.close != null && <span className="font-mono text-[11px] tnum text-textSecondary">close {num(dayRead.close, 2)}</span>}
+                  <button type="button" onClick={() => setDayPanel(null)} aria-label="Close the day panel" title="Close — Esc" className="hit ml-auto h-5 w-5 inline-flex items-center justify-center rounded text-textMuted hover:text-textPrimary">
+                    ×
+                  </button>
+                </div>
+                {dayRead.last ? (
+                  <>
+                    <p className="text-[11px] text-textMuted mt-1">At the day's last modeled column ({printClock(dayRead.last.time * 1000)})</p>
+                    {dayRead.regime && <p className="text-textSecondary tnum">Regime: {dayRead.regime}</p>}
+                    <p className="text-textSecondary tnum">
+                      CW {dayRead.walls?.callWall != null ? num(dayRead.walls.callWall, dayRead.walls.callWall % 1 ? 2 : 0) : '—'} · PW {dayRead.walls?.putWall != null ? num(dayRead.walls.putWall, dayRead.walls.putWall % 1 ? 2 : 0) : '—'} · flip {dayRead.flip != null ? num(dayRead.flip, 2) : '—'}
+                    </p>
+                    {dayRead.nearest.length > 0 && <p className="text-textSecondary tnum">Nearest the close: {dayRead.nearest.map(l => `${num(l.strike, l.strike % 1 ? 2 : 0)} ${usdCompactSigned(l.value)}`).join(' · ')}</p>}
+                  </>
+                ) : (
+                  <p className="text-textMuted mt-1">No modeled column for this day on this machine.</p>
+                )}
+                {onFeed && !isCashIndex(ticker) && (
+                  <p className="text-[11px] text-textMuted mt-1 tnum">
+                    {dayRead.uw ? `Unusual Whales' end-of-day book: CW ${dayRead.uw.walls.callWall != null ? num(dayRead.uw.walls.callWall, dayRead.uw.walls.callWall % 1 ? 2 : 0) : '—'} · PW ${dayRead.uw.walls.putWall != null ? num(dayRead.uw.walls.putWall, dayRead.uw.walls.putWall % 1 ? 2 : 0) : '—'} · flip ${dayRead.uw.flip != null ? num(dayRead.uw.flip, 2) : '—'} (figured at ${num(dayRead.uw.spot, 2)}, ${printClock(dayRead.uw.at)})` : dayRead.uwFailed ? "Unusual Whales' end-of-day book did not come back" : dayRead.uwWaiting ? "Unusual Whales' end-of-day book: asking…" : ''}
+                  </p>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <button type="button" onClick={() => jumpDate(dayRead.day, '5m')} className="hit h-6 px-2 rounded-[3px] bg-ink/[0.14] font-mono text-[11px] font-semibold text-textPrimary" data-day-open>
+                    Open this session · 5m
+                  </button>
+                  {!noBars && (
+                    <button type="button" onClick={() => { const [y, m, d] = dayRead.day.split('-').map(Number); onReplayFrom(Math.floor(nyWallTime(y, m, d, 9, 30) / 1000)); setDayPanel(null); }} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-day-replay>
+                      Replay this day
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* THE LADDER'S PEEK on a phone: the three strikes nearest the price, a tap opening the ladder */}
+            {belowLg && !narrowLadder && peek.length > 0 && (
+              <button type="button" onClick={() => setNarrowLadder(true)} className="hit absolute left-3 bottom-8 z-20 flex items-center gap-1.5 rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 font-mono text-[11px] tnum text-textSecondary" title="The three strikes nearest the price — open the ladder" data-ladder-peek>
+                {peek.map(r => (
+                  <span key={r.strike} className="whitespace-nowrap">
+                    <span className="text-textPrimary">{num(r.strike, r.strike % 1 ? 2 : 0)}</span> <span className={r.value >= 0 ? 'text-[rgb(var(--ember))]' : 'text-[rgb(var(--glacier))]'}>{usdCompactSigned(r.value)}</span>
+                  </span>
+                ))}
+                <span className="text-textMuted">Strikes ›</span>
+              </button>
             )}
             {expanded && (
               /* ── THE FULLSCREEN TOP STRIP (Noah, 2026-08-28) ──
@@ -2568,6 +2747,7 @@ const Pane = ({
                   tools={headPlan.tools ? paneToolbar(false, HEAD_PARTS, true) : null}
                   keys={headPlan.keys}
                   doors={expandDoor}
+                  openDateNonce={openDateNonce}
                 />
               </div>
               )}
@@ -2607,9 +2787,9 @@ const Pane = ({
               {/* THE BEAD LEGEND, ALWAYS IN VIEW while the field is drawn (the owner's item 5 (a)): what full brightness is,
                   in money, as of when — the renderer's own reference (data-bead-ref) — with the basis (item 5 (b)) and
                   the floor (item 5 (e)) beside it */}
-              {overlays.trails && beadLegend && (
+              {overlays.trails && beadLegend && legendOn && (
                 /* ONE LINE (the UI pass, 2026-10-14): the scale's statement, truncated to the column, its second line and
-                   the basis's words in the title; the basis and the floor ride the hover row (beadControls) */
+                   the basis's words in the title; the basis and the floor ride the hover row (beadControls); L hides it */
                 <div className="relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-0.5 flex items-center min-w-0 text-[11px] leading-[16px] text-textMuted tnum" title={`${beadLegendLines(beadLegend, beadBasis, beadFloor).tail} · ${beadLegendWords(beadLegend, beadBasis, beadFloor)}`} data-bead-legend data-bead-ref={beadLegend.ref} data-bead-basis={beadLegend.basis}>
                   <span className="min-w-0 truncate" data-bead-scale>
                     {beadLegendLines(beadLegend, beadBasis, beadFloor).head}
@@ -2625,11 +2805,16 @@ const Pane = ({
                 /* OUT OF THE FLOW (the UI pass, 2026-10-14): it stands under the strip, over the plot, and only while the
                    pointer or the keys are on the pane — so the chrome band the chart keeps clear of is the header, the
                    strip and the legend alone, and a hover moves nothing (the band's height is what fits the scale) */
-                <div className="chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 flex-wrap" style={{ left: ownScale ? PRICE_GUTTER_PX + 6 : undefined }} data-toolbar-row>
+                <div className={isPhone ? 'relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 flex items-center gap-2 flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 flex-wrap'} style={!isPhone && ownScale ? { left: PRICE_GUTTER_PX + 6 } : undefined} data-toolbar-row>
                   {paneToolbar(false, headPlan.tools ? HOVER_PARTS : undefined)}
                   {!headPlan.popOut && popOutDoor}
                   {overlays.walls && wallsLens}
                   {overlays.trails && beadLegend && beadControls}
+                  {overlays.trails && (
+                    <button type="button" aria-pressed={legendOn} onClick={() => onCfg({ legend: legendOn ? false : undefined })} title="The bead legend's line — L" className={`hit h-[18px] px-1.5 rounded-[2px] text-[11px] transition-colors ${legendOn ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`} data-legend-door>
+                      Legend
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -3148,6 +3333,12 @@ const Terrain = () => {
   /** Which pane has a menu open, and which menu — so `s` and `c` can open one
       without every pane growing its own piece of state. */
   const [menu, setMenu] = useState<{ pane: number; which: 'symbol' | 'compare' } | null>(null);
+  /* the T key: the active pane's calendar (PaneHead `openDateNonce`) */
+  const [dateAsk, setDateAsk] = useState<{ pane: number; n: number }>({ pane: -1, n: 0 });
+  /* the W key cycles the desk's expiry window — on the feed, where windows exist */
+  const deskSrc = useTerrainSource();
+  const deskOnFeedRef = useRef(deskSrc === 'feed');
+  deskOnFeedRef.current = deskSrc === 'feed';
   /* The key handler has to know a menu is up. `editable` already covers the
      search box inside one — but the focus trap can put focus on the panel
      itself, and ↑/↓ pressed there belong to the list being read, not to the
@@ -3329,6 +3520,26 @@ const Terrain = () => {
           setAnnounce(`${cur.panes[i]?.ticker ?? ''} draw mode ${on ? 'on' : 'off'}`);
           return;
         }
+        /* THE UI PASS's keys (2026-10-14): T the calendar, W the window, L the legend */
+        case 't':
+          e.preventDefault();
+          setDateAsk(prev => ({ pane: i, n: prev.n + 1 }));
+          setAnnounce('Jump to a date');
+          return;
+        case 'w': {
+          if (!deskOnFeedRef.current) return;
+          e.preventDefault();
+          const ring: RailCut[] = ['book', 'w:0dte', 'w:fri', 'w:opex'];
+          const at = ring.indexOf(cur.railCut);
+          const next = ring[(at < 0 ? 0 : at + 1) % ring.length];
+          setCfg(prev => ({ ...prev, railCut: next }));
+          setAnnounce(`Expiry window: ${next === 'book' ? 'all 60 days' : next === 'w:0dte' ? '0DTE' : next === 'w:fri' ? 'to Friday' : 'to monthly OPEX'}`);
+          return;
+        }
+        case 'l':
+          e.preventDefault();
+          patch(q => ({ legend: q.legend === false ? undefined : false }), q => `${q.ticker} bead legend ${q.legend === false ? 'hidden' : 'shown'}`);
+          return;
         case 'f':
           e.preventDefault();
           toggleExpandRef.current(i);
@@ -3843,6 +4054,7 @@ const Terrain = () => {
             palette={cfg.palette}
             railCut={cfg.railCut}
             onRailCut={c => setCfg(prev => ({ ...prev, railCut: c }))}
+            openDateNonce={dateAsk.pane === i ? dateAsk.n : 0}
             menuOpen={menu?.pane === i ? menu.which : null}
             onMenu={which => setMenu(which ? { pane: i, which } : null)}
             onPopOut={isPhone ? undefined : () => openPopOut(`/out/terrain?pane=${encodeURIComponent(JSON.stringify(pane))}&rail=${encodeURIComponent(JSON.stringify({ palette: cfg.palette, railCut: cfg.railCut }))}`, `terrain-${i + 1}`, { w: 1100, h: 700 })}

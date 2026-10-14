@@ -7,7 +7,7 @@
   away, in the order a reader loses least. The row stands at rest (no hover needed to read it); the rest of the
   toolbar rides the hover row under it, as before.
 */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Calendar, ChevronDown, CircleHelp } from 'lucide-react';
 import PopoverCard from '../ui/PopoverCard';
 import { openKeySheet } from '../layout/paletteDoor';
@@ -58,13 +58,26 @@ interface PaneHeadProps {
   keys: boolean;
   /** The pop-out and the fullscreen doors */
   doors: ReactNode;
+  /** Bumped by the host when the T key asks for the calendar (the jump to a date) */
+  openDateNonce?: number;
   className?: string;
 }
 
-const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump, tools, keys, doors, className = '' }: PaneHeadProps) => {
+const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump, tools, keys, doors, openDateNonce = 0, className = '' }: PaneHeadProps) => {
   const [dateOpen, setDateOpen] = useState(false);
   const [draftDate, setDraftDate] = useState('');
+  /* the T key: the calendar opens, and the date field takes the keys */
+  useEffect(() => {
+    if (!openDateNonce || !jump) return;
+    setDateOpen(true);
+    const id = requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[data-jump-date-input]')?.focus());
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDateNonce]);
   const [tfOpen, setTfOpen] = useState(false);
+  /* the window's and the jumps' small menus close on a pick, as the timeframe's does */
+  const [winOpen, setWinOpen] = useState(false);
+  const [jumpOpen, setJumpOpen] = useState(false);
   /* THE TIMEFRAME TRIGGER — the pane's interval as the door (every charting app's grammar), the list behind it, a held
      interval drawn disabled with its reason (the feed carries no seconds) */
   const tfTrigger = (
@@ -126,6 +139,8 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
         width={240}
         align="start"
         testId="pane-window"
+        open={winOpen}
+        onOpenChange={setWinOpen}
         trigger={
           <button type="button" title={`Expiry window — ${current.label}: ${current.hint}`} aria-label={`Expiry window — ${current.label}`} className={`hit shrink-0 pointer-events-auto inline-flex items-center gap-0.5 h-[18px] px-1.5 rounded-[3px] border border-ink/[0.10] font-mono text-[11px] text-textPrimary`} data-pane-window={window.value} data-window-trigger>
             {current.short}
@@ -135,7 +150,7 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
       >
         <div role="group" aria-label="Expiry window" className="p-1.5 flex flex-col gap-0.5">
           {WINDOW_OPTS.map(o => (
-            <button key={o.value} type="button" aria-pressed={o.value === window.value} onClick={() => window.onChange(o.value)} className={`flex items-start gap-2 px-2 py-1.5 rounded text-left transition-colors hover:bg-ink/[0.03] ${o.value === window.value ? 'text-textPrimary' : 'text-textSecondary'}`} data-window-pick={o.value}>
+            <button key={o.value} type="button" aria-pressed={o.value === window.value} onClick={() => { window.onChange(o.value); setWinOpen(false); }} className={`flex items-start gap-2 px-2 py-1.5 rounded text-left transition-colors hover:bg-ink/[0.03] ${o.value === window.value ? 'text-textPrimary' : 'text-textSecondary'}`} data-window-pick={o.value}>
               <span className="font-mono text-[11px] font-semibold w-10 shrink-0">{o.short}</span>
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold">{o.label}</span>
@@ -194,6 +209,8 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
           width={200}
           align="start"
           testId="pane-jump"
+          open={jumpOpen}
+          onOpenChange={setJumpOpen}
           trigger={
             <button type="button" title="Jump the view — today, a week, a month, six months, a year, everything" aria-label="Jump the view" className="hit inline-flex items-center gap-0.5 h-[18px] px-1.5 rounded-[3px] border border-ink/[0.10] font-mono text-[11px] text-textMuted hover:text-textPrimary" data-jump-trigger>
               Jump
@@ -203,7 +220,7 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
         >
           <div role="group" aria-label="Jump the view" className="p-1.5 flex flex-col gap-0.5">
             {JUMP_SPANS.map(j => (
-              <button key={j.value} type="button" onClick={() => jump.onSpan(j.value)} className="flex items-baseline gap-2 px-2 py-1.5 rounded text-left text-textSecondary hover:bg-ink/[0.03] hover:text-textPrimary" data-jump={j.value}>
+              <button key={j.value} type="button" onClick={() => { jump.onSpan(j.value); setJumpOpen(false); }} className="flex items-baseline gap-2 px-2 py-1.5 rounded text-left text-textSecondary hover:bg-ink/[0.03] hover:text-textPrimary" data-jump={j.value}>
                 <span className="font-mono text-[11px] font-semibold w-10 shrink-0">{j.label}</span>
                 <span className="text-[11px] text-textMuted leading-snug">{j.hint}</span>
               </button>
