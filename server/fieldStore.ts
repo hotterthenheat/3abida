@@ -62,7 +62,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import { columnSummary, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
+import { columnSummary, lastTradeOf, modelColumn, pastInputs, readAt, straddleAt, straddleExpiries, straddleFromChain, TRAIL_MODEL, universeOf, uwYears, type ServerInputs, type StraddleRead } from '../src/data/feed/trailModel';
 import { RunningScale, columnMax } from '../src/data/feed/beadScale';
 import { nyWallTime } from '../src/core/nyTime';
 import type { MinuteBar, PastDay } from './fieldBackfill';
@@ -247,7 +247,9 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
       const read = inputs.chains.find(c => c.receivedAt >= m && c.receivedAt < end) ?? null;
       const straddle = (expiry: string | null): StraddleRead | null => {
         if (!expiry) return null;
-        return (read ? straddleFromChain(read.rows, expiry, bar.close) : null) ?? straddleAt(u!, bar, expiry);
+        /* the read's NBBO mids, its vol solved on UW's clock at the read; else the model's price at the minute */
+        const tau = expiry === day ? Math.max(0, (lastTradeOf(expiry) - (bar.time * 1000 + 30_000)) / (365 * 864e5)) : uwYears(bar.time * 1000 + 30_000, lastTradeOf(expiry), expiry, day);
+        return (read ? straddleFromChain(read.rows, expiry, bar.close, tau) : null) ?? straddleAt(u!, bar, expiry);
       };
       const r = readAt(u, end);
       let book = 0;

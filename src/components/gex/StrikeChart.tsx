@@ -1,3 +1,4 @@
+import { coneOf, readoutOf, readoutWords, SESSION_MINUTES } from '../../data/feed/pricedMove';
 import { alpha } from './paletteInk';
 import { netOf, ordinal, regimeBucketOf, regimeBucketsFor, regimePercentile, type RegimeReference } from '../../data/feed/trailModel';
 import { nyMinuteOf } from '../../data/feed/trackRecord';
@@ -783,6 +784,9 @@ interface StrikeChartProps {
   regimeRef?: RegimeReference | null;
   /** UW's directionalized whole-book gamma's sign at the newest minute, IN THE HOUSE'S SIGN — the attribution check */
   regimeDir?: 1 | -1 | 0 | null;
+  /** THE PRICED MOVE (the owner's item 4): the day's budget off the prior close's 4:00 pm straddle, the profile and the
+      live remaining 1σ — the Expected move overlay draws it in place of the single-vol cone while it is in */
+  pricedMove?: { prevClose: number; sigma: number; from: string; profile: number[]; rem: { sigma: number; src: 'nbbo' | 'model'; at: number } | null; close?: number | null } | null;
   /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
   regimeRanges?: { horizon: number; median: number | null; terciles: { tercile: number; n: number; range: number | null; overImplied: number | null }[] }[] | null;
   /** THE SHARE OF THE OPENING VIEW THE BARS TAKE, the rest held open ahead of the last one (HISTORY_SHARE, 0.64, by
@@ -1081,7 +1085,7 @@ const StrikeChart = ({
   onReadout,
   projectionRef,
   exportRef,
-  nyClock = false, recordLines, regimeRef = null, regimeDir = null, regimeRanges = null,
+  nyClock = false, recordLines, regimeRef = null, regimeDir = null, regimeRanges = null, pricedMove = null,
   historyShare,
   fitCandles = false,
   quote = null,
@@ -3520,10 +3524,66 @@ const StrikeChart = ({
     if (!prim) return;
     if (!overlays.cone || replay || altSpec) {
       prim.setData(null);
+      try {
+        const ts = chartRef.current?.timeScale();
+        if (ts && ts.options().rightOffset !== 6) ts.applyOptions({ rightOffset: 6 });
+      } catch {
+        /* a chart mid-teardown */
+      }
       return;
     }
     const mins = tfMinutes(timeframe);
     const bars = barsFor(mins);
+    /* THE PRICED MOVE ON THE FEED (item 4): the day's ±1σ/±2σ off the prior close's 4:00 pm straddle, the cone of the
+       live straddle's remaining 1σ spread by the time-of-day profile, the readout at its head */
+    if (pricedMove && bars.length) {
+      const today = nyIsoDateOf(Date.now());
+      const first = bars.find(b => nyIsoDateOf(b.time * 1000) === today && nyMinuteOf(b.time * 1000) >= 9 * 60 + 30);
+      const lastBar = bars[bars.length - 1];
+      if (first) {
+        const now = Math.max(0, Math.min(SESSION_MINUTES, nyMinuteOf(lastBar.time * 1000) + mins - (9 * 60 + 30)));
+        const cone = pricedMove.rem && now < SESSION_MINUTES ? coneOf(pricedMove.rem.sigma, now, pricedMove.profile, Math.max(1, mins)) : [];
+        /* after the close the move is the session's own, close to close as the budget is: its official close once the
+           vendor has it (the 3:59 pm bar is not the close), the last regular bar's until then — never the evening's */
+        const lastReg = now >= SESSION_MINUTES ? [...bars].reverse().find(b => nyIsoDateOf(b.time * 1000) === today && nyMinuteOf(b.time * 1000) < 16 * 60) : undefined;
+        const r = readoutOf(lastReg ? (pricedMove.close ?? lastReg.close) : lastBar.close, pricedMove.prevClose, pricedMove.sigma, now, pricedMove.profile);
+        const remWords = pricedMove.rem && now < SESSION_MINUTES ? ` · left to the close ±${pricedMove.rem.sigma.toFixed(2)} (${pricedMove.rem.src === 'nbbo' ? 'quotes' : 'model'})` : '';
+        prim.setData({
+          kind: 'priced',
+          barTimes: bars.map(b => b.time),
+          barMinutes: mins,
+          ink: readToken('--ink', undefined, boxElRef.current ?? undefined),
+          from: first.time,
+          prevClose: pricedMove.prevClose,
+          sigma: pricedMove.sigma,
+          cone,
+          spot: lastBar.close,
+          readout: readoutWords(r) + remWords,
+          note: 'priced at the prior close',
+          to: lastReg?.time ?? null,
+          highs: bars.map(b => b.high),
+          lows: bars.map(b => b.low),
+          panel: readToken('--panel', undefined, boxElRef.current ?? undefined),
+        });
+        /* room for the cone to the right of the last bar: its minutes left as bars, at most a third of the view */
+        try {
+          const ts = chartRef.current?.timeScale();
+          const visible = ts?.getVisibleLogicalRange();
+          const span = visible ? visible.to - visible.from : 120;
+          const want = cone.length ? Math.min(Math.ceil((SESSION_MINUTES - now) / mins) + 2, Math.floor(span / 3)) : 6;
+          if (ts && ts.options().rightOffset !== want) ts.applyOptions({ rightOffset: want });
+        } catch {
+          /* a chart mid-teardown */
+        }
+        return;
+      }
+    }
+    try {
+      const ts = chartRef.current?.timeScale();
+      if (ts && ts.options().rightOffset !== 6) ts.applyOptions({ rightOffset: 6 });
+    } catch {
+      /* a chart mid-teardown */
+    }
     const starts = sessionStarts(bars, mins);
     const sess = starts.length > 0 ? bars.slice(starts[starts.length - 1]) : [];
     const iv = nameIv() ?? 0;
@@ -3535,7 +3595,7 @@ const StrikeChart = ({
       barMinutes: mins,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker, timeframe, revision, overlays.cone, replay, mainNonce, altSpec]);
+  }, [ticker, timeframe, revision, overlays.cone, replay, mainNonce, altSpec, pricedMove]);
 
   /*
     THE EVENT MARKERS — T-11. The calendar half (this name's report, the

@@ -654,6 +654,89 @@ the scorecard's gate (2,600 minutes in the tercile) it adds "next-60-min range i
 flip keeps its name on the ladder — the net's sign is not the flip's side, and nothing says it is. Proved: the
 buckets, the quantiles, the percentile, and the point-in-time rule (track-record-proof).
 
+## The priced move (2026-10-13, the owner's item 4)
+
+What the options priced for the session, drawn on Terrain's chart, and how often it held. The engine is pure
+(src/data/feed/pricedMove.ts, the straddle's vol in trailModel `straddleVol` / `sigmaOf`); the server keeps the day's
+budget and the calibration (server/pricedMove.ts, `GET /feed/field/<NAME>/move?day=<D>`); the chart draws it
+(StrikeChart `pricedMove`, expectedMovePrimitive `drawPriced`) when the Cone overlay or the trails are on.
+
+- **The day's budget, fixed at the prior close, D−1 prices only.** The prior close is the official close (UW's daily
+  bar for the regular session, asked by D−1's own date; an index: the last regular minute of its tape prices). The
+  straddle is the at-the-money one on the expiry settling D (and the weekly), priced AT 4:00 PM on D−1 — the
+  recorder's last chain read 3:45 to 4:00 pm (NBBO mids), else the two legs' traded price in their last minute to
+  3:59 pm (UW's per-contract minutes), else the dated chain's NBBO. Its vol is solved at its strike on UW's clock and
+  applied at the money: 1σ_day in dollars, straddle ÷ 0.798 when the close sits on a strike. ±1σ (solid) and ±2σ
+  (dashed) stand from the prior close all session, labelled "+1σ 781.71 · priced at the prior close". Kept as
+  `move.json` in the day's folder, about five calls a day.
+- **The remaining move** is the live straddle on today's expiry — the NBBO mids at a chain read, the model's price
+  between, labelled "(quotes)" or "(model)" — t to the close, read off the store's shown rows (`str0`); it goes to 0
+  at 4:00 pm. It is never mixed with the day's budget in one number.
+- **The cone** from the last candle to 4:00 pm spreads the remaining variance over the minutes left by a time-of-day
+  profile — the mean squared 1-minute return a minute of the session over the trailing 60 sessions before D,
+  rescaled to the total — in three washes (50%, 68%, 95%), never one hard edge. The chart keeps room on the right
+  for it (`rightOffset` to the close's bar, at most a third of the view).
+- **The readout**: the move since the prior close in σ_day, the share of the day's variance the profile says has
+  passed, the pace (|σ used| ÷ that share) and, while the session runs, the remaining 1σ — in the form "+0.6σ · 41% of
+  the day's variance used · pace 1.5× · left to the close ±1.92 (quotes)". It stands at the cone's head where the cone has room,
+  otherwise ending at the last bar over (or under) the candles it spans, on the pane's ground — never at the right
+  edge, where the pinned strike chips stand. After the close the lines end at the 4:00 pm bar and the readout measures
+  the session to its OFFICIAL close (UW's daily bar, `close.json`, served with the budget), never the 3:59 pm bar or
+  the evening's last trade; a move that rounds to nothing reads "0.0σ".
+- **The calibration** (How sure, "Expected move · calibration"; written nightly with the scorecard as
+  `move-calibration.json`, every close the session's official one): the close inside ±1σ and ±2σ of the prior close's budget and of the 10:00 am straddle
+  (against the 10:00 spot), the touch of ±1σ and ±2σ (bar highs and lows), the median |close − prior close| ÷ σ,
+  each beside theory (68.3% / 95.4%; a touch about twice the finish outside, 63.5% / 9.1%; 0.67), and the plan's
+  sanity check: Wednesdays' close inside ±1σ of the 10:00 am straddle beside a published study of 193 Wednesday
+  sessions (FlashAlpha, July 2022 to April 2026: 71.0%, the same measure), judged against 60–80% from 30 sessions.
+  Under 60 sessions every line says "provisional".
+
+**What the data said while it was built:**
+- **UW's implied move is 85% of the straddle.** `/volatility/term-structure`'s `implied_move` ÷ (S·σ·√(dte/365)) is
+  0.679 to 0.682 across six names and every expiry: 0.85 × 0.798. So the cross-check (logged, never shown) sets our
+  4:00 pm straddle against `implied_move ÷ 0.85`.
+- **The dated chain's quotes are not 4:00 pm's.** `option-chains?date=D` carries NBBO stamped to about 5:30 pm, after
+  the close (Oct 12: 4.02 against 4.14 at the recorder's 3:55 pm read and UW's 4.12). Read on those, 10 of 13 days
+  were within 5% of UW, all on one side. On the 4:00 pm order above, 13 of 13 SPY sessions are within 5%, median gap
+  0.4%, the largest −4.3% (Oct 1) and +3.4% (Oct 9):
+
+| Day | Prior close | Straddle (strike) | σ_day | UW ÷ 0.85 | Gap |
+|---|---|---|---|---|---|
+| 2025-04-02 | 560.97 | 6.76 (561) | 8.47 | 6.81 | −0.9% |
+| 2025-04-03 | 564.52 | 8.67 (565) | 10.86 | 8.68 | −0.1% |
+| 2026-09-29 | 765.61 | 4.20 (766) | 5.25 | 4.21 | −0.2% |
+| 2026-09-30 | 764.20 | 4.46 (764) | 5.58 | 4.43 | +0.7% |
+| 2026-10-01 | 762.63 | 4.62 (763) | 5.78 | 4.83 | −4.3% |
+| 2026-10-02 | 763.99 | 5.16 (764) | 6.47 | 5.15 | +0.2% |
+| 2026-10-05 | 769.64 | 4.13 (770) | 5.17 | 4.08 | +1.3% |
+| 2026-10-06 | 774.83 | 3.41 (775) | 4.27 | 3.40 | +0.4% |
+| 2026-10-07 | 779.09 | 3.18 (779) | 3.98 | 3.16 | +0.6% |
+| 2026-10-08 | 777.22 | 3.39 (777) | 4.24 | 3.40 | −0.3% |
+| 2026-10-09 | 773.93 | 3.73 (774) | 4.67 | 3.61 | +3.4% |
+| 2026-10-12 | 778.57 | 3.19 (779) | 3.99 | 3.20 | −0.3% |
+| 2026-10-13 | 778.10 | 2.88 (778) | 3.61 | 2.89 | −0.3% |
+
+  Every one priced off the legs' 3:59 pm trades (the recorder here was not reading at 3:45 to 4:00 pm on those days).
+- **SPX**: the budget builds off its tape prices and SPXW's straddle (Oct 12: close 7,810.43, 31.34 at 7,810, σ
+  39.16; Oct 13: 7,808.16, 27.35, σ 34.26), but UW's SPX term structure lists the AM-settled expiries alone with no
+  `implied_move`, so an index has no cross-check; and Terrain's SPX pane draws no candles yet, so it draws no σ lines.
+- **The calibration on 13 SPY sessions (provisional)**: close inside ±1σ / ±2σ of the prior close's budget 85% / 92%;
+  of the 10:00 am straddle 67% / 83% on 12; touched 54% / 8%; the median ratio 0.47 against 0.67; Wednesdays 1 of 3.
+  Too few sessions to read anything into — the backfill at home fills it.
+- **Two faults found in the browser check, fixed before the push**: the candle series holds only the recent window of
+  the bars (StrikeChart `windowOf`), so a bar's place in the array is not its place on the time scale — the session's
+  first bar mapped 2,900 bars past the right edge and the σ lines drew nothing while their labels did; both cones now
+  ask the scale (`scaleIndex`, `timeToIndex`). And UW's daily bars asked with three rows for a date often lead with the
+  NEXT session's three (Oct 12 asked answered Oct 13's alone), so the close is asked with twelve; every calibration
+  close now equals the next session's official prior close (13 of 13).
+- **Shots**: docs/next-builds-2026-10-13/priced-move-dark.png and priced-move-light.png (SPY, 5m, after the close).
+- **Departures, stated**: σ is the straddle's solved vol applied at the money rather than the raw mid ÷ 0.798, so the
+  remaining move reaches 0 at the close whatever the strike grid (acceptance (i), proved) and equals mid ÷ 0.798 on a
+  strike; the 4:00 pm straddle comes from the recorder's read or the 3:59 pm trades because the dated chain's
+  quotes are later than 4:00 pm. Proved by scripts/priced-move-proof.ts (`npm test`): the remaining move at the close,
+  the budget asking no call that names D, the 4:00 pm order, the profile, the cone, the readout's words, and the
+  calibration of 20,000 simulated driftless days landing on theory.
+
 ## The Backtest reads real days (2026-10-12)
 
 `ROOM_FEEDS.backtest` (`needs: ['massive']`) is `wired: true`: with Massive up, Practice › Backtest offers a **Days** card —

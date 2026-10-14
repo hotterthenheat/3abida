@@ -55,7 +55,7 @@
 ==================================================
 */
 
-import { pastInputs, type RegimeReference } from './trailModel';
+import { pastInputs, sigmaOf, type RegimeReference, type StraddleRead } from './trailModel';
 import { isoDayLabel } from '../../core/format';
 import type { FeedBook60 } from './trailModel';
 import { useMemo, useSyncExternalStore } from 'react';
@@ -1100,6 +1100,60 @@ export function useTrackRecord(on: boolean, ticker: string): TrackRecordCard | n
   const t = ticker.toUpperCase();
   const r = useFeedPoll(on && t ? `field:scorecard:${t}` : null, () => feedFetch(`/feed/field/${encodeURIComponent(t)}/scorecard`) as Promise<FeedResult<TrackRecordCard>>, 10 * 60_000);
   return r?.ok && r.data && r.data.lines ? r.data : null;
+}
+
+/** THE PRICED MOVE (the owner's item 4; server/pricedMove.ts): the day's budget off the session before's 4:00 pm
+    straddle, the time-of-day profile, the calibration — and the newest live straddle on today's expiry off the store's
+    shown rows (the NBBO mids at a chain read, the model's price between). Asked every ten minutes and every minute. */
+export interface PricedMoveFeed {
+  prevClose: number;
+  sigma: number;
+  from: 'live-read' | 'trades-4pm' | 'closing-quotes';
+  strike: number;
+  profile: number[];
+  profileSessions: number;
+  calibration: string[] | null;
+  /** The remaining 1σ to the close, dollars, and where its straddle came from */
+  rem: { sigma: number; src: 'nbbo' | 'model'; at: number } | null;
+  /** The session's official close once it has closed (null before, and until the vendor has it) */
+  close: number | null;
+}
+const newestRem = new Map<string, { m: number; rem: PricedMoveFeed['rem'] }>();
+export function usePricedMove(on: boolean, ticker: string): PricedMoveFeed | null {
+  const t = ticker.toUpperCase();
+  const day = nyIsoDate();
+  const move = useFeedPoll(on && t ? `field:move:${t}:${day}` : null, () => feedFetch(`/feed/field/${encodeURIComponent(t)}/move?day=${day}`) as Promise<FeedResult<{ budget: { prevClose: number; today: { read: { strike: number }; sigma: number; from: PricedMoveFeed['from'] } | null } | null; profile: { share: number[]; sessions: number }; calibration: { lines?: string[] } | null; close?: number | null }>>, 10 * 60_000);
+  const key = `${t}|${day}`;
+  const store = useFeedPoll(
+    on && t ? `field:storeRem:${key}` : null,
+    async () => {
+      const since = newestRem.get(key)?.m ?? 0;
+      const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/store?day=${day}&kind=shown&since=${since}`)) as FeedResult<{ rows: { m: number; str0: StraddleRead | null }[] }>;
+      if (r.ok && r.data?.rows) {
+        for (const row of r.data.rows) {
+          const sigma = sigmaOf(row.str0);
+          const had = newestRem.get(key);
+          if (!had || row.m > had.m) newestRem.set(key, { m: row.m, rem: sigma != null && row.str0 ? { sigma, src: row.str0.src, at: row.m } : null });
+        }
+      }
+      return r;
+    },
+    60_000
+  );
+  const b = move?.ok ? move.data.budget : null;
+  if (!b || !b.today || !move?.ok) return null;
+  void store;
+  return {
+    prevClose: b.prevClose,
+    sigma: b.today.sigma,
+    from: b.today.from,
+    strike: b.today.read.strike,
+    profile: move.data.profile.share,
+    profileSessions: move.data.profile.sessions,
+    calibration: move.data.calibration?.lines ?? null,
+    rem: newestRem.get(key)?.rem ?? null,
+    close: move.data.close ?? null,
+  };
 }
 
 /** THE REGIME'S REFERENCE (the owner's item 3): the half-hour buckets' quantiles over the trailing sessions, built

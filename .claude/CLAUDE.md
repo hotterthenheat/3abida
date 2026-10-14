@@ -861,6 +861,21 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   read through `regimeBucketsFor` so a session at or after the day never moves it), the chip's words the sign, the
   percentile and "attribution-robust"/"attribution-dependent" against UW's `_dir` (trailField `totalOf`, the sign
   turned to the house's). The flip is never relabelled and the net's sign is never said to be the flip's side.
+- THE PRICED MOVE (2026-10-13, item 4; docs/data-feed.md "The priced move"): data/feed/pricedMove.ts (pure) and
+  server/pricedMove.ts (`/feed/field/<NAME>/move`). THE DAY'S BUDGET uses D−1 prices alone: the official close (UW's
+  daily bar asked by D−1's date; an index its tape's last regular minute) and the at-the-money straddle on D's expiry
+  priced AT 4:00 PM — the recorder's last read 3:45–4:00 pm, else the legs' last traded minute to 3:59 pm, else the
+  dated chain's NBBO (stamped after the close, to about 5:30 pm — never taken as 4:00 pm's first) — its vol solved at
+  its strike on UW's clock, 1σ_day = spot × vol × √τ (straddle ÷ 0.798 on a strike). ±1σ and ±2σ from the prior close,
+  "priced at the prior close". THE REMAINING MOVE is the store's live straddle (quotes at a read, the model between,
+  labelled), to 0 at the close, never mixed with the budget in one number. THE CONE spreads it by the trailing 60
+  sessions' time-of-day profile in 50/68/95% washes, never one hard edge. UW's `implied_move` is 0.85 × the straddle
+  (the cross-check divides by it; logged, never shown). The calibration prints each rate beside theory, provisional
+  under 60 sessions, and the Wednesday 10:00 am line beside the published 71%, judged against 60–80% from 30. Every
+  close it measures to is the OFFICIAL one (server/pricedMove.ts `officialClose`, UW's daily bar asked with twelve rows —
+  a date's answer often leads with the next session's), never the 3:59 pm bar; after the close the lines end at the
+  4:00 pm bar. A chart primitive maps a bar to the time scale by its time (expectedMovePrimitive `scaleIndex`): the
+  candle series holds only the recent window, so an array position is not a logical index.
 - THE BACKTEST READS REAL DAYS (2026-10-12, `backtest` in data/feed/rooms.ts, Massive alone, `wired: true`; docs/data-feed.md
   "The Backtest reads real days", docs/review-backtest-rules.md "Real days"). With Massive up the Sessions page's Days card
   offers Real sessions (the default) or The house's tape; down, the card is not there and the page is what it was. ONE

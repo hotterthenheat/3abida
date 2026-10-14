@@ -9,6 +9,7 @@ import { createFeedClient } from '../server/feed';
 import { createFieldBackfill } from '../server/fieldBackfill';
 import { createFieldStore } from '../server/fieldStore';
 import { createScorecard } from '../server/scorecard';
+import { createPricedMove } from '../server/pricedMove';
 
 const names = (process.argv[2] ?? 'SPY').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
 const env: Record<string, string> = {};
@@ -20,7 +21,8 @@ if (existsSync('.env'))
 const client = createFeedClient({ keys: { uw: process.env.UW_API_TOKEN || env.UW_API_TOKEN || undefined, massive: undefined } as never });
 const backfill = createFieldBackfill(client);
 const store = createFieldStore();
-const job = createScorecard(backfill, store, { log: l => console.log(l) });
+const move = createPricedMove(client, backfill, { log: l => console.log(l) });
+const job = createScorecard(backfill, store, { log: l => console.log(l), move });
 (async () => {
   for (const n of names) {
     const t0 = Date.now();

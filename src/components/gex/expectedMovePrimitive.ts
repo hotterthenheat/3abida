@@ -1,5 +1,7 @@
-import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
+import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi, ITimeScaleApi } from 'lightweight-charts';
 import type { ExpectedMoveCone } from '../../data/expectedMove';
+import type { ConePoint } from '../../data/feed/pricedMove';
+import { alpha } from './paletteInk';
 import { FONT_SANS } from '../../theme/fonts';
 
 /*
@@ -67,6 +69,34 @@ export interface ConeData {
   barTimes: number[];
   barMinutes: number;
 }
+/** THE PRICED MOVE ON THE FEED (the owner's item 4, data/feed/pricedMove.ts): the day's ±1σ and ±2σ from the prior
+    close's 4:00 pm straddle, standing the whole session, and the cone of what is left — 50%, 68% and 95% bands as
+    stacked washes, no hard edge — with the readout at its head. Every ink the pane's own (`ink`, a token read off the
+    chart's box), never a literal white. */
+export interface PricedMoveData {
+  kind: 'priced';
+  barTimes: number[];
+  barMinutes: number;
+  ink: string;
+  /** The session's first bar, seconds */
+  from: number;
+  prevClose: number;
+  sigma: number;
+  /** The cone from the last bar's end: minutes ahead, half-widths (50, 68, 95) */
+  cone: ConePoint[];
+  spot: number;
+  readout: string;
+  /** "priced at the prior close" or the like, said once beside the +1σ label */
+  note: string;
+  /** The session's last regular bar, seconds, once the session has closed — the lines end there, not on the evening */
+  to: number | null;
+  /** Each bar's high and low (beside barTimes) — the readout stands clear of the candles it is drawn over */
+  highs: number[];
+  lows: number[];
+  /** The pane's ground, the readout's backing */
+  panel: string;
+}
+
 
 class ExpectedMoveRenderer {
   constructor(private source: ExpectedMovePrimitive) {}
@@ -77,7 +107,11 @@ class ExpectedMoveRenderer {
     const series = src.series;
     const data = src.data;
     if (!chart || !series || !data) return;
-    const { cone, barTimes, barMinutes } = data;
+    if ('kind' in data && data.kind === 'priced') {
+      drawPriced(target, chart, series, data);
+      return;
+    }
+    const { cone, barTimes, barMinutes } = data as ConeData;
     if (cone.past.length === 0 && cone.forward.length === 0) return;
 
     target.useBitmapCoordinateSpace(scope => {
@@ -100,7 +134,7 @@ class ExpectedMoveRenderer {
         }
         if (lo > 0 && Math.abs(barTimes[lo - 1] - time) < Math.abs(barTimes[lo] - time)) lo -= 1;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const x = ts.logicalToCoordinate(lo as any);
+        const x = ts.logicalToCoordinate(scaleIndex(ts, barTimes, lo) as any);
         return x === null ? null : x * hr;
       };
       /* MEASURED, not assumed: v5.2's logicalToCoordinate mishandles a
@@ -173,7 +207,7 @@ class ExpectedMoveRenderer {
       }
 
       /* ── the forward cone, on the runway ──────────────────────────────── */
-      const anchor = barTimes.length - 1;
+      const anchor = scaleIndex(ts, barTimes, barTimes.length - 1);
       const fUp1: [number, number][] = [];
       const fDn1: [number, number][] = [];
       const fUp2: [number, number][] = [];
@@ -235,6 +269,165 @@ class ExpectedMoveRenderer {
   }
 }
 
+/** The priced move's geometry (PricedMoveData) */
+/** A bar's place on the TIME SCALE. The candle series holds only the recent window of the bars handed here
+    (StrikeChart `windowOf` — the whole store lands once the reader scrolls left), so a position in `barTimes` is not a
+    logical index; the scale's own lookup is (2026-10-13: the session's first bar mapped 2,900 bars past the right edge
+    and the σ lines drew nothing). */
+function scaleIndex(ts: ITimeScaleApi<Time>, barTimes: readonly number[], i: number): number {
+  const idx = barTimes.length ? ts.timeToIndex(barTimes[Math.max(0, Math.min(barTimes.length - 1, i))] as Time, true) : null;
+  return idx == null ? i : (idx as unknown as number);
+}
+
+function drawPriced(target: DrawTarget, chart: IChartApi, series: ISeriesApi<'Candlestick'>, d: PricedMoveData): void {
+  if (!d.barTimes.length || !(d.sigma > 0)) return;
+  target.useBitmapCoordinateSpace(scope => {
+    const ctx = scope.context;
+    const hr = scope.horizontalPixelRatio;
+    const vr = scope.verticalPixelRatio;
+    const W = scope.mediaSize.width * hr;
+    const ts = chart.timeScale();
+    const logicalToX = (logical: number): number | null => {
+      const lo = Math.floor(logical);
+      const frac = logical - lo;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const x0 = ts.logicalToCoordinate(lo as any);
+      if (x0 === null) return null;
+      if (frac === 0) return x0 * hr;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const x1 = ts.logicalToCoordinate((lo + 1) as any);
+      return x1 === null ? x0 * hr : (x0 + (x1 - x0) * frac) * hr;
+    };
+    const indexOf = (time: number): number => {
+      let lo = 0;
+      let hi = d.barTimes.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (d.barTimes[mid] < time) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
+    const y = (price: number): number | null => {
+      const v = series.priceToCoordinate(price);
+      return v === null ? null : v * vr;
+    };
+    const last = scaleIndex(ts, d.barTimes, d.barTimes.length - 1);
+    const coneEnd = d.cone.length ? d.cone[d.cone.length - 1].minutesAhead : 0;
+    const xFrom = logicalToX(scaleIndex(ts, d.barTimes, indexOf(d.from))) ?? 0;
+    /* the cone starts at the last bar's end (its centre + half a bar) */
+    const xAt = (minutesAhead: number) => logicalToX(last + 0.5 + minutesAhead / d.barMinutes);
+    /* the lines run to the close: the cone's end while the session runs, the last regular bar's end after it */
+    const xEnd = Math.min(W, (d.to != null ? logicalToX(scaleIndex(ts, d.barTimes, indexOf(d.to)) + 0.5) : xAt(coneEnd)) ?? logicalToX(last) ?? W);
+
+    /* THE CONE: three washes, the widest first, so the middle reads darkest — no edge drawn */
+    if (d.cone.length > 1) {
+      const washes = [0.06, 0.07, 0.09];
+      for (let band = 2; band >= 0; band--) {
+        ctx.beginPath();
+        let first = true;
+        for (const p of d.cone) {
+          const x = xAt(p.minutesAhead);
+          const yy = y(d.spot + p.half[band]);
+          if (x === null || yy === null) continue;
+          if (first) ctx.moveTo(x, yy);
+          else ctx.lineTo(x, yy);
+          first = false;
+        }
+        for (let i = d.cone.length - 1; i >= 0; i--) {
+          const p = d.cone[i];
+          const x = xAt(p.minutesAhead);
+          const yy = y(d.spot - p.half[band]);
+          if (x === null || yy === null) continue;
+          ctx.lineTo(x, yy);
+        }
+        ctx.closePath();
+        ctx.fillStyle = alpha(d.ink, washes[band]);
+        ctx.fill();
+      }
+    }
+
+    /* THE DAY'S LINES: ±1σ solid, ±2σ dashed, the prior close dotted, from the session's first bar */
+    const lines: { k: number; a: number; dash: number[]; label: string }[] = [
+      { k: 0, a: 0.28, dash: [1 * hr, 3 * hr], label: '' },
+      { k: 1, a: 0.5, dash: [], label: '+1σ' },
+      { k: -1, a: 0.5, dash: [], label: '−1σ' },
+      { k: 2, a: 0.32, dash: [4 * hr, 4 * hr], label: '+2σ' },
+      { k: -2, a: 0.32, dash: [4 * hr, 4 * hr], label: '−2σ' },
+    ];
+    ctx.lineWidth = Math.max(1, Math.round(hr));
+    const font = Math.round(11 * vr);
+    ctx.font = `${font}px ${FONT_SANS}`;
+    ctx.textBaseline = 'middle';
+    for (const l of lines) {
+      const price = d.prevClose + l.k * d.sigma;
+      const yy = y(price);
+      if (yy === null) continue;
+      ctx.setLineDash(l.dash);
+      ctx.strokeStyle = alpha(d.ink, l.a);
+      ctx.beginPath();
+      ctx.moveTo(Math.max(0, xFrom), Math.round(yy) + 0.5);
+      ctx.lineTo(xEnd, Math.round(yy) + 0.5);
+      ctx.stroke();
+      if (!l.label) continue;
+      const text = `${l.label} ${price.toFixed(2)}${l.k === 1 && d.note ? ` · ${d.note}` : ''}`;
+      const tw = ctx.measureText(text).width;
+      const tx = Math.max(4 * hr, Math.min(xEnd - tw - 4 * hr, W - tw - 4 * hr));
+      ctx.fillStyle = alpha(d.ink, 0.72);
+      ctx.fillText(text, tx, yy - 8 * vr);
+    }
+    ctx.setLineDash([]);
+
+    /* THE READOUT: at the cone's head where the cone has room for it; otherwise ending at the last bar, over (or, with no
+       room above, under) the candles it spans — never at the right edge, where the pinned strike chips stand, nor in
+       the band the chart keeps clear for the pane's chrome */
+    if (d.readout) {
+      const H = scope.mediaSize.height * vr;
+      const tw = ctx.measureText(d.readout).width;
+      const padX = 4 * hr;
+      const boxH = Math.round(15 * vr);
+      let clearTop = 0;
+      try {
+        clearTop = (series.priceScale().options().scaleMargins?.top ?? 0) * H;
+      } catch {
+        /* a chart mid-teardown */
+      }
+      const minY = clearTop + boxH * 1.5;
+      const head = xAt(0);
+      let tx: number;
+      let ty: number | null = null;
+      if (d.cone.length > 1 && head !== null && xEnd - head >= tw + 2 * padX + 6 * hr) {
+        tx = head + 6 * hr;
+        const yy = y(d.spot + Math.max(...d.cone.map(p => p.half[2])));
+        ty = yy === null ? null : yy - boxH;
+      } else {
+        const right = (logicalToX(last + 0.5) ?? W) - 4 * hr;
+        tx = Math.max(padX, right - tw - 2 * padX);
+        /* the bars under the text: from its left edge to the last bar */
+        let hi = -Infinity;
+        let lo = Infinity;
+        for (let i = d.barTimes.length - 1; i >= 0; i--) {
+          const x = logicalToX(scaleIndex(ts, d.barTimes, i));
+          if (x === null || x < tx - 4 * hr) break;
+          hi = Math.max(hi, d.highs[i]);
+          lo = Math.min(lo, d.lows[i]);
+        }
+        const above = Number.isFinite(hi) ? y(hi) : y(d.spot);
+        const below = Number.isFinite(lo) ? y(lo) : y(d.spot);
+        if (above !== null && above - 6 * vr - boxH >= minY) ty = above - 6 * vr - boxH;
+        else if (below !== null) ty = Math.min(H - boxH * 2, below + 6 * vr);
+      }
+      if (ty !== null) {
+        ty = Math.max(minY, ty);
+        ctx.fillStyle = alpha(d.panel, 0.78);
+        ctx.fillRect(tx, ty, tw + 2 * padX, boxH);
+        ctx.fillStyle = alpha(d.ink, 0.86);
+        ctx.fillText(d.readout, tx + padX, ty + boxH / 2);
+      }
+    }
+  });
+}
+
 class ExpectedMovePaneView {
   private _renderer: ExpectedMoveRenderer;
   constructor(source: ExpectedMovePrimitive) {
@@ -254,7 +447,7 @@ export class ExpectedMovePrimitive implements ISeriesPrimitive<Time> {
   chart: IChartApi | null = null;
   series: ISeriesApi<'Candlestick'> | null = null;
   requestUpdate?: () => void;
-  data: ConeData | null = null;
+  data: ConeData | PricedMoveData | null = null;
   private _paneViews: ExpectedMovePaneView[];
 
   constructor() {
@@ -286,7 +479,7 @@ export class ExpectedMovePrimitive implements ISeriesPrimitive<Time> {
    * discover that would cost more than the repaint it saves. Only the
    * off→off case is skipped.
    */
-  setData(next: ConeData | null): void {
+  setData(next: ConeData | PricedMoveData | null): void {
     const wasOff = this.data === null;
     this.data = next;
     if (!(wasOff && next === null)) this.requestUpdate?.();

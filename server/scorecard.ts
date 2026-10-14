@@ -44,6 +44,9 @@ import { LEVEL_KINDS, recordLine, trackRecord, nyMinuteOf, type LevelKind, type 
 import { buildRegimeReference, type RegimeReference } from '../src/data/feed/trailModel';
 import type { createFieldBackfill, PastDay } from './fieldBackfill';
 import type { FieldStore, StoreRow } from './fieldStore';
+import type { PricedMove } from './pricedMove';
+import { sigmaOf } from '../src/data/feed/trailModel';
+import type { CalibrationDay } from '../src/data/feed/pricedMove';
 
 type FieldBackfill = ReturnType<typeof createFieldBackfill>;
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
@@ -86,7 +89,7 @@ const monthsBack = (iso: string, months: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts: { root?: string; config?: TrackConfig; now?: () => number; log?: (line: string) => void } = {}) {
+export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts: { root?: string; config?: TrackConfig; now?: () => number; log?: (line: string) => void; move?: PricedMove } = {}) {
   const root = opts.root ?? ROOT;
   const clock = opts.now ?? Date.now;
   const fileOf = (name: string) => join(root, name, FILE);
@@ -100,8 +103,8 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
   }
 
   /** A session's rows and bars: the store's final rows where the recorder wrote them, else the rebuilt session's */
-  async function sessionOf(name: string, day: string, prevClose: number | null): Promise<{ session: TrackSession; source: 'final' | 'rebuilt' } | null> {
-    const bars = await backfill.bars(name, day);
+  async function sessionOf(name: string, day: string, prevClose: number | null): Promise<{ session: TrackSession; source: 'final' | 'rebuilt'; at10: CalibrationDay['at10'] } | null> {
+    const bars = await backfill.minutes(name, day);
     if (!bars?.length) return null;
     const trackBars = bars
       .filter(b => b.session === 'r' && b.open != null && b.high != null && b.low != null)
@@ -120,7 +123,11 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
       if (past.total?.rows.some(r => r.length >= 5)) dir = past.total.rows.filter(r => r[4] != null).map(r => [r[0], r[4] as number]);
     }
     if (!rows.length) return null;
-    return { session: { day, rows: rows.map(r => ({ m: r.m, spot: r.spot, flip: r.flip, cw: r.cw, pw: r.pw, top: r.top, net: r.net, cells: r.cells, str0: r.str0 })), bars: trackBars, prevClose, dir }, source };
+    /* the 10:00 am straddle (the calibration's second budget): the row of 10:00 New York, its σ to the close */
+    const r10 = rows.find(r => nyMinuteOf(r.m) === 10 * 60);
+    const s10 = r10 ? sigmaOf(r10.str0) : null;
+    const at10: CalibrationDay['at10'] = r10 && s10 != null && s10 > 0 ? { spot: r10.spot, sigma: s10, src: r10.str0?.src ?? 'model' } : null;
+    return { session: { day, rows: rows.map(r => ({ m: r.m, spot: r.spot, flip: r.flip, cw: r.cw, pw: r.pw, top: r.top, net: r.net, cells: r.cells, str0: r.str0 })), bars: trackBars, prevClose, dir }, source, at10 };
   }
 
   /** The job for one name: every session on disk, the main record and the hold-out, written as scorecard.json */
@@ -134,6 +141,7 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
     let rebuilt = 0;
     let skipped = 0;
     let prevClose: number | null = null;
+    const at10 = new Map<string, CalibrationDay['at10']>();
     for (const day of days) {
       const got = await sessionOf(t, day, prevClose);
       if (!got) {
@@ -141,6 +149,7 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
         continue;
       }
       sessions.push(got.session);
+      at10.set(day, got.at10);
       if (got.source === 'final') finals++;
       else rebuilt++;
       prevClose = got.session.bars[got.session.bars.length - 1].close;
@@ -177,6 +186,15 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
     /* THE REGIME'S REFERENCE (item 3): the nets by half-hour over the trailing sessions, the newest left out of
        `before` so a page read on that day stands on sessions before it alone */
     writeFileSync(join(root, t, REGIME), JSON.stringify(buildRegimeReference(t, sessions, REGIME_TRAILING, nyMinuteOf)));
+    /* THE PRICED MOVE'S CALIBRATION (item 4): every session with a budget and bars */
+    if (opts.move) {
+      try {
+        const c = await opts.move.calibration(t, at10);
+        opts.log?.(`move calibration ${t}: ${c.sessions} sessions${c.provisional ? ' (provisional)' : ''}`);
+      } catch (e) {
+        opts.log?.(`move calibration ${t} failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
     opts.log?.(`scorecard ${t}: ${sessions.length} sessions (${finals} from the store, ${rebuilt} rebuilt, ${skipped} without rows), ${main.touches} touches, ${main.variantsTried} variants; ${holdoutNote}`);
     return card;
   }

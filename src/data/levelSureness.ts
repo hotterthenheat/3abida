@@ -61,6 +61,8 @@ export interface Sureness {
   /** The track record (data/feed/trackRecord.ts, the owner's item 2): one line a level type, scored against the
       strike-matched baseline, and the hold-out's standing — Terrain's How sure alone */
   record?: { lines: string[]; note: string; scope: string };
+  /** The priced move's calibration (data/feed/pricedMove.ts, the owner's item 4): its lines, beside theory */
+  move?: { lines: string[] };
 }
 
 /** The line every surface prints first */

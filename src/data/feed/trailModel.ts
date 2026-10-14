@@ -542,9 +542,39 @@ export interface StraddleRead {
   /** The legs' vols the model priced on (model), else the legs' mids (nbbo) */
   call: number;
   put: number;
+  /** The straddle's own vol: the one vol that prices this straddle at its strike on UW's clock (solved) */
+  iv?: number;
+  /** Years to the expiry's last trade at the read, UW's clock */
+  tau?: number;
+  /** The spot it was read at */
+  spot?: number;
 }
 /** The nearest strike to spot holding both legs, within 2% of it */
 const ATM_BAND = 0.02;
+
+/** The straddle's price at a strike, UW's carry */
+const straddlePrice = (spot: number, k: number, tau: number, iv: number) =>
+  blackScholesPrice(spot, k, tau, iv, 'C', UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q) + blackScholesPrice(spot, k, tau, iv, 'P', UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
+/** The vol that prices a straddle at `value` (bisection, 0.1% to 500%); NaN where no vol reaches it (under intrinsic) */
+export function straddleVol(spot: number, k: number, tau: number, value: number): number {
+  if (!(tau > 0) || !(value > 0)) return NaN;
+  let lo = 0.001;
+  let hi = 5;
+  if (straddlePrice(spot, k, tau, lo) > value || straddlePrice(spot, k, tau, hi) < value) return NaN;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (straddlePrice(spot, k, tau, mid) < value) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+/** THE PRICED MOVE IN DOLLARS (the owner's item 4): 1σ = spot × the straddle's own vol × √τ — the nearest strike's
+    straddle solved for its vol and applied at the money. It is straddle ÷ 0.798 when spot sits on a strike, and it
+    reaches 0 at the expiry's close (a nearest-strike mid ÷ 0.798 would keep up to half a strike of intrinsic and never
+    reach 0 — the plan's acceptance (i)) */
+export const sigmaOf = (r: StraddleRead | null | undefined): number | null =>
+  r && r.iv != null && Number.isFinite(r.iv) && r.tau != null && r.tau > 0 && r.spot != null ? r.spot * r.iv * Math.sqrt(r.tau) : r && r.tau != null && r.tau <= 0 ? 0 : null;
+
 /** The at-the-money straddle for an expiry, priced by the model at the minute; null with no strike holding both legs */
 export function straddleAt(u: Universe, bar: { time: number; close: number }, expiry: string): StraddleRead | null {
   const spot = bar.close;
@@ -557,6 +587,7 @@ export function straddleAt(u: Universe, bar: { time: number; close: number }, ex
     let p: number | null = null;
     let civ = 0;
     let piv = 0;
+    let tau = 0;
     for (let j = u.start[i]; j < u.start[i + 1]; j++) {
       if (u.expiry[j] !== expiry || u.expires[j] <= clock) continue;
       const o = obsAt(u.obs[j], knowBy);
@@ -564,6 +595,7 @@ export function straddleAt(u: Universe, bar: { time: number; close: number }, ex
       const t = u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS;
       const px = blackScholesPrice(spot, u.strikes[i], t, o.iv, u.call[j] ? 'C' : 'P', UW_VOL_CONVENTION.r, UW_VOL_CONVENTION.q);
       if (!Number.isFinite(px)) continue;
+      tau = t;
       if (u.call[j]) {
         c = px;
         civ = o.iv;
@@ -572,13 +604,14 @@ export function straddleAt(u: Universe, bar: { time: number; close: number }, ex
         piv = o.iv;
       }
     }
-    if (c != null && p != null) return { expiry, strike: u.strikes[i], value: c + p, src: 'model', call: civ, put: piv };
+    if (c != null && p != null) return { expiry, strike: u.strikes[i], value: c + p, src: 'model', call: civ, put: piv, iv: straddleVol(spot, u.strikes[i], tau, c + p), tau, spot };
   }
   return null;
 }
 /** The at-the-money straddle off a chain read's NBBOs: the strike nearest spot whose call and put both carry a bid and
-    an ask; null where the read carries none (a read before 2026-10-13, or outside quoting hours) */
-export function straddleFromChain(rows: readonly ChainRow[], expiry: string, spot: number): StraddleRead | null {
+    an ask; null where the read carries none (a read before 2026-10-13, or outside quoting hours). `tau` — the years to
+    the expiry's last trade at the read on UW's clock — solves its vol */
+export function straddleFromChain(rows: readonly ChainRow[], expiry: string, spot: number, tau?: number): StraddleRead | null {
   const by = new Map<number, { c?: number; p?: number }>();
   for (const r of rows) {
     const bid = r[4];
@@ -595,6 +628,11 @@ export function straddleFromChain(rows: readonly ChainRow[], expiry: string, spo
   for (const [k, v] of by) {
     if (v.c == null || v.p == null) continue;
     if (!best || Math.abs(k - spot) < Math.abs(best.strike - spot)) best = { expiry, strike: k, value: v.c + v.p, src: 'nbbo', call: v.c, put: v.p };
+  }
+  if (best && tau != null) {
+    best.tau = tau;
+    best.spot = spot;
+    best.iv = straddleVol(spot, best.strike, tau, best.value);
   }
   return best;
 }

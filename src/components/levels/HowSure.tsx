@@ -142,6 +142,18 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
             <p className="text-[11px] text-textMuted">{first.record.note}</p>
           </div>
         )}
+        {first.move && (
+          <div data-how-sure-move>
+            <p className="text-[11px] text-textMuted">Expected move · calibration</p>
+            <ul className="flex flex-col gap-1">
+              {first.move.lines.map(l => (
+                <li key={l} className="text-textSecondary">
+                  {l}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div>
           <p className="text-[11px] text-textMuted">If the side were the other way</p>
           <ul className="flex flex-col gap-1">

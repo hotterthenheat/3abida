@@ -43,6 +43,7 @@ import { createFieldRecorder } from './fieldRecorder';
 import { createFieldBackfill } from './fieldBackfill';
 import { createFieldStore } from './fieldStore';
 import { createScorecard } from './scorecard';
+import { createPricedMove } from './pricedMove';
 
 export type ProviderId = 'uw' | 'massive';
 
@@ -367,8 +368,10 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
   /* THE POINT-IN-TIME STORE (server/fieldStore.ts): two rows a minute, written by the recorder */
   const store = createFieldStore();
   const recorder = createFieldRecorder(client, { always: opts.recordNames, backfill, store });
+  /* THE PRICED MOVE (server/pricedMove.ts, item 4): the day's budget off the session before's closing straddle */
+  const move = createPricedMove(client, backfill);
   /* THE SCORECARD (server/scorecard.ts): the track record over the store's final rows, run after the close */
-  const scorecard = createScorecard(backfill, store);
+  const scorecard = createScorecard(backfill, store, { move });
   let probed: { at: number; result: Promise<Record<ProviderId, ProbeResult>> } | null = null;
   const PROBE_TTL = MIN;
 
@@ -423,6 +426,11 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
         const r = store.serve(sr[1], url.searchParams.get('day') ?? '', url.searchParams.get('kind') ?? 'final', Number(url.searchParams.get('since')) || 0);
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
+      const mv = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/move$/.exec(url.pathname);
+      if (mv) {
+        const r = await move.serve(mv[1], url.searchParams.get('day') ?? '');
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
       const rg = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/regime$/.exec(url.pathname);
       if (rg) {
         const r = scorecard.serveRegime(rg[1]);
@@ -465,5 +473,5 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     }
   };
   /* the standalone recorder (server/recorderMain.ts) reaches the job and the store through the handler */
-  return Object.assign(handler, { backfill, recorder, store, client, scorecard, close });
+  return Object.assign(handler, { backfill, recorder, store, client, scorecard, move, close });
 }

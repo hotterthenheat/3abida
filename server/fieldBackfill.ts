@@ -689,5 +689,19 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     return { status: 200, body: JSON.stringify(out) };
   }
 
-  return { ask, day, build, bars, today, runRange, coverage, save, has, useTape, idle: () => !running && !job.running, job: () => ({ ...job }) };
+  /** A session's minute bars for any name: an index's off its tape's prices (tape-price.json), a stock's as bars() */
+  async function minutes(name: string, day: string): Promise<MinuteBar[] | null> {
+    if (isIndexName(name)) {
+      try {
+        const t = JSON.parse(readFileSync(join(root, name.toUpperCase(), day, 'tape-price.json'), 'utf8')) as { bars: TapePriceBar[] };
+        const b = barsFromTape(t.bars);
+        return b.length ? b : null;
+      } catch {
+        return null;
+      }
+    }
+    return bars(name, day);
+  }
+
+  return { ask, day, build, bars, minutes, chainOn, today, runRange, coverage, save, has, useTape, idle: () => !running && !job.running, job: () => ({ ...job }) };
 }

@@ -83,6 +83,7 @@ import {
   coverageLine,
   useTrackRecord,
   useRegimeReference,
+  usePricedMove,
   useFeedMaxPain,
   useFeedMoves,
   useFeedOi,
@@ -1272,6 +1273,8 @@ const Pane = ({
   const fieldLine = useMemo(() => [fTrail.residual, coverageLine(fCoverage)].filter(Boolean).join(' '), [fTrail.residual, fCoverage]);
   /* the track record (the owner's item 2): the level types scored against their baselines, in How sure and the hover card */
   const fRecord = useTrackRecord(onFeed && overlays.trails, ticker);
+  /* THE PRICED MOVE (item 4): the day's budget, the profile, the live remaining 1σ, the calibration */
+  const fMove = usePricedMove(onFeed && !isCashIndex(ticker) && (!!overlays.cone || overlays.trails), ticker);
   /* THE REGIME STRIP (item 3): the reference built nightly, and UW's directionalized sign in the house's sign */
   const fRegime = useRegimeReference(onFeed && !!overlays.regime, ticker);
   const regimeDir = useMemo<1 | -1 | 0 | null>(() => {
@@ -1295,7 +1298,11 @@ const Pane = ({
         : undefined,
     [fRecord]
   );
-  const railSure = useMemo(() => (onFeed && (fieldLine || recordSure) && rail.sure ? rail.sure.map(x => ({ ...x, ...(fieldLine ? { field: fieldLine } : {}), ...(recordSure ? { record: recordSure } : {}) })) : rail.sure), [onFeed, fieldLine, recordSure, rail.sure]);
+  const moveSure = useMemo(() => (fMove?.calibration?.length ? { lines: fMove.calibration } : undefined), [fMove?.calibration]);
+  const railSure = useMemo(
+    () => (onFeed && (fieldLine || recordSure || moveSure) && rail.sure ? rail.sure.map(x => ({ ...x, ...(fieldLine ? { field: fieldLine } : {}), ...(recordSure ? { record: recordSure } : {}), ...(moveSure ? { move: moveSure } : {}) })) : rail.sure),
+    [onFeed, fieldLine, recordSure, moveSure, rail.sure]
+  );
   /*
     THE FIVE TIMEFRAMES' TREND STATE — T-12.
 
@@ -1769,6 +1776,7 @@ const Pane = ({
               regimeRef={fRegime}
               regimeDir={regimeDir}
               regimeRanges={fRecord?.main.regime?.ranges ?? null}
+              pricedMove={fMove}
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
                  tape — and never spans less than eight strikes, so the ladder keeps its rows (the audit, row 31) */
