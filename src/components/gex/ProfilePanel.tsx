@@ -123,7 +123,7 @@ const heatOn = (value: number, maxAbs: number, mode: HeatMode, paper = false) =>
 export type ProfilePalette = 'thermal' | 'house';
 export const PALETTE_OPTIONS: DropdownOption<ProfilePalette>[] = [
   { value: 'thermal', label: 'Thermal', hint: 'Yellow in the middle, red where hedging amplifies a move, blue where it absorbs one' },
-  { value: 'house', label: 'House', hint: 'Gold where hedging amplifies, ice where it absorbs' },
+  { value: 'house', label: 'House', hint: 'Gold where hedging absorbs, violet where it amplifies' },
 ];
 const modeOf = (p: ProfilePalette): HeatMode => (p === 'house' ? HEAT_MODE : 'thermal-yellow');
 /** The spine may lean this far from the centre line, as a share of half the lane, either way */
@@ -290,9 +290,10 @@ const lightInks = (el: Element): PanelInks => {
     ink3: t('--text-muted'),
     silver: t('--silver'),
     silverSoft: t('--silver', 0.6),
-    /* the walls wear the gamma pair (the owner, 2026-10-14): the call wall glacier, the put wall ember */
-    callWall: t('--glacier'),
-    putWall: t('--ember'),
+    /* the walls wear the gamma pair (the owner's orbs message, 2026-10-14): the call wall gold (absorb), the put wall
+       violet (amplify) */
+    callWall: t('--absorb'),
+    putWall: t('--amplify'),
     supreme: t('--supreme'),
     /* 0.09: the supreme's own magenta label on its row stays 4.5:1 on the light page's panel */
     supremeWash: t('--supreme', 0.09),
@@ -411,7 +412,7 @@ interface Hover {
 }
 
 const ProfilePanel = ({
-  rows, maxAbs, legs, openRatio = null, lagged = null, palette = 'thermal', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
+  rows, maxAbs, legs, openRatio = null, lagged = null, palette = 'house', step, levels, flow, lane, onLane, greek, words = { pos: 'amplifies', neg: 'absorbs' }, focusPrice, onSelect, projection, onGuide, guideOpen = false,
   ticker, volBars, width, onWidth, restWidth, headCard, onClose, closeHint = 'Hide this panel', ground = 'dark', className = '', maxShare = 0.6, sure, sigmaRem = null,
 }: ProfilePanelProps) => {
   const mode = modeOf(palette);

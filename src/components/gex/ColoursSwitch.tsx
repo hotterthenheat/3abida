@@ -28,17 +28,17 @@ export type LedgerPalette = 'house' | 'thermal';
 export const PALETTE_ORDER = ['house', 'thermal'] as const;
 export const PALETTE_WORDS: Record<LedgerPalette, { name: string; hint: string }> = {
   thermal: { name: 'Thermal', hint: 'yellow in the middle, red where hedging amplifies a move, blue where it absorbs one' },
-  house: { name: 'House', hint: 'gold where hedging amplifies, ice where it absorbs' },
+  house: { name: 'House', hint: 'gold where hedging absorbs, violet where it amplifies' },
 };
 /* the swatches: the absorbing side heavy and light, the amplifying side light and heavy, through the ladder's window */
-const swatches = (mode: 'ember-glacier' | 'thermal-yellow', paper: boolean): string[] =>
+const swatches = (mode: 'gold-violet' | 'thermal-yellow', paper: boolean): string[] =>
   ([[-1, 0.92], [-1, 0.12], [1, 0.12], [1, 0.92]] as const).map(([sign, t]) => {
     const [r, g, b] = heatRampColorFor(sign, ladderRampT(sign, t, mode, paper), mode, paper);
     return `rgb(${r},${g},${b})`;
   });
 /* the sets for each page: the dark ramps, and the paper ramps the island wears on the light page */
-const SETS_DARK = PALETTE_ORDER.map(p => swatches(p === 'thermal' ? 'thermal-yellow' : 'ember-glacier', false));
-const SETS_PAPER = PALETTE_ORDER.map(p => swatches(p === 'thermal' ? 'thermal-yellow' : 'ember-glacier', true));
+const SETS_DARK = PALETTE_ORDER.map(p => swatches(p === 'thermal' ? 'thermal-yellow' : 'gold-violet', false));
+const SETS_PAPER = PALETTE_ORDER.map(p => swatches(p === 'thermal' ? 'thermal-yellow' : 'gold-violet', true));
 
 interface ColoursSwitchProps {
   palette: LedgerPalette;

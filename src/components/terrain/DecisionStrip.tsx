@@ -19,7 +19,7 @@ export interface DecisionBox {
   short: string;
   /** The hover's longer words */
   title: string;
-  /** The leading word's ink: the puts' ember, the calls' glacier, the warn ink; plain otherwise */
+  /** The leading word's ink: the puts' violet (amplify), the calls' gold (absorb), the warn ink; plain otherwise */
   tone?: 'puts' | 'calls' | 'warn' | null;
 }
 
@@ -38,7 +38,7 @@ const GAP = 6;
 const LINE_H = 20;
 const boxPx = (text: string, label: string | null) => Math.ceil(text.length * CH + PAD + (label ? label.length * CH + 6 : 0));
 
-const toneClass = (t: DecisionBox['tone']) => (t === 'puts' ? 'text-[rgb(var(--ember))]' : t === 'calls' ? 'text-[rgb(var(--glacier))]' : t === 'warn' ? 'text-warn' : 'text-textPrimary');
+const toneClass = (t: DecisionBox['tone']) => (t === 'puts' ? 'text-[rgb(var(--amplify))]' : t === 'calls' ? 'text-[rgb(var(--absorb))]' : t === 'warn' ? 'text-warn' : 'text-textPrimary');
 
 /** First-fit packing of the boxes into lines of `room`, in order — the lines each box lands on, or -1 past `maxLines` */
 const pack = (widths: number[], room: number, maxLines: number): number[] => {

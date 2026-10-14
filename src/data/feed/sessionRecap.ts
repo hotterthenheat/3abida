@@ -51,7 +51,7 @@
 
 import { LEVEL_KINDS, touchesOf, type LevelKind, type Touch, type TrackBar, type TrackConfig, type TrackSession } from './trackRecord';
 import { dayVerdict, type CalibrationDay, type DayVerdict } from './pricedMove';
-import { regimeBucketOf, regimePercentile, wallMovesOf, WALL_HOLD } from './trailModel';
+import { regimeBucketOf, regimePercentile, stickyWallMoves, stickyWalls } from './trailModel';
 
 /** What recap.json holds — a change of what it says is a new number (the server builds it again) */
 export const RECAP_FORMAT = 1;
@@ -151,7 +151,7 @@ export function flipCrossesOf(rows: readonly { m: number; spot: number; flip: nu
 }
 
 /** The strike grid's step: the smallest gap between the column's strikes (the track record's) */
-function gridStep(cells: readonly [number, number][]): number {
+function gridStep(cells: readonly (readonly [number, number, number?])[]): number {
   let step = Infinity;
   for (let i = 1; i < cells.length; i++) {
     const d = cells[i][0] - cells[i - 1][0];
@@ -160,10 +160,20 @@ function gridStep(cells: readonly [number, number][]): number {
   return Number.isFinite(step) ? step : 1;
 }
 
-/** WALL MOVES on the session's rows: the chips' rule (trailModel wallMovesOf), each move in strikes of its column's grid */
-export function recapWallsOf(rows: readonly { m: number; cw: number | null; pw: number | null; cells: [number, number][] }[]): RecapWallMove[] {
+/** WALL MOVES on the session's rows: the chips' rule — THE WALL WITH HYSTERESIS (trailModel WallStick, the owner's item 13
+    of 2026-10-14: a new strike must beat the held wall's |gamma| by 10% and hold three closed minutes; the held wall
+    gives way at once once it is no candidate) walked over the rows' raw picks, a change of the wall shown a move — each
+    move in strikes of its column's grid */
+export function recapWallsOf(rows: readonly { m: number; cw: number | null; pw: number | null; cells: readonly (readonly [number, number, number?])[]; spot?: number }[]): RecapWallMove[] {
   const sorted = [...rows].sort((a, b) => a.m - b.m);
-  return wallMovesOf(sorted.length, i => ({ cw: sorted[i].cw, pw: sorted[i].pw, time: sorted[i].m }), WALL_HOLD)
+  const shown = stickyWalls(
+    sorted.map(r => {
+      const at = new Map<number, number>();
+      for (const c of r.cells) at.set(c[0], c[1]);
+      return { time: r.m / 1000, spot: r.spot ?? NaN, cw: r.cw, pw: r.pw, valueOf: (k: number) => at.get(k) ?? NaN };
+    })
+  );
+  return stickyWallMoves(sorted.length, i => ({ cw: shown.cw[i], pw: shown.pw[i], time: sorted[i].m }))
     .map(w => ({ kind: w.kind === 'CW' ? ('call' as const) : ('put' as const), from: w.from, to: w.to, m: w.time, strikes: Math.round(Math.abs(w.to - w.from) / gridStep(sorted[w.i].cells)) }))
     .sort((a, b) => a.m - b.m || a.kind.localeCompare(b.kind));
 }

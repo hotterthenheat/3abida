@@ -6,9 +6,10 @@
   in every room"): under the rail's signature, a thin
   track of New York's trading day — pre-market, the
   open, the morning, lunch, the afternoon, power hour,
-  the close, after hours — with a mark where the
-  clock stands, and one line under it: the phase, and
-  how long to the next. Quiet by design: hairline
+  the closing auction, after hours — with a mark where
+  the clock stands, and one line under it: the phase,
+  and how long to the close (in the session) or to the
+  next phase (outside it). Quiet by design: hairline
   tokens, nothing that loops, a step once a second
   with the rail's clock. Settings › The desk turns it
   off; the rail's old line comes back then.
@@ -39,11 +40,16 @@ export const PHASES: Phase[] = [
   { from: 690, to: 810, name: 'Lunch', cash: true },
   { from: 810, to: 900, name: 'Afternoon', cash: true },
   { from: 900, to: 950, name: 'Power hour', cash: true },
-  { from: 950, to: 960, name: 'The close', cash: true },
+  /* 3:50 is the closing auction's cutoff (MOC and LOC orders in by then), not the close: named so since 2026-10-14 — the
+     owner, of "the close in 32m" at 3:19 pm: "the close is 41 minutes away … count to 4:00 pm ET, or label it as the
+     closing-auction cutoff" */
+  { from: 950, to: 960, name: 'Closing auction', cash: true },
   { from: 960, to: 1200, name: 'After hours', cash: false },
 ];
 const DAY_FROM = 240;
 const DAY_TO = 1200;
+/** The cash close, 4:00 pm New York */
+const CASH_TO = 960;
 
 const isTradingDay = (y: number, m: number, d: number, weekday: number): boolean =>
   weekday !== 0 && weekday !== 6 && !MARKET_HOLIDAYS.has(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
@@ -90,6 +96,11 @@ export function readDay(now: number = Date.now()): DayRead {
   if (phase) {
     const i = PHASES.indexOf(phase);
     const after = PHASES[i + 1];
+    /* THE COUNT IS TO THE CLOSE (2026-10-14): in the cash session the line counts to 4:00 pm New York, whatever phase the
+       clock is in — "the close in 41m" — never to the next phase's edge (at 3:19 pm it said "the close in 32m": the 3:50
+       cutoff). Outside the session it counts to the next phase as before (the open, the pre-market, the end of after
+       hours). */
+    if (phase.cash) return { phase, name: phase.name, next: `the close in ${span(CASH_TO - mins)}`, at };
     return { phase, name: phase.name, next: after ? `${after.name.toLowerCase()} in ${span(phase.to - mins)}` : `ends in ${span(phase.to - mins)}`, at };
   }
   /* overnight: before 04:00 the pre-market is today's; after 20:00 it is the next trading day's */
@@ -112,7 +123,7 @@ const SessionStrip = ({ read, time, className = '' }: { read: DayRead; time: str
           key={ph.name}
           className={`absolute inset-y-0 ${ph.cash ? 'bg-ink/[0.14]' : 'bg-ink/[0.05]'} ${read.phase === ph ? '!bg-silver/60' : ''}`}
           style={{ left: pct(ph.from), width: `calc(${pct(ph.to)} - ${pct(ph.from)} - 1px)` }}
-          title={`${ph.name} · ${minuteLabel(ph.from)}–${minuteLabel(ph.to)} ${viewerZone()}`}
+          title={`${ph.name} · ${minuteLabel(ph.from)}–${minuteLabel(ph.to)} ${viewerZone()}${ph.from === 950 ? ' · market-on-close and limit-on-close orders are in by its start; the close is at its end' : ''}`}
           aria-hidden
         />
       ))}

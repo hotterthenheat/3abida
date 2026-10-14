@@ -130,6 +130,12 @@
   /* The clock's pressure pair — a phase that pushes (ember) or absorbs (glacier) */
   --ember: 245 197 66;
   --glacier: 122 189 215;
+  /* THE GAMMA PAIR (the owner's orbs message, 2026-10-14 — "Gold = absorb (calls side), Violet = amplify (puts side) —
+     Skylit's meaning … Blue-violet clearly darker than the supreme's magenta"): one meaning on Terrain's ovals, the
+     ladder's bars, the legend, the wall chips and the regime strip; grey where the two sides balance. Gold 12:1 on the
+     panel, the violet 4.7:1 and darker than the magenta (OKLab distance 0.20). */
+  --absorb: 240 196 70;
+  --amplify: 132 102 234;
   /* THE WIRE'S BEATS (components/news/CatTag): a categorical set, deliberately muted so
      it never impersonates the semantic set — tokens since 2026-09-16 so paper can cut them */
   --cat-earnings: 232 196 104;
@@ -262,6 +268,10 @@
   --thermal-cool: 29 97 168;
   --ember: 146 86 4; /* 5.9:1 (was 4.9) — the put figures on the ladder tile read this on paper */
   --glacier: 3 105 161;
+  /* the gamma pair on paper: a deep gold at 4.6:1 on white (4.0 on the canvas), a violet at 6.7:1 — both over the owner's
+     3:1 floor for the paper variants */
+  --absorb: 150 112 8;
+  --amplify: 98 66 200;
   /* the wire's beats cut for paper — the same seven hues, 5.6:1 to 7.3:1 on white (the dark
      pastels printed at 1.5:1 to 1.9:1 here) */
   --cat-earnings: 140 92 6;
@@ -338,11 +348,21 @@
 :root[data-cvd='blue-orange'] [data-theme='dark'] {
   --bull: 80 164 255;
   --bear: 255 133 38;
+  /* THE GAMMA PAIR BESIDE BLUE AND ORANGE CANDLES (the owner's orbs message: "In blue-orange colour-blind mode ovals and
+     candles must stay distinct"): the gold paler and the violet redder than the house pair, so each stands off its
+     candle under simulated protanopia, deuteranopia and tritanopia (OKLab: gold from the orange 0.16–0.22, violet from
+     the blue 0.13–0.20 — scripts/orbs-proof.ts measures them) */
+  --absorb: 250 222 110;
+  --amplify: 150 78 230;
 }
 :root[data-cvd='blue-orange'][data-theme='light'],
 :root[data-cvd='blue-orange'] [data-theme='light'] {
   --bull: 0 104 200;
   --bear: 196 72 0;
+  /* on paper the dark warm hues close up for a dichromat (the olive gold stands 0.03–0.07 from the orange under the
+     simulations, the violet 0.04–0.06 from the blue); the oval's form and the candle's background edge carry the rest */
+  --absorb: 100 110 10;
+  --amplify: 136 52 224;
 }
 /* HIGH CONTRAST (2026-10-10, the ideas report's 13): the house's green and red, stronger — 14:1 and 7.7:1 on black,
    6.5:1 and 6.8:1 on paper (the house's 4.3:1 direction rule is the floor; this choice is for a reader who asks for

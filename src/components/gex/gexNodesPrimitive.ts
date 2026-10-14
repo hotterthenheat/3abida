@@ -1,4 +1,4 @@
-import { HEAT_MODE, heatRampColor, heatRampColorFor, inkFor } from './heatmap';
+import { HEAT_MODE, heatRampColorFor, inkFor } from './heatmap';
 import { BEAD_STEPS, FIXED_SESSIONS, RunningScale, columnGross, pooledRef, stepOf, stepT, strengthOf, type ScaleBasis, type ScaleRef } from '../../data/feed/beadScale';
 import { num } from '../../core/format';
 import type { ISeriesPrimitive, ISeriesPrimitiveAxisView, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
@@ -6,7 +6,7 @@ import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
 import { pickFlip, pickWalls, zeroCrossings } from '../../core/walls';
 import { nyClock } from '../../core/nyTime';
-import { WALL_HOLD, wallMovesOf } from '../../data/feed/trailModel';
+import { stickyWallMoves, wallObsOf, WallStick, type WallObs } from '../../data/feed/trailModel';
 
 /*
   Exposure nodes — the ORIGINAL trail form, back by request (Noah,
@@ -33,16 +33,59 @@ import { WALL_HOLD, wallMovesOf } from '../../data/feed/trailModel';
    red/green: on THIS surface those belong to the candles. Since B3 no mark wears an identity ink — not the supreme's
    magenta, not the walls' ("No King, glow, pulse, magnet or pin glyphs"): the axis chips and the wall-move chips name
    them; the focus (a strike the reader picked) keeps the house's silver. */
-const PUT_RGB: readonly [number, number, number] = [245, 197, 66]; // --ember
-const CALL_RGB: readonly [number, number, number] = [122, 189, 215]; // --glacier
+/* THE GAMMA PAIR (the owner's orbs message, 2026-10-14: "Gold = absorb (calls side), Violet = amplify (puts side) —
+   Skylit's meaning"): the dark tokens' own values (tokens.css --absorb, --amplify); a light tape reads its own off the
+   box (trailPaperFrom). Ember/glacier the other way round from 2026-08 to that day. */
+const PUT_RGB: readonly [number, number, number] = [132, 102, 234]; // --amplify (violet): put-dominant, hedging amplifies a move
+const CALL_RGB: readonly [number, number, number] = [240, 196, 70]; // --absorb (gold): call-dominant, hedging absorbs it
 const NEUTRAL_RGB: readonly [number, number, number] = [125, 125, 125]; // --text-muted on black: a balanced strike
-const SUPREME_RGB: readonly [number, number, number] = [234, 0, 255]; // the in-plot strength labels alone (a host without axis chips)
-/* THE WALLS WEAR THE GAMMA PAIR (the owner, 2026-10-14: "Wall chips: put wall ember, call wall glacier. Bull/bear is for
-   candles only"): the dark tokens' own values (tokens.css); green and red until then. The chips, the ticks and the
-   axis labels wear them — never a mark (B3). */
-const CW_RGB: readonly [number, number, number] = [122, 189, 215]; // --glacier
-const PW_RGB: readonly [number, number, number] = [245, 197, 66]; // --ember
+/* THE WALLS WEAR THE GAMMA PAIR (the orbs message: "Call wall chip gold, put wall chip violet"): the chips, the ticks,
+   the wall lines and the axis labels — one meaning with the nodes. */
+const CW_RGB = CALL_RGB;
+const PW_RGB = PUT_RGB;
 const FLIP_RGBA = 'rgba(156,163,175,0.8)'; // indecision gray — the regime border (mirrors palette FLIP); alpha raised with the 2026-08-29 weight pass
+
+/* THE OVALS' MEASURES (the orbs message, SHAPE 1–5 and HOW MANY 6) */
+/** Nodes drawn per candle by size — the interim default until the node test (section D) picks; the walls and the flip always */
+export const TOP_NODES = 5;
+/** d = OVAL_MIN_CSS + (OVAL_ROW_SHARE × the strike row − OVAL_MIN_CSS) × √(min(size ÷ reference, 1)), CSS px */
+export const OVAL_MIN_CSS = 3;
+export const OVAL_ROW_SHARE = 0.85;
+/** Candles closer than this merge, so every oval is at least this wide */
+export const OVAL_MERGE_CSS = 6;
+/** An oval this big or bigger wears a one-pixel outline in a darker shade of its own hue */
+export const OVAL_OUTLINE_MIN_CSS = 6;
+/** Opacity OVAL_ALPHA_MIN → 1 on the same √ */
+export const OVAL_ALPHA_MIN = 0.55;
+const WALL_LINE_ALPHA = 0.4;
+/** The light the rest of the field keeps under a hover (60%) and under a pin (40%) */
+export const HOVER_KEEP = 0.6;
+export const PIN_KEEP = 0.4;
+/** The pills beside the last candle: the three largest live nodes */
+export const NODE_LABELS = 3;
+/** A wall move's tick: two pixels wide, seven tall, at the new strike */
+const TICK_W_CSS = 2;
+const TICK_H_CSS = 7;
+/** The library's attribution mark, bottom-left: the words keep clear of it */
+const LOGO_W_CSS = 110;
+const LOGO_H_CSS = 26;
+/** A node's diameter in CSS px at size t (√ of gross ÷ reference, clipped at 1) on a strike row `rowCss` tall:
+    3 px + (85% of the row − 3 px) × t — a row too short for three pixels gives three */
+export const ovalDiameter = (t: number, rowCss: number): number => OVAL_MIN_CSS + (Math.max(OVAL_MIN_CSS, rowCss * OVAL_ROW_SHARE) - OVAL_MIN_CSS) * Math.max(0, Math.min(1, t));
+/** How many neighbouring candles merge into one oval at this bar spacing (CSS px): one from six pixels up, else enough
+    for the group to be at least six pixels wide after its one-pixel gap */
+export const mergeBars = (barSpacing: number): number => (barSpacing >= OVAL_MERGE_CSS ? 1 : Math.ceil((OVAL_MERGE_CSS + 1) / barSpacing));
+/** A node's opacity at size t: OVAL_ALPHA_MIN → 1 */
+export const ovalAlpha = (t: number): number => OVAL_ALPHA_MIN + (1 - OVAL_ALPHA_MIN) * Math.max(0, Math.min(1, t));
+/** lightweight-charts' own candle body width (src/renderers/optimal-bar-width.ts, 5.x), so the candles' edge lands on
+    the body the library draws */
+export function optimalCandlestickWidth(barSpacing: number, pixelRatio: number): number {
+  if (barSpacing >= 2.5 && barSpacing <= 4) return Math.floor(3 * pixelRatio);
+  const coeff = 1 - (0.2 * Math.atan(Math.max(4, barSpacing) - 4)) / (Math.PI * 0.5);
+  const res = Math.floor(barSpacing * coeff * pixelRatio);
+  const scaled = Math.floor(barSpacing * pixelRatio);
+  return Math.max(Math.floor(pixelRatio), Math.min(res, scaled));
+}
 
 /* EVERY STRIKE IN THE WINDOW DRAWS (the owner's second review, 2026-10-13, item 5: 774 stood at +$506M, half the
    reference, and drew nothing — only the twelve heaviest of a column were drawn), and since item 5 (e) every strike
@@ -73,7 +116,7 @@ export const markInk = (side: 1 | -1, strength: number, inks: MarkInks): RGB3 =>
   return [Math.round(n[0] + (to[0] - n[0]) * u), Math.round(n[1] + (to[1] - n[1]) * u), Math.round(n[2] + (to[2] - n[2]) * u)];
 };
 
-/** One mark: a strike's size step against the size reference, and how one-sided its book is */
+/** One node: a strike's size against the size reference, and how one-sided its book is */
 interface Bead {
   strike: number;
   /** The net (the greek drawn) and the gross — |calls| + |puts|, |net| where the cell keeps none */
@@ -82,6 +125,8 @@ interface Bead {
   /** Its size, √(gross ÷ the size reference) clipped at 1, and the step it draws at (1..BEAD_STEPS) */
   t: number;
   step: number;
+  /** The column the cell came from (a merged group keeps each strike's peak minute) */
+  ci: number;
   /** |net| ÷ gross, 0 balanced to 1 one-sided; 1 where the cell keeps no gross */
   strength: number;
   /** Sim side-coding: positive = put-dominant (amplifies), negative = call-dominant (absorbs) */
@@ -105,12 +150,27 @@ interface Column {
      core/walls.ts pickFlip (the sign change nearest the price; null where the book never changes sign: a gap, never the
      last one carried) and pickWalls */
   flip: number | null;
+  /** THE WALLS SHOWN — with hysteresis (trailModel WallStick, the owner's item 13 of 2026-10-14): a new strike is the
+      wall once it has been the raw pick for three closed minutes and beats the held wall's |gamma| by 10%, or the held
+      wall is no candidate any more. The raw picks (pickWalls) ride beside them. */
   cw: number | null;
   pw: number | null;
+  rawCw: number | null;
+  rawPw: number | null;
   /** The moment's own price and the strikes' step — the density's distance fade reads them */
   spot: number;
   step: number;
   /** THE TOP SET (B4): the three heaviest strikes by size — a strike entering it wears a ring, one leaving it a ghost */
+  topSet: Set<number>;
+}
+/** A GROUP: one candle's columns (a 5-minute texture under an hour bar), or neighbouring candles merged where they stand
+    closer than six pixels — each strike its peak minute, ranked by size; the walls and the flip the last column's */
+interface Group {
+  cols: number[];
+  /** every strike above the floor, largest first */
+  nodes: Bead[];
+  all: Map<number, Bead>;
+  last: Column;
   topSet: Set<number>;
 }
 
@@ -126,6 +186,8 @@ const WALL_CHIPS = 3;
 export interface BeadHit {
   strike: number;
   time: number;
+  /** the column the cell came from */
+  ci: number;
   value: number;
   /** Its share of the moment's book, 0–1 */
   share: number;
@@ -142,14 +204,9 @@ export interface BeadHit {
   y: number;
 }
 
-/** The focused level's ink: the focus silver (the house accent, the lime until
-    2026-10-02) — or the supreme's magenta while the focused strike IS the
-    supreme. Mirrors palette FOCUS/SUPREME. */
+/** The focused level's ink, kept for the host's calls (the focus line is the chart's): a pinned chain keeps its own
+    gold or violet and wears a ring in the ink since the orbs message (2026-10-14) — never recoloured */
 export type FocusInk = 'focus' | 'supreme';
-const INK_RGB: Record<FocusInk, readonly [number, number, number]> = {
-  focus: [199, 211, 232],
-  supreme: [234, 0, 255],
-};
 
 type RGB3 = readonly [number, number, number];
 
@@ -172,6 +229,8 @@ export interface TrailPaper {
   focus: RGB3;
   flip: RGB3;
   pad: RGB3;
+  /** the page's lead ink — the pills' words, the hover's ring */
+  ink: RGB3;
 }
 const tokenRgb = (el: Element, name: string, fallback: RGB3): RGB3 => {
   const v = getComputedStyle(el).getPropertyValue(name).trim().split(/[\s,]+/).map(Number);
@@ -183,12 +242,13 @@ export function trailPaperFrom(el: Element): TrailPaper {
     put: heatRampColorFor(1, 1, HEAT_MODE, true),
     call: heatRampColorFor(-1, 1, HEAT_MODE, true),
     neutral: tokenRgb(el, '--text-muted', [64, 67, 74]),
-    cw: tokenRgb(el, '--glacier', [3, 105, 161]),
-    pw: tokenRgb(el, '--ember', [146, 86, 4]),
+    cw: tokenRgb(el, '--absorb', [150, 112, 8]),
+    pw: tokenRgb(el, '--amplify', [98, 66, 200]),
     supreme: tokenRgb(el, '--supreme', [163, 0, 179]),
     focus: tokenRgb(el, '--select', [47, 61, 92]),
     flip: tokenRgb(el, '--flip', [107, 114, 128]),
     pad: tokenRgb(el, '--panel', [232, 231, 226]),
+    ink: tokenRgb(el, '--text-primary', [20, 20, 22]),
   };
 }
 const rgba = (c: RGB3, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
@@ -196,12 +256,12 @@ const rgba = (c: RGB3, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
     choice through the tokens) */
 export function axisInksFrom(el: Element): Record<'cw' | 'pw' | 'flip' | 'supreme' | 'put' | 'call', RGB3> {
   return {
-    cw: tokenRgb(el, '--glacier', [122, 189, 215]),
-    pw: tokenRgb(el, '--ember', [245, 197, 66]),
+    cw: tokenRgb(el, '--absorb', [240, 196, 70]),
+    pw: tokenRgb(el, '--amplify', [132, 102, 234]),
     flip: tokenRgb(el, '--flip', [156, 163, 175]),
     supreme: tokenRgb(el, '--supreme', [234, 0, 255]),
-    put: tokenRgb(el, '--ember', [245, 197, 66]),
-    call: tokenRgb(el, '--glacier', [122, 189, 215]),
+    put: tokenRgb(el, '--amplify', [132, 102, 234]),
+    call: tokenRgb(el, '--absorb', [240, 196, 70]),
   };
 }
 
@@ -269,37 +329,47 @@ class TrailsPaneRenderer {
   constructor(private source: GexTrailsPrimitive) {}
 
   /*
-    THE PATH CACHE (2026-08-29, the Weigher lag hunt). Building the bead
-    field is the layer's whole cost — hundreds of columns × a dozen beads ×
-    two subpaths — and it was rebuilt on EVERY repaint, including the 60fps
-    crosshair repaints a hovering pointer causes. The profiler put ~90% of
-    the desk's busy time here. The built Path2D batches are pure functions
-    of (data revision, pan/zoom, the two scales, the identity inputs), so
-    they are cached against exactly that fingerprint: a hover repaint now
-    reuses them and only re-runs the ~30 fills. The vertical scale is
-    captured by probing two prices — price→pixel is affine, so two points
-    pin it completely.
+    THE PATH CACHE (2026-08-29, the Weigher lag hunt). Building the field is the layer's whole cost — hundreds of
+    columns × a handful of nodes each — and it was rebuilt on EVERY repaint, including the 60fps crosshair repaints a
+    hovering pointer causes. The built Path2D batches are pure functions of (data revision, pan/zoom, the two scales,
+    the identity inputs), so they are cached against exactly that fingerprint and rasterized once into a BITMAP; a
+    hover repaint blits it. THE HOVER AND THE PIN ARE NOT IN THE BITMAP (the orbs, 2026-10-14): they are a veil and a
+    chain drawn over it each frame, so a pointer never rebuilds the field.
   */
   private cacheKey = '';
-  /** The field, rasterized — repaints between data ticks (crosshair moves
-      run at 60fps) blit this instead of re-filling thousands of subpaths;
-      the fill cost, not the path building, was the hover jank. */
   private bmp: HTMLCanvasElement | null = null;
   /** THE GAPS ON SCREEN (B1): runs of bars with no column and the host's reason for each, found as the bitmap is built */
   private gapRuns: GapRun[] = [];
+  private bgCache: { css: string; rgb: RGB3 } | null = null;
+
+  /** The chart's ground, for the veil and the candles' edge: the layout's background, else the tape's pad */
+  private groundOf(chart: IChartApi, paper: TrailPaper | null): RGB3 {
+    let css = '';
+    try {
+      const b = chart.options().layout.background as { type: string; color?: string; topColor?: string };
+      css = (b.type === 'solid' ? b.color : b.topColor) ?? '';
+    } catch {
+      css = '';
+    }
+    if (this.bgCache && this.bgCache.css === css) return this.bgCache.rgb;
+    let rgb: RGB3 | null = null;
+    const m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(css);
+    if (m) rgb = [Number(m[1]), Number(m[2]), Number(m[3])];
+    else if (/^#[0-9a-f]{6}$/i.test(css)) rgb = [parseInt(css.slice(1, 3), 16), parseInt(css.slice(3, 5), 16), parseInt(css.slice(5, 7), 16)];
+    else if (/^#[0-9a-f]{3}$/i.test(css)) rgb = [parseInt(css[1] + css[1], 16), parseInt(css[2] + css[2], 16), parseInt(css[3] + css[3], 16)];
+    const out: RGB3 = rgb ?? paper?.pad ?? [10, 10, 10];
+    this.bgCache = { css, rgb: out };
+    return out;
+  }
 
   draw(target: DrawTarget): void {
     const src = this.source;
     if (!src.enabled || !src.chart || !src.series || src.snapshots.length === 0) return;
     const series = src.series;
-    const ts = src.chart.timeScale();
-    /* ONLY THE COLUMNS ON SCREEN (2026-09-06, the perf sweep): the field used
-       to walk every snapshot in the store — 8,580 of them — on every data
-       repaint, asking the time scale for a coordinate each, to find the few
-       hundred that were visible. The snapshots are time-sorted, so the
-       visible window is two binary searches, and the columns are built
-       lazily as they are first seen (setData no longer ranks the whole
-       session up front — the Weigher's open spent 96ms doing that). */
+    const chart = src.chart;
+    const ts = chart.timeScale();
+    /* ONLY THE COLUMNS ON SCREEN (2026-09-06, the perf sweep): two binary searches find the visible window of the
+       time-sorted snapshots; columns are built lazily as they are first seen. */
     const vis = ts.getVisibleRange();
     if (!vis) return;
     const fromT = Number(vis.from) - src.barSec * 2;
@@ -329,74 +399,51 @@ class TrailsPaneRenderer {
       const drawn = src.columnAt(last - 1).ref;
       if (Math.abs(drawn - src.published) > src.published * 1e-12) console.error(`bead legend out of step: the legend says ${src.published}, the newest column was drawn against ${drawn}`);
     }
-    /* ONE SOLID MARK PER STRIKE PER CANDLE (the owner, 2026-10-14 — B2: "draw one solid mark per strike per candle (the
-       cell is the bar's peak minute), on whole device pixels, no blur or shadow"; B3 for what a mark encodes). Until
-       then the field was a RIBBON: beads as wide as their slot so they touched, their thickness the strength, a wider
-       and fainter halo under a translucent core (0.16 to 0.66 alpha, the halo 0.04 to 0.18), ellipses on fractional
-       coordinates, every sub-bar moment its own sliver — which read as soft slivers. Now a mark is a RECT on the
-       device-pixel grid: as wide as the bar's slot less a hairline, its HEIGHT the strike's size (√ of the gross
-       against the size reference, in BEAD_STEPS steps, one pixel to the strike row's share), its COLOUR the side's
-       ink mixed from the neutral by |net| ÷ gross, filled whole (the density's dims and a focus apart), a stale cell's
-       edge soft. The column is the bar's (timeframe.ts aggregateSnapshots: the cell its peak minute). */
+    /* ONE SOLID OVAL PER NODE PER CANDLE (the owner's orbs message, 2026-10-14 — "NODES: SKYLIT-STYLE ORBS, DONE
+       BETTER"): a node is centred on its candle and its strike; its diameter d = 3 px + (85% of the strike row − 3 px)
+       × √(min(size ÷ reference, 1)), height d, width d capped at the candle spacing less a pixel, so a strong node is
+       a tall oval and neighbours stand a pixel apart like a chain of beads; its opacity 0.55 → 1.0 on the same √;
+       whole device pixels with anti-aliased edges; an oval six pixels or more wears a one-pixel outline in a darker
+       shade of its own hue; no glow, blur, gradient, shadow or depth — a soft edge means STALE and nothing else. The
+       cell is the bar's peak minute (timeframe.ts); where candles stand closer than 6 px neighbouring candles merge
+       into one oval of the group's peak minute. */
     const focus = src.focusStrike;
-    const supreme = src.supremeStrike;
+    const hover = src.hover;
     const paper = src.paper;
     const inks: MarkInks = paper ? { put: paper.put, call: paper.call, neutral: paper.neutral } : DARK_MARK_INKS;
-    const ink = paper ? (src.focusInk === 'supreme' ? paper.supreme : paper.focus) : INK_RGB[src.focusInk];
-    const inkCss = `rgba(${ink[0]},${ink[1]},${ink[2]},0.95)`;
+    const ground = this.groundOf(chart, paper);
+    const ringInk: RGB3 = paper ? paper.ink : [255, 255, 255];
 
     target.useBitmapCoordinateSpace(scope => {
       const ctx = scope.context;
       const hr = scope.horizontalPixelRatio;
       const vr = scope.verticalPixelRatio;
       const wCss = scope.mediaSize.width;
-      /* SUB-BAR MOMENTS: the field's clock can be finer than the bars (a host handing per-minute columns to a wider
-         chart); then a bar holds several marks across its width. On the chart's own fold the slot IS the bar.
-         BUDGET: never more columns than the pixels can show — a slot under ~3px wide is drawn every 2nd/3rd/nth. */
+      const paneHCss = scope.mediaSize.height;
       const barSec = src.barSec;
-      const slots = Math.max(1, Math.round(barSec / Math.max(1, src.stepSec)));
-      const stride = Math.max(1, Math.ceil(3 / (barSpacing / slots)));
-      const drawnSlots = Math.max(1, Math.ceil(slots / stride));
-      const slotCss = barSpacing / drawnSlots;
-      const halfW = barSpacing * 0.5;
-      /* THE MARK ON THE PIXEL GRID: one device pixel at least; the slot's width less a hairline, so neighbouring bars
-         read as marks and not one band; its height by step, from one pixel to the strike row's share (never past the
-         slot's width, so a mark is never taller than it is wide by much, nor past 14 CSS px) */
       const px = Math.max(1, Math.round(hr));
       const pxV = Math.max(1, Math.round(vr));
-      const wDev = Math.max(px, Math.round(slotCss * hr) - px);
-      const rowDev = (() => {
-        const c = src.columnAt(first);
-        const y0 = series.priceToCoordinate(c.spot);
-        const y1 = series.priceToCoordinate(c.spot + c.step);
-        return y0 != null && y1 != null && Math.abs(y0 - y1) > 0 ? Math.abs(y0 - y1) * vr : 12 * vr;
+      /* THE MERGE: a group is one bar, or as many neighbouring bars as it takes for an oval to be six pixels wide */
+      const gBars = mergeBars(barSpacing);
+      const spanSec = barSec * gBars;
+      src.groupBars = gBars;
+      /* the strike row's height on the pane this frame: the first column's step */
+      const rowCss = (() => {
+        const y0 = series.priceToCoordinate(col0.spot);
+        const y1 = series.priceToCoordinate(col0.spot + col0.step);
+        return y0 != null && y1 != null && Math.abs(y0 - y1) > 0 ? Math.abs(y0 - y1) : 12;
       })();
-      const hMax = Math.max(2 * pxV, Math.min(Math.round(rowDev * 0.85), Math.round(Math.max(3, barSpacing * 0.9) * vr), Math.round(14 * vr)));
-      const hMin = pxV;
+      const dMaxCss = ovalDiameter(1, rowCss);
+      const floorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
 
-      /* The cache fingerprint — see the field notes above. */
-      const firstBucket = Math.floor(col0.time / barSec) * barSec;
+      /* The cache fingerprint — the field, the view and the scales; never the hover or the pin */
+      const firstBucket = Math.floor(col0.time / spanSec) * spanSec;
       const x0 = ts.timeToCoordinate(firstBucket as Time);
-      const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? 0) ?? -1;
-      const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? 0) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${scope.mediaSize.height}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${focus}|${src.focusInk}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${hMax}|${wDev}|${src.gapRev}`;
+      const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? col0.spot) ?? -1;
+      const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? col0.spot) + 1) ?? -1;
+      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
-      /* BATCHED BY COLOUR: a mark's colour is one of STRENGTH_STEPS mixes a side, so the field is one Path2D per side,
-         strength step, staleness and dimming — filled once each into the BITMAP; the soft edges the same keys at
-         SOFT_EDGE_ALPHA; the change marks (B4) a path each, stroked once. */
-      const fills = new Map<string, Path2D>();
-      const edges = new Map<string, Path2D>();
-      const rings = new Map<string, Path2D>();
-      const ghosts = new Path2D();
-      let ghostDrawn = false;
-      const flipPath = new Path2D();
-      let flipDrawn = false;
-      const pathFor = (map: Map<string, Path2D>, key: string) => {
-        let p = map.get(key);
-        if (!p) map.set(key, (p = new Path2D()));
-        return p;
-      };
       const yCache = new Map<number, number | null>();
       const yOf = (strike: number) => {
         let y = yCache.get(strike);
@@ -406,122 +453,188 @@ class TrailsPaneRenderer {
         }
         return y;
       };
+      /* a node's box on the device grid: whole pixels, centred on its candle and strike */
+      const boxOf = (cxDev: number, yCss: number, t: number, capDev: number) => {
+        const dCss = ovalDiameter(t, rowCss);
+        const h = Math.max(pxV, Math.round(dCss * vr));
+        const w = Math.max(px, Math.min(Math.round(dCss * hr), capDev));
+        const left = Math.round(cxDev - w / 2);
+        const top = Math.round(yCss * vr - h / 2);
+        return { left, top, w, h };
+      };
+      const ellipse = (p: Path2D, b: { left: number; top: number; w: number; h: number }, inset = 0) => {
+        const rw = Math.max(0.5, b.w / 2 - inset);
+        const rh = Math.max(0.5, b.h / 2 - inset);
+        p.ellipse(b.left + b.w / 2, b.top + b.h / 2, rw, rh, 0, 0, Math.PI * 2);
+        p.closePath();
+      };
+      /* the darker shade of a node's own hue, for its outline */
+      const shade = (c: RGB3): RGB3 => (paper ? [Math.round(c[0] * 0.7), Math.round(c[1] * 0.7), Math.round(c[2] * 0.7)] : [Math.round(c[0] * 0.6), Math.round(c[1] * 0.6), Math.round(c[2] * 0.6)]);
+      const alphaOf = (aStep: number) => ovalAlpha(aStep / STRENGTH_STEPS);
 
-      // ---- the marks (skipped whole when the cache holds) --------------------
-      const beadFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
-      const paneHCss = scope.mediaSize.height;
-      /* BEAD DENSITY (the Terrain UI pass, 2026-10-14): zoomed out past a session, a strike that is not one of the
-         column's levels — its walls, its three heaviest BY SIZE (B3: "'Heaviest' in the zoom-out rule uses the size
-         measure"), the focus — draws at a quarter of its light, and a non-level strike more than fifteen steps from
-         the column's price at six tenths; every strike still draws, the levels at full light at any zoom. `density`
-         false (the legend's "Every strike") draws every mark whole. */
-      const zoomedOut = src.density && (last - first) * Math.max(1, src.stepSec) > 8 * 3600;
-      for (let ci = cached ? last : first; ci < last; ci++) {
-        const col = src.columnAt(ci);
-        /* the column before, for the change marks — built if it is not yet (it is the one to the left, on screen or
-           just off it) */
-        const prev = ci > 0 ? src.columnAt(ci - 1) : null;
-        const levelSet = src.density ? new Set<number>([col.cw ?? NaN, col.pw ?? NaN, ...col.topSet]) : null;
-        // The mark's bar, and where inside it this moment sits
-        const bucket = Math.floor(col.time / barSec) * barSec;
-        const slot = slots > 1 ? Math.floor(((col.time - bucket) / barSec) * slots) : 0;
-        if (slot % stride !== 0) continue;
-        const xBar = ts.timeToCoordinate(bucket as Time);
-        if (xBar === null || xBar < -halfW || xBar > wCss + halfW) continue;
-        const x = slots > 1 ? xBar - halfW + ((slot / stride + 0.5) / drawnSlots) * barSpacing : xBar;
-        const cx = x * hr;
-        const left = Math.round(cx - wDev / 2);
-
-        // The flip: a tick per column in the field's grammar, never a solid side line — EACH COLUMN'S OWN flip
-        // (2026-10-13), off its own book; a column whose book never changes sign has none, and the trail gaps there
-        if (col.flip != null) {
-          const fy = series.priceToCoordinate(col.flip);
-          if (fy !== null) {
-            /* near-continuous: 90% slot coverage keeps it reading as a dashed rule rather than a row of crumbs */
-            const w = Math.max(px, Math.round(slotCss * 0.9 * hr));
-            flipPath.rect(Math.round(cx - w / 2), Math.round(fy * vr - 1.3 * vr), w, Math.max(pxV, Math.round(2.6 * vr)));
-            flipDrawn = true;
+      /* THE GROUPS ON SCREEN: consecutive columns in one span, each with its x and its width cap */
+      type Placed = { g: Group; cxDev: number; capDev: number; xCss: number; widthCss: number };
+      const placed: Placed[] = [];
+      {
+        let ci = first;
+        while (ci < last) {
+          const bucket = Math.floor(snaps[ci].time / spanSec) * spanSec;
+          let cj = ci;
+          while (cj + 1 < last && Math.floor(snaps[cj + 1].time / spanSec) * spanSec === bucket) cj++;
+          const g = src.groupOf(ci, cj);
+          /* the bars the group's columns stand in */
+          let xMin = Infinity;
+          let xMax = -Infinity;
+          for (const c of g.cols) {
+            const b = Math.floor(snaps[c].time / barSec) * barSec;
+            const x = ts.timeToCoordinate(b as Time);
+            if (x === null) continue;
+            if (x < xMin) xMin = x;
+            if (x > xMax) xMax = x;
           }
-        }
-
-        // This moment's field, ranked at load — plus the focused strike at
-        // EVERY moment, however faint (its history must have no gaps)
-        let beads = col.top;
-        if (focus != null && !beads.some(b => b.strike === focus)) {
-          const fb = col.all.get(focus);
-          if (fb) beads = [...beads, fb];
-        }
-
-        for (const bead of beads) {
-          const isFocus = focus != null && bead.strike === focus;
-          const y = yOf(bead.strike);
-          if (y === null) continue;
-          /* IN RANGE ONLY (the owner's second review, 2026-10-13, item 2): a strike under the chrome band or off the
-             pane's foot is not drawn — a wall beyond the clear area is named by its pinned chip */
-          if (y < beadFloorCss || y > paneHCss) continue;
-
-          /* THE DRAWN SIZE IS THE STATED ONE: the step's own share of the row (item 5 (d)) — the legend's reference is
-             what full size means */
-          const step = Math.max(isFocus ? 1 : 0, bead.step);
-          if (step <= 0) continue;
-          const h = Math.max(hMin, Math.round(hMin + stepT(step) * (hMax - hMin)));
-          const top = Math.round(y * vr - h / 2);
-          const stale = isFocus ? 0 : bead.stale;
-          /* the light's factor: the field steps back behind a focus (0.3); the density's quarter and the distance's
-             six tenths for a strike that is no level of its column */
-          let dimA = focus != null && !isFocus ? 0.3 : 1;
-          if (levelSet && !isFocus && !levelSet.has(bead.strike)) {
-            if (zoomedOut) dimA *= 0.25;
-            if (Math.abs(bead.strike - col.spot) > 15 * col.step) dimA *= 0.6;
+          if (Number.isFinite(xMin)) {
+            const widthCss = xMax - xMin + barSpacing;
+            const xCss = (xMin + xMax) / 2;
+            if (xCss > -widthCss && xCss < wCss + widthCss) placed.push({ g, cxDev: xCss * hr, capDev: Math.max(px, Math.round(widthCss * hr) - px), xCss, widthCss });
           }
-          const dim = dimA >= 1 ? '1' : dimA.toFixed(2);
-          /* THE COLOUR (B3): the side's ink by how one-sided the strike is — grey when balanced; the focus the house's
-             silver */
-          const sStep = Math.round(Math.max(0, Math.min(1, bead.strength)) * STRENGTH_STEPS);
-          const key2 = isFocus ? `f|0|${stale}|${dim}` : `${bead.put ? 'p' : 'c'}|${sStep}|${stale}|${dim}`;
-          if (stale > 0 && wDev > 2 * px && h > 2 * pxV) {
-            /* THE SOFT EDGE (B3): a one-pixel border at a fraction of the mark's light, the core inset by it */
-            pathFor(edges, key2).rect(left, top, wDev, h);
-            pathFor(fills, key2).rect(left + px, top + pxV, wDev - 2 * px, h - 2 * pxV);
-          } else pathFor(fills, key2).rect(left, top, wDev, h);
-          /* THE RING (B4): a strike entering the three heaviest wears a hollow ring on the bar it entered, one device
-             pixel outside the mark, in its side's ink */
-          if (prev && !isFocus && col.topSet.has(bead.strike) && !prev.topSet.has(bead.strike)) {
-            pathFor(rings, bead.put ? 'p' : 'c').rect(left - px - 0.5, top - pxV - 0.5, wDev + 2 * px + 1, h + 2 * pxV + 1);
-          }
+          ci = cj + 1;
         }
-        /* THE GHOST (B4): a strike that LEFT the three heaviest draws an outline where it stood — the slot wide, the
-           tallest mark's height, no fill, in the neutral */
-        if (prev)
-          for (const s of prev.topSet)
-            if (!col.topSet.has(s)) {
-              const y = yOf(s);
-              if (y === null || y < beadFloorCss || y > paneHCss) continue;
-              ghosts.rect(left + 0.5, Math.round(y * vr - hMax / 2) + 0.5, Math.max(1, wDev - 1), Math.max(1, hMax - 1));
-              ghostDrawn = true;
-            }
       }
 
-      const paint = (tctx: CanvasRenderingContext2D, map: Map<string, Path2D>, edge: boolean) => {
-        for (const [key2, path] of map) {
-          const [side, sStep, , dim] = key2.split('|');
-          const rgb = side === 'f' ? ink : markInk(side === 'p' ? 1 : -1, Number(sStep) / STRENGTH_STEPS, inks);
-          const a = Number(dim) * src.globalDim * (edge ? SOFT_EDGE_ALPHA : 1);
-          tctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a.toFixed(3)})`;
-          tctx.fill(path);
-        }
-      };
+      // ---- the field, into the bitmap (skipped whole when the cache holds) ---------------------------------------
       if (!cached) {
-        const bmp = this.bmp && this.bmp.width === scope.bitmapSize.width && this.bmp.height === scope.bitmapSize.height
-          ? this.bmp
-          : document.createElement('canvas');
+        const fills = new Map<string, Path2D>();
+        const edges = new Map<string, Path2D>();
+        const outlines = new Map<string, Path2D>();
+        const rings = new Map<string, Path2D>();
+        const ghosts = new Path2D();
+        let ghostDrawn = false;
+        const flipPath = new Path2D();
+        let flipDrawn = false;
+        const cwLine = new Path2D();
+        const pwLine = new Path2D();
+        let cwDrawn = false;
+        let pwDrawn = false;
+        const pathFor = (map: Map<string, Path2D>, k: string) => {
+          let p = map.get(k);
+          if (!p) map.set(k, (p = new Path2D()));
+          return p;
+        };
+        /* BEAD DENSITY (the Terrain UI pass, 2026-10-14): zoomed out past a session, a strike that is not one of the
+           column's levels — its walls, its three heaviest by size — draws at a quarter of its light, and a non-level
+           strike more than fifteen steps from the price at six tenths; every drawn strike keeps its colour. "Every
+           strike" (density off) draws every strike whole. */
+        const zoomedOut = src.density && (last - first) * Math.max(1, src.stepSec) > 8 * 3600;
+        for (let pi = 0; pi < placed.length; pi++) {
+          const { g, cxDev, capDev } = placed[pi];
+          const prev = pi > 0 ? placed[pi - 1].g : null;
+          const col = g.last;
+          const levelSet = src.density ? new Set<number>([col.cw ?? NaN, col.pw ?? NaN, ...g.topSet]) : null;
+          for (const bead of src.nodesOf(g)) {
+            const y = yOf(bead.strike);
+            if (y === null) continue;
+            /* IN RANGE ONLY (the owner's second review, 2026-10-13, item 2): a strike under the chrome band or off the
+               pane's foot is not drawn — a wall beyond the clear area is named by its pinned chip */
+            if (y < floorCss || y > paneHCss) continue;
+            const box = boxOf(cxDev, y, bead.t, capDev);
+            let dimA = 1;
+            if (levelSet && !levelSet.has(bead.strike)) {
+              if (zoomedOut) dimA *= 0.25;
+              if (Math.abs(bead.strike - col.spot) > 15 * col.step) dimA *= 0.6;
+            }
+            const dim = dimA >= 1 ? '1' : dimA.toFixed(2);
+            const sStep = Math.round(Math.max(0, Math.min(1, bead.strength)) * STRENGTH_STEPS);
+            const aStep = Math.round(Math.max(0, Math.min(1, bead.t)) * STRENGTH_STEPS);
+            const k = `${bead.put ? 'p' : 'c'}|${sStep}|${aStep}|${bead.stale}|${dim}`;
+            if (bead.stale > 0 && box.w > 2 * px && box.h > 2 * pxV) {
+              /* THE SOFT EDGE (B3): a one-pixel border at a fraction of the node's light, the core inset by it */
+              ellipse(pathFor(edges, k), box);
+              ellipse(pathFor(fills, k), box, Math.max(px, pxV));
+            } else {
+              ellipse(pathFor(fills, k), box);
+              /* THE OUTLINE: a node six pixels or more wears a one-pixel line in a darker shade of its own hue */
+              if (Math.min(box.w / hr, box.h / vr) >= OVAL_OUTLINE_MIN_CSS) ellipse(pathFor(outlines, k), box, Math.max(px, pxV) / 2);
+            }
+            /* THE RING (B4): a strike entering the three heaviest wears a hollow ring on the bar it entered, one device
+               pixel outside the node, in its side's ink */
+            if (prev && g.topSet.has(bead.strike) && !prev.topSet.has(bead.strike)) {
+              const p = pathFor(rings, bead.put ? 'p' : 'c');
+              p.ellipse(box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px + 0.5, box.h / 2 + pxV + 0.5, 0, 0, Math.PI * 2);
+              p.closePath();
+            }
+          }
+          /* THE GHOST (B4): a strike that LEFT the three heaviest draws an outline where it stood — the slot wide, the
+             tallest node's height, no fill, in the neutral */
+          if (prev)
+            for (const s of prev.topSet)
+              if (!g.topSet.has(s)) {
+                const y = yOf(s);
+                if (y === null || y < floorCss || y > paneHCss) continue;
+                const box = boxOf(cxDev, y, 1, capDev);
+                ghosts.ellipse(box.left + box.w / 2, box.top + box.h / 2, Math.max(0.5, box.w / 2 - 0.5), Math.max(0.5, box.h / 2 - 0.5), 0, 0, Math.PI * 2);
+                ghosts.closePath();
+                ghostDrawn = true;
+              }
+          /* THE WALL LINES (the orbs message, "wall lines (thin, 40% opacity, in their oval colour)") and THE FLIP
+             (a dashed grey rule) — each column's own, so a wall that moves steps, and a column whose book never changes
+             sign leaves a gap in the flip */
+          for (const c of g.cols) {
+            const cc = src.columnAt(c);
+            const b = Math.floor(snaps[c].time / barSec) * barSec;
+            const xb = ts.timeToCoordinate(b as Time);
+            if (xb === null) continue;
+            const slotW = Math.max(px, Math.round((barSpacing / Math.max(1, g.cols.length / gBars)) * hr));
+            const xl = Math.round(xb * hr - slotW / 2);
+            if (cc.flip != null) {
+              const fy = series.priceToCoordinate(cc.flip);
+              if (fy !== null && fy >= floorCss && fy <= paneHCss) {
+                const w = Math.max(px, Math.round(slotW * 0.9));
+                flipPath.rect(Math.round(xb * hr - w / 2), Math.round(fy * vr - 1.3 * vr), w, Math.max(pxV, Math.round(2.6 * vr)));
+                flipDrawn = true;
+              }
+            }
+            if (cc.cw != null) {
+              const y = yOf(cc.cw);
+              if (y !== null && y >= floorCss && y <= paneHCss) {
+                cwLine.rect(xl, Math.round(y * vr - pxV / 2), slotW, pxV);
+                cwDrawn = true;
+              }
+            }
+            if (cc.pw != null) {
+              const y = yOf(cc.pw);
+              if (y !== null && y >= floorCss && y <= paneHCss) {
+                pwLine.rect(xl, Math.round(y * vr - pxV / 2), slotW, pxV);
+                pwDrawn = true;
+              }
+            }
+          }
+        }
+
+        const bmp = this.bmp && this.bmp.width === scope.bitmapSize.width && this.bmp.height === scope.bitmapSize.height ? this.bmp : document.createElement('canvas');
         bmp.width = scope.bitmapSize.width;
         bmp.height = scope.bitmapSize.height;
         const bctx = bmp.getContext('2d');
         if (bctx) {
-          paint(bctx, edges, true);
-          paint(bctx, fills, false);
-          bctx.lineWidth = Math.max(1, Math.round(vr));
+          const paint = (map: Map<string, Path2D>, mode: 'fill' | 'edge' | 'outline') => {
+            for (const [k, path] of map) {
+              const [side, sStep, aStep, , dim] = k.split('|');
+              const rgb = markInk(side === 'p' ? 1 : -1, Number(sStep) / STRENGTH_STEPS, inks);
+              const a = alphaOf(Number(aStep)) * Number(dim) * src.globalDim * (mode === 'edge' ? SOFT_EDGE_ALPHA : 1);
+              if (mode === 'outline') {
+                const s = shade(rgb);
+                bctx.lineWidth = Math.max(px, pxV);
+                bctx.strokeStyle = `rgba(${s[0]},${s[1]},${s[2]},${a.toFixed(3)})`;
+                bctx.stroke(path);
+              } else {
+                bctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a.toFixed(3)})`;
+                bctx.fill(path);
+              }
+            }
+          };
+          paint(edges, 'edge');
+          paint(fills, 'fill');
+          paint(outlines, 'outline');
+          bctx.lineWidth = Math.max(px, pxV);
           for (const [side, path] of rings) {
             const rgb = markInk(side === 'p' ? 1 : -1, 1, inks);
             bctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.9 * src.globalDim).toFixed(3)})`;
@@ -532,44 +645,147 @@ class TrailsPaneRenderer {
             bctx.strokeStyle = `rgba(${n[0]},${n[1]},${n[2]},${(0.55 * src.globalDim).toFixed(3)})`;
             bctx.stroke(ghosts);
           }
-          /* The regime border draws OVER the field (2026-08-29): it is the line the whole map hinges on, and under the
-             marks it spent half its length buried in whatever band it crossed. One ink: the supreme's magenta on it
-             went with B3 (no King) */
+          if (cwDrawn) {
+            const c = paper ? paper.cw : CW_RGB;
+            bctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(WALL_LINE_ALPHA * src.globalDim).toFixed(3)})`;
+            bctx.fill(cwLine);
+          }
+          if (pwDrawn) {
+            const c = paper ? paper.pw : PW_RGB;
+            bctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(WALL_LINE_ALPHA * src.globalDim).toFixed(3)})`;
+            bctx.fill(pwLine);
+          }
           if (flipDrawn) {
             bctx.fillStyle = paper ? rgba(paper.flip, 0.85) : FLIP_RGBA;
             bctx.fill(flipPath);
           }
+          /* THE CANDLES' EDGE: a one-pixel line of the ground round each candle's body and wick, where they cross a node
+             (the orbs message: "Candles keep a 1 px background-coloured edge where they cross an oval") — the library's
+             own pixel rules for the body and the wick (optimalCandlestickWidth; a wick floor(ratio) wide) */
+          this.candleEdges(bctx, series, ts, scope, barSpacing, ground, px, pxV);
           this.bmp = bmp;
           this.cacheKey = key;
-          /* THE GAPS (B1), found while the cache is built: runs of bars on screen with no column, each asked its reason
-             of the host — drawn under the chrome every frame (words are cheap; the walk is not) */
+          /* THE GAPS (B1), found while the cache is built */
           this.gapRuns = src.gapCause ? findGaps(src, series, ts, barSec) : [];
         }
       }
       if (this.bmp) ctx.drawImage(this.bmp, 0, 0);
 
-      /* the gap labels' boxes — the wall-move chips keep clear of them */
-      const labelBoxes: { l: number; r: number; t: number; b: number }[] = [];
-      // ---- the gaps, each with its reason (B1: "Never a blank chart without a reason") ---------------------------
+      // ---- the hover and the pin, over the bitmap (never in it) --------------------------------------------------
+      /* HOVER: the node under the pointer wears a 1.5 px ring in the ink, its strike's whole chain brightens and every
+         other node dims to 60%. THE PIN (a click on a node or on the ladder's strike): the chain stays bright and the
+         rest dims to 40% until it is clicked again or Esc (the orbs message, items 9 and 10). The veil is the ground
+         at the complement, so the field dims and nothing drawn after it does. */
+      const pinned = focus != null;
+      const hovered = hover != null && src.hasStrike(hover.strike);
+      if (pinned || hovered) {
+        ctx.fillStyle = rgba(ground, pinned ? 1 - PIN_KEEP : 1 - HOVER_KEEP);
+        ctx.fillRect(0, 0, scope.bitmapSize.width, scope.bitmapSize.height);
+        const chains = new Set<number>();
+        if (pinned) chains.add(focus);
+        if (hovered) chains.add(hover.strike);
+        for (const strike of chains) {
+          const y = yOf(strike);
+          if (y === null || y < floorCss || y > paneHCss) continue;
+          const path = new Path2D();
+          const outs = new Path2D();
+          let side: 1 | -1 = -1;
+          let strength = 1;
+          let any = false;
+          for (const p of placed) {
+            const b = p.g.all.get(strike);
+            if (!b) continue;
+            const box = boxOf(p.cxDev, y, b.t, p.capDev);
+            ellipse(path, box);
+            if (Math.min(box.w / hr, box.h / vr) >= OVAL_OUTLINE_MIN_CSS) ellipse(outs, box, Math.max(px, pxV) / 2);
+            side = b.put ? 1 : -1;
+            strength = b.strength;
+            any = true;
+          }
+          if (!any) continue;
+          const rgb = markInk(side, strength, inks);
+          ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${src.globalDim.toFixed(3)})`;
+          ctx.fill(path);
+          const s = shade(rgb);
+          ctx.lineWidth = Math.max(px, pxV);
+          ctx.strokeStyle = `rgba(${s[0]},${s[1]},${s[2]},${src.globalDim.toFixed(3)})`;
+          ctx.stroke(outs);
+          if (pinned && strike === focus) {
+            /* the pinned chain's ring: one pixel of the ink round every node */
+            const ringPath = new Path2D();
+            for (const p of placed) {
+              const b = p.g.all.get(strike);
+              if (!b) continue;
+              const box = boxOf(p.cxDev, y, b.t, p.capDev);
+              ringPath.ellipse(box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px / 2, box.h / 2 + pxV / 2, 0, 0, Math.PI * 2);
+              ringPath.closePath();
+            }
+            ctx.lineWidth = Math.max(px, pxV);
+            ctx.strokeStyle = rgba(ringInk, 0.9);
+            ctx.stroke(ringPath);
+          }
+        }
+        /* the hovered node's ring, 1.5 px, outside the node */
+        if (hovered) {
+          const y = yOf(hover.strike);
+          const p = placed.find(q => q.g.cols.some(c => snaps[c].time === hover.time) || q.g.all.get(hover.strike)?.ci === hover.ci);
+          const b = p?.g.all.get(hover.strike);
+          if (y !== null && p && b) {
+            const box = boxOf(p.cxDev, y, b.t, p.capDev);
+            const lw = Math.max(1, Math.round(1.5 * Math.min(hr, vr)));
+            ctx.lineWidth = lw;
+            ctx.strokeStyle = rgba(ringInk, 0.95);
+            ctx.beginPath();
+            ctx.ellipse(box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + lw, box.h / 2 + lw, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+        /* the candles keep their edge over the brightened chain too */
+        this.candleEdges(ctx, series, ts, scope, barSpacing, ground, px, pxV);
+      }
+
+      // ---- the words: gap labels, the node pills, the wall-move chips and ticks ----------------------------------
+      /* every box placed on the plot; nothing written over another (the orbs message, items 11 and 14) */
+      const boxes: { l: number; r: number; t: number; b: number }[] = [];
+      const px11 = Math.max(11, src.labelPx);
+      const full = (px11 + 5) * vr;
+      const padX = 4 * hr;
+      const floorDev = floorCss * vr;
+      const leftMost = CHIP_LEFT * hr;
+      const rightMost = (wCss - CHIP_RIGHT) * hr;
+      /* the library's attribution mark stands at the plot's bottom-left: a keep-out box */
+      boxes.push({ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr });
+      const collides = (l: number, r: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && r > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
+      /** a box slid down (then up) until it stands clear, or null when the plot has no room for it */
+      const settle = (l: number, r: number, t: number, h: number): number | null => {
+        let top = t;
+        for (let i = 0; i < 24 && collides(l, r, top, top + h); i++) {
+          const hit = boxes.filter(q => l < q.r + 2 * hr && r > q.l - 2 * hr && top < q.b + 2 * vr && top + h > q.t - 2 * vr);
+          top = Math.max(...hit.map(q => q.b)) + 2 * vr;
+        }
+        if (top + h <= paneHCss * vr) return top;
+        top = t;
+        for (let i = 0; i < 24 && collides(l, r, top, top + h); i++) {
+          const hit = boxes.filter(q => l < q.r + 2 * hr && r > q.l - 2 * hr && top < q.b + 2 * vr && top + h > q.t - 2 * vr);
+          top = Math.min(...hit.map(q => q.t)) - h - 2 * vr;
+        }
+        return top >= floorDev ? top : null;
+      };
+      ctx.font = `${Math.round(px11 * vr)}px ${FONT_SANS}`;
+      ctx.textBaseline = 'middle';
+      const padInk = paper ? rgba(paper.pad, 0.88) : 'rgba(5,5,5,0.78)';
+      const wordInk: RGB3 = paper ? paper.ink : [235, 235, 235];
+      const n = paper ? paper.neutral : NEUTRAL_RGB;
+
+      // the gaps, each with its reason (B1: "Never a blank chart without a reason")
       if (this.gapRuns.length) {
-        const px11 = Math.max(11, src.labelPx);
-        ctx.font = `${Math.round(px11 * vr)}px ${FONT_SANS}`;
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const placed: { l: number; r: number; row: number }[] = [];
-        /* the wall-move chips below keep clear of these */
-        const floor = (src.chromeInset > 0 ? src.chromeInset + 3 : 0) * vr;
-        const full = (px11 + 5) * vr;
-        const padX = 4 * hr;
-        const leftMost = CHIP_LEFT * hr;
-        const rightMost = (wCss - CHIP_RIGHT) * hr;
-        const n = paper ? paper.neutral : NEUTRAL_RGB;
         for (const g of this.gapRuns) {
-          const x0 = ts.timeToCoordinate(g.t0 as Time);
-          const x1 = ts.timeToCoordinate(g.t1 as Time);
-          if (x0 === null || x1 === null) continue;
-          const l = (x0 - halfW) * hr;
-          const r = (x1 + halfW) * hr;
+          const gx0 = ts.timeToCoordinate(g.t0 as Time);
+          const gx1 = ts.timeToCoordinate(g.t1 as Time);
+          if (gx0 === null || gx1 === null) continue;
+          const l = (gx0 - barSpacing / 2) * hr;
+          const r = (gx1 + barSpacing / 2) * hr;
           const w = ctx.measureText(g.words).width;
           let bl = (l + r) / 2 - w / 2 - padX;
           let br = bl + w + 2 * padX;
@@ -582,14 +798,10 @@ class TrailsPaneRenderer {
             bl = br - w - 2 * padX;
           }
           if (bl < leftMost) continue;
-          /* a row where it fits (two rows), else dropped — the hairline under the words still marks the span */
-          let row = 0;
-          while (row < 2 && placed.some(p => p.row === row && bl < p.r + 4 * hr && br > p.l - 4 * hr)) row++;
-          if (row >= 2) continue;
-          placed.push({ l: bl, r: br, row });
-          const top = floor + 4 * vr + row * (full + 2 * vr);
-          labelBoxes.push({ l: bl, r: br, t: top, b: top + full + 2 * vr });
-          ctx.fillStyle = paper ? rgba(paper.pad, 0.86) : 'rgba(5,5,5,0.72)';
+          const top = settle(bl, br, floorDev + 4 * vr, full);
+          if (top === null) continue;
+          boxes.push({ l: bl, r: br, t: top, b: top + full });
+          ctx.fillStyle = padInk;
           ctx.fillRect(bl, top, br - bl, full);
           ctx.fillStyle = `rgba(${n[0]},${n[1]},${n[2]},0.95)`;
           ctx.fillText(g.words, (bl + br) / 2, top + full / 2);
@@ -598,176 +810,153 @@ class TrailsPaneRenderer {
         }
       }
 
-
-      // ---- the walls' moves: a chip where a wall changed strike and held --------------------------------------------
-      {
-        /* the rule is the session recap's too (trailModel wallMovesOf) */
-        const moves = wallMovesOf(last, ci => src.columnAt(ci), WALL_HOLD, first);
-        moves.sort((a, b) => b.time - a.time);
-        const keep = moves.slice(0, WALL_CHIPS);
-        if (keep.length) {
-          const px = Math.max(11, src.labelPx);
-          ctx.font = `${Math.round(px * vr)}px ${FONT_SANS}`;
+      // THE NODE PILLS (item 11): the three largest live nodes, "strike · % of the largest" with an oval swatch, beside
+      // the last candle inside the plot, never over one another or the axis chips
+      if (src.nodeLabels && placed.length) {
+        const liveP = placed[placed.length - 1];
+        const isLive = liveP.g.cols[liveP.g.cols.length - 1] === snaps.length - 1;
+        if (isLive) {
+          const nodes = src.nodesOf(liveP.g).slice().sort((a, b) => b.gross - a.gross).slice(0, NODE_LABELS);
+          const largest = nodes[0]?.gross ?? 0;
           ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          const boxes: { l: number; r: number; t: number; b: number }[] = [...labelBoxes];
-          const chipFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
-          const chipPaneH = scope.mediaSize.height;
-          for (const m of keep) {
-            const bucket = Math.floor(m.time / barSec) * barSec;
-            const xBar = ts.timeToCoordinate(bucket as Time);
-            const yAt = series.priceToCoordinate(m.to);
-            if (xBar === null || yAt === null) continue;
-            /* A WALL BEYOND THE CLEAR AREA IS PINNED AT ITS EDGE AND SAYS SO (the owner's second review, 2026-10-13:
-               "the '785 · 8%' chip sits at ~783.6 instead of on 785"): under the chrome band or off the foot, the chip
-               stands at the edge with an arrow — never on a strike it does not name */
-            const pin = yAt < chipFloorCss ? '▲ ' : yAt > chipPaneH ? '▼ ' : '';
-            const y = pin === '▲ ' ? chipFloorCss : pin === '▼ ' ? chipPaneH : yAt;
-            const fmt = (k: number) => (k % 1 === 0 ? num(k, 0) : num(k, 2));
-            const text = `${pin}${m.kind} ${fmt(m.from)} → ${fmt(m.to)} · ${nyClock(m.time * 1000)}`;
-            const w = ctx.measureText(text).width;
-            const padX = 4 * hr;
-            const full = (px + 5) * vr;
-            /* clear of the drawing rail on the left and of the strength chips on the right: past the column when there is
-               room, else before it */
-            const leftMost = CHIP_LEFT * hr;
-            const rightMost = (wCss - CHIP_RIGHT) * hr;
-            let l = xBar * hr + 3 * hr;
-            if (l + w + padX * 2 > rightMost) l = xBar * hr - 3 * hr - w - padX * 2;
-            l = Math.max(leftMost, Math.min(l, rightMost - w - padX * 2));
-            if (l + w + padX * 2 > rightMost) continue;
-            /* above its line, off any chip placed already — and UNDER THE HOST'S CHROME, never over the timeframe
-               tabs (the audit of 2026-10-13: "→ 780 · 8:45 am" stood on "1D"): a chip that would rise into the chrome
-               band sits under it instead, below its line */
-            const floor = src.chromeInset > 0 ? (src.chromeInset + 3) * vr : 0;
-            let top = pin === '▲ ' ? floor : y * vr - full - 3 * vr;
-            if (top < floor) top = Math.max(floor, y * vr + 3 * vr);
-            for (const b of boxes) if (l < b.r && l + w + padX * 2 > b.l && top < b.b && top + full > b.t) top = b.b + 2 * vr;
-            if (top < 0) continue;
-            boxes.push({ l, r: l + w + padX * 2, t: top, b: top + full });
-            const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
-            ctx.fillStyle = paper ? rgba(paper.pad, 0.86) : 'rgba(5,5,5,0.72)';
-            ctx.fillRect(l, top, w + padX * 2, full);
-            ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.95)`;
-            ctx.fillText(text, l + padX, top + full / 2);
+          const swW = 7 * hr;
+          const swH = 9 * vr;
+          const xLastCss = liveP.xCss + liveP.widthCss / 2;
+          for (const b of nodes) {
+            if (!(largest > 0)) break;
+            const y = yOf(b.strike);
+            if (y === null) continue;
+            const strikeLabel = b.strike % 1 === 0 ? num(b.strike, 0) : num(b.strike, 2);
+            const text = `${strikeLabel} · ${Math.round((b.gross / largest) * 100)}%`;
+            const tw = ctx.measureText(text).width;
+            const pw = swW + 4 * hr + tw + 2 * padX;
+            let l = (xLastCss + 8) * hr;
+            if (l + pw > (wCss - 6) * hr) l = (liveP.xCss - liveP.widthCss / 2 - 8) * hr - pw;
+            if (l < leftMost) continue;
+            const want = Math.max(floorDev, Math.min(paneHCss * vr - full, y * vr - full / 2));
+            const top = settle(l, l + pw, want, full);
+            if (top === null) continue;
+            boxes.push({ l, r: l + pw, t: top, b: top + full });
+            ctx.fillStyle = padInk;
+            ctx.fillRect(l, top, pw, full);
+            const rgb = markInk(b.put ? 1 : -1, b.strength, inks);
+            ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alphaOf(Math.round(b.t * STRENGTH_STEPS)).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.ellipse(l + padX + swW / 2, top + full / 2, swW / 2, swH / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            const s = shade(rgb);
+            ctx.lineWidth = Math.max(px, pxV);
+            ctx.strokeStyle = `rgba(${s[0]},${s[1]},${s[2]},0.95)`;
+            ctx.stroke();
+            ctx.fillStyle = `rgba(${wordInk[0]},${wordInk[1]},${wordInk[2]},0.95)`;
+            ctx.fillText(text, l + padX + swW + 4 * hr, top + full / 2);
           }
         }
       }
 
-      // ---- the walls' moves, as ticks (B4: "short tick when a wall moves") ------------------------------------------
+      // the walls' moves: a chip where a wall changed strike (the stick has done the holding), and a short tick
       {
-        /* every move in view wears a short vertical tick at the NEW strike on the bar it moved, two device pixels wide
-           and most of a strike row tall, in the wall's ink — the chips above name the newest three */
-        const moves = wallMovesOf(last, ci => src.columnAt(ci), WALL_HOLD, first);
-        const floorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
-        const tw = Math.max(1, Math.round(2 * hr));
-        const th = Math.max(Math.round(4 * vr), Math.round(rowDev * 0.7));
+        const moves = stickyWallMoves(last, ci => src.columnAt(ci), first);
+        const chipFloorCss = floorCss;
+        /* every move in view wears a short tick at the NEW strike on the bar it moved: two pixels wide, seven tall (the
+           orbs message, item 14 — they drew most of a strike row tall) */
+        const tw = Math.max(px, Math.round(TICK_W_CSS * hr));
+        const th = Math.max(pxV, Math.round(TICK_H_CSS * vr));
         for (const m of moves) {
           const bucket = Math.floor(m.time / barSec) * barSec;
           const xBar = ts.timeToCoordinate(bucket as Time);
           const y = series.priceToCoordinate(m.to);
-          if (xBar === null || y === null || y < floorCss || y > scope.mediaSize.height) continue;
+          if (xBar === null || y === null || y < chipFloorCss || y > paneHCss) continue;
           const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
           ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.95 * src.globalDim).toFixed(3)})`;
           ctx.fillRect(Math.round(xBar * hr - tw / 2), Math.round(y * vr - th / 2), tw, th);
         }
-      }
-
-      // ---- axis-side strength labels for the heaviest strikes ---------------
-      /* off where the host names the heaviest strike on its axis chips (the Terrain UI pass): no chip over the candles */
-      const latest = src.snapshots[src.snapshots.length - 1];
-      if (!latest || !src.strengthLabels) return;
-      const total = latest.levels.reduce((s, l) => s + Math.abs(src.valueOf(l)), 0);
-      if (total <= 0) return;
-
-      // Four labels at most — one small sort on one snapshot, not per column
-      const top = [...latest.levels]
-        .map(l => ({ strike: l.strike, value: src.valueOf(l) }))
-        .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
-        .slice(0, 4)
-        .filter(l => Math.abs(l.value) / total >= 0.08);
-
-      const labelPx = src.labelPx;
-      ctx.font = `${Math.round(labelPx * vr)}px ${FONT_SANS}`;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      const xRight = (wCss - 8) * hr;
-      /* THE CHIPS NEVER STACK (the audit's TE-3: QQQ's "408 · 10% / 407 · 10% / 406 · 9% / 405 · 19%" printed in 30 px).
-         Placed heaviest first — the focused strike, then the supreme, then by weight — each takes its own line's height;
-         one that would land on a chip already placed may nudge up to half a chip off its line, else it is left out (its
-         line and its beads still say it). And THE CHART'S RESET PILL keeps its corner (the audit's WE-6: "RESET" sat under
-         "474 · 9%"): a chip in the pill's band moves left of it, on its own line. */
-      const placed: { top: number; bottom: number }[] = [];
-      const hCss = scope.mediaSize.height;
-      const keepOut = { top: (hCss - 34) * vr, left: (wCss - 78) * hr };
-
-      const labelFloorCss = src.chromeInset > 0 ? src.chromeInset + 3 : 0;
-      const drawLabel = (lvl: { strike: number; value: number }, color: string) => {
-        const yAt = series.priceToCoordinate(lvl.strike);
-        if (yAt === null) return;
-        /* A STRIKE BEYOND THE CLEAR AREA IS NAMED AT ITS EDGE WITH AN ARROW (the owner's second review, 2026-10-13),
-           never on another strike's line */
-        const pin = yAt < labelFloorCss ? '▲ ' : yAt > hCss ? '▼ ' : '';
-        const y = pin === '▲ ' ? labelFloorCss : pin === '▼ ' ? hCss : yAt;
-        const pct = Math.round((Math.abs(lvl.value) / total) * 100);
-        const strikeLabel = lvl.strike % 1 === 0 ? num(lvl.strike, 0) : num(lvl.strike, 2);
-        const text = `${pin}${strikeLabel} · ${pct}%`;
-
-        // Dark backing pad so the label survives whatever sits behind it
-        const w = ctx.measureText(text).width;
-        /* The pad rides the type size. Fixed padding around shrinking text
-           leaves the chip the same height with a smaller word rattling inside
-           it — smaller type and no more room, which is the opposite of the
-           point. */
-        const scale = labelPx / 9.5;
-        const padX = 4 * hr * scale;
-        const padY = 2.5 * vr * scale;
-        const boxH = 12 * vr * scale;
-        /* UNDER THE HOST'S CHROME, NEVER BEHIND IT (Noah, 2026-09-14: the top
-           wall's "430 · 17%" over the strip's fullscreen door): the label's box
-           stops at the chrome's edge and slides down to sit under it — the line
-           stays where the price is. The autoscale keeps the walls clear of the
-           band by rest; this is for a tape the reader has scaled by hand. */
-        let yPix = y * vr;
-        const floor = src.chromeInset > 0 ? (src.chromeInset + 3) * vr : 0;
-        const boxTop = yPix - boxH / 2 - padY / 2;
-        if (boxTop < floor) yPix += floor - boxTop;
-        const full = boxH + padY;
-        if (pin === '▼ ') yPix = hCss * vr - full / 2 - padY;
-        const gap = 2 * vr;
-        const hits = (c: number) => placed.some(p => c - full / 2 < p.bottom + gap && c + full / 2 > p.top - gap);
-        if (hits(yPix)) {
-          const nudges = [-full / 2, full / 2, -full * 0.35, full * 0.35];
-          const ok = nudges.map(d => yPix + d).find(c => !hits(c) && c - full / 2 >= floor);
-          if (ok === undefined) return;
-          yPix = ok;
+        moves.sort((a, b) => b.time - a.time);
+        const keep = moves.slice(0, WALL_CHIPS);
+        ctx.textAlign = 'left';
+        for (const m of keep) {
+          const bucket = Math.floor(m.time / barSec) * barSec;
+          const xBar = ts.timeToCoordinate(bucket as Time);
+          const yAt = series.priceToCoordinate(m.to);
+          if (xBar === null || yAt === null) continue;
+          /* A WALL BEYOND THE CLEAR AREA IS PINNED AT ITS EDGE AND SAYS SO (the owner's second review, 2026-10-13) */
+          const pin = yAt < chipFloorCss ? '▲ ' : yAt > paneHCss ? '▼ ' : '';
+          const y = pin === '▲ ' ? chipFloorCss : pin === '▼ ' ? paneHCss : yAt;
+          const fmt = (k: number) => (k % 1 === 0 ? num(k, 0) : num(k, 2));
+          const text = `${pin}${m.kind} ${fmt(m.from)} → ${fmt(m.to)} · ${nyClock(m.time * 1000)}`;
+          const w = ctx.measureText(text).width;
+          let l = xBar * hr + 3 * hr;
+          if (l + w + padX * 2 > rightMost) l = xBar * hr - 3 * hr - w - padX * 2;
+          l = Math.max(leftMost, Math.min(l, rightMost - w - padX * 2));
+          if (l + w + padX * 2 > rightMost) continue;
+          /* above its strike, else under it; off every box placed already; never into the chrome */
+          let want = pin === '▲ ' ? floorDev : y * vr - full - 3 * vr;
+          if (want < floorDev) want = Math.max(floorDev, y * vr + 3 * vr);
+          const top = settle(l, l + w + padX * 2, want, full);
+          if (top === null) continue;
+          boxes.push({ l, r: l + w + padX * 2, t: top, b: top + full });
+          const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
+          ctx.fillStyle = padInk;
+          ctx.fillRect(l, top, w + padX * 2, full);
+          ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.95)`;
+          ctx.fillText(text, l + padX, top + full / 2);
         }
-        placed.push({ top: yPix - full / 2, bottom: yPix + full / 2 });
-        const right = yPix + full / 2 > keepOut.top ? Math.min(xRight, keepOut.left) : xRight;
-        ctx.fillStyle = paper ? rgba(paper.pad, 0.86) : 'rgba(5,5,5,0.72)';
-        ctx.fillRect(right - w - padX, yPix - full / 2, w + padX * 2, full);
-        ctx.fillStyle = color;
-        ctx.fillText(text, right, yPix);
-      };
-
-      // The focused level is always labelled — its share of the book, in its ink — and it is placed first
-      if (focus != null) {
-        const f = latest.levels.find(l => l.strike === focus);
-        if (f) drawLabel({ strike: f.strike, value: src.valueOf(f) }, inkCss);
-      }
-      /* the supreme next, then by weight (the list is heaviest first already) */
-      top.sort((a, b) => Number(b.strike === supreme) - Number(a.strike === supreme));
-      for (const lvl of top) {
-        if (focus != null && lvl.strike === focus) continue; // placed above, in its own ink
-        const isSupreme = supreme != null && lvl.strike === supreme;
-        const rgb = paper ? (isSupreme ? paper.supreme : lvl.value >= 0 ? paper.put : paper.call) : isSupreme ? SUPREME_RGB : lvl.value >= 0 ? PUT_RGB : CALL_RGB;
-        /* The field's labels step back while a strike is focused — the SUPREME's
-           never does. A neon at 0.55 is mud, not neon (its identity IS
-           luminance), and the crown is the one label that must survive every
-           state. */
-        drawLabel(lvl, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${focus != null && !isSupreme ? 0.55 : 0.95})`);
       }
     });
+  }
+
+  /** The candles' one-pixel edge in the ground's colour (the library's own pixel rules for body and wick) */
+  private candleEdges(ctx: CanvasRenderingContext2D, series: ISeriesApi<'Candlestick'>, ts: ReturnType<IChartApi['timeScale']>, scope: BitmapScope, barSpacing: number, ground: RGB3, px: number, pxV: number): void {
+    const r = ts.getVisibleLogicalRange();
+    if (!r) return;
+    const hr = scope.horizontalPixelRatio;
+    const vr = scope.verticalPixelRatio;
+    const bodyW = optimalCandlestickWidth(barSpacing, hr);
+    let wickW = Math.min(Math.floor(hr), Math.floor(barSpacing * hr));
+    wickW = Math.max(Math.floor(hr), Math.min(wickW, bodyW));
+    const wickOff = Math.floor(wickW * 0.5);
+    const from = Math.max(0, Math.ceil(r.from));
+    const to = Math.floor(r.to);
+    const path = new Path2D();
+    let any = false;
+    for (let i = from; i <= to && i - from < 4000; i++) {
+      const d = series.dataByIndex(i) as { open?: number; high?: number; low?: number; close?: number } | null;
+      if (!d || d.open == null || d.close == null || d.high == null || d.low == null) continue;
+      const x = ts.logicalToCoordinate(i as unknown as Parameters<typeof ts.logicalToCoordinate>[0]);
+      if (x === null) continue;
+      const oy = series.priceToCoordinate(d.open);
+      const cy = series.priceToCoordinate(d.close);
+      const hy = series.priceToCoordinate(d.high);
+      const ly = series.priceToCoordinate(d.low);
+      if (oy === null || cy === null || hy === null || ly === null) continue;
+      const scaledX = Math.round(hr * x);
+      const top = Math.round(Math.min(oy, cy) * vr);
+      const bottom = Math.round(Math.max(oy, cy) * vr);
+      const left = scaledX - Math.floor(bodyW * 0.5);
+      /* the body's edge: four one-pixel rects round the body's box */
+      path.rect(left - px, top - pxV, bodyW + 2 * px, pxV);
+      path.rect(left - px, bottom + 1, bodyW + 2 * px, pxV);
+      path.rect(left - px, top, px, bottom - top + 1);
+      path.rect(left + bodyW, top, px, bottom - top + 1);
+      /* the wick's edge, above and below the body */
+      const high = Math.round(hy * vr);
+      const low = Math.round(ly * vr);
+      const wl = scaledX - wickOff;
+      if (high < top - pxV) {
+        path.rect(wl - px, high - pxV, wickW + 2 * px, pxV);
+        path.rect(wl - px, high, px, top - pxV - high);
+        path.rect(wl + wickW, high, px, top - pxV - high);
+      }
+      if (low > bottom + pxV) {
+        path.rect(wl - px, low + 1, wickW + 2 * px, pxV);
+        path.rect(wl - px, bottom + pxV + 1, px, low - bottom - pxV);
+        path.rect(wl + wickW, bottom + pxV + 1, px, low - bottom - pxV);
+      }
+      any = true;
+    }
+    if (!any) return;
+    ctx.fillStyle = `rgb(${ground[0]},${ground[1]},${ground[2]})`;
+    ctx.fill(path);
   }
 }
 
@@ -854,8 +1043,18 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   focusStrike: number | null = null;
   /** BEAD DENSITY (the Terrain UI pass): non-level strikes step back zoomed out and far from the price; off, every bead whole */
   density = true;
-  /** The in-plot "772 · 9%" chips at the right edge — off where the host's axis chips name the heaviest strike */
-  strengthLabels = true;
+  /** THE NODE PILLS (the orbs message, item 11): the three largest live nodes named beside the last candle */
+  nodeLabels = true;
+  /** THE HOVER: the node under the pointer — its chain brightens, the rest dims (set by the chart as the pointer moves) */
+  hover: { strike: number; time: number; ci: number } | null = null;
+  setHover(h: BeadHit | null): void {
+    const next = h ? { strike: h.strike, time: h.time, ci: h.ci } : null;
+    if ((this.hover == null) === (next == null) && (!next || (this.hover!.strike === next.strike && this.hover!.ci === next.ci))) return;
+    this.hover = next;
+    this.requestUpdate?.();
+  }
+  /** How many candles a group merges this frame (the renderer's; the hit test reads the same) */
+  groupBars = 1;
   /** THE STALE STATE (the UI pass): every bead's light times this — the host sets it under 1 while its data is old */
   globalDim = 1;
   /** THE GAPS' REASONS (B1): the host's words for a run of bars with no column, [from, to) in epoch seconds — null for
@@ -942,6 +1141,50 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   rev = 0;
   /** Built columns by snapshot identity — see setData's incremental note. */
   private colCache = new WeakMap<GexSnapshot, Column>();
+  /** The walls shown at each snapshot (WallStick), and the raw observations by snapshot identity */
+  private stickCw: (number | null)[] = [];
+  private stickPw: (number | null)[] = [];
+  private rawObs = new WeakMap<GexSnapshot, WallObs>();
+  /** Groups by their column span, for this revision */
+  private groupCache = new Map<string, Group>();
+  /** The columns ci0..ci1 (inclusive) as one group: each strike its peak-minute cell, ranked by size */
+  groupOf(ci0: number, ci1: number): Group {
+    const key = `${ci0}|${ci1}|${this.floor}`;
+    const had = this.groupCache.get(key);
+    if (had) return had;
+    const all = new Map<number, Bead>();
+    for (let c = ci0; c <= ci1; c++) {
+      const col = this.columnAt(c);
+      for (const b of col.all.values()) {
+        const cur = all.get(b.strike);
+        if (!cur || b.gross > cur.gross) all.set(b.strike, b);
+      }
+    }
+    const last = this.columnAt(ci1);
+    const floorAbs = this.floor * last.refG;
+    const nodes = [...all.values()].filter(b => b.gross > 0 && b.gross >= floorAbs && b.step > 0).sort((a, b) => b.gross - a.gross);
+    const g: Group = { cols: Array.from({ length: ci1 - ci0 + 1 }, (_, k) => ci0 + k), nodes, all, last, topSet: new Set(nodes.slice(0, 3).map(b => b.strike)) };
+    if (this.groupCache.size > 4000) this.groupCache.clear();
+    this.groupCache.set(key, g);
+    return g;
+  }
+  /** The nodes a group draws: the TOP_NODES largest by size and the walls shown (HOW MANY 6); every strike with the
+      density off ("Every strike") */
+  nodesOf(g: Group): Bead[] {
+    if (!this.density) return g.nodes;
+    const out = g.nodes.slice(0, TOP_NODES);
+    for (const k of [g.last.cw, g.last.pw]) {
+      if (k == null || out.some(b => b.strike === k)) continue;
+      const b = g.all.get(k);
+      if (b && b.gross > 0) out.push(b);
+    }
+    return out;
+  }
+  /** Whether any column holds the strike (a hover on a strike the tape has not got draws nothing) */
+  hasStrike(strike: number): boolean {
+    const last = this.snapshots[this.snapshots.length - 1];
+    return !!last && last.levels.some(l => l.strike === strike);
+  }
 
   /* THE REFERENCE IS TAKEN OVER MINUTES (the owner's item 5, 2026-10-13: "Full brightness = $X gamma per 1% (session p85
      of per-minute peaks, as of <time>)"): whatever the chart's timeframe, each minute's peak goes into the session's
@@ -1096,14 +1339,16 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       (item 5 acceptance (i): "the legend value equals the reference the renderer used at that minute (assert)") */
   published: number | null = null;
   /** What the legend prints: the newest column's reference, the very number its beads were drawn against */
-  legend(): (ReturnType<GexTrailsPrimitive['refAt']> & { greek: TrailGreek; sizeBy: 'gross' | 'net' }) | null {
+  legend(): (ReturnType<GexTrailsPrimitive['refAt']> & { greek: TrailGreek; sizeBy: 'gross' | 'net'; inks: MarkInks; nodes: number }) | null {
     if (!this.snapshots.length) return null;
     const last = this.snapshots[this.snapshots.length - 1];
     const r = this.refAt(this.snapshots.length - 1);
     /* the size stands on the gross where the newest column keeps it (the gamma field on the feed and the house's tape);
        on a tape that keeps the net alone (store rows before 2026-10-14) it stands on |net|, and the legend says so */
     const sizeBy: 'gross' | 'net' = this.greek === 'gex' && last.levels.some(l => l.gross != null) ? 'gross' : 'net';
-    return r.ref > 0 ? { ...r, greek: this.greek, sizeBy } : null;
+    /* the inks the nodes wear on this tape — the legend's swatches are drawn in them */
+    const inks: MarkInks = this.paper ? { put: this.paper.put, call: this.paper.call, neutral: this.paper.neutral } : DARK_MARK_INKS;
+    return r.ref > 0 ? { ...r, greek: this.greek, sizeBy, inks, nodes: this.density ? TOP_NODES : 0 } : null;
   }
 
   setBasis(basis: ScaleBasis, floor: number): void {
@@ -1147,6 +1392,26 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       if (d > 0 && d < step) step = d;
     }
     this.stepSec = Number.isFinite(step) ? step : barSec;
+    this.groupCache.clear();
+    /* THE WALLS WITH HYSTERESIS (item 13): one stick over the whole tape, in time order, starting over on a new day —
+       the raw picks cached by snapshot identity, the walk itself a few thousand cheap steps */
+    {
+      const stick = new WallStick();
+      this.stickCw = new Array(snapshots.length);
+      this.stickPw = new Array(snapshots.length);
+      for (let i = 0; i < snapshots.length; i++) {
+        const snap = snapshots[i];
+        let o = this.rawObs.get(snap);
+        if (!o) {
+          const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
+          o = wallObsOf(snap.time, spot, snap.levels);
+          this.rawObs.set(snap, o);
+        }
+        const w = stick.next(o);
+        this.stickCw[i] = w.cw;
+        this.stickPw[i] = w.pw;
+      }
+    }
     /* THE SCALE RUNS FORWARD (2026-10-13, the research's look-ahead rule): strength is ABSOLUTE against a stable
        reference — the 85th percentile of the per-minute peaks — each minute's taken over the minutes AT OR BEFORE it IN
        ITS OWN SESSION (New York's date), so nothing to its right changes what is drawn on its left and a quiet session
@@ -1178,7 +1443,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         const gross = gex && l.gross != null && l.gross > 0 ? l.gross : Math.abs(v);
         const t = strengthOf(gross, refG);
         const strength = gex && l.gross != null && l.gross > 0 ? Math.min(1, Math.abs(v) / l.gross) : 1;
-        all.set(l.strike, { strike: l.strike, value: v, gross, t, step: stepOf(t), strength, put: v >= 0, stale: staleOf(l) });
+        all.set(l.strike, { strike: l.strike, value: v, gross, t, step: stepOf(t), strength, put: v >= 0, stale: staleOf(l), ci: i });
       }
       const floorAbs = this.floor * refG;
       const top = [...all.values()].filter(b => b.gross > 0 && b.gross >= floorAbs && b.step > 0).sort((a, b) => b.gross - a.gross);
@@ -1191,7 +1456,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         const d = Math.abs(snap.levels[i].strike - snap.levels[i - 1].strike);
         if (d > 0 && d < step) step = d;
       }
-      col = { time: snap.time, top, all, ref, refG, key, flip, cw: walls.callWall, pw: walls.putWall, spot, step: Number.isFinite(step) ? step : 1, topSet: new Set(top.slice(0, 3).map(b => b.strike)) };
+      const cw = i < this.stickCw.length ? this.stickCw[i] : walls.callWall;
+      const pw = i < this.stickPw.length ? this.stickPw[i] : walls.putWall;
+      col = { time: snap.time, top, all, ref, refG, key, flip, cw, pw, rawCw: walls.callWall, rawPw: walls.putWall, spot, step: Number.isFinite(step) ? step : 1, topSet: new Set(top.slice(0, 3).map(b => b.strike)) };
       this.colCache.set(snap, col);
     }
     return col;
@@ -1259,38 +1526,40 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     });
   }
   /**
-   * The bead under a point on the pane (CSS px), or null — the moment whose slot holds x, and the strike drawn within a
-   * few pixels of y among that moment's drawn beads. Read by the chart's hover card.
+   * The node under a point on the pane (CSS px), or null — the group whose span holds x (the same merge the renderer
+   * drew this frame), and the drawn strike nearest y within half a row. Read by the chart's hover card, its hover ring and
+   * its click.
    */
   beadAt(x: number, y: number): BeadHit | null {
     if (!this.enabled || !this.chart || !this.series || !this.snapshots.length || this.ref <= 0) return null;
     const ts = this.chart.timeScale();
     const t = ts.coordinateToTime(x);
     if (t == null) return null;
-    const bar = Number(t);
+    const bar = Math.floor(Number(t) / this.barSec) * this.barSec;
+    const spanSec = this.barSec * Math.max(1, this.groupBars);
+    const bucket = Math.floor(bar / spanSec) * spanSec;
     const snaps = this.snapshots;
-    /* the moments inside the bar under x; the one whose slot is nearest x */
     let lo = 0;
     let hi = snaps.length;
     while (lo < hi) {
       const m = (lo + hi) >> 1;
-      if (snaps[m].time < bar) lo = m + 1;
+      if (snaps[m].time < bucket) lo = m + 1;
       else hi = m;
     }
-    if (lo >= snaps.length || snaps[lo].time >= bar + this.barSec) return null;
-    const barX = ts.timeToCoordinate(bar as Time);
-    const spacing = ts.options().barSpacing ?? 6;
-    const slots = Math.max(1, Math.round(this.barSec / Math.max(1, this.stepSec)));
-    let i = lo;
-    if (slots > 1 && barX !== null) {
-      const slot = Math.max(0, Math.min(slots - 1, Math.floor(((x - (barX - spacing / 2)) / spacing) * slots)));
-      const want = bar + (slot * this.barSec) / slots;
-      while (i + 1 < snaps.length && snaps[i + 1].time <= want && snaps[i + 1].time < bar + this.barSec) i++;
-    }
-    const col = this.columnAt(i);
+    if (lo >= snaps.length || snaps[lo].time >= bucket + spanSec) return null;
+    let hi2 = lo;
+    while (hi2 + 1 < snaps.length && snaps[hi2 + 1].time < bucket + spanSec) hi2++;
+    const g = this.groupOf(lo, hi2);
+    /* the strike row's height: half of it is the reach */
+    const col = g.last;
+    const y0 = this.series.priceToCoordinate(col.spot);
+    const y1 = this.series.priceToCoordinate(col.spot + col.step);
+    const reach = y0 != null && y1 != null && Math.abs(y0 - y1) > 0 ? Math.max(4, Math.abs(y0 - y1) / 2) : 6;
     let best: Bead | null = null;
-    let bestD = 6;
-    for (const b of col.top) {
+    let bestD = reach;
+    const drawn = this.nodesOf(g);
+    const want = this.focusStrike != null && !drawn.some(b => b.strike === this.focusStrike) ? [...drawn, g.all.get(this.focusStrike)].filter((b): b is Bead => !!b) : drawn;
+    for (const b of want) {
       const by = this.series.priceToCoordinate(b.strike);
       if (by === null) continue;
       const d = Math.abs(by - y);
@@ -1300,6 +1569,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       }
     }
     if (!best) return null;
+    const i = best.ci;
     const snap = snaps[i];
     const lvl = snap.levels.find(l => l.strike === best!.strike);
     if (!lvl) return null;
@@ -1320,7 +1590,8 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
     const crossings = zeroCrossings(snap.levels, l => l.value);
     crossings.sort((a, b) => Math.abs(a - spot) - Math.abs(b - spot));
-    return { strike: best.strike, time: snap.time, value, share: total > 0 ? Math.abs(value) / total : 0, open, rebuilt: !!snap.rebuilt, level: lvl, flip: col.flip, crossings: crossings.slice(1, 4), snap, x, y: this.series.priceToCoordinate(best.strike) ?? y };
+    const colI = this.columnAt(i);
+    return { strike: best.strike, time: snap.time, ci: i, value, share: total > 0 ? Math.abs(value) / total : 0, open, rebuilt: !!snap.rebuilt, level: lvl, flip: colI.flip, crossings: crossings.slice(1, 4), snap, x, y: this.series.priceToCoordinate(best.strike) ?? y };
   }
 }
 

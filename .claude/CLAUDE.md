@@ -1075,6 +1075,47 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   `off`): UW's per-minute spot exposures (_oi, _vol, _dir and the rest, AS ANSWERED) for every session back through
   its window, newest first, to .feed-cache/field/<NAME>/<D>/series.json — a day held is skipped, an empty day written
   empty, a refused call asked again next pass; scripts/series-backfill-proof.ts in `npm test`.
+- THE ORBS (2026-10-14 — the owner's message "NODES: SKYLIT-STYLE ORBS, DONE BETTER", replacing A1, B2 and B3's hue and
+  legend lines; the report docs/terrain-build-2026-10-14/README.md "The orbs"). THE NODE IS AN OVAL (gexNodesPrimitive):
+  one solid oval per node per candle, centred on the candle and the strike, the cell the bar's peak minute; d = 3 px +
+  (85% of the strike row − 3 px) × √(min(size ÷ reference, 1)), height d, width d capped at the candle spacing − 1 px
+  (`ovalDiameter`), opacity 0.55 → 1 on the same √ (`ovalAlpha`); candles closer than 6 px MERGE into one oval of the
+  group's peak minute (`mergeBars`: ⌈7 ÷ spacing⌉ bars); whole device pixels, anti-aliased edges; an oval of 6 px or
+  more wears a 1 px outline in a darker shade of its own hue; no glow, blur, gradient, shadow or depth — a soft edge is
+  STALE and nothing else. HOW MANY: the TOP_NODES (5) largest by size a candle, plus the walls shown and the flip rule
+  always; the "Every strike" switch draws every strike. THE COLOUR IS ONE MEANING EVERYWHERE — the ovals, the ladder's
+  bars (heatmap.ts HEAT_MODE 'gold-violet'), the legend, the wall chips, the axis labels and the regime strip: GOLD =
+  ABSORB (the calls' side, --absorb 240 196 70 / paper 150 112 8) and VIOLET = AMPLIFY (the puts', --amplify 132 102 234
+  / paper 98 66 200), grey where |net| ÷ gross is small — the rails' Colours default to House (TerrainCfg `rails`, the reader's pick kept
+  under that key since this build; Thermal stays a pick); the violet darker than the supreme's magenta, the paper pair
+  3:1 or better; under data-cvd="blue-orange" a paler gold and a redder violet stand off the blue and orange candles
+  (OKLab ≥ 0.13 on the dark ground under protan, deutan and tritan simulation; on paper the dichromat distances close to
+  0.03–0.07 and the form carries it — scripts/orbs-proof.ts measures all of it). Ember/glacier stay the clock's pressure
+  pair only. LAYERING, back to front: the grid, the ovals, the wall lines (1 px, 40%, in their oval colour, per column),
+  the flip's dashed rule, the candles (a 1 px ground-coloured edge round body and wick, on the library's own pixel rules —
+  `optimalCandlestickWidth`), the price line, the words. HOVER (StrikeChart → `setHover`): the node under the pointer
+  wears a 1.5 px ring in the ink, its strike's whole chain brightens and the rest dims to 60%; A CLICK on a node or on
+  the ladder's strike PINS it (Terrain's focus, `onPinStrike`): the chain bright with a 1 px ring on every node, the rest
+  at 40%, until clicked again or Esc — a veil and a chain drawn over the cached bitmap, never in it. THE PILLS: the three
+  largest live nodes, "strike · % of the largest" with an oval swatch, beside the last candle inside the plot; every box on
+  the plot (gap labels, pills, wall chips) settles clear of the others and of the library's mark at the bottom-left
+  (`settle`). THE LEGEND: "size = total gamma at the strike · ● gold = absorb · ● violet = amplify · ● grey = balanced ·
+  soft edge = stale" (Terrain LegendSwatch, the renderer's own inks through legend().inks), then the scale's statement.
+  THE WALL WITH HYSTERESIS (item 13; trailModel WallStick, WALL_STICK ratio 1.1 and hold 3): the cause of the put wall's
+  770 → 765 → 770 flip-flop was the PRICE CROSSING THE WALL'S OWN STRIKE (every move down on this machine's 2026-10-14
+  rows came the minute the price fell through it; the lower strike held 0.65–0.85 of its gamma, never a near-equal swap);
+  now a new strike is the wall only once it has been the raw pick for three closed minutes and beats the held wall's
+  |gamma| by 10% — or the held wall is no candidate any more (the price crossed it, its side flipped) and the newcomer has
+  stood its minutes; the stick starts over on a new New York day. One rule for the field's columns (the primitive's
+  setData), the rail's levels (Terrain `liveRail` — the ladder's wall rows, the axis chips, the decision strip, the level
+  alerts), the wall-move chips and ticks (`stickyWallMoves`) and the recap (`recapWallsOf`); the store's rows keep the raw
+  per-minute picks (the scorecard's definition — a sticky-wall variant is section D's to register). Measured on this
+  machine's day: 13 raw put-wall changes → 10 moves — the rule slows a flip-flop, it does not forbid a heavier strike that
+  re-qualifies after three minutes; said so in the report. ITEMS 14–17: wall-move ticks are 2 × 7 px at the new strike;
+  the pinned axis chips measure the chrome over their own column every tenth frame and stand under it (item 15, not
+  reproduced here); the session strip counts to THE CLOSE (4:00 pm New York) through the cash session and the 3:50
+  phase is "Closing auction" (item 16); the Fresh chip's times carry their words in every form ("OI dated Oct 14 · book
+  read 12:02 pm · vols read 12:17 pm") (item 17).
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

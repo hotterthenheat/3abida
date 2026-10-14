@@ -24,9 +24,10 @@ export const BULL = 'rgb(var(--bull))';
 export const ACCENT = 'rgb(var(--select))';
 /** The direction pair's down side — a change, an outcome, a flow leg; never a wall (the owner, 2026-10-14) */
 export const BEAR = 'rgb(var(--bear))';
-/* the walls wear the gamma pair since 2026-10-14 (palette.ts): the call wall glacier, the put wall ember */
-export const CALL_WALL = 'rgb(var(--glacier))';
-export const PUT_WALL = 'rgb(var(--ember))';
+/* the walls wear the gamma pair (palette.ts): the call wall GOLD (absorb), the put wall VIOLET (amplify) — the owner's
+   orbs message, 2026-10-14 */
+export const CALL_WALL = 'rgb(var(--absorb))';
+export const PUT_WALL = 'rgb(var(--amplify))';
 export const FLIP = 'rgb(var(--flip))';
 export const SUPREME = 'rgb(var(--supreme))';
 export const SPOT = 'rgb(var(--text-primary))';
@@ -42,6 +43,11 @@ export const THERMAL_COOL = 'rgb(var(--thermal-cool))';
 /* The clock's pressure pair */
 export const EMBER = 'rgb(var(--ember))';
 export const GLACIER = 'rgb(var(--glacier))';
+/* THE GAMMA PAIR (the owner's orbs message, 2026-10-14): gold where hedging absorbs (the calls' side), violet where it
+   amplifies (the puts'), grey where the two sides balance — one meaning on the ovals, the ladder's bars, the legend,
+   the chips and the regime strip */
+export const ABSORB = 'rgb(var(--absorb))';
+export const AMPLIFY = 'rgb(var(--amplify))';
 
 /** An ink at an alpha. The hex trick (`${ink}55`) breaks on a token — the
     string becomes `rgb(var(--x))55`, the whole declaration is dropped and the

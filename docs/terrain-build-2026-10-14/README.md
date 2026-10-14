@@ -324,3 +324,139 @@ run on your machine. Expect `denied` rows where Basic refuses (the probe's 471s)
   live field models the monthlies alone and misses the weeklies. Worth one look at `.feed-cache/field/SPX/<day>/`'s
   chain reads on your machine (count the symbols beginning SPXW); not changed here.
 - The probe's 4a/4b answers are not in: `THETA_REBUILD` holds the defaults named above, and the version says so.
+
+## The orbs (2026-10-14; the owner's message "NODES: SKYLIT-STYLE ORBS, DONE BETTER" — it replaces A1, B2 and B3's hue and legend lines)
+
+### What a node is now (SHAPE 1–5, HOW MANY 6)
+
+| asked | built (gexNodesPrimitive.ts) |
+|---|---|
+| one solid oval per node per candle, centred on candle and strike; the value the bar's peak minute | one ellipse a node, its centre the bar's x and the strike's y; the cell the timeframe fold's peak minute (timeframe.ts); a bar wider than the field's texture (a 5-minute field under an hour bar) merges its columns into one oval |
+| d = 3 px + (85% of the strike row − 3 px) × √(min(size ÷ reference, 1)); height d; width d capped at candle spacing − 1 px | `ovalDiameter(t, rowCss)`; the width `min(d, group width − 1 px)`; the strike row measured each frame off the first column's step |
+| opacity 0.55 → 1.0 on the same √ | `ovalAlpha(t)`, quantized to ten steps so the field is a few Path2D fills |
+| candles closer than 6 px merge so each oval is ≥ 6 px wide, the merged oval the group's peak minute | `mergeBars(spacing)` = ⌈7 ÷ spacing⌉ bars from under 6 px (3 px → 3 bars, 1.5 → 5, 0.8 → 9); each strike keeps its largest-gross cell across the group; the group's x the middle of its bars |
+| whole device pixels, anti-aliased edges; ≥ 6 px a 1 px outline in a darker shade of its own hue; no glow, blur, gradient, shadow or 3D; soft edge = stale only | the box rounded to device pixels and the ellipse drawn inside it; the outline stroked 1 px inside in the hue × 0.6 (× 0.7 on paper); a stale or carried cell keeps B3's soft edge and wears no outline |
+| top 5 per candle by size plus the walls and the flip always; "Every strike" keeps working | `TOP_NODES` 5 by gross, plus the walls shown (the stick's) where the group holds them; the flip stays the per-column dashed rule; density off draws every strike |
+
+### The colour (7): one meaning everywhere
+
+Gold = absorb (the calls' side), violet = amplify (the puts'), grey where the two sides balance — on the ovals, the
+ladder's bars (heatmap.ts, the house ramp is `gold-violet`), the legend, the wall chips, the axis labels, the decision
+strip's words and the regime strip. The tokens (theme/tokens.css), measured by scripts/orbs-proof.ts:
+
+| token | dark | paper | blue-orange dark | blue-orange paper |
+|---|---|---|---|---|
+| --absorb (gold) | 240 196 70 · 12.0:1 on the panel | 150 112 8 · 4.55:1 on white, 3.99 on the canvas | 250 222 110 | 100 110 10 · 5.56:1 |
+| --amplify (violet) | 132 102 234 · 4.8:1, darker than the supreme's magenta (luminance 0.203 vs 0.247, OKLab 0.20 apart) | 98 66 200 · 6.70:1 / 5.88 | 150 78 230 | 136 52 224 · 5.81:1 |
+
+Under simulated protanopia, deuteranopia and tritanopia (Machado, Oliveira and Fernandes 2009): gold and violet stand
+0.28–0.42 apart (OKLab) on the dark ground; beside blue-and-orange candles the gold stands 0.16–0.22 off the orange and
+the violet 0.13–0.20 off the blue. ON PAPER THE PAIR CLOSES UP FOR A DICHROMAT — gold from the orange 0.03 (protan) /
+0.07 (deutan), violet from the blue 0.06 / 0.04 — dark warm hues all read alike to a dichromat on white; the oval's form
+and the candle's ground edge carry the distinction there, and the proof prints the numbers rather than hiding them.
+Ember/glacier remain the clock's pressure pair only; bull/bear stay the candles'. THE LADDER'S DEFAULT IS THE HOUSE PAIR
+NOW: the rails' colours defaulted to Thermal (red where hedging amplifies, blue where it absorbs — the ladder in your
+screenshots), which put a second meaning beside the ovals; the default is House (gold/violet) from this build, Thermal
+stays the reader's own pick in the Colours menu, and a stored choice is kept under a new key (`rails`) so the old
+default no longer stands in for a choice no one made — your ladder will read gold and violet on the next load unless
+you pick Thermal again.
+
+### Layering and interaction (8–10)
+
+Back to front: the grid, the ovals, the wall lines (1 px per column at 40% in the wall's oval colour — a wall that
+moves steps), the flip's dashed rule, the candles, the price line, the words. THE CANDLES' EDGE: a one-pixel line of
+the chart's ground round each candle's body and wick, drawn on the library's own pixel rules (`optimalCandlestickWidth`,
+a wick ⌊ratio⌋ wide), so an oval never touches a candle. HOVER: the node under the pointer wears a 1.5 px ring in the
+ink (white on the dark tape, the page's ink on paper), its strike's whole chain brightens and everything else dims to
+60%; A CLICK on a node — or on the ladder's strike, the same pin (Terrain's focus, `onPinStrike`) — keeps the chain
+bright with a 1 px ring on every node and dims the rest to 40%, until the strike is clicked again or Esc. The veil and
+the chain are drawn over the cached bitmap each frame; the bitmap no longer depends on the focus, so a pin costs no
+rebuild.
+
+### The labels and the legend (11, 12)
+
+The three largest live nodes get a pill — "780 · 100%", "775 · 62%" (% of the largest), an oval swatch in the node's
+colour before the words — beside the last candle inside the plot, left of it when the right has no room; every box on
+the plot (the gap labels, the pills, the wall-move chips) settles clear of the others and of the library's mark at the
+bottom-left (`settle`), none ever on the price axis. The axis "Top" chip no longer prints its share (the pill sizes the
+strike). The legend reads "size = total gamma at the strike · ● gold = absorb · ● violet = amplify · ● grey = balanced ·
+soft edge = stale", the swatches in the inks the renderer hands over (`legend().inks`), then the scale's statement.
+
+### Also wrong in the screenshots (13–17)
+
+**13 · the put wall's flip-flop.** The cause, read off this machine's rows of 2026-10-14 (358 final rows, 9:30 am to
+3:27 pm New York; every raw change of the per-minute pick):
+
+| time (NY) | put wall | price | why |
+|---|---|---|---|
+| 10:52 | 772 → 770 | 771.90 | the price fell through 772 — a put wall stands BELOW the price (core/walls.ts pickWalls), so 772 stopped being a candidate; 770 held 0.67 of its gamma |
+| 10:55 | 770 → 772 | 772.18 | the price back over 772: 772 a candidate again at 1.54× |
+| 11:01, 11:17, 11:21, 11:23, 11:24 | 772 ↔ 770 | 771.8–772.1 | the same, five more times |
+| 12:12 | 770 → 765 | 769.78 | the price through 770; 765 held 0.87 |
+| 12:40, 12:50, 12:58, 13:04 | 765 ↔ 770 | 769.7–770.3 | the same |
+| 15:27 | 765 → 768 | 768.59 | the one near-equal case (768 at 1.02× 765) |
+
+Twelve of the thirteen were the price crossing the wall's own strike, not near-equal sizes. THE RULE (trailModel
+`WallStick`, `WALL_STICK` ratio 1.1 and hold 3): the wall shown is held; another strike becomes the wall only when it has
+been the raw pick for three closed minutes in a row AND its |gamma| beats the held wall's by 10% — or the held wall is no
+candidate any more (the price crossed it, its side flipped) and the newcomer has stood its three minutes; a new New York
+day starts over. One rule for the field's columns, the rail's levels (the ladder's wall rows, the axis chips, the decision
+strip, the level alerts), the wall-move chips and ticks and the session recap. WHAT IT DOES ON THIS DAY: 13 raw changes
+→ 10 moves (scripts/orbs-proof.ts counts them) — a dip through the wall for one or two minutes no longer moves it, but a
+heavier strike re-qualifies three minutes after the price returns, so a price chopping across a wall still moves it every
+six minutes or so. The rule as you asked it slows the flip-flop; it does not end it. If that is not enough, the next
+step is yours to pick: a longer hold (5 or 10 minutes), or a wall the price is straddling drawn as "contested" at its
+strike rather than moved. The store's rows keep the raw per-minute picks (the scorecard's definition — a sticky-wall
+variant is section D's to pre-register).
+
+**14 · ticks and overlaps.** A wall-move tick is 2 × 7 px at the new strike on the bar it moved. Every label on the plot
+goes through one `settle`: a box slides down (then up) until it stands clear of every box placed before it, including
+the library's mark at the bottom-left; the gap labels, the pills and the chips share the list.
+
+**15 · the 1m chips under the settings row.** Not reproduced here: at 1m in this workspace the pinned CW and Flip chips
+stand at 124 and 153 px, under the chrome's edge at 121, and `elementFromPoint` finds nothing over them
+(scripts/_tmp/item15.mjs, kept in the scratchpad). Your layout has something over the axis's top this one has not, so
+the chips now measure the chrome over THEIR OWN column every tenth frame — the header, the strip, the decision strip,
+the toolbar row and the legend, whatever stands over the axis — and take the lowest edge as their floor. If a chip still
+hides on your machine, the element over it is none of those; name it and it joins the list.
+
+**16 · "the close in 32m".** The strip counted to the NEXT PHASE, and the phase after Power hour began at 3:50 pm — the
+closing auction's cutoff. Now the cash session counts to the close (4:00 pm New York): "Power hour · the close in 41m";
+the 3:50 phase is "Closing auction" (its hover: market-on-close and limit-on-close orders are in by its start, the close
+is at its end). Outside the session the next-phase count stands as before.
+
+**17 · the OI chip's time.** The chip's short form dropped the words and kept the times: "OI Oct 14 · 12:17 pm" was the
+VOLS' read time beside the count's date. Now every form says what each time is — "OI dated Oct 14 · book read 12:02 pm ·
+vols read 12:17 pm", short "OI Oct 14 · vols 12:17 pm" — and the hover says the count is taken once a day after the close
+and published before the open.
+
+### Proofs
+
+scripts/orbs-proof.ts (in `npm test`, 18 of 18): the stick on the owner's scenario (a two-minute dip through 770 moves
+nothing; three closed minutes move it 770 → 765; when the price stands back over 770, 1.5× the gamma at 765, the rule
+returns the wall three minutes later), a 5% heavier neighbour never taking a standing wall, a 12% heavier one taking it
+on its third closed minute, the day reset, this machine's recorded day (13 → 10); the oval's measures (d at 0 and 1, the
+√, the merge, the opacity, the constants, the library's body width); the colours (the paper pair ≥ 3:1, the dark pair ≥
+4.5:1, the violet darker than the magenta, the pair apart under each deficiency, the blue-orange pair off its candles
+on the dark ground, the paper distances printed); the legend's words. scripts/session-recap-proof.ts moved to the same
+rule (22 of 22; a session with no official close kept yet is not judged offline). scripts/bead-scale-proof.ts holds on
+the new pair (20 of 20). scripts/replay-cursor-proof.ts judges finished sessions only now (17 of 17): today's rows
+failed its live-against-replay check on the pushed build and on this one alike — the dev server's recorder restarted
+mid-session here and recorded the minutes after from what it had received — and a session is judged once it is over.
+
+### The shots (this workspace, SPY and QQQ on 2026-10-14's recorded day, 1440 × 900, the dark tape)
+
+| file | what it shows |
+|---|---|
+| shots/orbs-spy-15m.png | SPY 15m: the ovals, gold absorbing at the top strikes and violet amplifying below the price, the balanced strikes grey; the wall lines, the flip rule, the pills beside the last candle, the wall-move chips and ticks, the legend with its swatches |
+| shots/orbs-spy-15m-hover.png, -hover-zoom.png | a hover on 772: the 1.5 px ring, the chain bright, the rest at 60%, the three-line card |
+| shots/orbs-spy-15m-pinned.png | 772 pinned by a click: the chain ringed, the rest at 40%, the card expanded, the ladder's 772 row kept |
+| shots/orbs-spy-5m.png, orbs-spy-1m.png | the same session at 5m and 1m — at 1m the ovals stand a pixel apart as a chain; the pinned CW, Flip and Top chips stacked under the chrome (item 15) |
+| shots/orbs-spy-1m-hover-zoom.png, orbs-spy-1m-pinned.png | the hover and the pin at 1m |
+| shots/orbs-spy-1m-axis-top.png | the top of the price axis at 1m: the pinned chips below the header's edge |
+| shots/orbs-spy-1d.png | 1D: the field is intraday-only, so the bars stand with the walls, the flip and the chips alone (as before) |
+| shots/orbs-qqq-5m.png, orbs-qqq-5m-hover.png, orbs-qqq-5m-pinned.png | QQQ at 5m, a hover and a pin on 730 (the supreme) |
+
+The session strip at the time of the shots read "After hours · ends in 2h 44m" (the cash session was over; the close
+count shows in it: "Power hour · the close in 41m"); the Fresh chip read "OI Oct 14 · vols 12:29 pm" with its hover
+"Open interest as of Oct 13's close — Unusual Whales' count dated Oct 14; it is counted once a day · …".

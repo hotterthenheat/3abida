@@ -19,9 +19,9 @@ export const BASIS_HINT: Record<ScaleBasis, string> = {
 };
 export const FLOORS = [0, 0.05, 0.1, 0.25] as const;
 
-/** The legend's two lines, in the reader's words: what full size is, and how a mark reads against it (the owner's B3,
-    2026-10-14: "Legend: 'size = total gamma at the strike · colour = which side wins · grey = balanced · soft edge =
-    stale'") */
+/** The legend's two lines, in the reader's words: what full size is, and how a mark reads against it (the owner's orbs
+    message, 2026-10-14: "LEGEND with oval swatches: 'size = total gamma at the strike · gold = absorb · violet = amplify ·
+    grey = balanced · soft edge = stale'" — the swatches are Terrain's, drawn before each colour's word) */
 export function beadLegendLines(l: BeadLegend, asked: ScaleBasis, floor: number): { head: string; tail: string } {
   /* the size stands on the gross gamma at a strike where the tape keeps it, on |net| where it does not */
   const head = l.sizeBy === 'gross' && l.greek === 'gex' ? `Full size = ${usdCompact(l.refG)} total gamma at a strike per 1%` : `Full size = ${usdCompact(l.refG)} ${l.greek === 'gex' ? 'net gamma per 1% (this tape keeps the net alone)' : UNIT[l.greek]}`;
@@ -36,7 +36,7 @@ export function beadLegendLines(l: BeadLegend, asked: ScaleBasis, floor: number)
   const hidden = floor > 0 ? ` · under ${Math.round(floor * 100)}% of full hidden` : '';
   return {
     head: `${head} (${basis}${fallback})`,
-    tail: `size = total gamma at the strike · colour = which side wins · grey = balanced · soft edge = stale · clipped above full${hidden}`,
+    tail: `size = total gamma at the strike · gold = absorb · violet = amplify · grey = balanced · soft edge = stale · clipped above full${hidden}`,
   };
 }
 /** The legend as one line (its title, and the words check) */

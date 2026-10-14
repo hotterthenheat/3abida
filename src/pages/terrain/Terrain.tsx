@@ -48,6 +48,11 @@ import StrikeChart, {
 } from '../../components/gex/StrikeChart';
 import type { BeadLegend } from '../../components/gex/gexNodesPrimitive';
 import { BASIS_HINT, BASIS_LABEL, FLOORS, beadLegendLines, beadLegendWords } from '../../components/terrain/beadLegend';
+
+/** A legend swatch: an oval in a node's ink, with the darker outline the nodes wear (the orbs message, item 12) */
+const LegendSwatch = ({ rgb }: { rgb: readonly [number, number, number] }) => (
+  <span aria-hidden className="inline-block w-[7px] h-[9px] rounded-[50%] align-[-1px] mr-1 shrink-0" style={{ background: `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, boxShadow: `inset 0 0 0 1px rgb(${Math.round(rgb[0] * 0.6)},${Math.round(rgb[1] * 0.6)},${Math.round(rgb[2] * 0.6)})` }} data-legend-swatch />
+);
 import LevelAlertMenu from '../../components/terrain/LevelAlertMenu';
 import { outcomesOf, useLevelLog } from '../../data/levelAlerts';
 import type { ScaleBasis } from '../../data/feed/beadScale';
@@ -110,7 +115,7 @@ import {
   type FeedOi,
   type FeedStrike, useBeadScaleRefs, measuredBooks60, measuredBooks, pastSessionsOf, useReplaySessions, type PricedMoveFeed
 } from '../../data/feed/levels';
-import { book60Window, driftEndOf, driftOf, netOf, ordinal, regimeForWindow, regimeReadOf, regimeSide, regimeWordsOf, sigmaOf, type ExpiryWindow, type RegimeRead } from '../../data/feed/trailModel';
+import { book60Window, driftEndOf, driftOf, netOf, ordinal, regimeForWindow, regimeReadOf, regimeSide, regimeWordsOf, sigmaOf, WallStick, type ExpiryWindow, type RegimeRead } from '../../data/feed/trailModel';
 import ReplayStrip from '../../components/gex/ReplayStrip';
 import ReplayTools from '../../components/terrain/ReplayTools';
 import { useTerrainReplay } from '../../components/terrain/useTerrainReplay';
@@ -277,6 +282,8 @@ interface TerrainCfg {
       colours"): a colour that means one thing on one pane and another next door
       is a colour nobody can read. The card sits in the desk's own cluster. */
   palette: ProfilePalette;
+  /** The reader's own pick of the rails' colours, kept since 2026-10-14 (the default is the house's; see defaults()) */
+  rails?: ProfilePalette;
   /** WHICH CONTRACTS THE RAILS READ (Noah, 2026-09-16, on the partner's Expiry card: the rail
       summed the whole book, so a wall beside the live chart could be a monthly's) — ONE EXPIRY,
       picked on the calendar card in the rail's head (the book's real dates lit — Noah, later:
@@ -544,7 +551,11 @@ const defaultPanes = (): PaneCfg[] =>
    four watchlist rows would mean a reader who sets a pane to 1h and then picks
    SPY gets yanked back to 15m by a setup they never chose — precisely the
    surprise the earned-by-touch rule exists to prevent. */
-const defaults = (): TerrainCfg => ({ layout: 3, panes: defaultPanes(), setups: {}, palette: 'thermal', railCut: 'book' });
+/* THE RAILS' COLOURS ARE THE HOUSE'S BY DEFAULT since the orbs message (2026-10-14 — one meaning everywhere: the ovals,
+   the ladder's bars, the legend, the chips, the regime strip); Thermal stays the reader's own pick. A choice is kept
+   under `rails` from that day, so the old default ('thermal', written by every save before it) no longer stands in for a
+   choice no one made. */
+const defaults = (): TerrainCfg => ({ layout: 3, panes: defaultPanes(), setups: {}, palette: 'house', railCut: 'book' });
 
 /** One stored pane, validated field by field against a known-good default. */
 /*
@@ -637,7 +648,7 @@ function loadCfg(): TerrainCfg {
        storage it becomes every pane's flag, the same way the one shared
        interval did. */
     const deskLadder = typeof c.ladder === 'boolean' ? (c.ladder as boolean) : undefined;
-    const palette: ProfilePalette = c.palette === 'house' ? 'house' : def.palette;
+    const palette: ProfilePalette = c.rails === 'thermal' ? 'thermal' : c.rails === 'house' ? 'house' : def.palette;
     const railCut: RailCut = (typeof c.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(c.railCut)) || isWindowCut(c.railCut) ? (c.railCut as RailCut) : def.railCut;
 
     if (Array.isArray(c.panes)) {
@@ -1272,7 +1283,27 @@ const Pane = ({
     const rows = dateRows ? [...dateRows].filter(r => fBook.rows.some(b => b.strike === r.strike)).sort((a, b) => a.strike - b.strike) : fBook.rows;
     return feedRail(fBook, rows, fOi, !dateRows, fDay?.price ?? null);
   }, [onFeed, fBook, fOi, fByDate, cutDate, fDay, fBook60]);
-  const liveRail = houseRail ?? feedRailData ?? emptyRail(fBook?.spot ?? 0);
+  const rawLiveRail = houseRail ?? feedRailData ?? emptyRail(fBook?.spot ?? 0);
+  /* THE RAIL'S WALLS WITH HYSTERESIS (the owner's item 13, 2026-10-14 — trailModel WallStick, the field's one rule): the
+     ladder's wall rows, the axis chips, the decision strip and the level alerts all read these levels, so the stick stands
+     here, one per name, fed each time the live rail is read anew (the book's poll, the house's scan); a new strike is the
+     wall once it has been the raw pick for three closed minutes and beats the held wall by 10%, or the held wall is no
+     candidate any more. The replay's rail is the store's own column and is not touched. */
+  const wallStickRef = useRef<{ ticker: string; stick: WallStick }>({ ticker, stick: new WallStick() });
+  const liveRail = useMemo(() => {
+    if (wallStickRef.current.ticker !== ticker) wallStickRef.current = { ticker, stick: new WallStick() };
+    const lv = rawLiveRail.levels;
+    const fin = (v: number) => (Number.isFinite(v) ? v : null);
+    const at = new Map<number, number>();
+    for (const r of rawLiveRail.rows as readonly { strike: number; value: number }[]) at.set(r.strike, r.value);
+    /* the house rail writes spot where it has no wall: no candidate then */
+    const cw = fin(lv.callWall) != null && lv.callWall !== lv.spot && at.has(lv.callWall) ? lv.callWall : null;
+    const pw = fin(lv.putWall) != null && lv.putWall !== lv.spot && at.has(lv.putWall) ? lv.putWall : null;
+    if (!at.size) return rawLiveRail;
+    const w = wallStickRef.current.stick.next({ time: Date.now() / 1000, spot: lv.spot, cw, pw, valueOf: k => at.get(k) ?? NaN });
+    if (w.cw === cw && w.pw === pw) return rawLiveRail;
+    return { ...rawLiveRail, levels: { ...lv, callWall: w.cw ?? (Number.isFinite(lv.callWall) ? NaN : lv.callWall), putWall: w.pw ?? (Number.isFinite(lv.putWall) ? NaN : lv.putWall) } };
+  }, [rawLiveRail, ticker]);
   /* ══ THE REPLAY (the owner's item 8, 2026-10-14) ═══════════════════════════════════════════════════════════════
      The pane reads everything at the replay's cursor (components/terrain/useTerrainReplay.ts): the chart a tape cut there,
      the ladder and the levels the field's column there. On the feed the field is the replay's twin — a session the
@@ -1694,8 +1725,12 @@ const Pane = ({
       const col = fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null;
       let vols = 0;
       if (col) for (const l of col.levels) if (l.freshAt && l.freshAt > vols) vols = l.freshAt;
-      const parts = [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', fBook ? `book ${printClock(fBook.at)}` : 'book —', vols ? `vols ${printClock(vols)}` : null].filter((x): x is string => !!x);
-      out.push({ key: 'freshness', label: 'Fresh', words: parts.join(' · '), short: [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', vols ? printClock(vols) : fBook ? printClock(fBook.at) : null].filter((x): x is string => !!x).join(' · '), title: rail.sure[0]?.freshness ?? 'How fresh the inputs are', tone: null });
+      /* EVERY TIME SAYS WHAT IT IS (the orbs message, item 17: "The OI chip says 12:02 pm in one screenshot and 12:17 pm in
+         the other; OI changes once a day — say what that time is"): the count is dated, the book's and the vols' times
+         are their reads — the short form kept the times and dropped their words */
+      const parts = [fOi?.date ? `OI dated ${shortDay(fOi.date)}` : 'OI —', fBook ? `book read ${printClock(fBook.at)}` : 'book —', vols ? `vols read ${printClock(vols)}` : null].filter((x): x is string => !!x);
+      const shortParts = [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', vols ? `vols ${printClock(vols)}` : fBook ? `book ${printClock(fBook.at)}` : null].filter((x): x is string => !!x);
+      out.push({ key: 'freshness', label: 'Fresh', words: parts.join(' · '), short: shortParts.join(' · '), title: `${rail.sure[0]?.freshness ?? 'How fresh the inputs are'} — open interest is counted once a day after the close and published before the open (its date is the session it stands for); the book and the vols are read through the session, and their times are the reads'`, tone: null });
     } else out.push({ key: 'freshness', label: 'Fresh', words: 'OI last close · spot live', short: 'OI last close', title: rail.sure[0]?.freshness ?? 'How fresh the inputs are', tone: null });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2670,7 +2705,7 @@ const Pane = ({
               <button type="button" onClick={() => setNarrowLadder(true)} className="hit absolute left-3 bottom-8 z-20 flex items-center gap-1.5 rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 font-mono text-[11px] tnum text-textSecondary" title="The three strikes nearest the price — open the ladder" data-ladder-peek>
                 {peek.map(r => (
                   <span key={r.strike} className="whitespace-nowrap">
-                    <span className="text-textPrimary">{num(r.strike, r.strike % 1 ? 2 : 0)}</span> <span className={r.value >= 0 ? 'text-[rgb(var(--ember))]' : 'text-[rgb(var(--glacier))]'}>{usdCompactSigned(r.value)}</span>
+                    <span className="text-textPrimary">{num(r.strike, r.strike % 1 ? 2 : 0)}</span> <span className={r.value >= 0 ? 'text-[rgb(var(--amplify))]' : 'text-[rgb(var(--absorb))]'}>{usdCompactSigned(r.value)}</span>
                   </span>
                 ))}
                 <span className="text-textMuted">Strikes ›</span>
@@ -2845,8 +2880,17 @@ const Pane = ({
                 /* ONE LINE (the UI pass, 2026-10-14): the scale's statement, truncated to the column, its second line and
                    the basis's words in the title; the basis and the floor ride the hover row (beadControls); L hides it */
                 <div className="relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-0.5 flex items-center min-w-0 text-[11px] leading-[16px] text-textMuted tnum" title={`${beadLegendLines(beadLegend, beadBasis, beadFloor).tail} · ${beadLegendWords(beadLegend, beadBasis, beadFloor)}`} data-bead-legend data-bead-ref={beadLegend.ref} data-bead-basis={beadLegend.basis}>
+                  {/* THE SWATCHES (the orbs message, item 12): an oval before each colour's word, in the inks the nodes wear on
+                      this tape — the renderer's own hand-off (legend().inks) */}
                   <span className="min-w-0 truncate" data-bead-scale>
-                    {beadLegendLines(beadLegend, beadBasis, beadFloor).head}
+                    <span>size = total gamma at the strike · </span>
+                    <LegendSwatch rgb={beadLegend.inks.call} />
+                    <span>gold = absorb · </span>
+                    <LegendSwatch rgb={beadLegend.inks.put} />
+                    <span>violet = amplify · </span>
+                    <LegendSwatch rgb={beadLegend.inks.neutral} />
+                    <span>grey = balanced · soft edge = stale · </span>
+                    <span data-bead-scale-words>{beadLegendLines(beadLegend, beadBasis, beadFloor).head}</span>
                   </span>
                 </div>
               )}
@@ -3902,7 +3946,7 @@ const Terrain = () => {
         {!belowLg && anyLadder && (
           <span className="pointer-events-auto inline-flex" data-terrain-colours>
             {/* the Expiry cut lives in each rail's head beside the view tabs (2026-09-16) — one desk-wide choice, changed from any pane */}
-            <DropdownSelect label="Colours" value={cfg.palette} options={PALETTE_OPTIONS} onChange={p => setCfg(prev => ({ ...prev, palette: p }))} title="What the rails' colours mean" testId="terrain-colours" />
+            <DropdownSelect label="Colours" value={cfg.palette} options={PALETTE_OPTIONS} onChange={p => setCfg(prev => ({ ...prev, palette: p, rails: p }))} title="What the rails' colours mean" testId="terrain-colours" />
           </span>
         )}
 
@@ -4111,7 +4155,7 @@ const Terrain = () => {
             openDateNonce={dateAsk.pane === i ? dateAsk.n : 0}
             menuOpen={menu?.pane === i ? menu.which : null}
             onMenu={which => setMenu(which ? { pane: i, which } : null)}
-            onPopOut={isPhone ? undefined : () => openPopOut(`/out/terrain?pane=${encodeURIComponent(JSON.stringify(pane))}&rail=${encodeURIComponent(JSON.stringify({ palette: cfg.palette, railCut: cfg.railCut }))}`, `terrain-${i + 1}`, { w: 1100, h: 700 })}
+            onPopOut={isPhone ? undefined : () => openPopOut(`/out/terrain?pane=${encodeURIComponent(JSON.stringify(pane))}&rail=${encodeURIComponent(JSON.stringify({ palette: cfg.palette, rails: cfg.palette, railCut: cfg.railCut }))}`, `terrain-${i + 1}`, { w: 1100, h: 700 })}
             boxRef={el => { paneRefs.current[i] = el; }}
             /*
               THE ODD PANE OUT TAKES THE WHOLE ROW.
@@ -4152,8 +4196,8 @@ export const TerrainSoloPane = ({ initial, rail, onName }: { initial: unknown; r
     }
     return readPane(kept ?? initial, defaultPanes()[0]);
   });
-  const r = (rail && typeof rail === 'object' ? rail : {}) as { palette?: unknown; railCut?: unknown };
-  const palette: ProfilePalette = r.palette === 'house' ? 'house' : 'thermal';
+  const r = (rail && typeof rail === 'object' ? rail : {}) as { palette?: unknown; rails?: unknown; railCut?: unknown };
+  const palette: ProfilePalette = r.rails === 'thermal' ? 'thermal' : 'house';
   const [railCut, setRailCut] = useState<RailCut>(() => ((typeof r.railCut === 'number' && (CALENDAR_DTES as readonly number[]).includes(r.railCut)) || isWindowCut(r.railCut) ? (r.railCut as RailCut) : 'book'));
   const [replay, setReplay] = useState(false);
   const [drawing, setDrawing] = useState(false);

@@ -1404,13 +1404,17 @@ const StrikeChart = ({
   const [pinnedBead, setPinnedBead] = useState<BeadHit | null>(null);
   useEffect(() => setPinnedBead(null), [ticker, timeframe, replay]);
   useEffect(() => {
-    if (!pinnedBead) return;
+    if (!pinnedBead && focusPrice == null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPinnedBead(null);
+      if (e.key !== 'Escape') return;
+      setPinnedBead(null);
+      /* Esc lets the pinned strike go as well (item 10) */
+      if (focusPrice != null && onPinStrike) onPinStrike(focusPrice);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [pinnedBead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinnedBead, focusPrice]);
   /* THE LEVEL CHIP'S HOVER CARD: the level's moves today, how long it has stood, its touches today, the record's line */
   const [levelCard, setLevelCard] = useState<{ key: AxisChipKey; price: number; y: number; lines: string[] } | null>(null);
   const levelChipsRef = useRef<HTMLDivElement | null>(null);
@@ -1848,7 +1852,7 @@ const StrikeChart = ({
       const total = newest.levels.reduce((a, l) => a + Math.abs(l.value), 0);
       const top = [...newest.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))[0];
       if (top && total > 0 && fin(top.strike) && !taken.has(top.strike)) {
-        rows.push({ key: 'top', price: top.strike, line1: `Top ${k(top.strike)} · ${Math.round((Math.abs(top.value) / total) * 100)}%`, line2: dist(top.strike), bg: css(top.value >= 0 ? inks.put : inks.call), fg: inkFor(top.value >= 0 ? inks.put : inks.call), title: "The field's heaviest strike now, and its share of the column" });
+        rows.push({ key: 'top', price: top.strike, line1: `Top ${k(top.strike)}`, line2: dist(top.strike), bg: css(top.value >= 0 ? inks.put : inks.call), fg: inkFor(top.value >= 0 ? inks.put : inks.call), title: `The field's heaviest strike now — ${Math.round((Math.abs(top.value) / total) * 100)}% of the column; the pill beside the last candle sizes it against the largest node` });
       }
     }
     return rows;
@@ -1866,6 +1870,8 @@ const StrikeChart = ({
     const shownY = new Map<string, number>();
     const shownPin = new Map<string, string>();
     let shownW = -1;
+    let probeTick = 0;
+    let probeFloor = 0;
     const frame = () => {
       raf = requestAnimationFrame(frame);
       const gw = Math.round(chart.priceScale('right').width());
@@ -1879,7 +1885,22 @@ const StrikeChart = ({
       } catch {
         paneH = 0;
       }
-      const floor = chromeInsetRef.current > 0 ? chromeInsetRef.current + 3 : 0;
+      let floor = chromeInsetRef.current > 0 ? chromeInsetRef.current + 3 : 0;
+      /* A PINNED CHIP NEVER UNDER THE CHROME (the orbs message, item 15: at 1m the off-screen call wall and flip chips
+         stood behind the settings row at the top of the price axis): every tenth frame the chrome over the AXIS COLUMN is
+         measured directly — the header, the strip, the decision strip, the toolbar row and the legend, whatever stands
+         over the chips' own column — and the floor is the lowest edge among them */
+      if (++probeTick % 10 === 1) {
+        const hb = host.getBoundingClientRect();
+        let low = floor;
+        document.querySelectorAll<HTMLElement>('[data-chart-chrome], [data-pane-head], [data-decision-strip], [data-toolbar-row], [data-bead-legend]').forEach(c => {
+          const r = c.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0 || r.right <= hb.left || r.left >= hb.right || r.bottom <= hb.top || r.top > hb.top + hb.height / 3) return;
+          low = Math.max(low, r.bottom - hb.top + 3);
+        });
+        probeFloor = low;
+      }
+      floor = Math.max(floor, probeFloor);
       const chips = [...host.querySelectorAll<HTMLElement>('[data-axis-chip]')];
       const want: { el: HTMLElement; y: number; h: number; pin: string }[] = [];
       for (const el of chips) {
@@ -2758,7 +2779,8 @@ const StrikeChart = ({
     if (!trails) return;
     /* the library's one-line labels and the in-plot strength chips stand down where the host's axis chips name the levels */
     trails.axisLabels = axisLevels && !axisChips;
-    trails.strengthLabels = !axisChips;
+    /* THE NODE PILLS (the orbs message, item 11) name the three largest live nodes beside the last candle whatever the axis shows */
+    trails.nodeLabels = true;
     trails.density = beadDensity;
     trails.setBasis(beadBasis, beadFloor);
     trails.requestUpdate?.();
@@ -3042,10 +3064,10 @@ const StrikeChart = ({
       if (!cur || snap.time >= cur.at) byBar.set(t, { net: netOf(snap.levels), at: snap.time });
     }
     const el = boxElRef.current ?? undefined;
-    /* THE GAMMA PAIR, as everywhere gamma is drawn (the owner, 2026-10-14: "Puts/calls use the existing ember-gold /
-       glacier-ice tokens everywhere gamma appears, including the regime strip (replace its bull/bear red/green)") */
-    const callInk = readToken('--glacier', undefined, el);
-    const putInk = readToken('--ember', undefined, el);
+    /* THE GAMMA PAIR, as everywhere gamma is drawn (the owner, 2026-10-14: the regime strip wears the pair, never
+       bull/bear; the orbs message the same day: gold where hedging absorbs — the calls' side — violet where it amplifies) */
+    const callInk = readToken('--absorb', undefined, el);
+    const putInk = readToken('--amplify', undefined, el);
     const bars = [...byBar.entries()].sort((a, b) => a[0] - b[0]);
     let lastPct: number | null = null;
     let lastNet: number | null = null;
@@ -5464,6 +5486,9 @@ const StrikeChart = ({
           const plotW = chartRef.current?.paneSize(0).width ?? rect.width;
           const px = e.clientX - rect.left;
           const bead = tr && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
+          /* THE HOVER RING AND THE CHAIN (the orbs message, item 9): the primitive brightens the strike's chain and dims the
+             rest, over its cached bitmap */
+          tr?.setHover(bead);
           setBeadCard(prev => (bead === null ? (prev === null ? prev : null) : prev && prev.strike === bead.strike && prev.time === bead.time ? prev : bead));
           if (!prim?.data) return;
           const plotH = chartRef.current?.paneSize(0).height ?? rect.height;
@@ -5478,6 +5503,7 @@ const StrikeChart = ({
         }}
         onMouseLeave={() => {
           eventsPrimRef.current?.setHovered(null);
+          trailsRef.current?.setHover(null);
           setEventCard(null);
           setBeadCard(null);
         }}
@@ -5492,6 +5518,9 @@ const StrikeChart = ({
           const px = e.clientX - rect.left;
           const bead = tr && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
           setPinnedBead(bead);
+          /* THE PIN (the orbs message, item 10): a click on a node pins its strike — the chain stays bright, the rest dims
+             to 40% — until the strike is clicked again or Esc; the ladder's click-to-keep is the same pin (Terrain's focus) */
+          if (bead && onPinStrike) onPinStrike(bead.strike);
         }}
       >
         {picking && pickFade && (

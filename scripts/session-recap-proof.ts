@@ -22,7 +22,7 @@ import { nyWallTime } from '../src/core/nyTime';
 import { calibrate, dayVerdict, type CalibrationDay } from '../src/data/feed/pricedMove';
 import { buildRecap, flipCrossesOf, recapTouchesOf, recapWallsOf, regimePathOf, stripRegime, type RecapInput } from '../src/data/feed/sessionRecap';
 import { LEVEL_KINDS, nyMinuteOf, rng, sessionTouches, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
-import { buildRegimeReference, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeQuantiles, regimeReachFor, wallMovesOf } from '../src/data/feed/trailModel';
+import { buildRegimeReference, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeQuantiles, regimeReachFor, stickyWallMoves, stickyWalls } from '../src/data/feed/trailModel';
 import { createFieldBackfill } from '../server/fieldBackfill';
 import { createFieldStore } from '../server/fieldStore';
 import { createPricedMove } from '../server/pricedMove';
@@ -105,19 +105,31 @@ for (let i = 0; i < 30; i++) {
   check('on thirty built sessions every crossing is counted once, at the row whose flip it crossed', ok);
 }
 
-/* THE WALLS: the chips' rule — a new strike counts once it has held three minutes; a moment's swap is no move */
+/* THE WALLS: the chips' rule since the owner's item 13 (2026-10-14) — THE WALL WITH HYSTERESIS: a new strike counts once
+   it has been the raw pick for three closed minutes AND beats the held wall's |gamma| by 10%; a moment's swap is no move,
+   and a near-equal neighbour never takes the wall while the held one stands */
 {
-  const row = (i: number, cw: number) => ({ m: i * 60_000, cw, pw: 770, cells: [[779, 1], [780, 1], [781, 1], [785, 1]] as [number, number][] });
+  const day0 = Date.UTC(2026, 9, 14, 14, 0); // 10:00 am New York, one day
+  const row = (i: number, cw: number, big = 1.25) => ({ m: day0 + i * 60_000, spot: 775, cw, pw: 770, cells: [[770, 1], [779, -1], [780, -1], [781, -1], [785, -big]] as [number, number][] });
   const rows = [...Array.from({ length: 10 }, (_, i) => row(i, 780)), row(10, 785), row(11, 785), row(12, 780), row(13, 785), row(14, 785), row(15, 785), row(16, 785)];
   const w = recapWallsOf(rows);
-  check(`a wall that went to 785 for two minutes did not move; held three from 13, it moved 780 → 785, five strikes on the column's $1 grid: ${JSON.stringify(w)}`, w.length === 1 && w[0].kind === 'call' && w[0].from === 780 && w[0].to === 785 && w[0].m === 13 * 60_000 && w[0].strikes === 5);
+  check(`a wall that went to 785 for two minutes did not move; the raw pick from 13, it moved 780 → 785 at 15 (three closed minutes, 785 at 1.25× 780), five strikes on the column's $1 grid: ${JSON.stringify(w)}`, w.length === 1 && w[0].kind === 'call' && w[0].from === 780 && w[0].to === 785 && w[0].m === day0 + 15 * 60_000 && w[0].strikes === 5);
+  const near = recapWallsOf([...Array.from({ length: 10 }, (_, i) => row(i, 780, 1.05)), ...Array.from({ length: 10 }, (_, i) => row(10 + i, 785, 1.05))]);
+  check(`a strike only 5% heavier never takes a wall that still stands (no move in twenty minutes): ${JSON.stringify(near)}`, near.length === 0);
   let same = true;
   for (const s of sessions) {
     const mine = recapWallsOf(s.rows);
-    const chips = wallMovesOf(s.rows.length, i => ({ cw: s.rows[i].cw, pw: s.rows[i].pw, time: s.rows[i].m }));
+    const shown = stickyWalls(
+      s.rows.map(r => {
+        const at = new Map<number, number>();
+        for (const c of r.cells) at.set(c[0], c[1]);
+        return { time: r.m / 1000, spot: r.spot, cw: r.cw, pw: r.pw, valueOf: (k: number) => at.get(k) ?? NaN };
+      })
+    );
+    const chips = stickyWallMoves(s.rows.length, i => ({ cw: shown.cw[i], pw: shown.pw[i], time: s.rows[i].m }));
     if (mine.length !== chips.length || !chips.every(c => mine.some(x => x.m === c.time && x.from === c.from && x.to === c.to && (c.kind === 'CW') === (x.kind === 'call')))) same = false;
   }
-  check("on thirty built sessions the recap's moves are the field chips' (trailModel wallMovesOf), one for one", same);
+  check("on thirty built sessions the recap's moves are the field chips' (trailModel WallStick, stickyWallMoves), one for one", same);
 }
 
 /* THE LEVELS TOUCHED ARE THE TRACK RECORD'S ROWS */
@@ -213,7 +225,12 @@ const offline = { get: async () => deny(), hasKey: () => true, redirectOf: deny 
       /* a copy of each session's files: the server's build reads them as it would, and asks no vendor */
       mkdirSync(join(tmp, name), { recursive: true });
       for (const f of ['regime.json']) if (existsSync(join(real, name, f))) copyFileSync(join(real, name, f), join(tmp, name, f));
-      const days = readdirSync(join(real, name)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+      /* THE SESSIONS JUDGED ARE THE CLOSED ONES: a day whose official close is not kept yet (today, while the recorder is
+         still on it — close.json is written from 4:30 pm) would send the calibration to the vendor, and this proof asks
+         no vendor */
+      const allDays = readdirSync(join(real, name)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+      const days = allDays.filter(d => existsSync(join(real, name, d, 'close.json')));
+      for (const d of allDays) if (!days.includes(d)) console.log(`NOTE  ${name} ${d}: no official close kept yet (close.json) — not judged offline`);
       for (const d of days) {
         mkdirSync(join(tmp, name, d), { recursive: true });
         for (const f of ['past.json.gz', 'bars.json.gz', 'move.json', 'close.json', 'final.jsonl', 'final.jsonl.gz', 'tape-price.json']) if (existsSync(join(real, name, d, f))) copyFileSync(join(real, name, d, f), join(tmp, name, d, f));

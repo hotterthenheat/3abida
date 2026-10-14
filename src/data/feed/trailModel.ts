@@ -791,6 +791,99 @@ export function wallMovesOf(end: number, columnAt: (i: number) => { cw: number |
   return moves;
 }
 
+/* A WALL WITH HYSTERESIS (the owner, 2026-10-14, item 13 of the orbs message: SPY's put wall flipped 770 → 765 → 770 →
+   765 at 9:50, 9:58 and 10:04 am — "find the cause … add hysteresis: a new wall must beat the current one by 10% and hold
+   3 closed minutes"). THE CAUSE, read off this machine's rows of 2026-10-14 (358 minutes): every move DOWN came the
+   minute the price fell through the wall's own strike (pickWalls keeps a put wall BELOW the price, so a wall the price
+   crosses is no candidate the next minute), and every move back came when the price rose back over it — the lower
+   strike held 0.65–0.85 of the old wall's gamma, so it was never a near-equal swap. THE RULE: the wall shown is held;
+   another strike becomes the wall only when it has been the raw pick (pickWalls) for `hold` closed minutes in a row and
+   its |gamma| beats the held wall's by `ratio` at that minute — or the held wall is no candidate any more (the price
+   crossed it, its side flipped, the window lost it) and the newcomer has stood its minutes. The stick starts over on a
+   new New York day. One rule for the field's columns (gexNodesPrimitive), the rail's levels (Terrain) and the recap. */
+export const WALL_STICK = { ratio: 1.1, hold: 3 } as const;
+export interface WallObs {
+  /** the moment, epoch seconds */
+  time: number;
+  spot: number;
+  /** the raw picks (core/walls.ts pickWalls) at this moment */
+  cw: number | null;
+  pw: number | null;
+  /** the signed value (the house's sign) at a strike of this moment's column; 0 or NaN where the column has none */
+  valueOf: (strike: number) => number;
+}
+interface StickSide {
+  held: number | null;
+  cand: number | null;
+  candSince: number;
+}
+export class WallStick {
+  private side: Record<'cw' | 'pw', StickSide> = { cw: { held: null, cand: null, candSince: 0 }, pw: { held: null, cand: null, candSince: 0 } };
+  private day = '';
+  constructor(
+    private ratio: number = WALL_STICK.ratio,
+    private hold: number = WALL_STICK.hold
+  ) {}
+  /** The walls to show after this observation */
+  next(o: WallObs): { cw: number | null; pw: number | null } {
+    const day = nyIsoDate(o.time * 1000);
+    if (day !== this.day) {
+      this.day = day;
+      this.side = { cw: { held: null, cand: null, candSince: 0 }, pw: { held: null, cand: null, candSince: 0 } };
+    }
+    for (const kind of ['cw', 'pw'] as const) {
+      const st = this.side[kind];
+      const raw = o[kind];
+      if (st.held == null) {
+        if (raw != null) st.held = raw;
+        st.cand = null;
+        continue;
+      }
+      if (raw == null || raw === st.held) {
+        st.cand = null;
+        continue;
+      }
+      if (st.cand !== raw) {
+        st.cand = raw;
+        st.candSince = o.time;
+      }
+      const v = o.valueOf(st.held);
+      const alive = Number.isFinite(v) && v !== 0 && Number.isFinite(o.spot) && (kind === 'cw' ? st.held > o.spot && v < 0 : st.held < o.spot && v > 0);
+      const beats = !alive || Math.abs(o.valueOf(raw)) >= this.ratio * Math.abs(v);
+      const stood = o.time - st.candSince >= (this.hold - 1) * 60;
+      if (beats && stood) {
+        st.held = raw;
+        st.cand = null;
+      }
+    }
+    return { cw: this.side.cw.held, pw: this.side.pw.held };
+  }
+}
+/** The walls shown at each of `obs` (in time order), through one stick */
+export function stickyWalls(obs: readonly WallObs[], ratio = WALL_STICK.ratio, hold = WALL_STICK.hold): { cw: (number | null)[]; pw: (number | null)[] } {
+  const stick = new WallStick(ratio, hold);
+  const cw: (number | null)[] = [];
+  const pw: (number | null)[] = [];
+  for (const o of obs) {
+    const w = stick.next(o);
+    cw.push(w.cw);
+    pw.push(w.pw);
+  }
+  return { cw, pw };
+}
+/** A wall observation off a column's levels (the field's snapshots, the store's cells): the raw picks and the values */
+export function wallObsOf(time: number, spot: number, levels: readonly { strike: number; value: number }[]): WallObs {
+  const raw = pickWalls(levels, spot, l => l.value);
+  const at = new Map<number, number>();
+  for (const l of levels) at.set(l.strike, l.value);
+  return { time, spot, cw: raw.callWall, pw: raw.putWall, valueOf: k => at.get(k) ?? NaN };
+}
+/** THE MOVES OF A STICKY WALL: a change of the wall shown between two columns IS a move (the stick has done the holding),
+    stamped at the column it changed on — the chips', the ticks' and the recap's one rule since 2026-10-14 */
+export function stickyWallMoves(end: number, columnAt: (i: number) => { cw: number | null; pw: number | null; time: number }, start = 0): WallMove[] {
+  return wallMovesOf(end, columnAt, 1, start);
+}
+
 /** The expiries the store's straddles stand on: the one settling today (null when none is listed) and the weekly — the
     first listed Friday after today, else the first listed date after today */
 export function straddleExpiries(expiries: Iterable<string>, day: string): { today: string | null; weekly: string | null } {

@@ -19,12 +19,13 @@ export const BEAR = '#FF3B30';
     …, box)), so a light tape gets the deep silver. */
 export const ACCENT = '#C7D3E8';
 
-/* THE WALLS WEAR THE GAMMA PAIR (the owner, 2026-10-14: "Wall chips: put wall ember, call wall glacier. Bull/bear is for
-   candles only"): the call wall glacier, the put wall ember — the dark tokens' own values (tokens.css --glacier 122 189
-   215, --ember 245 197 66). A surface that can wear a light ground reads the tokens off its own box (paletteInk,
-   gexNodesPrimitive trailPaperFrom / axisInksFrom). The walls were green and red from 2026-08-18 to 2026-10-14. */
-export const CALL_WALL = '#7ABDD7';
-export const PUT_WALL = '#F5C542';
+/* THE WALLS WEAR THE GAMMA PAIR — GOLD ABSORBS, VIOLET AMPLIFIES (the owner, 2026-10-14, the orbs message: "Gold = absorb
+   (calls side), Violet = amplify (puts side) — Skylit's meaning … Call wall chip gold, put wall chip violet"; from
+   2026-10-14's earlier pass to that message the pair was ember/glacier the other way round, and green/red before it).
+   The dark tokens' own values (tokens.css --absorb 240 196 70, --amplify 132 102 234). A surface that can wear a light
+   ground reads the tokens off its own box (paletteInk, gexNodesPrimitive trailPaperFrom / axisInksFrom). */
+export const CALL_WALL = '#F0C446';
+export const PUT_WALL = '#8466EA';
 /* INDECISION GRAY (Noah, 2026-08-29): the flip is the price where the book
    is on the verge of two sides — neither's color belongs to it. Gray IS the
    read. (The old baby blue moved up: it is the supreme's now.) */
