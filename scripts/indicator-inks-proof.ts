@@ -18,12 +18,23 @@
        reader's own where a pane, a star or an alert still names it, and never given to anyone else;
     5. "The flip" draws its line in the flip's own grey and paints no fill and no background; no other shipped script
        paints a red or green wash but the one reported (the Ichimoku cloud).
+  And the review of those approvals (2026-10-15):
+    6. no line reads as up or down, and no wash is red or green but the Ichimoku cloud: every ink with a hue (OKLCh
+       chroma 0.04 or more) stands 30° or more of hue from the direction pair on its ground — a wash measured the same
+       way, by its hue, so a pale sage or rose wash is found too (the ΔE test let Donchian's sage and Keltner's rose by);
+    7. a line as drawn reads 3:1 on the darkest light tape — the Indicators menu's faint parts at the alpha the chart
+       draws them at, a shipped script's lines through the light tape's mapper, alpha and all;
+    8. the reader's colour vision reaches the chart's chrome: under blue and orange (and high contrast) a light tape's
+       direction pair — the one a script's lines read off the box — is the reader's light pair, not the dark island's,
+       outranks the dark island's set, and reads 3:1 (high contrast: its words 7:1) on the darkest light tape; a dark
+       tape's chrome takes the reader's dark set.
 */
 import { readFileSync } from 'node:fs';
 import { compile, explain, run } from '../src/core/pine';
 import type { Bar, RunResult } from '../src/core/pine';
 import * as builtins from '../src/data/builtinScripts';
 import { INK_PAIRS, INDICATOR_INKS as FAMILY_INKS, MACD_HIST_INK, MACD_SIGNAL_INK, paperInk, paperInksWith, parseInk } from '../src/components/gex/indicatorInks';
+import * as inkFamily from '../src/components/gex/indicatorInks';
 import { ACCENT, BEAR, BULL, CALL_WALL, FLIP, PUT_WALL, SUPREME } from '../src/components/gex/palette';
 
 let pass = 0;
@@ -52,6 +63,15 @@ const dE = (a: RGB, b: RGB) => {
   const A = oklab(a);
   const B = oklab(b);
   return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]);
+};
+/** OKLCh chroma and hue (degrees) */
+const lchOf = (rgb: RGB) => {
+  const [, a, b] = oklab(rgb);
+  return { C: Math.hypot(a, b), h: ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360 };
+};
+const hueGap = (x: number, y: number) => {
+  const d = Math.abs(x - y) % 360;
+  return d > 180 ? 360 - d : d;
 };
 const lum = ([r, g, b]: RGB) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 const contrast = (a: RGB, b: RGB) => {
@@ -115,6 +135,7 @@ interface Ink {
   part: string;
   dark: string;
   paper: string;
+  faint?: boolean;
 }
 const strike = read('src/components/gex/StrikeChart.tsx');
 /** StrikeChart's INDICATOR_INKS: its own literal (the code before approval 4) or the family it imports */
@@ -132,10 +153,10 @@ const partsBlock = /const INDICATOR_PARTS[^=]*=\s*\{([\s\S]*?)\n\};/.exec(strike
 const builtinInks: Ink[] = [];
 for (const m of partsBlock.matchAll(/^ {2}(\w+): \{[\s\S]*?(?=^ {2}\w+: \{|$(?![\s\S]))/gm)) {
   const key = m[1];
-  for (const p of m[0].matchAll(/part: '(\w+)'[^}]*?ink: ('[^']*'|[^,}]+)/g)) {
+  for (const p of m[0].matchAll(/part: '(\w+)'[^}]*?ink: ('[^']*'|[^,}]+)([^}]*)/g)) {
     const expr = p[2].trim();
     const dark = expr.startsWith("'") ? expr.slice(1, -1) : expr.startsWith('INDICATOR_INKS.') ? leadOf[expr.slice('INDICATOR_INKS.'.length)] : expr === 'MACD_SIGNAL_INK' ? MACD_SIGNAL_INK : expr === 'MACD_HIST_INK' ? MACD_HIST_INK : expr;
-    builtinInks.push({ owner: `indicator:${key}`, part: p[1], dark, paper: lightOf(dark) });
+    builtinInks.push({ owner: `indicator:${key}`, part: p[1], dark, paper: lightOf(dark), faint: /faint: true/.test(p[3]) });
   }
 }
 check(`the chart's ten indicators are read (${new Set(builtinInks.map(i => i.owner)).size} keys, ${builtinInks.length} parts)`, new Set(builtinInks.map(i => i.owner)).size === 10 && builtinInks.every(i => !!parseInk(i.dark)), builtinInks.filter(i => !parseInk(i.dark)).map(i => `${i.owner}:${i.part}=${i.dark}`).join(', '));
@@ -182,6 +203,8 @@ const scriptInks: Ink[] = [];
 const houseUsed = new Map<string, Set<string>>();
 const washes: { slug: string; what: string; inks: string[] }[] = [];
 const runs = new Map<string, RunResult>();
+/** every ink a shipped script draws as a line, alpha and all */
+const drawnLines: { owner: string; part: string; css: string }[] = [];
 for (const s of shipped) {
   const slug = s.id.replace(/^builtin:/, '');
   let r: RunResult;
@@ -214,6 +237,8 @@ for (const s of shipped) {
     add(sh.title, sh.ink);
     for (const c of new Set(sh.colors ?? [])) add(sh.title, c);
   }
+  for (const p of r.plots) for (const c of new Set([p.ink, ...(p.colors ?? [])])) if (c) drawnLines.push({ owner: `script:${slug}`, part: p.title, css: c });
+  for (const sh of r.shapes) for (const c of new Set([sh.ink, ...(sh.colors ?? [])])) if (c) drawnLines.push({ owner: `script:${slug}`, part: sh.title, css: c });
   const washInks = [...new Set([...r.fills.flatMap(f => [f.ink, ...(f.colors ?? [])]), ...(r.bgcolors ?? [])].filter((c): c is string => !!c && !!parseInk(c) && parseInk(c)!.a > 0))];
   if (r.bgcolors?.some(c => !!c)) washes.push({ slug, what: 'background', inks: [...new Set(r.bgcolors.filter((c): c is string => !!c))] });
   if (r.fills.length) washes.push({ slug, what: 'fill', inks: washInks });
@@ -330,6 +355,67 @@ info(houseNotes.join('; '));
 const alphaKept = toPaper('rgba(232, 185, 74, 0.6)');
 check(`an ink written at an alpha keeps it on paper (the call wall at 0.6 → ${alphaKept})`, /, 0\.6\)$/.test(alphaKept) && hexOf(rgbOf(alphaKept)) === hexOf(tok(PAPER_TOK, '--absorb')));
 
+/* ---- 6: no line reads as up or down — every ink with a hue stands 30° of hue off the direction pair ------------ */
+const UP_H = { dark: lchOf(rgbOf(BULL)).h, paper: lchOf(tok(CHART_LIGHT, '--bull')).h };
+const DOWN_H = { dark: lchOf(rgbOf(BEAR)).h, paper: lchOf(tok(CHART_LIGHT, '--bear')).h };
+/** the hue gap to the nearer of the pair, or null for an ink with no hue to read (chroma under 0.04) */
+const dirGap = (rgb: RGB, ground: 'dark' | 'paper'): { gap: number; to: string } | null => {
+  const { C, h } = lchOf(rgb);
+  if (C < 0.04) return null;
+  const u = hueGap(h, UP_H[ground]);
+  const d = hueGap(h, DOWN_H[ground]);
+  return u < d ? { gap: u, to: 'up' } : { gap: d, to: 'down' };
+};
+const onDir: string[] = [];
+let minDirGap = Infinity;
+for (const i of lines) {
+  for (const [ground, css] of [['dark', i.dark], ['paper', i.paper]] as const) {
+    const g = dirGap(rgbOf(css), ground);
+    if (!g) continue;
+    minDirGap = Math.min(minDirGap, g.gap);
+    if (g.gap < 30) onDir.push(`${i.owner} ${i.part} ${ground === 'paper' ? 'paper ' : ''}${hexOf(rgbOf(css))} ${g.gap.toFixed(0)}° from ${g.to}`);
+  }
+}
+check(`no indicator or shipped-script line reads as up or down: every ink with a hue stands 30° or more of OKLCh hue from the direction pair, dark tape and paper (nearest ${minDirGap.toFixed(0)}°)`, onDir.length === 0, onDir.slice(0, 12).join('; '));
+
+/* ---- 7: a line as drawn reads 3:1 on the darkest light tape --------------------------------------------------- */
+/* the Indicators menu's faint parts at the alpha the chart draws them: `+ '99'` (60% on either tape) before the review,
+   indicatorInks faintInk after it */
+const famAny = inkFamily as unknown as { faintInk?: (css: string, light: boolean) => string };
+const faintOld = /inkOf\(part\.ink\) \+ '99'/.test(strike) || !famAny.faintInk;
+const withA = (css: string, a: number) => {
+  const c = parseInk(css)!;
+  return `rgba(${c.rgb.join(', ')}, ${a})`;
+};
+const faintDrawn = (ink: string, light: boolean): string => (faintOld ? withA(light ? paperInk(ink) : ink, 0.6) : famAny.faintInk!(ink, light));
+const faintParts = builtinInks.filter(i => i.faint);
+const faintDim: string[] = [];
+const faintNotes: string[] = [];
+for (const i of faintParts) {
+  const drawn = faintDrawn(i.dark, true);
+  const c = contrast(over(drawn, STONE_DARK_PAGE), STONE_DARK_PAGE);
+  faintNotes.push(`${i.owner} ${i.part} ${drawn} ${c.toFixed(2)}:1`);
+  if (c < 3) faintDim.push(`${i.owner} ${i.part} ${drawn} ${c.toFixed(2)}:1`);
+}
+check(`the Indicators menu's faint parts, as drawn on a light tape, read 3:1 or better on ${hexOf(STONE_DARK_PAGE)} (${faintParts.length} parts)`, faintParts.length >= 6 && faintDim.length === 0, faintDim.join('; '));
+info(`faint parts as drawn: ${faintNotes.join('; ')}`);
+/* a shipped script's lines through the light tape's mapper, as the script layer hands them (a line, alpha and all); the
+   house's own inks keep their meaning and their alpha (the silver guides, the walls) and are measured in 3 above */
+const toPaperLine = toPaper as (css: string, kind?: 'line' | 'wash') => string;
+const scriptDim: string[] = [];
+let scriptWorst = Infinity;
+let scriptFaint = 0;
+for (const l of drawnLines) {
+  const c0 = parseInk(l.css);
+  if (!c0 || c0.a < 0.3 || isHouse(l.css)) continue;
+  const drawn = toPaperLine(l.css, 'line');
+  if (c0.a < 1) scriptFaint++;
+  const c = contrast(over(drawn, STONE_DARK_PAGE), STONE_DARK_PAGE);
+  scriptWorst = Math.min(scriptWorst, c);
+  if (c < 3) scriptDim.push(`${l.owner} ${l.part} ${l.css} → ${drawn} ${c.toFixed(2)}:1`);
+}
+check(`every shipped script's own line, as the light tape draws it, reads 3:1 or better on ${hexOf(STONE_DARK_PAGE)} (${scriptFaint} written faint; worst ${scriptWorst.toFixed(2)}:1)`, scriptFaint >= 4 && scriptDim.length === 0, [...new Set(scriptDim)].slice(0, 8).join('; '));
+
 /* ---- 4: the shelf, and the six kept for whoever had one -------------------------------------------------------- */
 const SIX = ['ema-ribbon', 'vwap', 'bollinger', 'rsi', 'macd', 'atr'];
 const onShelf = shipped.map(s => s.id.replace(/^builtin:/, ''));
@@ -401,13 +487,107 @@ const flip = runs.get('flip');
 const flipInk = flip?.plots[0]?.ink;
 check(`"The flip" draws its line in the flip's own ink (${flipInk} — palette FLIP ${FLIP})`, !!flipInk && hexOf(rgbOf(flipInk)) === hexOf(rgbOf(FLIP)));
 check(`"The flip" paints no fill and no background (${flip ? `${flip.fills.length} fills, ${flip.bgcolors?.filter(Boolean).length ?? 0} washed bars` : 'no run'})`, !!flip && flip.fills.length === 0 && !(flip.bgcolors ?? []).some(c => !!c));
-const redGreen = washes.filter(w => w.inks.some(c => {
-  const rgb = rgbOf(c);
-  return dE(rgb, rgbOf(BULL)) < 0.12 || dE(rgb, rgbOf(BEAR)) < 0.12;
-}));
+/* A WASH IS RED OR GREEN BY ITS HUE (the review: a ΔE of 0.12 from the pure pair let a pale sage and a pale rose by):
+   a wash's ink with a hue (chroma 0.04 or more), within 30° of the direction pair's — on the dark tape as written, on
+   paper as the light tape's mapper hands it */
+const redGreen = washes
+  .map(w => ({
+    ...w,
+    hit: w.inks.flatMap(c => {
+      const out: string[] = [];
+      const d = dirGap(rgbOf(c), 'dark');
+      if (d && d.gap < 30) out.push(`${c} ${d.gap.toFixed(0)}° from ${d.to}`);
+      const p = dirGap(rgbOf(toPaper(c)), 'paper');
+      if (p && p.gap < 30) out.push(`paper ${toPaper(c)} ${p.gap.toFixed(0)}° from ${p.to}`);
+      return out;
+    }),
+  }))
+  .filter(w => w.hit.length);
 info(`washes in the shipped scripts: ${washes.map(w => `${w.slug} ${w.what} ${w.inks.slice(0, 3).join(' ')}`).join('; ')}`);
-info(`red or green washes (reported, not changed): ${redGreen.map(w => `${w.slug} ${w.what}`).join(', ') || 'none'}`);
-check('no shipped script but the Ichimoku cloud paints a red or green wash', redGreen.every(w => w.slug === 'ichimoku'), redGreen.map(w => w.slug).join(', '));
+info(`red or green washes (reported, not changed): ${redGreen.map(w => `${w.slug} ${w.what} (${w.hit.slice(0, 2).join(', ')})`).join('; ') || 'none'}`);
+check('no shipped script but the Ichimoku cloud paints a red or green wash (by hue)', redGreen.length >= 1 && redGreen.every(w => w.slug === 'ichimoku'), redGreen.filter(w => w.slug !== 'ichimoku').map(w => `${w.slug} ${w.what}: ${w.hit.slice(0, 2).join(', ')}`).join('; '));
+
+/* ---- 8: the reader's colour vision on the chart's chrome ---------------------------------------------------------- */
+/* a selector's specificity, as [attributes, classes and pseudo-classes] — enough for these blocks (no ids, no types) */
+const specOf = (sel: string): number => {
+  let n = 0;
+  let rest = sel;
+  for (;;) {
+    const at = rest.indexOf(':is(');
+    if (at < 0) break;
+    let depth = 0;
+    let end = at + 3;
+    for (; end < rest.length; end++) {
+      if (rest[end] === '(') depth++;
+      else if (rest[end] === ')' && --depth === 0) break;
+    }
+    n += Math.max(...rest.slice(at + 4, end).split(',').map(specOf));
+    rest = rest.slice(0, at) + rest.slice(end + 1);
+  }
+  return n + (rest.match(/\[[^\]]*\]/g)?.length ?? 0) + (rest.replace(/\[[^\]]*\]/g, '').match(/:[a-z-]+|\.[\w-]+/gi)?.length ?? 0);
+};
+const blockAt = (text: string, head: string): { sel: string; tok: Map<string, RGB> } | null => {
+  const at = text.indexOf(head);
+  if (at < 0) return null;
+  const open = text.indexOf('{', at);
+  const body = text.slice(open, text.indexOf('\n}', open));
+  const tokMap = new Map<string, RGB>();
+  for (const m of body.matchAll(/(--[\w-]+):\s*(\d+)\s+(\d+)\s+(\d+)\s*;/g)) tokMap.set(m[1], [Number(m[2]), Number(m[3]), Number(m[4])]);
+  return { sel: text.slice(at, open).split(',')[0].trim(), tok: tokMap };
+};
+const ISLAND_CVD = { 'blue-orange': ":root[data-cvd='blue-orange'] [data-theme='dark']", 'high-contrast': ":root[data-cvd='high-contrast'] [data-theme='dark']" } as const;
+const CVD_HC_DARK = blockOf(":root[data-cvd='high-contrast'],\n:root[data-cvd='high-contrast'] [data-theme='dark'] {");
+for (const vision of ['blue-orange', 'high-contrast'] as const) {
+  const light = blockAt(indexCss, `:root[data-cvd='${vision}'] [data-chart-ground='light'] :is(`);
+  const dark = blockAt(indexCss, `:root[data-cvd='${vision}'] :is([data-chart-chrome]`);
+  const island = specOf(ISLAND_CVD[vision]);
+  if (!light) {
+    check(`under ${vision}, a light tape's chrome has a set of the reader's own (index.css)`, false, `no :root[data-cvd='${vision}'] [data-chart-ground='light'] set — the dark island's colour-vision set (${ISLAND_CVD[vision]}, specificity ${island}) beats the light set (${specOf("[data-chart-ground='light'] :is([data-chart-chrome], [data-chart-ink], [data-chart-frame])")}) on the chart's box: ${vision === 'blue-orange' ? 'its direction pair is the dark ground\'s #50A4FF / #FF8526, 1.38 and 1.29:1 on the tape' : 'its words are the dark ground\'s near-white 250 250 250 on the light tape'}`);
+  } else {
+    const up = light.tok.get('--bull');
+    const down = light.tok.get('--bear');
+    const outranks = specOf(light.sel) > island;
+    const reads = !!up && !!down && contrast(up, STONE_DARK_PAGE) >= 3 && contrast(down, STONE_DARK_PAGE) >= 3;
+    const notes = [`selector ${specOf(light.sel)} over the island's ${island}`, up && down ? `up ${hexOf(up)} ${contrast(up, STONE_DARK_PAGE).toFixed(2)}:1, down ${hexOf(down)} ${contrast(down, STONE_DARK_PAGE).toFixed(2)}:1 on ${hexOf(STONE_DARK_PAGE)}` : 'no pair'];
+    let words = true;
+    if (vision === 'high-contrast') {
+      for (const n of ['--text-primary', '--text-secondary', '--text-muted']) {
+        const t = light.tok.get(n);
+        const c = t ? contrast(t, STONE_DARK_PAGE) : 0;
+        notes.push(`${n} ${t ? hexOf(t) : 'unset'} ${c.toFixed(2)}:1`);
+        if (c < 7) words = false;
+      }
+      if (!up || !down || contrast(up, STONE_DARK_PAGE) < 4.5 || contrast(down, STONE_DARK_PAGE) < 4.5) words = false;
+    } else {
+      /* the reader's pair — the paper's blue and orange, deepened for the tape, never another hue */
+      const pu = lchOf(tok(CVD_PAPER, '--bull')).h;
+      const pd = lchOf(tok(CVD_PAPER, '--bear')).h;
+      if (!up || !down || hueGap(lchOf(up).h, pu) > 10 || hueGap(lchOf(down).h, pd) > 10) words = false;
+    }
+    check(`under ${vision}, a light tape's chrome takes the reader's light set — it outranks the dark island's and reads ${vision === 'high-contrast' ? '4.5:1 (its words 7:1)' : '3:1'} on the darkest light tape`, outranks && reads && words, notes.join('; '));
+  }
+  const want = vision === 'blue-orange' ? CVD_DARK : CVD_HC_DARK;
+  const names = vision === 'blue-orange' ? ['--bull', '--bear'] : ['--bull', '--bear', '--text-primary', '--text-secondary', '--text-muted'];
+  const miss = names.filter(n => !dark || hexOf(dark.tok.get(n) ?? [0, 0, 0]) !== hexOf(tok(want, n)));
+  check(`under ${vision}, a dark tape's chrome takes the reader's dark set (the dark chart set had kept the house's)`, !!dark && miss.length === 0, dark ? miss.map(n => `${n} ${dark.tok.get(n) ? hexOf(dark.tok.get(n)!) : 'unset'} want ${hexOf(tok(want, n))}`).join('; ') : 'no set');
+}
+/* a shipped script's direction lines on a blue-and-orange light tape: the reader's light pair, read 3:1 on the tape */
+{
+  const light = blockAt(indexCss, ":root[data-cvd='blue-orange'] [data-chart-ground='light'] :is(");
+  /* as the chart reads them off its box: the light set, then the reader's (or, before the review, the dark island's) */
+  const boxTok = (name: string): RGB | null => (name === '--absorb' || name === '--amplify' ? CVD_PAPER.get(name) : name === '--bull' || name === '--bear' ? (light?.tok.get(name) ?? CVD_DARK.get(name)) : CHART_LIGHT.get(name)) ?? null;
+  const cvdPaper = paperInksWith(boxTok);
+  const notes: string[] = [];
+  let ok = true;
+  for (const [name, ink] of [['up', BULL], ['down', BEAR]] as const) {
+    const drawn = rgbOf(cvdPaper(ink));
+    const c = contrast(drawn, STONE_DARK_PAGE);
+    notes.push(`${name} ${hexOf(drawn)} ${c.toFixed(2)}:1`);
+    if (c < 3) ok = false;
+  }
+  check(`under blue-orange, Supertrend's, SAR's, ±DI's and the Ichimoku spans' direction lines on a light tape read 3:1 or better on ${hexOf(STONE_DARK_PAGE)}`, ok, notes.join('; '));
+  info(`blue-orange light tape: ${notes.join('; ')}`);
+}
 
 /* ---- the chart draws the family: no ink of its own in INDICATOR_PARTS ------------------------------------------- */
 const literal = [...partsBlock.matchAll(/ink: '([^']+)'/g)].map(m => m[1]);

@@ -36,7 +36,7 @@ import { onGlide, promisedWidth } from '../../core/glide';
 import { compile, explain, run as runScript, type Compiled } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
-import { INDICATOR_INKS, MACD_HIST_INK, MACD_SIGNAL_INK, paperInk, paperInksWith, parseInk } from './indicatorInks';
+import { INDICATOR_INKS, MACD_HIST_INK, MACD_SIGNAL_INK, faintInk, paperInk, paperInksWith, parseInk } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
 import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
@@ -3500,7 +3500,9 @@ const StrikeChart = ({
                     color: inkOf(part.ink),
                     lineWidth: 1,
                     lineStyle: part.dashed ? 2 : 0,
-                    ...(part.faint ? { color: inkOf(part.ink) + '99' } : {}),
+                    /* a faint part as drawn reads 3:1 on a light tape too (indicatorInks faintInk: 60% on a dark tape, 87% of
+                       its paper pair on a light one — at 60% the VWAP and Bollinger bands read 2.2 to 2.4:1 on Stone) */
+                    ...(part.faint ? { color: faintInk(part.ink, lightTape) } : {}),
                     ...(spec.pane === 'overlay' ? { priceScaleId: 'right' } : {}),
                     /* AN OVERLAY NEVER WIDENS A FITTED AXIS (the round-3 audit, D(a): SMA 200, Bollinger and the VWAP's ±2σ
                        stretched the axis Terrain fits to the candles — "no wall, supreme, spot or layer widens it") */
@@ -3647,7 +3649,7 @@ const StrikeChart = ({
        the house's own inks — a wall, the flip, the supreme, the direction pair — read off the tape's tokens, as the field
        reads them. The ground and the reader's colour vision are in the signature, so a change of either redraws. */
     const lightTape = chartGround(themeKey) === 'light';
-    let paperOf: ((css: string) => string) | undefined;
+    let paperOf: ReturnType<typeof paperInksWith> | undefined;
     const inkFor = () => {
       if (!lightTape) return undefined;
       /* THE TAPE'S OWN TOKENS, READ INSIDE THE BOX: the chart's container stands in the box and inherits its light set,
@@ -3658,7 +3660,9 @@ const StrikeChart = ({
       if (!box) return undefined;
       /* the walls as the field's ovals take them on a light ground (heatmap.ts: the light ground's gold and violet — the
          box is a dark island whose light set leaves the pair alone); the flip, the supreme, the direction pair and the
-         silver as the tape's own chrome reads them, off its box */
+         silver as the tape's own chrome reads them, off its box — in the reader's colour vision (index.css: the light set
+         again under data-cvd; the dark island's colour-vision set had beaten it, and a blue-and-orange Stone tape drew
+         its direction lines in the dark ground's pair at 1.3 and 1.4:1) */
       paperOf ??= paperInksWith(name => (name === '--absorb' || name === '--amplify' ? groundRgb(name, 'light') : (parseInk(readToken(name, undefined, box))?.rgb ?? null)));
       return paperOf;
     };

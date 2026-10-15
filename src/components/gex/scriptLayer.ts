@@ -38,6 +38,7 @@ import {
 } from 'lightweight-charts';
 import type { Bar, PlotOut, RunResult } from '../../core/pine';
 import { markersFor } from './scriptMarkers';
+import type { InkKind } from './indicatorInks';
 
 /* ---- the band primitive ------------------------------------------------------------- */
 
@@ -235,16 +236,17 @@ function bandsFor(run: RunResult, bars: Bar[]): { times: number[]; bands: Band[]
   return { times: timesFor(bars, offset), bands };
 }
 
-/** A run with every ink passed through `ink` — plots, their per-bar colours, hlines, shapes, fills and the washes */
-function inkRun(run: RunResult, ink: (css: string) => string): RunResult {
-  const each = (cs: (string | null)[] | null) => (cs ? cs.map(c => (c ? ink(c) : c)) : cs);
+/** A run with every ink passed through `ink` — plots, their per-bar colours, hlines and shapes as lines; fills and the
+    backgrounds as washes (a line written faint is lifted on paper, a wash is not — indicatorInks paperInksWith) */
+function inkRun(run: RunResult, ink: (css: string, kind: InkKind) => string): RunResult {
+  const each = (cs: (string | null)[] | null, kind: InkKind) => (cs ? cs.map(c => (c ? ink(c, kind) : c)) : cs);
   return {
     ...run,
-    plots: run.plots.map(p => ({ ...p, ink: ink(p.ink), colors: each(p.colors) })),
-    hlines: run.hlines.map(h => ({ ...h, ink: ink(h.ink) })),
-    shapes: run.shapes.map(sh => ({ ...sh, ink: ink(sh.ink), colors: each(sh.colors) })),
-    fills: run.fills.map(f => ({ ...f, ink: ink(f.ink), colors: each(f.colors) })),
-    bgcolors: each(run.bgcolors),
+    plots: run.plots.map(p => ({ ...p, ink: ink(p.ink, 'line'), colors: each(p.colors, 'line') })),
+    hlines: run.hlines.map(h => ({ ...h, ink: ink(h.ink, 'line') })),
+    shapes: run.shapes.map(sh => ({ ...sh, ink: ink(sh.ink, 'line'), colors: each(sh.colors, 'line') })),
+    fills: run.fills.map(f => ({ ...f, ink: ink(f.ink, 'wash'), colors: each(f.colors, 'wash') })),
+    bgcolors: each(run.bgcolors, 'wash'),
   };
 }
 
@@ -263,7 +265,7 @@ export interface ScriptHandle {
  * Draw one run onto a pane. `paneIndex` 0 is the tape; an own-pane script
  * takes the index the host allocated.
  */
-export function drawRun(chart: IChartApi, given: RunResult, bars: Bar[], paneIndex: number, opts: { fitCandles?: boolean; ink?: (css: string) => string } = {}): ScriptHandle {
+export function drawRun(chart: IChartApi, given: RunResult, bars: Bar[], paneIndex: number, opts: { fitCandles?: boolean; ink?: (css: string, kind: InkKind) => string } = {}): ScriptHandle {
   const overlay = paneIndex === 0;
   const inked = (r: RunResult) => (opts.ink ? inkRun(r, opts.ink) : r);
   const run = inked(given);

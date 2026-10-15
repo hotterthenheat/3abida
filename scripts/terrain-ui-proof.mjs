@@ -1761,7 +1761,7 @@ check('lists: the expiry windows and the replay paces offered on screen are the 
    built-in; and "The flip" washed the pane red under it. Each line the chart draws is read off the chart itself: each
    Indicators-menu key ticked in the library alone, each shipped script placed alone, on a dark page's tape and a light
    page's, the field's gold and violet read off the tape's own box. */
-check('inks: every indicator and shipped script draws its own ink, off gold and violet, readable on a light tape; the six are off the shelf and a placed one is kept', async () => {
+check('inks: every indicator and shipped script draws its own ink, off gold and violet and off the direction pair\'s hues, readable as drawn on a light tape; the six are off the shelf and a placed one is kept', async () => {
   const t0 = Date.now();
   const notes = [];
   let pass = true;
@@ -1776,6 +1776,11 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
   const dE = (a, b) => Math.hypot(...oklab(a).map((v, i) => v - oklab(b)[i]));
   const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
   const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  /* a line as drawn: its ink at its alpha over the tape (the review: the VWAP bands at 60% read 2.4:1 on Stone) */
+  const overG = (rgb, a, g) => rgb.map((v, i) => v * a + g[i] * (1 - a));
+  /* OKLCh chroma and hue — a line with a hue (chroma 0.04 or more) within 30° of the direction pair reads as up or down */
+  const lch = rgb => { const [, a, b] = oklab(rgb); return { C: Math.hypot(a, b), h: ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360 }; };
+  const hueGap = (x, y) => { const d = Math.abs(x - y) % 360; return d > 180 ? 360 - d : d; };
   const parse = s => {
     s = String(s ?? '').trim();
     let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
@@ -1899,7 +1904,14 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
         if (d < 0.08) pairs.push(`${uniq[a].owner} ${hex(uniq[a].rgb)} ~ ${uniq[b].owner} ${hex(uniq[b].rgb)} ${d.toFixed(3)}`);
       }
       const cmp = uniq.flatMap(o => COMPARE.filter(c => dE(o.rgb, c) < 0.08).map(c => `${o.owner} ${hex(o.rgb)} ~ compare ${hex(c)}`));
-      const dim = tokens.light ? uniq.filter(o => contrast(o.rgb, ground) < 3).map(o => `${o.owner} ${hex(o.rgb)} ${contrast(o.rgb, ground).toFixed(2)}:1`) : [];
+      const asDrawn = o => contrast(overG(o.rgb, o.a, ground), ground);
+      /* every line as drawn, its alpha kept apart (a band shares its basis's ink at a lower alpha) */
+      const drawnLines = [];
+      for (const o of lines) if (!drawnLines.some(u => u.owner === o.owner && hex(u.rgb) === hex(o.rgb) && Math.abs(u.a - o.a) < 0.01)) drawnLines.push(o);
+      const dim = tokens.light ? drawnLines.filter(o => asDrawn(o) < 3).map(o => `${o.owner} ${hex(o.rgb)}${o.a < 1 ? ` at ${o.a.toFixed(2)}` : ''} ${asDrawn(o).toFixed(2)}:1`) : [];
+      /* no line reads as up or down: the tape's own direction pair, off its box */
+      const dirH = [lch(tokens.bull).h, lch(tokens.bear).h];
+      const onDir = uniq.filter(o => lch(o.rgb).C >= 0.04 && Math.min(...dirH.map(h => hueGap(lch(o.rgb).h, h))) < 30).map(o => `${o.owner} ${hex(o.rgb)} ${Math.min(...dirH.map(h => hueGap(lch(o.rgb).h, h))).toFixed(0)}°`);
       /* the house's inks a script draws, on a light tape: the tape's own tokens */
       const houseOnLight = tokens.light ? owned.filter(o => ['#E8B94A', '#8064F7', '#30D158', '#FF3B30', '#EA00FF', '#9CA3AF'].includes(hex(o.rgb))).map(o => `${o.owner} ${hex(o.rgb)}`) : [];
       const owners = new Set(owned.map(o => o.owner));
@@ -1907,9 +1919,10 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
       if (field.length) notes.push(`  near the field's gold or violet: ${field.slice(0, 8).map(x => `${x.o.owner} ${hex(x.o.rgb)} ${x.d.toFixed(3)}`).join('; ')}`);
       if (pairs.length) notes.push(`  under 0.08 apart: ${pairs.slice(0, 8).join('; ')}${pairs.length > 8 ? ` … ${pairs.length} in all` : ''}`);
       if (cmp.length) notes.push(`  on a compare line's ink: ${cmp.slice(0, 6).join('; ')}`);
-      if (dim.length) notes.push(`  under 3:1 on the light tape: ${dim.slice(0, 8).join('; ')}${dim.length > 8 ? ` … ${dim.length} in all` : ''}`);
+      if (dim.length) notes.push(`  under 3:1 on the light tape, as drawn: ${dim.slice(0, 8).join('; ')}${dim.length > 8 ? ` … ${dim.length} in all` : ''}`);
+      if (onDir.length) notes.push(`  within 30° of hue of the tape's direction pair: ${onDir.slice(0, 8).join('; ')}${onDir.length > 8 ? ` … ${onDir.length} in all` : ''}`);
       if (houseOnLight.length) notes.push(`  a house ink drawn in its dark value on the light tape: ${houseOnLight.slice(0, 6).join('; ')}`);
-      if (owners.size < 25 || field.length || pairs.length || cmp.length || dim.length || houseOnLight.length) pass = false;
+      if (owners.size < 25 || field.length || pairs.length || cmp.length || dim.length || onDir.length || houseOnLight.length) pass = false;
       /* "The flip" paints no wash: its own run, in the page's own modules */
       const flipRun = await page.evaluate(async () => {
         const b = await import('/src/data/builtinScripts.ts');
@@ -1954,7 +1967,7 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
    page a Stone tape drew them in their dark values (the flip #9CA3AF at 1.35:1, the up line #30D158 at 1.07:1); on a
    light page in the page's own (the flip #4B5563, not the tape's #6B7280). Placed live they were right, so this check
    places them, reloads twice and reads the series' colours each time against the tape's own tokens. */
-check('inks: a light tape keeps the house inks of a placed script through a reload, on a dark page and a light one', async () => {
+check('inks: a light tape keeps the house inks of a placed script through a reload, on a dark page and a light one, and under blue and orange', async () => {
   const t0 = Date.now();
   const notes = [];
   let pass = true;
@@ -1967,10 +1980,16 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
     return m ? `#${[m[1], m[2], m[3]].map(v => Math.round(+v).toString(16).padStart(2, '0')).join('').toUpperCase()}` : null;
   };
   const IDS = ['builtin:walls', 'builtin:flip', 'builtin:supreme', 'builtin:supertrend'];
-  /* the palette's dark values (gex/palette.ts) — a script's house ink in one of these on a light tape is the bug */
+  /* the palette's dark values (gex/palette.ts) — a script's house ink in one of these on a light tape is the bug — and,
+     under blue and orange, the dark island's pair (tokens.css), which beat the light set on the box until the review */
   const DARK = ['#9CA3AF', '#EA00FF', '#30D158', '#FF3B30', '#E8B94A', '#8064F7'];
-  for (const theme of ['dark', 'light']) {
-    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', overlays: { trails: true }, ladder: true }], { theme });
+  const CVD_DARK = ['#50A4FF', '#FF8526'];
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = h => { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  for (const { theme, cvd } of [{ theme: 'dark' }, { theme: 'light' }, { theme: 'dark', cvd: 'blue-orange' }]) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', overlays: { trails: true }, ladder: true }], { theme, cvd });
+    const run = `${theme} page${cvd ? `, ${cvd}` : ''}`;
     try {
       /* every ink the chart's series draw, the tape's own tokens, the root's, and the light ground's gold and violet */
       const read = () =>
@@ -1994,7 +2013,8 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
           const walls = of(probe, ['--absorb', '--amplify']);
           probe.remove();
           const names = ['--flip', '--supreme', '--bull', '--bear'];
-          return { n, inks: [...inks], ground: box.getAttribute('data-chart-ground'), tape: of(box, names), root: of(document.documentElement, names), walls };
+          const bg = e.chart.options().layout.background;
+          return { n, inks: [...inks], ground: box.getAttribute('data-chart-ground'), tape: of(box, names), root: of(document.documentElement, names), walls, bg: bg?.color ?? null };
         });
       const reloaded = async want => {
         await page.reload({ waitUntil: 'domcontentloaded' });
@@ -2015,7 +2035,7 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
       const base = await read();
       if (base.ground !== 'light') {
         pass = false;
-        notes.push(`${theme} page: the Stone pane's tape is ${base.ground}, not light`);
+        notes.push(`${run}: the Stone pane's tape is ${base.ground}, not light`);
         continue;
       }
       const baseInks = new Set(base.inks.map(hexOf));
@@ -2036,8 +2056,18 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
       };
       const wantSet = new Set(Object.values(want));
       /* a wrong ink: the palette's dark value, or the root's own token where the tape's differs */
-      const wrong = new Set([...DARK, ...Object.values(live.root).map(hexOf)].filter(h => h && !wantSet.has(h)));
-      notes.push(`${theme} page, Stone tape — the tape's: ${Object.entries(want).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+      const wrong = new Set([...DARK, ...(cvd ? CVD_DARK : []), ...Object.values(live.root).map(hexOf)].filter(h => h && !wantSet.has(h)));
+      notes.push(`${run}, Stone tape — the tape's: ${Object.entries(want).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+      /* under the reader's colour vision the tape's direction pair is the reader's light pair: never the dark island's, and
+         read 3:1 on the tape (it was the dark ground's #50A4FF and #FF8526, 1.38 and 1.29:1 on Stone) */
+      if (cvd) {
+        const tapeBg = hexOf(live.bg) ?? '#BEBDB8';
+        for (const k of ['up', 'down']) {
+          const c = contrast(want[k], tapeBg);
+          notes.push(`  ${k} ${want[k]} ${c.toFixed(2)}:1 on the tape ${tapeBg}`);
+          if (CVD_DARK.includes(want[k]) || c < 3) pass = false;
+        }
+      }
       for (const [label, got] of stages) {
         const drawn = [...new Set(got.inks.map(hexOf))].filter(h => h && !baseInks.has(h));
         const missing = Object.entries(want).filter(([, v]) => !drawn.includes(v)).map(([k, v]) => `${k} ${v}`);
@@ -2049,6 +2079,68 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
         pass = false;
         notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
       }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── THE READER'S COLOUR VISION ON THE CHART'S CHROME (the review of approvals 4, 5 and 11, 2026-10-15) ──────────────
+   Before: the chart box is a dark island, and tokens.css's colour-vision set for a dark island beat index.css's light
+   chart set on it — under high contrast a Stone tape's ladder and words were the dark ground's near-white (250 250 250)
+   on the light tape — and the chart sets on the chrome blocks named the house pair outright, so under blue and orange a
+   dark tape's head kept green and red. Read off the page: the pane head's and the box's tokens, and the ladder's words
+   as drawn against the tape. */
+check('inks: the reader\'s colour vision reaches the chart\'s chrome — blue and orange on a dark tape, high contrast on a light one', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const chan = s => {
+    const t = String(s ?? '').trim();
+    const h = /^#([0-9a-f]{6})/i.exec(t);
+    return h ? [0, 2, 4].map(i => parseInt(h[1].slice(i, i + 2), 16)) : (t.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0]);
+  };
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const read = page =>
+    page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
+      const box = e.host.closest('[data-chart-ground]');
+      const head = document.querySelector('[data-pane-head]');
+      const of = el => Object.fromEntries(['--bull', '--bear', '--text-primary', '--text-muted'].map(k => [k, getComputedStyle(el).getPropertyValue(k).trim()]));
+      /* the chart's own box inside the frame (the ladder and the legends read their words off it) and the head's colour */
+      const ink = box.querySelector('[data-chart-ink]') ?? box;
+      return { ground: box.getAttribute('data-chart-ground'), bg: e.chart.options().layout.background?.color ?? null, box: of(box), ink: of(ink), head: of(head), headColor: getComputedStyle(head).color };
+    });
+  /* blue and orange on a dark tape: the head and the box take the reader's dark pair */
+  {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'glacier', overlays: { trails: true }, ladder: true }], { theme: 'dark', cvd: 'blue-orange' });
+    try {
+      const r = await read(page);
+      const ok = r.ground === 'dark' && r.head['--bull'] === '80 164 255' && r.head['--bear'] === '255 133 38' && r.box['--bull'] === '80 164 255';
+      notes.push(`blue-orange, dark tape: the head's pair ${r.head['--bull']} / ${r.head['--bear']}, the box's ${r.box['--bull']} / ${r.box['--bear']} (want 80 164 255 / 255 133 38)`);
+      if (!ok) pass = false;
+      if (errors.length) { pass = false; notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`); }
+    } finally {
+      await done();
+    }
+  }
+  /* high contrast on a Stone tape (a dark page): the box's words and the ladder's are dark on the light tape, 7:1 */
+  {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', overlays: { trails: true }, ladder: true }], { theme: 'dark', cvd: 'high-contrast' });
+    try {
+      const r = await read(page);
+      /* the tape's ground: Stone on a dark page (candleTheme.ts) — the chart paints its own background transparent */
+      const tape = chan(/^#|rgb/.test(String(r.bg)) ? r.bg : '#BEBDB8');
+      const cBox = contrast(chan(r.box['--text-primary']), tape);
+      const cMuted = contrast(chan(r.box['--text-muted']), tape);
+      const cInk = contrast(chan(r.ink['--text-primary']), tape);
+      const cHead = contrast(chan(r.headColor), tape);
+      notes.push(`high contrast, Stone tape (${r.ground}) ${r.bg}: the frame's words ${r.box['--text-primary']} ${cBox.toFixed(2)}:1, muted ${r.box['--text-muted']} ${cMuted.toFixed(2)}:1; the chart box's ${r.ink['--text-primary']} ${cInk.toFixed(2)}:1; the head ${r.headColor} ${cHead.toFixed(2)}:1; the pair ${r.box['--bull']} / ${r.box['--bear']}`);
+      if (r.ground !== 'light' || cBox < 7 || cMuted < 7 || cInk < 7 || cHead < 7 || r.box['--bull'] === '110 245 140') pass = false;
+      if (errors.length) { pass = false; notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`); }
     } finally {
       await done();
     }

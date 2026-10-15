@@ -26,6 +26,19 @@
   sit on the price pane together (the averages, the
   VWAP and the bands) took the inks furthest from
   the field's and the direction pair's.
+
+  OFF THE DIRECTION PAIR'S HUES TOO (the review of
+  those approvals, the same day — the owner: "Red
+  carries no meaning on Terrain"): Donchian's sage
+  and Keltner's rose made green and red washes, and
+  MFI, OBV, Williams %R and the stochastic's %K on
+  paper sat at the up or down hue. Every ink with a
+  hue (OKLCh chroma 0.04 or more) now stands 30° or
+  more of hue from the direction pair on its ground
+  — the channels' washes with it — and an ink inside
+  those arcs is a true grey (Keltner's). A line drawn
+  faint keeps a third of its faintness on paper
+  (paperLineAlpha), so it reads 3:1 as drawn.
   scripts/indicator-inks-proof.ts measures all of it.
 
   THE HOUSE'S OWN INKS IN A SCRIPT (a wall, the flip,
@@ -50,18 +63,18 @@ export type IndicatorKey = 'ema9' | 'ema21' | 'ema50' | 'vwap' | 'bb' | 'vwapBan
 /* The Indicators menu's lines (StrikeChart INDICATOR_PARTS) — a lead ink a key; the MACD's signal and its steel wash
    beside them */
 const INDICATOR_PAIRS: Record<IndicatorKey, Pair> = {
-  ema9: ['#0099CC', '#10699A'],
-  ema21: ['#75BBF4', '#002A57'],
-  ema50: ['#ABF8F3', '#04706D'],
+  ema9: ['#0099CC', '#0E6B9E'],
+  ema21: ['#77C4FE', '#002A57'],
+  ema50: ['#ABF8F3', '#0B726E'],
   sma: ['#768EAE', '#04077E'],
   vwap: ['#06BFB0', '#003F38'],
-  vwapBands: ['#57F7CA', '#00574C'],
-  bb: ['#D498FC', '#753F80'],
+  vwapBands: ['#42F6D9', '#005856'],
+  bb: ['#D498FC', '#703E81'],
   rsi: ['#FBACFE', '#3A2244'],
   macd: ['#B692CE', '#410569'],
   atrPane: ['#A77E91', '#5A0040'],
 };
-const MACD_SIGNAL_PAIR: Pair = ['#D27843', '#7B3806'];
+const MACD_SIGNAL_PAIR: Pair = ['#D37C18', '#774202'];
 /** One steel wash for the MACD's bars, not red and green — the sign of momentum is not the price direction */
 const MACD_HIST_PAIR: Pair = ['rgba(226,234,244,0.30)', 'rgba(60,64,72,0.30)'];
 
@@ -82,19 +95,19 @@ export type ScriptInkKey =
   | 'mfi'
   | 'obv';
 const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
-  movingAverage: ['#18A19C', '#162728'],
+  movingAverage: ['#18A19C', '#002823'],
   ichimokuConversion: ['#E37DC1', '#791853'],
-  ichimokuBase: ['#968D6C', '#544D28'],
+  ichimokuBase: ['#9F9170', '#4D4834'],
   ichimokuLagging: ['#FCDCFF', '#700982'],
-  keltner: ['#CE909B', '#974662'],
-  donchian: ['#7BAB84', '#004D0F'],
-  stochasticK: ['#FD98BE', '#BC175B'],
-  stochasticD: ['#AA8802', '#423310'],
-  adx: ['#FFBCD3', '#5B3445'],
-  cci: ['#C267A9', '#9C066E'],
-  williamsR: ['#D06976', '#72071D'],
-  mfi: ['#40A859', '#023100'],
-  obv: ['#FA7F7D', '#4B0013'],
+  keltner: ['#7D7D74', '#5C5663'],
+  donchian: ['#58B0D1', '#005282'],
+  stochasticK: ['#FD98BE', '#BD1D73'],
+  stochasticD: ['#A78A00', '#433009'],
+  adx: ['#FFBCD3', '#5B3244'],
+  cci: ['#C267A9', '#9A0179'],
+  williamsR: ['#C73996', '#974477'],
+  mfi: ['#447CAE', '#013583'],
+  obv: ['#AB713C', '#321901'],
 };
 
 const dark = <K extends string>(r: Record<K, Pair>): Record<K, string> => Object.fromEntries(Object.entries<Pair>(r).map(([k, v]) => [k, v[0]])) as Record<K, string>;
@@ -150,6 +163,28 @@ export function paperInk(css: string): string {
   return cssOf(to, c.a);
 }
 
+/* ---- a line drawn faint ---------------------------------------------------------------- */
+
+/** The alpha the Indicators menu's faint parts are drawn at on a dark tape (the Bollinger and VWAP bands) */
+export const FAINT_ALPHA = 0.6;
+
+/**
+ * A LINE DRAWN FAINT, ON A LIGHT TAPE (the review of approvals 4, 5 and 11, 2026-10-15): the paper pairs read 3:1 whole,
+ * but a band drawn at 60% read 2.2 to 2.4:1 on the darkest light tape (the VWAP bands' #00574C, the Bollinger bands'
+ * #753F80, on #BEBDB8) — the 3:1 was measured on the ink, not on the line. On paper a line keeps a third of its
+ * faintness (0.6 → 0.867, 0.7 → 0.9, 0.4 → 0.8): still fainter than its whole line, and the line as drawn reads 3:1.
+ * A wash (a fill, a background) keeps its alpha — it is a ground, not a line.
+ */
+export const paperLineAlpha = (a: number): number => (a >= 1 ? 1 : Math.round((1 - (1 - a) / 3) * 1000) / 1000);
+
+/** A faint part of an Indicators-menu line, as drawn: its ink at FAINT_ALPHA on a dark tape, its paper pair at the
+    paper line alpha on a light one */
+export function faintInk(css: string, light: boolean): string {
+  const c = parseInk(light ? paperInk(css) : css);
+  if (!c) return css;
+  return cssOf(c.rgb, light ? paperLineAlpha(FAINT_ALPHA) : FAINT_ALPHA);
+}
+
 /** The house's own inks a script may write, and the token each reads on the tape's ground */
 export const HOUSE_INK_TOKENS: [string, string][] = [
   [CALL_WALL, '--absorb'],
@@ -161,12 +196,16 @@ export const HOUSE_INK_TOKENS: [string, string][] = [
   [ACCENT, '--select'],
 ];
 
+/** What a script's ink paints: a line (a plot, an hline, a shape) or a wash (a fill, a background) */
+export type InkKind = 'line' | 'wash';
+
 /**
  * THE LIGHT TAPE'S INKS FOR A SCRIPT: the family's paper pairs, and the house's own inks read off the tape's tokens
  * (`token` gives a token's channels on that ground — off the chart's box in the page, off tokens.css in the proof).
- * Kept per ink, so a run's per-bar colours cost a lookup each.
+ * A family ink written at an alpha for a LINE takes the paper line alpha (paperLineAlpha); a wash keeps its alpha, and
+ * so does a house ink (the silver guides stay quiet). Kept per ink, so a run's per-bar colours cost a lookup each.
  */
-export function paperInksWith(token: (name: string) => [number, number, number] | null): (css: string) => string {
+export function paperInksWith(token: (name: string) => [number, number, number] | null): (css: string, kind?: InkKind) => string {
   const house = new Map<string, [number, number, number]>();
   for (const [hex, name] of HOUSE_INK_TOKENS) {
     const c = parseInk(hex);
@@ -174,18 +213,23 @@ export function paperInksWith(token: (name: string) => [number, number, number] 
     if (c && t) house.set(keyOf(c.rgb), t);
   }
   const kept = new Map<string, string>();
-  return (css: string) => {
-    const hit = kept.get(css);
+  return (css: string, kind: InkKind = 'wash') => {
+    const key = `${kind}|${css}`;
+    const hit = kept.get(key);
     if (hit !== undefined) return hit;
     let out = css;
     const c = parseInk(css);
     if (c) {
       const k = keyOf(c.rgb);
-      const to = PAPER_OF.get(k) ?? house.get(k);
-      if (to) out = cssOf(to, c.a);
+      const family = PAPER_OF.get(k);
+      if (family) out = cssOf(family, kind === 'line' ? paperLineAlpha(c.a) : c.a);
+      else {
+        const to = house.get(k);
+        if (to) out = cssOf(to, c.a);
+      }
     }
     if (kept.size > 512) kept.clear();
-    kept.set(css, out);
+    kept.set(key, out);
     return out;
   };
 }
