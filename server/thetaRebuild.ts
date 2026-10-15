@@ -55,6 +55,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { tolerance } from './agree';
+import { readSeries } from './seriesBackfill';
 import { PAST_FORMAT, compressTicks, type PastDay } from './fieldBackfill';
 import { createFieldStore, type Bar, type StoreRow } from './fieldStore';
 
@@ -526,10 +527,10 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
 
   /* UW's whole-book series where the series job kept it (the residual's reference) */
   let total: PastDay['total'] = null;
-  const seriesFile = join(fieldRoot, name, day, 'series.json');
-  if (existsSync(seriesFile)) {
+  const series = readSeries(fieldRoot, name, day) as { receivedAt: number; rows: Row[] } | null;
+  if (series?.rows?.length) {
     try {
-      const s = JSON.parse(readFileSync(seriesFile, 'utf8')) as { receivedAt: number; rows: Row[] };
+      const s = series;
       total = {
         receivedAt: s.receivedAt,
         rows: s.rows

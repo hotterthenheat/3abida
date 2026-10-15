@@ -1071,13 +1071,24 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   wears its cause on the chart (gexNodesPrimitive findGaps, the words from Terrain `gapCause`: before the open / after
   the close, queued / rebuilding / not rebuilt and why / beyond the ten sessions asked, chain not read yet, not recorded,
   live lag · N min); a run never crosses the open, the close or a day; the wall chips keep clear of the labels.
-  THE SERIES JOB (B5, server/seriesBackfill.ts on the always-on recorder; SERIES_NAMES=SPY,QQQ,SPX, SERIES_DAYS=730,
-  `off`): UW's per-minute spot exposures (_oi, _vol, _dir and the rest, AS ANSWERED) for every session back through
-  its window, newest first (today's from 5:00 pm New York), to .feed-cache/field/<NAME>/<D>/series.json — A DAY IS HELD
-  ONLY BY ITS OWN series.json (2026-10-15: the recorder's total.json and a rebuilt past.json.gz keep a subset — only
-  `_oi` before 2026-10-13 — and counting them skipped the very `_vol`/`_dir` asked for), an empty day written empty, a
-  refused call asked again next pass; GET /feed/series on the recorder says where it stands and what is stored;
-  scripts/series-backfill-proof.ts in `npm test`.
+  THE SERIES JOB (B5, server/seriesBackfill.ts on the always-on recorder — 2026-10-15, the owner: "fill every missing
+  day … back to the earliest date UW allows (its 403 names it)"): UW's per-minute spot exposures (_oi, _vol, _dir and
+  the rest, AS ANSWERED) for EVERY NAME THE RECORDER RECORDS (RECORD_NAMES, SERIES_NAMES' SPY,QQQ,SPX, the names a tab
+  watches, the names with recorder files on disk; SERIES_NAMES=off), every trading day from the WINDOW'S FLOOR — read
+  each run off UW's 403 for an old date ("The earliest date currently available to this token is 2023-11-15 (730
+  trading days)"; carried on a session a day when the probe gets no answer; the old walk counted 730 CALENDAR days and
+  stopped ten months short) — to the session just over (today's from 5:00 pm New York), OLDEST FIRST, into
+  .feed-cache/field/<NAME>/<D>/series.json.gz — A DAY IS HELD ONLY BY THE JOB'S OWN FILE, read whole (one cut short is
+  asked again); empty before a name's first rows (UW's series begins 2023-12-08) never asked again, a gap after them
+  asked three times in all. A NAME UW DOES NOT SERVE (one holding no rows yet: a 4xx, or no rows on its last whole session
+  where SPY has rows — UW answers an unknown ticker 200 empty) is skipped and named. THE LIVE PULL FIRST: never in the live hours (4:00 am to
+  5:00 pm New York on a trading day — UW's three calls at once are the token's, the dev server's pages included), one
+  call at a time while the UW gate has two slots free and no call met a 429 in the last minute, no cache, no quick
+  retry, a 429 backing off 30 s to 15 minutes; one fill a machine (.feed-cache/series/series.lock). At start (deferred
+  out of the live hours) and 5:15 pm New York each evening. `npm run uw:series -- --status` (and GET /feed/series) says
+  what is stored, missing, the gaps and the tickers not served; `-- --fill` fills where no recorder records;
+  scripts/series-backfill-proof.ts in `npm test`. The recorder's prune passes over a file in the field's root (it
+  stopped at recorder.lock, before SPX and SPY on Windows).
 - THE ORBS (2026-10-14 — the owner's message "NODES: SKYLIT-STYLE ORBS, DONE BETTER", replacing A1, B2 and B3's hue and
   legend lines; the report docs/terrain-build-2026-10-14/README.md "The orbs"). THE NODE IS AN OVAL (gexNodesPrimitive):
   one solid oval per node per candle, centred on the candle and the strike, the cell the bar's peak minute; d = 3 px +

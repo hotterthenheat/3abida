@@ -30,6 +30,7 @@
     "feed:check": "tsx scripts/feed-check.ts",
     "feed:recorder": "tsx server/recorderMain.ts",
     "feed:backfill": "tsx scripts/feed-backfill.ts",
+    "uw:series": "tsx scripts/uw-series.ts",
     "field:agree": "tsx scripts/field-agree.ts",
     "field:scorecard": "tsx scripts/field-scorecard.ts",
     "field:reindex": "tsx scripts/field-reindex.ts",

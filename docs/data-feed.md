@@ -1244,22 +1244,74 @@ track record, the recap, the agree check, the replay); rows of format 1 read as 
 **Store format 3** (2026-10-15, the orbs' second round): `refG` is the session's largest gross so far (beadScale
 `RunningMax`), no longer the p85 of the minutes' peaks; a row of format 2 keeps the reference it was drawn against.
 
-**The series job** (server/seriesBackfill.ts, on the always-on recorder — SERIES_NAMES=SPY,QQQ,SPX, SERIES_DAYS=730,
-`off` to stop it): thirty seconds after the recorder starts, and at 5:15 pm New York for the session just over, it
-walks back over weekdays, newest first — from today's session once it is 5:00 pm New York (UW's rows for the date end
-at 4:00 pm), else from the session before — and writes each day's
-`/api/stock/{T}/spot-exposures?date=D` rows as answered — every field, the `_oi`, `_vol` and `_dir` gamma series, the
-price, the other greeks' series — to `.feed-cache/field/<NAME>/<D>/series.json`. A day is held ONLY by this file
-(2026-10-15: the recorder's `total.json` and a rebuilt day's `past.json.gz` keep the figures the trail reads, and
-before 2026-10-13 only the `_oi` series — three figures a row on SPY's Oct 12, QQQ's Oct 12 and 13 and every rebuilt
-day — so counting them as held skipped exactly the `_vol` and `_dir` the job is for); a day UW answers empty is
-written empty and never asked again; a 429 waits a minute and asks again; a 5xx or the network is left for the next
-pass; one call at a time with a pause, behind the recorder's reads. The recorder's log reports each name's walk
-("series SPY: done to <date> — written N, empty N, skipped N, refused N, oldest with rows <date>"), and
-`curl http://127.0.0.1:5190/feed/series` on that machine answers the job's standing and what is stored a name (sessions
-with rows, empty dates, oldest, newest). A live walk from the workspace on 2026-10-15 (SPY and QQQ ten calendar days,
-SPX six): 18 sessions written in 9.5 s, 14 fields a row, 493–557 rows a session from about 6:35 am to 4:00 pm New York.
-scripts/series-backfill-proof.ts runs the rules against a stand-in client in `npm test`.
+**The series job** (server/seriesBackfill.ts, on the always-on recorder; rewritten 2026-10-15 — the owner: "Make the
+recorder fill every missing day of the UW per-minute spot-exposure series, back to the earliest date UW allows (its 403
+names it), not only record live … Cover every ticker the recorder records, all fields. Skip any ticker UW refuses, and
+say which. Back off on 429; the live pull keeps priority"):
+
+- **The window is UW's own word.** UW's limit is 730 TRADING days. Asked for a date before it, UW answers 403
+  `historic_data_access_missing`: "The earliest date currently available to this token is 2023-11-15 (730 trading
+  days)" (2026-10-15, 6:30 pm New York). Each run asks `?date=2000-01-03` once and reads the floor off that refusal.
+  Where the probe gets no answer (a 5xx, the network), the last date UW named is carried on a trading day a session
+  (said "carried"); with none ever named, 730 trading days on the house's calendar, said as an estimate (on 2026-10-15
+  the estimate equals UW's word). The job before this walked 730 CALENDAR days, to 2024-10-15, and never asked the ten
+  months before that, which UW still serves.
+- **Where UW's series begins**, measured 2026-10-15: SPY, QQQ, SPX and IWM answer no rows from the floor to 2023-12-07
+  and rows from **2023-12-08** (441–517 rows that day). The floor's first 16 sessions hold nothing: on the house's
+  calendar the floor reaches 2023-12-08 after 16 more sessions and passes it with the 17th (Nov 9, 2026) — the first
+  day with rows that can be lost. `_dir` reads 0 on every row until mid-2024 (zero on 2023-12-08 and 2024-05-01,
+  non-zero from 2024-07-01 on the days sampled); `_vol` is non-zero from the start. The rows are kept as answered, so the
+  zeros are UW's.
+- **The names: every one the recorder records** — RECORD_NAMES, SERIES_NAMES' extras (SPY,QQQ,SPX by default), the
+  names a tab is watching (`recorder.watched()`), and every name with the recorder's own files on disk (books, books60,
+  chain, shown or total). `SERIES_NAMES=off` turns the fill off.
+- **A name UW does not serve is skipped and said.** UW answers an unknown ticker 200 with no rows (checked 2026-10-15,
+  ZZZZQ), never a 4xx. So a name holding no rows yet has its last whole session (the trading day before the walk's last)
+  asked first: no rows there while SPY has rows that day — or a 4xx — and the name is skipped for the run and named in the recorder's
+  log ("series NAME: Unusual Whales serves no rows for it (no rows on <date>, where SPY has rows) — skipped"), in
+  `.feed-cache/series/series-state.json` and in the status; it is asked again on the next run. A window refusal on a
+  name's day never blames the name.
+- **Oldest first, every name a date before the next date**: the floor's day is the next to drop out. Only trading days
+  are asked (a weekend or a market holiday is never a call), from the floor to the session just over (today's from
+  5:00 pm New York on a trading day, UW's rows standing whole by then).
+- **Held** is this job's own file alone — `.feed-cache/field/<NAME>/<D>/series.json.gz` (gzipped, 28–45 KB a session;
+  the plain `series.json` the job first wrote, ~300 KB, is still read and is replaced by the gzipped file if the day is
+  asked again), read whole: a file cut short (a plain one not ending its object, a small gzip that does not unzip) is
+  asked again; a gzip over 2 KB is trusted by its size (the job writes it whole through a `.part` and a rename), so a full
+  window is listed in milliseconds, never unzipped to look. The recorder's `total.json` and a rebuilt day's `past.json.gz` keep only the figures the trail reads (before
+  2026-10-13 only the `_oi` series), so they never stand in. A day with no rows before a name's first day with rows is
+  UW's series not yet begun and is never asked again; one after it is a **gap**, asked again on later runs, three times
+  in all (`tries` in the file).
+- **The live pull keeps priority.** UW answers three calls at once FOR THE TOKEN, whichever process asks — the dev
+  server's pages have their own client and gate, which the recorder cannot see. So the bulk fill **never runs in the
+  live hours, 4:00 am to 5:00 pm New York on a trading day** (the recorder's chain reads from 4:00 am, the session's
+  books, the closing reads), and a run that reaches 4:00 am stops where it stands for the evening run to pick up. Outside
+  them it makes one call at a time, only while the recorder's UW gate has two slots free and nothing queued and no call
+  of the process has met a 429 in the last minute; its own calls skip the client's cache (300 KB answers would push the
+  recorder's own out) and the client's quick 400 ms retry; a 429 backs off 30 s, doubling to 15 minutes; a 5xx or the
+  network is left for the next run (20 in a row stop the run). A page open in the evening shares the token's three calls
+  with one fill call at most. One fill on a machine at a time: `.feed-cache/series/series.lock`, created exclusively,
+  refreshed each minute, taken over when its process is gone or it is five minutes stale.
+- **When**: thirty seconds after the recorder starts (deferred to 5:15 pm when it starts in the live hours), and each
+  evening at 5:15 pm New York (a weekend evening too, so a run cut short is finished); an evening run that finds another
+  fill going is tried again each minute.
+- **How long** (measured from the workspace 2026-10-15, after the close): UW answers a day with rows (272–304 KB) in
+  0.13–0.50 s (five days sampled) and an empty day faster; with the 0.75 s pause a call is about a second (20 calls
+  took 17.7 s). The whole window is 731 calls a name — about 2,900 for SPY, QQQ, IWM and SPX, under an hour.
+- **The standing**: `npm run uw:series -- --status` prints, a ticker, the sessions stored with rows, the oldest and
+  newest, the sessions still missing (UW's empty days before its series began left out), the gaps between oldest and
+  newest, the days never asked, the runs of missing sessions, the tickers UW does not serve, the window and where it
+  came from, the recorder's fill if one answers on 5190, and the day that leaves the window next where any ticker has
+  not asked it. `npm run uw:series -- --fill` fills once where no recorder records (it refuses while one answers on 5190
+  or holds `.feed-cache/field/recorder.lock`, and in the live hours; `--force` fills anyway, `--names=`, `--max=N` a
+  trial). `curl http://127.0.0.1:5190/feed/series` answers the job's standing as JSON (`?stored=1` adds what is stored). The recorder's log has a "series" line each
+  run.
+- **The recorder's prune, fixed beside it**: the nightly gzip of past days walked the field's root in one try, so the
+  first FILE there (recorder.lock — on Windows the listing is sorted without case, so it comes before SPX and SPY) ended
+  the walk and those names' past days were never gzipped. It now passes over a file in the root and a day that fails.
+- scripts/series-backfill-proof.ts runs the rules against a stand-in client in `npm test` (46 checks; the prune's fails
+  on the old recorder). Two read-only reviews of the fill found 12 and then 9 things; each is fixed and has its case in
+  the proof.
 
 ## The tiles (2026-10-15 — the owner's Section I: "Load by visible range plus a buffer; never load a whole history into the page. Precompute every timeframe (1m, 5m, 15m, 1h, 1D) at rebuild time")
 
@@ -1394,8 +1446,8 @@ the always-on machine, neither run against Theta from the workspace (no terminal
   Newest first over the history's sessions, the SAME model as the live field (trailModel through the store's
   `rowsOf`): the day's open interest from `chain-oi` (SPXW under SPX), each contract's quote a minute inverted to a vol
   (`solveVol`) on the day's rate and the model's clock (`tauAt`), the underlying from the stock's bars or the index's
-  series (or the tape's per-print price, `spxSource: 'tape'`), the seed from the session before, UW's `series.json` as
-  the total where kept, the rate from RATES (r = −ln(1 − d·91/360) × 365/91; it rides on the PastDay and prices the
+  series (or the tape's per-print price, `spxSource: 'tape'`), the seed from the session before, UW's series (`series.json.gz`, or the
+  plain `series.json` the job first wrote) as the total where kept, the rate from RATES (r = −ln(1 − d·91/360) × 365/91; it rides on the PastDay and prices the
   day — `Universe.rate`, `rateOf`; UW's days keep 4.15%). Written beside the field, never over UW's final rows:
   `theta-final.jsonl`, `theta-extras.jsonl` (a minute's spread, top-of-book sizes, volume, VIX, ATM vol),
   `theta-build.json`; `finalRowsOf` serves UW's rows first, else these. THE TRUST GATE: where `shown.jsonl` exists the
@@ -1467,7 +1519,7 @@ are never rewritten.
 (`!isCashIndex`), so SPX rows were stored only where a machine set it up by hand: RECORD_NAMES or BACKFILL_NAMES with SPX
 (neither has it by default), or `npm run theta:rebuild -- SPX` (folded, not dropped — the third-Friday merge). The
 residual against UW, the level alerts and the regime chip are computed live, so nothing of theirs was stored. On this
-workspace: SPX's scale.json alone (no sessions in it). UW's per-minute series (series.json) is UW's own and was never
+workspace: SPX's scale.json alone (no sessions in it). UW's per-minute series (series.json.gz) is UW's own and was never
 filtered.
 
 **What changed, on real data** (SPX's chain as the recorder read it at 11:11 pm on Oct 14, the prior count, a column at

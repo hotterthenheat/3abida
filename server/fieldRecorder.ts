@@ -286,10 +286,29 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
 
   /** The days before today, kept and gzipped in place — never deleted (see the header) */
   function prune(today: string) {
+    /* A NAME AT A TIME, A DAY AT A TIME (2026-10-15, the B5 review): one try round the whole walk let the first file in
+       the root (recorder.lock) end it — on Windows the listing is sorted without case, so recorder.lock comes before
+       SPX and SPY and their past days were never gzipped. A file in the root, or a day that fails, now skips only itself. */
+    let names: string[] = [];
     try {
-      for (const name of readdirSync(root))
-        for (const day of readdirSync(join(root, name))) {
-          if (day >= today) continue;
+      names = readdirSync(root, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => d.name);
+    } catch {
+      return; /* no folder yet */
+    }
+    for (const name of names) {
+      let days: string[] = [];
+      try {
+        days = readdirSync(join(root, name), { withFileTypes: true })
+          .filter(d => d.isDirectory())
+          .map(d => d.name);
+      } catch {
+        continue;
+      }
+      for (const day of days) {
+        if (day >= today) continue;
+        try {
           const dir = join(root, name, day);
           for (const f of readdirSync(dir)) {
             /* the recorder's and the store's own files alone — the backfill's sidecars stay as they are */
@@ -298,9 +317,10 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
             writeFileSync(`${file}.gz`, gzipSync(readFileSync(file)));
             rmSync(file, { force: true });
           }
+        } catch {
+          /* a file still being written — the next turn of the clock tries again */
         }
-    } catch {
-      /* no folder yet, or a file still being written — the next turn of the clock tries again */
+      }
     }
   }
 

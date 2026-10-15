@@ -17,7 +17,7 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { feedMiddleware } from './feed';
 import { tapeReader } from './tapeBackfill';
-import { createSeriesBackfill } from './seriesBackfill';
+import { createSeriesBackfill, inLiveHours, namesToFill, seriesNamesOf } from './seriesBackfill';
 
 function parseEnv(path: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -39,10 +39,14 @@ const stamp = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 /* Massive off since 2026-10-14 (the owner: "you can disable the massive ones and use this one") — Theta Data in its place */
 const handle = feedMiddleware({ keys: { uw: env.UW_API_TOKEN || undefined, theta: env.THETADATA_API_KEY || undefined }, allowLan: lan, recordNames: names });
 const server = createServer((req, res) => {
-  /* the series job's standing, for a look from this machine: curl http://127.0.0.1:5190/feed/series */
+  /* the series job's standing, for a look from this machine: curl http://127.0.0.1:5190/feed/series (?stored=1 adds
+     what is stored a name) */
   if (req.method === 'GET' && (req.url ?? '').split('?')[0] === '/feed/series') {
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ names: seriesNames, days: seriesDays, job: series.status(), stored: series.stored(seriesNames) }));
+    /* what is stored only when asked (?stored=1) — `npm run uw:series -- --status` reads it off the disk itself */
+    const names = seriesNamesNow();
+    const withStored = /[?&]stored=1\b/.test(req.url ?? '');
+    res.end(JSON.stringify({ names, job: series.status(), state: series.state(), ...(withStored ? { stored: series.stored(names) } : {}) }));
     return;
   }
   void handle(req, res, () => {
@@ -73,24 +77,49 @@ if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
   }, 10 * 60_000);
   progress.unref();
 }
-/* THE PER-MINUTE SPOT-EXPOSURE SERIES, BACK THROUGH UW'S WINDOW (the owner's B5, 2026-10-14 — "Its ~730-day window
-   loses a day each session"): SERIES_NAMES (SPY,QQQ,SPX) for SERIES_DAYS (730) calendar days back, newest first, one
-   call at a time behind the recorder's reads, resumable (a day held is skipped — server/seriesBackfill.ts); walked
-   again once a day after the close for the session just over (from 5:00 pm New York the walk starts at today's).
-   A day is held only by this job's own series.json — the recorder's total.json and a rebuilt day keep a subset of the
-   fields. GET /feed/series says where it stands and what is stored. SERIES_NAMES=off turns it off. */
-const seriesNames = (env.SERIES_NAMES ?? 'SPY,QQQ,SPX')
-  .split(',')
-  .map(s => s.trim().toUpperCase())
-  .filter(n => n && n !== 'OFF');
-const seriesDays = Math.max(1, Number(env.SERIES_DAYS ?? 730) || 730);
+/* THE PER-MINUTE SPOT-EXPOSURE SERIES, EVERY MISSING DAY BACK TO THE FIRST UW ALLOWS (the owner's B5 — 2026-10-14: "Its
+   ~730-day window loses a day each session"; 2026-10-15: "fill every missing day … back to the earliest date UW allows
+   (its 403 names it) … Cover every ticker the recorder records, all fields. Skip any ticker UW refuses, and say which.
+   Back off on 429; the live pull keeps priority"): every name the recorder records (RECORD_NAMES, SERIES_NAMES'
+   extras SPY,QQQ,SPX, the names a tab watches, the names on disk), every trading day from the window's floor — read off
+   UW's own refusal each run — to the session just over, oldest first (the floor's day drops out next). Never in the
+   live hours (4:00 am to 5:00 pm New York on a trading day — UW answers three calls at once for the token, the dev
+   server's pages included); outside them one call at a time, only while the UW gate has a slot to spare and no call
+   has met a 429 in the last minute, a 429 backing off from 30 s to 15 minutes (server/seriesBackfill.ts). At start
+   (deferred to the evening when the recorder starts in the live hours) and each evening at 5:15 pm New York. A day is
+   held only by this job's own file. GET /feed/series and `npm run uw:series -- --status` say where it stands.
+   SERIES_NAMES=off turns it off. */
+const seriesOff = seriesNamesOf(env).length === 0;
+const seriesNamesNow = () => (seriesOff ? [] : namesToFill(env, handle.recorder.watched()));
 const series = createSeriesBackfill(handle.client, { log: l => console.log(`${stamp()} ${l}`) });
 let seriesDay = '';
 let tilesDay = '';
-const walkSeries = (why: string) => {
-  if (!seriesNames.length || !env.UW_API_TOKEN || series.status().running) return;
-  console.log(`${stamp()} series ${seriesNames.join(', ')}: ${seriesDays} days back, newest first (${why})`);
-  void series.run(seriesNames, seriesDays).then(s => console.log(`${stamp()} series done: written ${s.written}, empty ${s.empty}, skipped ${s.skipped}, refused ${s.refused}, failed ${Object.keys(s.failed).length}`));
+let seriesWaitSaid = '';
+/** Starts a fill where none runs; says why not otherwise (once a day for a wait), and whether it started */
+const walkSeries = (why: string): boolean => {
+  if (seriesOff || !env.UW_API_TOKEN) return false;
+  const holder = series.lockHolder();
+  if (series.status().running || holder) {
+    const day = new Date().toISOString().slice(0, 10);
+    if (seriesWaitSaid !== day) {
+      seriesWaitSaid = day;
+      console.log(`${stamp()} series (${why}): ${holder ? `another fill holds the lock (pid ${holder.pid})` : 'a fill is running'} — tried again each minute`);
+    }
+    return false;
+  }
+  if (inLiveHours(Date.now())) {
+    console.log(`${stamp()} series (${why}): the live hours (4:00 am to 5:00 pm New York) — the fill waits for 5:15 pm`);
+    return false;
+  }
+  void series
+    .run(seriesNamesNow(), why)
+    .then(s => {
+      if (s.stopped && !s.startedAt) return console.log(`${stamp()} series (${why}): not started — ${s.stopped}`);
+      const refused = Object.entries(s.refusedNames).map(([n, r]) => `${n} (${r.status === 200 ? r.message : `${r.status}${r.code ? ` ${r.code}` : ''}`})`);
+      console.log(`${stamp()} series done (${why}): written ${s.written}, empty ${s.empty}, held ${s.skipped}, no answer ${s.refused}, refused days ${Object.keys(s.failed).length}, 429s ${s.throttled}${refused.length ? `; names Unusual Whales does not serve: ${refused.join(', ')}` : ''}${s.stopped ? `; stopped: ${s.stopped}` : ''}${s.todo ? `; ${s.todo} calls left for the next run` : ''}`);
+    })
+    .catch(e => console.error(`${stamp()} series failed: ${e instanceof Error ? e.message : String(e)}`));
+  return true;
 };
 setTimeout(() => walkSeries('at start'), 30_000).unref();
 /* THE TILES (Section I, server/fieldTiles.ts): every session on disk with its inputs tiled — folded once to every
@@ -153,11 +182,9 @@ const nightly = setInterval(() => {
     tilesDay = day;
     sweepTiles('after the close');
   }
-  /* the session just over joins the series (UW's rows for a date stand once it has closed) */
-  if (minute >= 17 * 60 + 15 && seriesDay !== day) {
-    seriesDay = day;
-    if (!weekend(day)) walkSeries('after the close');
-  }
+  /* each evening after the close: the session just over joins the series (UW's rows for a date stand once it has
+     closed), and every day still missing in the window — a weekend evening too, when a run cut short left some */
+  if (minute >= 17 * 60 + 15 && seriesDay !== day && walkSeries('after the close')) seriesDay = day;
 }, 60_000);
 nightly.unref();
 server.on('error', e => {

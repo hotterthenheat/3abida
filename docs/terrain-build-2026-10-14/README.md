@@ -184,17 +184,12 @@ shots/b-marks-closeup.png.
 
 ### B5 · UW's per-minute spot exposures, pulled back through its window
 
-server/seriesBackfill.ts runs on the always-on recorder (server/recorderMain.ts; SERIES_NAMES=SPY,QQQ,SPX,
-SERIES_DAYS=730, `off` to stop it): thirty seconds after the recorder starts, and once a day at 5:15 pm New York for
-the session just over, it walks back from the session before today, newest first, over weekdays, and writes each
-day's `/api/stock/{T}/spot-exposures?date=D` rows AS ANSWERED — every field, UW's `_oi`, `_vol`, `_dir` and the other
-greeks' series — to `.feed-cache/field/<NAME>/<D>/series.json`. A day already held (this file, the recorder's own
-`total.json`, a rebuilt day carrying the series) is skipped, so a run resumes; a day UW answers empty (a holiday, a day
-past its window) is written empty and not asked again; a 429 waits a minute and asks again, a 5xx is left for the next
-pass; one call at a time with a pause between, behind the recorder's own reads. ~730 calls a name. scripts/
-series-backfill-proof.ts (in `npm test`) runs the rules against a stand-in client: 7 of 7. It has not run against UW
-from this machine (no recorder here); the first pass on your machine reports in the recorder's log ("series SPY: done
-to <date> — written N, empty N, skipped N, refused N, oldest with rows <date>").
+**Superseded 2026-10-15** (the owner: "fill every missing day … back to the earliest date UW allows (its 403 names
+it)"): the job described here walked 730 CALENDAR days, newest first; UW's window is 730 TRADING days (to 2023-11-15 on
+2026-10-15), so it stopped ten months short. The job now reads the floor off UW's refusal, walks oldest first over
+trading days, covers every name the recorder records, skips and names a ticker UW does not serve, and never runs in the
+live hours — docs/data-feed.md "The series job" has the rules and the measured numbers; `npm run uw:series -- --status`
+says where it stands.
 
 ### Store format 2
 

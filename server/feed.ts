@@ -325,7 +325,10 @@ export function createFeedClient(opts: FeedClientOptions) {
     return { status: 200, contentType: 'application/json', body: JSON.stringify({ rows }), from: 'upstream' };
   }
 
-  async function upstream(p: ProviderId, pathAndQuery: string): Promise<FeedAnswer> {
+  /** The last time Unusual Whales answered 429 to any call of this client — a bulk job reads it and steps aside */
+  let uw429At = 0;
+
+  async function upstream(p: ProviderId, pathAndQuery: string, retry = true): Promise<FeedAnswer> {
     const key = keys[p];
     if (!key) return json(503, { error: 'no-key' });
     if (p === 'theta') return thetaUpstream(pathAndQuery);
@@ -338,10 +341,14 @@ export function createFeedClient(opts: FeedClientOptions) {
     try {
       const go = () => fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
       res = p === 'uw' ? await uwGate.run(go) : await go();
-      /* a 429 for calls at once (another tab, the check) is asked once more, after a breath, through the gate */
-      if (p === 'uw' && res.status === 429) {
+      /* a 429 for calls at once (another tab, the check) is asked once more, after a breath, through the gate — never for
+         a bulk job's call, which backs off on its own (server/seriesBackfill.ts) */
+      if (p === 'uw' && res.status === 429 && retry) {
+        /* stamped for the calls that are not a bulk job's own (that job backs off on its own count) */
+        uw429At = Date.now();
         await new Promise(r => setTimeout(r, 400));
         res = await uwGate.run(go);
+        if (res.status === 429) uw429At = Date.now();
       }
     } catch (e) {
       const err = e as { name?: string; cause?: { code?: string; message?: string }; message?: string };
@@ -355,27 +362,32 @@ export function createFeedClient(opts: FeedClientOptions) {
     return { status: res.status, contentType: res.headers.get('content-type') ?? 'application/json', body, from: 'upstream' };
   }
 
-  /** GET a vendor path (with its query) — cached, one in flight per URL, Massive's calls in turn */
-  async function get(p: ProviderId, pathAndQuery: string): Promise<FeedAnswer> {
+  /** GET a vendor path (with its query) — cached, one in flight per URL, Massive's calls in turn. A bulk job passes
+      `noCache` (its answers go to disk, and 300 KB answers would push the recorder's own out of the cache) and `noRetry`
+      (a 429 comes back to it at once, so it backs off rather than asking again in 400 ms). */
+  async function get(p: ProviderId, pathAndQuery: string, call: { noCache?: boolean; noRetry?: boolean } = {}): Promise<FeedAnswer> {
     const path = pathAndQuery.split('?')[0];
     if (!PROVIDERS[p].pathOk.test(path) || path.includes('..')) return json(400, { error: 'bad-path' });
     if (!keys[p]) return json(503, { error: 'no-key' });
     const id = `${p}:${pathAndQuery}`;
-    if (!opts.noCache) {
+    const cached = !opts.noCache && !call.noCache;
+    if (cached) {
       const hit = cache.get(id);
       if (hit && hit.until > Date.now()) return { ...hit.answer, from: 'cache' };
     }
-    const flying = inFlight.get(id);
+    /* one in flight per URL AND per way of asking: a bulk job's call (no retry, no cache) never stands in for another's */
+    const flyId = call.noRetry || call.noCache ? `${id}|${call.noRetry ? 'r' : ''}${call.noCache ? 'c' : ''}` : id;
+    const flying = inFlight.get(flyId);
     if (flying) return flying;
-    const run = upstream(p, pathAndQuery).then(a => {
-      if (a.status === 200 && !opts.noCache) keep(id, a, ttlFor(p, path, pathAndQuery.split('?')[1] ?? ''));
+    const run = upstream(p, pathAndQuery, !call.noRetry).then(a => {
+      if (a.status === 200 && cached) keep(id, a, ttlFor(p, path, pathAndQuery.split('?')[1] ?? ''));
       return a;
     });
-    inFlight.set(id, run);
+    inFlight.set(flyId, run);
     try {
       return await run;
     } finally {
-      inFlight.delete(id);
+      inFlight.delete(flyId);
     }
   }
 
@@ -495,7 +507,7 @@ export function createFeedClient(opts: FeedClientOptions) {
     }
   }
 
-  return { get, redirectOf, thetaOptionMinutes, bucket, uwGate, thetaGate, hasKey: (p: ProviderId) => !!keys[p] };
+  return { get, redirectOf, thetaOptionMinutes, bucket, uwGate, thetaGate, uw429At: () => uw429At, hasKey: (p: ProviderId) => !!keys[p] };
 }
 export type FeedClient = ReturnType<typeof createFeedClient>;
 
