@@ -38,15 +38,23 @@ async function terrain(panes, { width = 1440, height = 900, layout = 1, at = nul
   if (at) await page.clock.install({ time: new Date(at) });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
-  await page.goto(`${base}/terrain`, { waitUntil: 'domcontentloaded' });
-  const had = await page.evaluate(() => localStorage.getItem('slayer_terrain_v1'));
-  const hadName = await page.evaluate(() => localStorage.getItem('slayer_name'));
+  /* THE DESK, SET BEFORE THE FIRST LOAD (the full check of 2026-10-15): the desk used to be written between two loads of
+     the page, and the first load, saving its own desk as it went, overwrote it about one time in three — the pane came
+     up on the default theme and timeframe. Written by an init script, once a tab (a reload in a check keeps what the
+     page saved), no page is open to overwrite it. */
   const all = [...panes, ...['QQQ', 'IWM', 'SPX', 'SPY'].map(ticker => ({ ticker }))].slice(0, 4);
-  await page.evaluate(cfg => {
+  await page.addInitScript(cfg => {
+    if (sessionStorage.getItem('__proof_desk')) return;
+    sessionStorage.setItem('__proof_desk', '1');
+    /* a returning reader's: Terrain's one-time flip of 2026-08-29 (slayer_terrain_sky1) clears every pane's theme on a
+       browser's first visit — in a fresh context each check, it took the asked theme off the pane two loads in five */
+    localStorage.setItem('slayer_terrain_sky1', '1');
     localStorage.setItem('slayer_terrain_v1', JSON.stringify(cfg));
     /* the first pane follows the name the reader last had (context/marketStore slayer_name) */
     localStorage.setItem('slayer_name', cfg.panes[0].ticker);
   }, { layout, panes: all, ...(railCut ? { railCut } : {}) });
+  const had = null;
+  const hadName = null;
   await page.goto(`${base}/terrain`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-chart-ink]', { timeout: 60_000 });
   /* the bars in, the field handed: the chart's state names its bars */

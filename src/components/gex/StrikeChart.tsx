@@ -2613,6 +2613,8 @@ const StrikeChart = ({
       /* the field's renderer (its hit test, beadAt, in the chart's own coordinates) and the chart's box */
       trails,
       box: () => containerRef.current,
+      /* the bars' colours as last applied (barcolor) — the count, the form they were dressed in, the scripts' signature */
+      tints: () => ({ n: barTintRef.current.size, form: barTintFormRef.current, now: tintKey(tintForm()), style: styleRef.current, up: candleSeriesOptions(themeRef.current).upColor, sig: scriptSigRef.current.slice(0, 80), window: candleWindowRef.current.length }),
     };
     devCharts?.add(devEntry);
     const drawingsPrim = new DrawingsPrimitive();
@@ -4238,7 +4240,9 @@ const StrikeChart = ({
       setScriptFaults(faults);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paneId, paneScripts, indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, levels, themeKey, appTheme]);
+    /* themeTag, not themeKey alone: the reader's colour vision changes the candles' form (Neon's rising bodies go hollow
+       under blue and orange), and the bars a script colours are dressed again in it when the reader changes it */
+  }, [paneId, paneScripts, indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, levels, themeKey, themeTag, appTheme]);
 
   /* `compact` can change without the chart being rebuilt — a desktop window
      dragged across the phone line, a handset rotated. The mount effect read it
