@@ -71,7 +71,8 @@ export interface RunOptions {
   /** How long a run may take before it stops and says so (SCRIPT_CAPS.budgetMs) */
   budgetMs?: number;
   ticker?: string;
-  /** Pine's `timeframe.period` — "1", "5", "30", "D" */
+  /** The pane's timeframe — the chart's own forms ("15s", "1m", "5m", "1h", "1D", "1W", data/timeframe.ts) or Pine's
+      ("1", "5", "60", "D"); `timeframe.*` reads either (interpreter.ts readTimeframe) */
   timeframe?: string;
   mintick?: number;
   /** The last bar is still forming — `barstate.isconfirmed` is false on it */

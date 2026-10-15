@@ -3,9 +3,21 @@
 // here, plus the language's corners (history, var, user functions per call
 // site, loops, switch, integer division, inputs) and the refusals (strategies,
 // drawings, missing version, undeclared names) with their lines.
+// THE AUDIT OF 2026-10-15 (sections 8-18): a check for each bug it found —
+// str.format's arguments, timeframe.* on the chart's own forms, New York's
+// clock and calendar, the VWAP's New York day, the alert ids, ta.obv / ta.tr /
+// ta.vwap as variables, arrays named as not yet, location.absolute at its
+// price, the shipped scripts' inks and words, the editor's chords — each one
+// written to fail on the code before the fix; then every shipped script over
+// 5,000 bars with its run time. In `npm test` since the same day.
 //   npx tsx scripts/pine-proof.ts
+import { readFileSync } from 'node:fs';
 import { compile, run, runSource, explain } from '../src/core/pine';
-import type { Bar } from '../src/core/pine';
+import type { Bar, RunOptions, RunResult } from '../src/core/pine';
+import { builtinScripts } from '../src/data/builtinScripts';
+import { BEAR, BULL, CALL_WALL, PUT_WALL } from '../src/components/gex/palette';
+import { markersFor } from '../src/components/gex/scriptMarkers';
+import { SCRIPT_CAPS } from '../src/types/scripts';
 
 /* ---- synthetic bars: a seeded random walk ---------------------------------------- */
 let seed = 20260910;
@@ -320,6 +332,406 @@ plot(ta.cum(volume), "cum")`, bars);
   const r = run(c, many, { budgetMs: 2000 });
   const ms = performance.now() - t0;
   check(`Ichimoku over 5,000 bars inside 200 ms (${ms.toFixed(0)} ms, run says ${r.stats.ms.toFixed(0)})`, ms < 200);
+}
+
+/* ==== THE AUDIT OF 2026-10-15 — one check (or more) a bug, each written to fail on the code before the fix ==== */
+
+const tryRun = (source: string, b: Bar[] = bars, opts: RunOptions = {}): { r: RunResult | null; err: string } => {
+  try {
+    return { r: runSource(source, b, opts), err: '' };
+  } catch (e) {
+    const { line, message } = explain(e);
+    return { r: null, err: `line ${line}: ${message}` };
+  }
+};
+/** What a script said through alert() — the one way a string leaves a run */
+const said = (source: string, b: Bar[] = bars, opts: RunOptions = {}): string => {
+  const t = tryRun(source, b, opts);
+  if (!t.r) return `threw — ${t.err}`;
+  return t.r.alerts.filter(a => a.title === 'alert()').map(a => a.message).join(' ‖ ');
+};
+const compileFails = (source: string, pattern: RegExp): string => {
+  try {
+    compile(source);
+    return 'compiled without complaint';
+  } catch (e) {
+    const { line, message } = explain(e);
+    return pattern.test(message) ? `line ${line}: ${message}` : `WRONG MESSAGE line ${line}: ${message}`;
+  }
+};
+/** Seeded bars from `start` (seconds), `step` seconds apart */
+const walk = (n: number, start: number, step: number, seed0: number): Bar[] => {
+  let s = seed0;
+  const r = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+  const out: Bar[] = [];
+  let p = 480;
+  for (let i = 0; i < n; i++) {
+    const o = p;
+    const c = p + (r() - 0.5) * 2.4;
+    out.push({ time: start + i * step, open: o, high: Math.max(o, c) + r() * 0.8, low: Math.min(o, c) - r() * 0.8, close: c, volume: Math.round(1000 + r() * 9000) });
+    p = c;
+  }
+  return out;
+};
+/* New York's calendar and clock, read independently of the runtime — Intl on the exchange's zone */
+const NY_FMT = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+const nyOf = (sec: number) => {
+  const r: Record<string, string> = {};
+  for (const x of NY_FMT.formatToParts(new Date(sec * 1000))) if (x.type !== 'literal') r[x.type] = x.value;
+  return { year: +r.year, month: +r.month, day: +r.day, hour: +r.hour % 24, minute: +r.minute, second: +r.second, dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(r.weekday) + 1, date: `${r.year}-${r.month}-${r.day}` };
+};
+/** A session VWAP computed here, resetting where `key` changes */
+const vwapByKey = (b: Bar[], key: (i: number) => string): number[] => {
+  let pv = 0;
+  let v = 0;
+  let k = '';
+  return b.map((x, i) => {
+    const kk = key(i);
+    if (kk !== k) {
+      k = kk;
+      pv = 0;
+      v = 0;
+    }
+    const src = (x.high + x.low + x.close) / 3;
+    pv += src * x.volume;
+    v += x.volume;
+    return pv / v;
+  });
+};
+
+/* ---- 8. bug 1: str.format takes a format and any number of arguments ---------------- */
+{
+  const one = said(`//@version=6
+indicator("Format")
+if barstate.islast
+    alert(str.format("{0} and {1}", 3, 2.5))`);
+  check('bug 1: str.format("{0} and {1}", 3, 2.5) says "3 and 2.5"', one === '3 and 2.5', one);
+  const two = said(`//@version=6
+indicator("Format")
+if barstate.islast
+    alert(str.format("{1}{0} · {2,number,#.##} · {3,number,0.00} · {4,number,integer}", "a", "b", 1.5, 2, 7.6))`);
+  check('bug 1: str.format reads its arguments in any order, with #.##, 0.00 and integer', two === 'ba · 1.5 · 2.00 · 8', two);
+}
+
+/* ---- 9. bug 2: timeframe.* on the chart's own forms --------------------------------- */
+{
+  const TF = (v: number) => `//@version=${v}
+indicator("Timeframe")
+if barstate.islast
+    alert(timeframe.period + "|" + str.tostring(timeframe.multiplier) + "|" + str.tostring(timeframe.isintraday) + "|" + str.tostring(timeframe.isminutes) + "|" + str.tostring(timeframe.isseconds) + "|" + str.tostring(timeframe.isdaily) + "|" + str.tostring(timeframe.isweekly) + "|" + str.tostring(timeframe.ismonthly) + "|" + str.tostring(timeframe.isdwm))`;
+  /* period | multiplier | intraday | minutes | seconds | daily | weekly | monthly | dwm — Pine v6 always writes the multiplier ("1D") */
+  const want: [string, string][] = [
+    ['15s', '15S|15|true|false|true|false|false|false|false'],
+    ['1m', '1|1|true|true|false|false|false|false|false'],
+    ['5m', '5|5|true|true|false|false|false|false|false'],
+    ['15m', '15|15|true|true|false|false|false|false|false'],
+    ['30m', '30|30|true|true|false|false|false|false|false'],
+    ['1h', '60|60|true|true|false|false|false|false|false'],
+    ['4h', '240|240|true|true|false|false|false|false|false'],
+    ['1D', '1D|1|false|false|false|true|false|false|true'],
+    ['1W', '1W|1|false|false|false|false|true|false|true'],
+    /* Pine's own forms still read */
+    ['5', '5|5|true|true|false|false|false|false|false'],
+    ['60', '60|60|true|true|false|false|false|false|false'],
+    ['D', '1D|1|false|false|false|true|false|false|true'],
+    ['W', '1W|1|false|false|false|false|true|false|true'],
+    ['1M', '1M|1|false|false|false|false|false|true|true'],
+    ['15S', '15S|15|true|false|true|false|false|false|false'],
+  ];
+  const wrong = want.map(([tf, w]) => [tf, said(TF(6), bars, { timeframe: tf }), w]).filter(([, got, w]) => got !== w);
+  check('bug 2: timeframe.* reads every form the chart hands it (15s … 1W) and Pine\'s own', wrong.length === 0, wrong.map(([tf, got, w]) => `${tf}: got ${got} want ${w}`).join('; '));
+  const intraday = ['15s', '1m', '5m', '15m', '30m', '1h', '4h'].filter(tf => !said(TF(6), bars, { timeframe: tf }).includes('|true|'));
+  check('bug 2: timeframe.isintraday is true on every intraday pane', intraday.length === 0, intraday.join(','));
+  const v5 = said(TF(5), bars, { timeframe: '1D' }).split('|')[0];
+  check('bug 2: a v5 script reads "D" for a daily pane (v5 leaves a multiplier of 1 out)', v5 === 'D', v5);
+}
+
+/* ---- 10. bug 3: the clock and calendar are New York's, whatever the machine's zone ----- */
+{
+  const before = process.env.TZ;
+  process.env.TZ = 'Asia/Kolkata'; // UTC+5:30 — a half-hour zone, so even the minute would show a local reading
+  const at = [
+    Date.UTC(2026, 0, 15, 14, 30, 0), // 9:30 am EST
+    Date.UTC(2026, 2, 8, 6, 59, 30), // 1:59:30 am EST, the minute before the spring change
+    Date.UTC(2026, 2, 8, 7, 0, 0), // 3:00 am EDT
+    Date.UTC(2026, 9, 14, 13, 35, 0), // 9:35 am EDT, a Wednesday
+    Date.UTC(2026, 9, 15, 3, 30, 0), // 11:30 pm EDT on Oct 14 — Oct 15 in UTC and in Kolkata
+    Date.UTC(2026, 10, 1, 5, 30, 0), // 1:30 am EDT, Nov 1
+    Date.UTC(2026, 10, 1, 6, 30, 0), // 1:30 am EST, Nov 1 — the hour that happens twice
+  ].map(ms => ms / 1000);
+  const b = at.map((t, i) => ({ time: t, open: 100 + i, high: 101 + i, low: 99 + i, close: 100.5 + i, volume: 1000 }));
+  const t = tryRun(`//@version=6
+indicator("Clock")
+plot(hour, "hour")
+plot(minute, "minute")
+plot(second, "second")
+plot(dayofweek, "dayofweek")
+plot(dayofmonth, "dayofmonth")
+plot(month, "month")
+plot(year, "year")`, b, { timeframe: '1m' });
+  const f = tryRun(`//@version=6
+indicator("Clock, the function forms")
+plot(hour(time), "hour(time)")
+plot(minute(time), "minute(time)")
+plot(dayofweek(time, "America/New_York"), "dayofweek(time, NY)")
+plot(dayofmonth(time, syminfo.timezone), "dayofmonth(time, exchange)")
+plot(hour(time, "UTC"), "hour(time, UTC)")`, b, { timeframe: '1m' });
+  process.env.TZ = before;
+  if (before === undefined) delete process.env.TZ;
+  const misses = (res: { r: RunResult | null }, want: (sec: number) => [string, number][]): string[] => {
+    const wrong: string[] = [];
+    at.forEach((sec, i) => {
+      for (const [k, w] of want(sec)) {
+        const got = res.r?.plots.find(p => p.title === k)?.values[i];
+        if (got !== w) wrong.push(`${new Date(sec * 1000).toISOString()} ${k} ${got} want ${w}`);
+      }
+    });
+    return wrong;
+  };
+  const wrongVars = misses(t, sec => {
+    const ny = nyOf(sec);
+    return [['hour', ny.hour], ['minute', ny.minute], ['second', ny.second], ['dayofweek', ny.dow], ['dayofmonth', ny.day], ['month', ny.month], ['year', ny.year]];
+  });
+  check('bug 3: hour, minute, second, dayofweek, dayofmonth, month, year are New York\'s on a Kolkata machine, across both DST changes', !t.err && wrongVars.length === 0, t.err || wrongVars.slice(0, 4).join('; '));
+  const wrongFns = misses(f, sec => {
+    const ny = nyOf(sec);
+    return [['hour(time)', ny.hour], ['minute(time)', ny.minute], ['dayofweek(time, NY)', ny.dow], ['dayofmonth(time, exchange)', ny.day], ['hour(time, UTC)', new Date(sec * 1000).getUTCHours()]];
+  });
+  check('bug 3: the function forms — hour(time), dayofweek(time, zone) … — read New York by default, UTC when asked', !f.err && wrongFns.length === 0, f.err || wrongFns.slice(0, 4).join('; '));
+  /* a day bar stands for its New York session: the house stamps it at that date's UTC midnight (8 pm the evening before in New York) */
+  const days = [Date.UTC(2026, 9, 12), Date.UTC(2026, 9, 13), Date.UTC(2026, 9, 14)].map(ms => ms / 1000);
+  const db = days.map(t0 => ({ time: t0, open: 1, high: 2, low: 0.5, close: 1.5, volume: 10 }));
+  const d = tryRun(`//@version=6
+indicator("Day")
+plot(dayofmonth, "dom")
+plot(dayofweek, "dow")`, db, { timeframe: '1D' });
+  const dom = Array.from(d.r?.plots[0].values ?? []);
+  const dow = Array.from(d.r?.plots[1].values ?? []);
+  check('bug 3: on a daily pane dayofmonth and dayofweek name the session the bar stands for', dom.join(',') === '12,13,14' && dow.join(',') === '2,3,4', `${dom.join(',')} / ${dow.join(',')}`);
+  const df = tryRun(`//@version=6
+indicator("Day")
+plot(dayofweek(time), "dow(time)")
+plot(dayofmonth(time, "UTC"), "dom(time, UTC)")`, db, { timeframe: '1D' });
+  const dowT = Array.from(df.r?.plots[0].values ?? []);
+  const domU = Array.from(df.r?.plots[1].values ?? []);
+  check('bug 3: on a daily pane dayofweek(time) agrees with dayofweek; UTC reads the stamp as it is', !df.err && dowT.join(',') === '2,3,4' && domU.join(',') === '12,13,14', df.err || `${dowT.join(',')} / ${domU.join(',')}`);
+}
+
+/* ---- 11. bug 4: ta.vwap resets at New York's day, and on a day bar is the bar --------- */
+{
+  /* five-minute bars round the clock over three days in October (summer time): New York's midnight is 04:00 UTC */
+  const b = walk(3 * 288, Date.UTC(2026, 9, 12, 20, 0) / 1000, 300, 77);
+  const r = tryRun(`//@version=6
+indicator("VWAP")
+plot(ta.vwap(hlc3), "vwap")`, b, { timeframe: '5m' });
+  const want = vwapByKey(b, i => nyOf(b[i].time).date);
+  const got = r.r?.plots[0].values ?? new Float64Array(b.length).fill(NaN);
+  check('bug 4: ta.vwap restarts at New York\'s midnight (not 01:00 in summer)', !r.err && sameSeries(got, want, 0) === '', r.err || sameSeries(got, want, 0));
+  const a = tryRun(`//@version=6
+indicator("VWAP")
+plot(ta.vwap(hlc3, bar_index % 10 == 0), "anchored")`, b, { timeframe: '5m' });
+  const anchored = vwapByKey(b, i => String(Math.floor(i / 10)));
+  const ga = a.r?.plots[0].values ?? new Float64Array(b.length).fill(NaN);
+  check('bug 4: ta.vwap(src, anchor) restarts where the anchor holds', !a.err && sameSeries(ga, anchored, 0) === '', a.err || sameSeries(ga, anchored, 0));
+  const s = tryRun(`//@version=6
+indicator("VWAP")
+[v, u, l] = ta.vwap(hlc3, stdev_mult = 2)
+plot(v, "v")
+plot(u, "u")
+plot(l, "l")`, b, { timeframe: '5m' });
+  /* the bands: the volume-weighted deviation of the source from the VWAP, since the session began */
+  const bands = (() => {
+    let pv = 0;
+    let p2v = 0;
+    let v = 0;
+    let k = '';
+    return b.map(x => {
+      const kk = nyOf(x.time).date;
+      if (kk !== k) {
+        k = kk;
+        pv = p2v = v = 0;
+      }
+      const s = (x.high + x.low + x.close) / 3;
+      pv += s * x.volume;
+      p2v += s * s * x.volume;
+      v += x.volume;
+      const m = pv / v;
+      const sd = Math.sqrt(Math.max(p2v / v - m * m, 0));
+      return [m + 2 * sd, m - 2 * sd];
+    });
+  })();
+  const gv = s.r?.plots[0].values ?? new Float64Array(b.length).fill(NaN);
+  const gu = s.r?.plots[1].values ?? new Float64Array(b.length).fill(NaN);
+  const gl = s.r?.plots[2].values ?? new Float64Array(b.length).fill(NaN);
+  check('bug 4: ta.vwap(src, stdev_mult = 2) hands back the line and its two bands', !s.err && sameSeries(gv, want, 0) === '' && sameSeries(gu, bands.map(x => x[0]), 0, 1e-7) === '' && sameSeries(gl, bands.map(x => x[1]), 0, 1e-7) === '', s.err || sameSeries(gu, bands.map(x => x[0]), 0, 1e-7));
+  /* TradingView: the default anchor is a new session; on a day bar every bar is one, so the VWAP is the bar's own source */
+  const days = walk(60, Date.UTC(2026, 6, 1) / 1000, 86400, 5);
+  const weeks = walk(30, Date.UTC(2026, 0, 5) / 1000, 7 * 86400, 6);
+  const dv = tryRun(`//@version=6\nindicator("v")\nplot(ta.vwap(hlc3), "v")`, days, { timeframe: '1D' });
+  const wv = tryRun(`//@version=6\nindicator("v")\nplot(ta.vwap(hlc3), "v")`, weeks, { timeframe: '1W' });
+  const hlc = (xs: Bar[]) => xs.map(x => (x.high + x.low + x.close) / 3);
+  check('bug 4: on a daily or weekly pane ta.vwap is each bar\'s hlc3 — TradingView restarts it every session (unchanged)', !dv.err && !wv.err && sameSeries(dv.r!.plots[0].values, hlc(days), 0) === '' && sameSeries(wv.r!.plots[0].values, hlc(weeks), 0) === '', dv.err || wv.err);
+}
+
+/* ---- 12. bug 5: an alert() before an alertcondition() keeps the switches' ids ------------ */
+{
+  const source = `//@version=6
+indicator("Ids")
+if close > open
+    alert("up bar")
+alertcondition(close < open, "Down bar", "a down bar")
+alertcondition(close > open, "Up bar", "an up bar")`;
+  const c = compile(source);
+  const r = run(c, bars);
+  const ids = c.meta.alerts.map(a => a.id);
+  const hit = (id: string) => r.alerts.find(a => a.id === id);
+  const downs = bars.map(x => (x.close < x.open ? 1 : 0));
+  const ups = bars.map(x => (x.close > x.open ? 1 : 0));
+  const down = hit(ids[0]);
+  const up = hit(ids[1]);
+  check('bug 5: the switch the library lists finds its own condition in the run (alert() written first)', c.meta.alerts[0].title === 'Down bar' && down?.title === 'Down bar' && up?.title === 'Up bar' && Array.from(down.fired).join('') === downs.join('') && Array.from(up!.fired).join('') === ups.join(''), `meta ${ids.join(',')} → run ${ids.map(id => hit(id)?.title ?? 'none').join(',')}`);
+  const calls = r.alerts.filter(a => a.title === 'alert()');
+  check('bug 5: an alert() call keeps an id of its own, never a switch\'s', calls.length === 1 && !ids.includes(calls[0].id), calls.map(a => a.id).join(','));
+}
+
+/* ---- 13. bug 6: ta.obv, ta.tr and ta.vwap written as variables ----------------------------- */
+{
+  /* one script a variable, so each check fails for its own reason */
+  const one = (body: string) => tryRun(`//@version=6\nindicator("Variables")\n${body}`);
+  const plotOf = (res: { r: RunResult | null }, t: string) => res.r?.plots.find(p => p.title === t)?.values ?? new Float64Array(bars.length).fill(NaN);
+  let o = 0;
+  const obv = bars.map((x, i) => (i === 0 ? 0 : (o += Math.sign(x.close - bars[i - 1].close) * x.volume)));
+  const tr = bars.map((x, i) => (i === 0 ? NaN : Math.max(x.high - x.low, Math.abs(x.high - bars[i - 1].close), Math.abs(x.low - bars[i - 1].close))));
+  const vw = vwapByKey(bars, i => nyOf(bars[i].time).date);
+  const ro = one(`plot(ta.obv, "obv")\nplot(ta.obv[1], "obv[1]")`);
+  check('bug 6: ta.obv as a variable is the running on-balance volume', !ro.err && sameSeries(plotOf(ro, 'obv'), obv, 0) === '', ro.err || sameSeries(plotOf(ro, 'obv'), obv, 0));
+  check('bug 6: ta.obv[1] is the bar before\'s', !ro.err && sameSeries(plotOf(ro, 'obv[1]'), obv.map((_, i) => (i === 0 ? NaN : obv[i - 1])), 0) === '', ro.err);
+  const rt = one(`plot(ta.tr, "tr")\nplot(ta.tr(true), "tr(true)")`);
+  check('bug 6: ta.tr as a variable is the true range (na on the first bar, as ta.tr(false))', !rt.err && sameSeries(plotOf(rt, 'tr'), tr, 0) === '', rt.err || sameSeries(plotOf(rt, 'tr'), tr, 0));
+  check('bug 6: ta.tr(true) still reads the first bar\'s range', !rt.err && plotOf(rt, 'tr(true)')[0] === bars[0].high - bars[0].low, rt.err);
+  const rv = one(`plot(ta.vwap, "vwap")`);
+  check('bug 6: ta.vwap as a variable is the session VWAP of hlc3', !rv.err && sameSeries(plotOf(rv, 'vwap'), vw, 0) === '', rv.err || sameSeries(plotOf(rv, 'vwap'), vw, 0));
+  const ri = one(`x = 0.0\nif bar_index % 3 == 0\n    x := ta.tr\nplot(x, "tr inside an if")`);
+  const trIf = tr.map((v, i) => (i % 3 === 0 ? v : 0));
+  check('bug 6: a variable read on some bars only is still the whole series (ta.tr inside an if)', !ri.err && sameSeries(plotOf(ri, 'tr inside an if'), trIf, 0) === '', ri.err || sameSeries(plotOf(ri, 'tr inside an if'), trIf, 0));
+}
+
+/* ---- 14. bug 7: arrays, matrices and maps are refused in the engine's own words ------------ */
+{
+  const head = `//@version=6\nindicator("x")\n`;
+  const cases: [string, RegExp][] = [
+    [`a = array.new_float(10)\nplot(close)`, /array\.\* is not in this version yet/],
+    [`float[] xs = array.new_float(0)\nplot(close)`, /array\.\* is not in this version yet/],
+    [`array<float> xs = array.new<float>()\nplot(close)`, /array\.\* is not in this version yet/],
+    [`var a = array.new<float>(5, 0.0)\nplot(close)`, /array\.\* is not in this version yet/],
+    [`m = matrix.new<float>(2, 2, 0.0)\nplot(close)`, /matrix\.\* is not in this version yet/],
+    [`m = map.new<string, float>()\nplot(close)`, /map\.\* is not in this version yet/],
+    [`f(float[] xs) => 1\nplot(close)`, /array\.\* is not in this version yet/],
+  ];
+  const bad = cases.map(([src, re]) => compileFails(head + src, re)).filter(m => !/^line \d+: /.test(m) || m.startsWith('WRONG'));
+  check('bug 7: arrays, matrices and maps are named as not yet, when the script is read', bad.length === 0, bad.join('; '));
+}
+
+/* ---- 15. bug 8: location.absolute stands at the price given --------------------------------- */
+{
+  const r = tryRun(`//@version=6
+indicator("Absolute")
+plotshape(close > open ? high + 1 : na, "over", shape.circle, location.absolute)
+plotshape(bar_index % 7 == 0 ? 0 : na, "on zero", shape.diamond, location.absolute)
+plotchar(close < open ? low - 1 : na, "under", "x", location.absolute)
+plot(close)`);
+  const shapes = r.r?.shapes ?? [];
+  const over = shapes[0];
+  const zero = shapes[1];
+  const under = shapes[2];
+  const wantOver = bars.map(x => (x.close > x.open ? x.high + 1 : NaN));
+  const wantUnder = bars.map(x => (x.close < x.open ? x.low - 1 : NaN));
+  const wantZero = bars.map((_, i) => (i % 7 === 0 ? 0 : NaN));
+  check('bug 8: a location.absolute shape carries its price, a price of 0 included', !r.err && !!over && sameSeries(over.values, wantOver, 0) === '' && sameSeries(under.values, wantUnder, 0) === '' && sameSeries(zero.values, wantZero, 0) === '', r.err || (zero ? sameSeries(zero.values, wantZero, 0) : 'no shapes'));
+  const marks = over ? markersFor(over, bars) : [];
+  const zeroMarks = zero ? markersFor(zero, bars) : [];
+  const off = [...marks, ...zeroMarks].filter((m, k) => {
+    const all = [...wantOver.filter(v => !Number.isNaN(v)), ...wantZero.filter(v => !Number.isNaN(v))];
+    return m.position !== 'atPriceMiddle' || (m as { price?: number }).price !== all[k];
+  });
+  check('bug 8: the chart draws an absolute mark at its price (atPriceMiddle, price set)', marks.length > 0 && zeroMarks.length > 0 && off.length === 0, off.slice(0, 2).map(m => JSON.stringify(m)).join(' '));
+  const above = markersFor({ ...over!, location: 'abovebar' }, bars)[0];
+  check('bug 8: an above-the-bar mark still stands above the bar', above?.position === 'aboveBar', above?.position);
+}
+
+/* ---- 16. bug 9: the shipped scripts wear the house's inks and say what is true ------------- */
+{
+  const shipped = builtinScripts();
+  const bySlug = (slug: string) => shipped.find(s => s.id === `builtin:${slug}`)!;
+  const ink = (hex: string) => hex.toLowerCase();
+  const feed = { callWall: 485, putWall: 476, flip: 480, supreme: 482 };
+  const wallWrong: string[] = [];
+  for (const slug of ['walls', 'distance-to-walls', 'wall-approach']) {
+    const s = bySlug(slug);
+    const r = tryRun(s.source, bars, { slayer: feed });
+    if (!r.r) {
+      wallWrong.push(`${slug}: ${r.err}`);
+      continue;
+    }
+    for (const out of [...r.r.plots, ...r.r.shapes]) {
+      const t = out.title.toLowerCase();
+      const want = t.includes('call wall') ? ink(CALL_WALL) : t.includes('put wall') ? ink(PUT_WALL) : null;
+      if (want && out.ink !== want) wallWrong.push(`${slug} "${out.title}" ${out.ink} want ${want}`);
+      if (want && [ink(BULL), ink(BEAR)].includes(out.ink)) wallWrong.push(`${slug} "${out.title}" wears the direction pair`);
+    }
+  }
+  check('bug 9: every shipped wall wears the house\'s wall inks (palette CALL_WALL / PUT_WALL), never bull/bear', wallWrong.length === 0, wallWrong.join('; '));
+  const walls = bySlug('walls');
+  check('bug 9: "The walls" no longer says the call wall is above and the put wall below', !/\babove\b|\bbelow\b/i.test(walls.description), walls.description);
+  const macd = tryRun(bySlug('macd').source);
+  const hist = macd.r?.plots.find(p => p.title === 'Histogram');
+  const steel = (css: string) => /^rgba\(226, 234, 244, 0\.3\)$/.test(css);
+  check('bug 9: the Pine MACD\'s histogram is the built-in\'s one steel wash, not red and green', !!hist && hist.colors === null && steel(hist.ink), hist ? `${hist.ink} ${hist.colors ? 'per-bar colours' : ''}` : macd.err);
+  const obvSrc = bySlug('obv').source;
+  const obvRun = tryRun(obvSrc);
+  check('bug 9: the OBV script reads ta.obv as TradingView writes it — a variable, no brackets', /\bta\.obv\b(?!\s*\()/.test(obvSrc) && !/ta\.obv\s*\(/.test(obvSrc) && !!obvRun.r, obvRun.err || obvSrc.split('\n').pop());
+}
+
+/* ---- 17. bug 10: the editor prints its chords through modKey -------------------------------- */
+{
+  const text = readFileSync(new URL('../src/components/scripts/ScriptEditor.tsx', import.meta.url), 'utf8');
+  const literal = text.match(/Ctrl[ +](S|Enter)\b/g) ?? [];
+  check('bug 10: the script editor prints no literal "Ctrl S" / "Ctrl Enter" — modKey says the machine\'s own', literal.length === 0 && /modKey\('S'\)/.test(text) && /modKey\('Enter'\)/.test(text), literal.join(', '));
+}
+
+/* ---- 18. every shipped script compiles and runs over 5,000 bars ------------------------------ */
+{
+  const many = walk(5000, Date.UTC(2026, 9, 1, 13, 30) / 1000, 60, 4242);
+  const last = many[many.length - 1].close;
+  const feed = { callWall: Math.round(last) + 5, putWall: Math.round(last) - 5, flip: Math.round(last), supreme: Math.round(last) + 2 };
+  const rows: string[] = [];
+  const broken: string[] = [];
+  const slow: string[] = [];
+  for (const s of builtinScripts()) {
+    if (s.status !== 'ok') {
+      broken.push(`${s.title}: ${s.error?.message}`);
+      continue;
+    }
+    try {
+      const c = compile(s.source);
+      run(c, many.slice(0, 200), { timeframe: '1m', slayer: feed, budgetMs: 10_000 }); // a warm-up, so the time below is the run's own
+      const t0 = performance.now();
+      const r = run(c, many, { timeframe: '1m', slayer: feed, budgetMs: 10_000 });
+      const ms = performance.now() - t0;
+      const drew = r.plots.length + r.shapes.length + r.hlines.length + r.fills.length;
+      rows.push(`${s.title.padEnd(24)} ${ms.toFixed(1).padStart(7)} ms   ${drew} outputs`);
+      if (drew === 0) broken.push(`${s.title}: drew nothing`);
+      if (ms > SCRIPT_CAPS.budgetMs) slow.push(`${s.title} ${ms.toFixed(0)} ms`);
+    } catch (e) {
+      broken.push(`${s.title}: ${explain(e).message}`);
+    }
+  }
+  console.log(`\n  every shipped script over 5,000 one-minute bars:\n  ${rows.join('\n  ')}\n`);
+  check(`all ${builtinScripts().length} shipped scripts compile, run and draw over 5,000 bars`, broken.length === 0, broken.join('; '));
+  check(`each shipped script runs inside the terminal's ${SCRIPT_CAPS.budgetMs} ms budget over 5,000 bars`, slow.length === 0, slow.join('; '));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

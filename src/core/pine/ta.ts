@@ -41,6 +41,41 @@ export class Ring {
     if (len <= 0 || this.buf.length < len) return [];
     return this.buf.slice(this.buf.length - len);
   }
+  /* THE WINDOW READ IN PLACE (2026-10-15): the sum, the largest and the smallest of the last `len` values, oldest to
+     newest as `last()` would hand them — NaN when the window is not full or holds an na. No copy a bar: the copies were
+     a sixth of a run and most of its garbage. */
+  sum(len: number): number {
+    const b = this.buf;
+    const n = b.length;
+    if (len <= 0 || n < len) return NaN;
+    let t = 0;
+    for (let i = n - len; i < n; i++) t += b[i];
+    return t;
+  }
+  max(len: number): number {
+    const b = this.buf;
+    const n = b.length;
+    if (len <= 0 || n < len) return NaN;
+    let m = -Infinity;
+    for (let i = n - len; i < n; i++) {
+      const v = b[i];
+      if (Number.isNaN(v)) return NaN;
+      if (v > m) m = v;
+    }
+    return m;
+  }
+  min(len: number): number {
+    const b = this.buf;
+    const n = b.length;
+    if (len <= 0 || n < len) return NaN;
+    let m = Infinity;
+    for (let i = n - len; i < n; i++) {
+      const v = b[i];
+      if (Number.isNaN(v)) return NaN;
+      if (v < m) m = v;
+    }
+    return m;
+  }
 }
 
 const full = (r: Ring, len: number): number[] | null => {
@@ -60,8 +95,7 @@ const ring = (s: State, key = 'r'): Ring => (s[key] as Ring) ?? (s[key] = new Ri
 export function sma(s: State, src: number, len: number): number {
   const r = ring(s);
   r.push(src);
-  const w = full(r, len);
-  return w ? mean(w) : NaN;
+  return r.sum(len) / len;
 }
 
 /** An exponential average seeded from the first full simple average, as Pine's reference does */
@@ -146,14 +180,12 @@ export function alma(s: State, src: number, len: number, offset: number, sigma: 
 export function highest(s: State, src: number, len: number): number {
   const r = ring(s);
   r.push(src);
-  const w = full(r, len);
-  return w ? Math.max(...w) : NaN;
+  return r.max(len);
 }
 export function lowest(s: State, src: number, len: number): number {
   const r = ring(s);
   r.push(src);
-  const w = full(r, len);
-  return w ? Math.min(...w) : NaN;
+  return r.min(len);
 }
 /** The offset to the highest value in the window — 0 for this bar, −k for k bars back */
 export function highestbars(s: State, src: number, len: number): number {
@@ -178,8 +210,7 @@ export function lowestbars(s: State, src: number, len: number): number {
 export function sum(s: State, src: number, len: number): number {
   const r = ring(s);
   r.push(src);
-  const w = full(r, len);
-  return w ? w.reduce((a, b) => a + b, 0) : NaN;
+  return r.sum(len);
 }
 
 /** `ta.change(src, len)` — this value less the one `len` bars back */
@@ -432,14 +463,29 @@ export function obv(s: State, close: number, vol: number): number {
 
 /** Session VWAP — the running volume-weighted average since the session opened */
 export function vwap(s: State, src: number, vol: number, sessionKey: string): number {
-  if (s.k !== sessionKey) {
-    s.k = sessionKey;
+  const restart = s.k !== sessionKey;
+  s.k = sessionKey;
+  return vwapRun(s, src, vol, restart)[0];
+}
+
+/**
+ * The VWAP since its last restart, and the volume-weighted deviation of the source about it — TradingView's bands are
+ * the line ± `stdev_mult` of it: √(Σ v·src² ÷ Σ v − vwap²). A restart (the session's, or the script's anchor) and the
+ * first bar start the sums over.
+ */
+export function vwapRun(s: State, src: number, vol: number, restart: boolean): [number, number] {
+  if (restart || s.v === undefined) {
     s.pv = 0;
+    s.p2v = 0;
     s.v = 0;
   }
   s.pv = (s.pv as number) + src * vol;
+  s.p2v = (s.p2v as number) + src * src * vol;
   s.v = (s.v as number) + vol;
-  return (s.v as number) === 0 ? NaN : (s.pv as number) / (s.v as number);
+  const v = s.v as number;
+  if (v === 0) return [NaN, NaN];
+  const line = (s.pv as number) / v;
+  return [line, Math.sqrt(Math.max((s.p2v as number) / v - line * line, 0))];
 }
 
 /** TradingView's own supertrend: [line, direction] with direction −1 in an uptrend, 1 in a downtrend */

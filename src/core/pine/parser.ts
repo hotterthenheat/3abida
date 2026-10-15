@@ -23,11 +23,23 @@
 */
 
 import type { Arg, Expr, Program, Stmt } from './ast';
+import { notYet } from './builtins';
 import { readLines, TYPE_WORDS, type LogicalLine, type Token } from './lexer';
 import { PineError } from './types';
 
 let nextId = 1;
 const fresh = () => nextId++;
+
+/* ARRAYS, MATRICES AND MAPS ARE NAMED, NOT STUMBLED ON (2026-10-15, the audit: `array.new_float(10)` read as
+   'Unexpected "array"'). The three are keywords to the reader, so a call, a type (`array<float>`, `float[]`) or a
+   parameter that names one is refused where the script is read, in the engine's own sentence. */
+const COLLECTIONS = new Set(['array', 'matrix', 'map']);
+const collection = (t: Token | undefined): string | null => (t && t.kind === 'kw' && COLLECTIONS.has(t.text) ? t.text : null);
+const refuseCollection = (ns: string, t: Token): never => {
+  throw new PineError(notYet(ns), t.line, t.col);
+};
+/** A type written with `[]` after it — `float[] xs` — is an array: `at` is where the `[` would stand */
+const arrayType = (p: { isOp: (text: string, offset?: number) => boolean }, at = 0): boolean => p.isOp('[', at) && p.isOp(']', at + 1);
 
 class LineParser {
   private i = 0;
@@ -221,6 +233,8 @@ class LineParser {
       if (path.includes('.')) return { t: 'member', id: fresh(), line: t.line, path };
       return { t: 'id', id: fresh(), line: t.line, name: path };
     }
+    const c = collection(t);
+    if (c) refuseCollection(c, t);
     throw new PineError(`Unexpected "${t.text}"`, this.line, t.col);
   }
   /** The `(args)` after a callee */
@@ -323,6 +337,8 @@ class Parser {
           return this.declaration(p, l);
         default:
           if (TYPE_WORDS.has(first.text) && l.tokens[1]?.kind === 'id') return this.declaration(p, l);
+          /* `float[] xs = …` — an array of floats */
+          if (TYPE_WORDS.has(first.text) && arrayType(p, 1)) refuseCollection('array', l.tokens[1]);
       }
     }
 
@@ -371,8 +387,11 @@ class Parser {
     const params: string[] = [];
     if (!p.isOp(')')) {
       for (;;) {
-        /* a typed parameter: `int len` / `simple int len` / `series float src` */
+        /* a typed parameter: `int len` / `simple int len` / `series float src` — an array, matrix or map one is not yet */
+        const c = collection(p.peek());
+        if (c) refuseCollection(c, p.peek()!);
         while (p.is('kw') && TYPE_WORDS.has(p.peek()!.text) && (p.is('id', undefined, 1) || p.is('kw', undefined, 1))) p.next();
+        if (p.is('kw') && TYPE_WORDS.has(p.peek()!.text) && arrayType(p, 1)) refuseCollection('array', p.peek(1)!);
         params.push(p.expectId().text);
         if (p.isOp('=')) {
           /* a default — read and drop it; Pine defaults on user functions are rare, and the call must pass the value here */
@@ -398,6 +417,10 @@ class Parser {
     if (p.isKw('var') || p.isKw('varip')) kind = p.next().text as 'var' | 'varip';
     let declaredType: string | undefined;
     while (p.is('kw') && TYPE_WORDS.has(p.peek()!.text)) declaredType = p.next().text;
+    /* `var float[] xs = …`, `var array<float> xs = …` */
+    const c = collection(p.peek());
+    if (c) refuseCollection(c, p.peek()!);
+    if (declaredType && arrayType(p)) refuseCollection('array', p.peek()!);
     const names: string[] = [];
     if (p.isOp('[')) {
       p.next();

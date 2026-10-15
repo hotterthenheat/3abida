@@ -17,8 +17,10 @@
   line lit. Every keystroke is read again; nothing
   runs until it reads clean.
 
-  Ctrl+S saves. Ctrl+Enter adds to the chart. A
-  closed dock keeps the draft.
+  The modifier and S saves; the modifier and Enter
+  adds to the chart — printed as the machine says
+  them (keys.ts modKey: ⌘ on a Mac, Ctrl elsewhere;
+  2026-10-15). A closed dock keeps the draft.
 ==================================================
 */
 
@@ -37,6 +39,7 @@ import { scriptStore } from '../../data/scriptStore';
 import type { PaneId, Script, ScriptVersion } from '../../types/scripts';
 import { CARD } from '../ui/DropdownSelect';
 import { focusBackForKeys } from '../ui/focusBack';
+import { modKey } from '../layout/keys';
 import { pineHighlight, pineLanguage, pineTheme } from './pineLanguage';
 import SlayerMark from '../../brand/SlayerMark';
 
@@ -385,7 +388,7 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
               <DropdownMenu.Content align="start" sideOffset={6} className={`${CARD} min-w-[280px] p-1.5`} data-script-menu-card onCloseAutoFocus={focusBackForKeys}>
                 <DropdownMenu.Item className={MENU_ITEM} disabled={readOnly || !dirty} onSelect={() => void save()} data-menu="save">
                   <Save className="w-3.5 h-3.5 text-textMuted" /> Save
-                  <span className={MENU_KEY}>Ctrl S</span>
+                  <span className={MENU_KEY}>{modKey('S')}</span>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item className={MENU_ITEM} onSelect={() => void copy()} data-menu="copy">
                   <Copy className="w-3.5 h-3.5 text-textMuted" /> Make a copy
@@ -436,7 +439,7 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
                 On the chart · remove
               </button>
             ) : (
-              <button onClick={addToChart} disabled={!!busy || !status.ok} title={status.ok ? 'Draw it on this pane — Ctrl Enter' : 'Fix the line first'} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-selectFill font-mono text-[11px] font-bold uppercase tracking-wider text-[#0a0a0a] transition-opacity disabled:opacity-40" data-script-add>
+              <button onClick={addToChart} disabled={!!busy || !status.ok} title={status.ok ? `Draw it on this pane — ${modKey('Enter')}` : 'Fix the line first'} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-selectFill font-mono text-[11px] font-bold uppercase tracking-wider text-[#0a0a0a] transition-opacity disabled:opacity-40" data-script-add>
                 <Play className="w-3 h-3" />
                 Add to chart
               </button>

@@ -27,11 +27,11 @@ import {
   type ISeriesMarkersPluginApi,
   type ISeriesPrimitive,
   type SeriesAttachedParameter,
-  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import type { Bar, PlotOut, RunResult, ShapeOut } from '../../core/pine';
+import type { Bar, PlotOut, RunResult } from '../../core/pine';
+import { markersFor } from './scriptMarkers';
 
 /* ---- the band primitive ------------------------------------------------------------- */
 
@@ -209,23 +209,6 @@ function pointsFor(p: PlotOut, bars: Bar[]): Point[] {
     }
   }
   return pts;
-}
-
-const shapeOf = (style: string): SeriesMarker<Time>['shape'] => (style === 'triangleup' || style === 'arrowup' || style === 'labelup' ? 'arrowUp' : style === 'triangledown' || style === 'arrowdown' || style === 'labeldown' ? 'arrowDown' : style === 'square' || style === 'diamond' || style === 'flag' ? 'square' : 'circle');
-const positionOf = (loc: string): 'aboveBar' | 'belowBar' | 'inBar' => (loc === 'belowbar' || loc === 'bottom' ? 'belowBar' : loc === 'absolute' ? 'inBar' : 'aboveBar');
-const sizeOf = (size: string): number => (size === 'tiny' ? 0.6 : size === 'small' ? 0.8 : size === 'large' ? 1.5 : size === 'huge' ? 2 : 1);
-
-function markersFor(sh: ShapeOut, bars: Bar[]): SeriesMarker<Time>[] {
-  const list: SeriesMarker<Time>[] = [];
-  for (let i = 0; i < bars.length; i++) {
-    const v = sh.values[i];
-    if (Number.isNaN(v)) continue;
-    const color = (sh.colors ? sh.colors[i] : null) ?? sh.ink;
-    const m: SeriesMarker<Time> = { time: bars[i].time as UTCTimestamp, position: positionOf(sh.location), shape: shapeOf(sh.style), color, size: sizeOf(sh.size) };
-    if (sh.text) m.text = sh.text;
-    list.push(m);
-  }
-  return list;
 }
 
 function bandsFor(run: RunResult, bars: Bar[]): { times: number[]; bands: Band[] } {

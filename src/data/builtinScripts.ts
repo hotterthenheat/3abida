@@ -10,6 +10,17 @@
   beyond Pine), and TECHNICALS, the classics in
   plain Pine v6 that paste straight into TradingView
   and back.
+
+  THE WALLS WEAR THE HOUSE'S WALL INKS (2026-10-15,
+  the audit): a script cannot read a token, so a wall
+  is written in palette.ts's CALL_WALL and PUT_WALL
+  hexes — gold for the call wall, violet for the put
+  wall — and green and red stay for direction only
+  (a trend's up and down). A wall is read off the
+  book wherever the price stands, so no word puts the
+  call wall above or the put wall below. The MACD's
+  histogram is the chart's own steel wash, and OBV is
+  read as TradingView writes it, `ta.obv`.
 ==================================================
 */
 
@@ -30,15 +41,16 @@ const SOURCES: BuiltinSource[] = [
     slug: 'walls',
     group: 'Slayer',
     title: 'The walls',
-    description: "Today's call wall above and put wall below, drawn across the pane, with the corridor between them washed",
+    description: "Today's call wall and put wall — the book's heaviest call and put strikes, wherever the price stands — drawn across the pane, with the corridor between them washed",
     source: `//@version=6
 indicator("The walls", overlay = true)
 
+// The walls wear the terminal's own inks: gold for the call wall, violet for the put wall
 callWall = slayer.callWall
 putWall  = slayer.putWall
 
-c = plot(callWall, "Call wall", color = #30D158, linewidth = 1)
-p = plot(putWall,  "Put wall",  color = #FF3B30, linewidth = 1)
+c = plot(callWall, "Call wall", color = #E8B94A, linewidth = 1)
+p = plot(putWall,  "Put wall",  color = #8064F7, linewidth = 1)
 fill(c, p, color = color.new(#C7D3E8, 96), title = "The corridor")
 alertcondition(ta.crossover(close, callWall),  "Through the call wall", "{{ticker}} closed above the call wall")
 alertcondition(ta.crossunder(close, putWall),  "Through the put wall",  "{{ticker}} closed below the put wall")`,
@@ -77,15 +89,15 @@ indicator("Distance to the walls")
 toCall = (slayer.callWall - close) / close * 100
 toPut  = (close - slayer.putWall) / close * 100
 
-plot(toCall, "To the call wall", color = #30D158)
-plot(toPut,  "To the put wall",  color = #FF3B30)
+plot(toCall, "To the call wall", color = #E8B94A)
+plot(toPut,  "To the put wall",  color = #8064F7)
 hline(0, "Touching", color = color.new(#C7D3E8, 60), linestyle = hline.style_dotted)`,
   },
   {
     slug: 'wall-approach',
     group: 'Slayer',
     title: 'Wall approach',
-    description: 'A mark under the bar when price comes within a quarter percent of a wall',
+    description: 'A mark when price comes within a quarter percent of a wall — over the bar for the call wall, under it for the put wall',
     source: `//@version=6
 indicator("Wall approach", overlay = true)
 
@@ -93,8 +105,8 @@ near = input.float(0.25, "Within (%)", minval = 0.05, step = 0.05)
 nearCall = math.abs(slayer.callWall - close) / close * 100 <= near
 nearPut  = math.abs(close - slayer.putWall) / close * 100 <= near
 
-plotshape(nearCall, "Near the call wall", shape.triangledown, location.abovebar, #30D158, size = size.tiny)
-plotshape(nearPut,  "Near the put wall",  shape.triangleup,   location.belowbar, #FF3B30, size = size.tiny)`,
+plotshape(nearCall, "Near the call wall", shape.circle, location.abovebar, #E8B94A, size = size.tiny)
+plotshape(nearPut,  "Near the put wall",  shape.circle, location.belowbar, #8064F7, size = size.tiny)`,
   },
 
   /* ---- Trend ------------------------------------------------------------------- */
@@ -286,7 +298,8 @@ slow = input.int(26, "Slow", minval = 1)
 sig  = input.int(9,  "Signal", minval = 1)
 
 [m, s, h] = ta.macd(close, fast, slow, sig)
-plot(h, "Histogram", color = h >= 0 ? color.new(#30D158, 40) : color.new(#FF3B30, 40), style = plot.style_histogram)
+// One steel wash for the bars, as the chart's own MACD: the sign of momentum is not a price direction
+plot(h, "Histogram", color = color.new(#E2EAF4, 70), style = plot.style_histogram)
 plot(m, "MACD",   color = #5B9CF6)
 plot(s, "Signal", color = #D8A6A6)
 hline(0, "Zero", color = color.new(#C7D3E8, 80))`,
@@ -387,7 +400,7 @@ hline(20, "Lower", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotte
     source: `//@version=6
 indicator("On-balance volume")
 
-plot(ta.obv(), "OBV", color = #EDE4CD)`,
+plot(ta.obv, "OBV", color = #EDE4CD)`,
   },
 ];
 

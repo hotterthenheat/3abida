@@ -42,6 +42,10 @@ export interface OutputPlan {
   hlines: number[];
   fills: number[];
   alerts: number[];
+  /** alert call node id → the id the run hands it: "alert1", "alert2" … for the alertcondition() calls counted alone —
+      the ids the library's switches are armed by — and "call1", "call2" … for the alert() calls (2026-10-15: one count
+      ran over both, so an alert() written first moved every switch onto the condition after its own) */
+  alertIds: Map<number, string>;
   /** input call node id → the input's id */
   inputIds: Map<number, string>;
 }
@@ -133,8 +137,10 @@ function walkStmt(s: Stmt, visit: (e: Expr, owner?: Stmt) => void): void {
 /* ---- the plan --------------------------------------------------------------------- */
 
 export function planOutputs(program: Program): OutputPlan {
-  const plan: OutputPlan = { plots: [], shapes: [], hlines: [], fills: [], alerts: [], inputIds: new Map() };
+  const plan: OutputPlan = { plots: [], shapes: [], hlines: [], fills: [], alerts: [], alertIds: new Map(), inputIds: new Map() };
   let inputN = 0;
+  let conditionN = 0;
+  let callN = 0;
   const seenInputs = new Set<number>();
   for (const s of program.body) {
     walkStmt(s, (e, owner) => {
@@ -152,7 +158,10 @@ export function planOutputs(program: Program): OutputPlan {
       else if (e.callee === 'plotshape' || e.callee === 'plotchar') plan.shapes.push(e.id);
       else if (e.callee === 'hline') plan.hlines.push(e.id);
       else if (e.callee === 'fill') plan.fills.push(e.id);
-      else plan.alerts.push(e.id);
+      else {
+        plan.alerts.push(e.id);
+        plan.alertIds.set(e.id, e.callee === 'alertcondition' ? `alert${++conditionN}` : `call${++callN}`);
+      }
     });
   }
   return plan;
@@ -297,7 +306,9 @@ export function analyze(program: Program, plan: OutputPlan): ScriptMeta {
       if (c === 'alertcondition') {
         const title = constArg(e.args, 'title', 1);
         const message = constArg(e.args, 'message', 2);
-        meta.alerts.push({ id: `alert${meta.alerts.length + 1}`, title: typeof title === 'string' ? title : `Alert ${meta.alerts.length + 1}`, message: typeof message === 'string' ? message : '' });
+        /* the plan's id, the one the run hands the same call — never a second count */
+        const id = plan.alertIds.get(e.id) ?? `alert${meta.alerts.length + 1}`;
+        meta.alerts.push({ id, title: typeof title === 'string' ? title : `Alert ${id.slice(5)}`, message: typeof message === 'string' ? message : '' });
       }
     });
   }
@@ -311,7 +322,7 @@ type NumType = 'int' | 'float' | 'other';
 /** Marks every `/` whose two sides are whole numbers, so the run truncates it the way Pine does */
 export function markIntDivision(program: Program): void {
   const INT_VARS = new Set(['bar_index', 'last_bar_index', 'year', 'month', 'dayofmonth', 'dayofweek', 'hour', 'minute', 'second', 'weekofyear', 'time', 'time_close', 'timenow']);
-  const INT_CALLS = new Set(['input.int', 'math.floor', 'math.ceil', 'ta.barssince', 'ta.highestbars', 'ta.lowestbars', 'str.length', 'int']);
+  const INT_CALLS = new Set(['input.int', 'math.floor', 'math.ceil', 'ta.barssince', 'ta.highestbars', 'ta.lowestbars', 'str.length', 'int', 'year', 'month', 'weekofyear', 'dayofmonth', 'dayofweek', 'hour', 'minute', 'second']);
 
   const typeOf = (e: Expr, env: Map<string, NumType>): NumType => {
     switch (e.t) {

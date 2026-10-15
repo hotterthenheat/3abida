@@ -20,6 +20,7 @@
 */
 
 import type { ScriptInputKind, ScriptInputValue } from '../../types/scripts';
+import { nyParts } from '../nyTime';
 import { fromHex, gradient, isColor, named, rgb, toCss, withTransp } from './colors';
 import * as ta from './ta';
 import { PineError, type PineColor, type PlotRef, type Tuple, type Value } from './types';
@@ -41,8 +42,14 @@ export interface Ctx {
   ticker: string;
   mintick: number;
   liveLast: boolean;
-  /** A session key for the bar — the calendar day */
-  sessionKey: string;
+  /** The session the bar belongs to — New York's trading day on an intraday pane, the bar itself on a daily or longer
+      one (2026-10-15: it was a fixed UTC−5 day, which turned at 1 am New York all summer). Asked for, never worked out
+      for a bar nobody reads it on */
+  sessionKey: () => string;
+  /** The exchange's zone for the time functions — New York's */
+  timezone: string;
+  /** The bar's own New York reading when `ms` is its stamp (`time`) — the one the variables `hour`, `dayofweek` … read — else null */
+  barClock: (ms: number) => ClockParts | null;
   slayer: Record<string, number>;
   /** The reader's value for an input, when they set one */
   inputValue: (id: string) => ScriptInputValue | undefined;
@@ -154,7 +161,16 @@ const SIG: Record<string, string[]> = {
   'color.rgb': ['red', 'green', 'blue', 'transp'],
   'color.from_gradient': ['value', 'bottom_value', 'top_value', 'bottom_color', 'top_color'],
   'str.tostring': ['value', 'format'],
+  /* the format, then any number of arguments — VARIADIC below */
   'str.format': ['formatString'],
+  year: ['time', 'timezone'],
+  month: ['time', 'timezone'],
+  weekofyear: ['time', 'timezone'],
+  dayofmonth: ['time', 'timezone'],
+  dayofweek: ['time', 'timezone'],
+  hour: ['time', 'timezone'],
+  minute: ['time', 'timezone'],
+  second: ['time', 'timezone'],
   'str.replace': ['source', 'target', 'replacement', 'occurrence'],
   'str.replace_all': ['source', 'target', 'replacement'],
   nz: ['source', 'replacement'],
@@ -242,8 +258,30 @@ export const CONSTANTS: Record<string, Value> = {
   'barmerge.lookahead_on': 'lookahead_on',
 };
 
+/* A CALL THAT TAKES ANY NUMBER OF ARGUMENTS AFTER ITS NAMED ONES (2026-10-15, the audit: `str.format("{0} and {1}", a, b)`
+   was refused as "str.format takes 1 argument"). The positional arguments past the signature land under "0", "1", … in
+   order. */
+const VARIADIC = new Set(['str.format']);
+
 /** Namespaces the runtime knows but does not run yet — named so the sentence can say so */
-const LATER = ['label', 'line', 'box', 'table', 'linefill', 'polyline', 'array', 'matrix', 'map', 'request', 'strategy', 'ticker', 'chart', 'log', 'runtime'];
+const LATER = new Set(['label', 'line', 'box', 'table', 'linefill', 'polyline', 'array', 'matrix', 'map', 'request', 'strategy', 'ticker', 'chart', 'log', 'runtime']);
+
+/** The one sentence for a namespace that is not in this version — the parser says it too, for arrays, matrices and maps */
+export const notYet = (ns: string): string => `${ns}.* is not in this version yet — the runtime draws lines, shapes and fills, and reads the bar`;
+
+/* A callee's namespace, worked out once per callee (a call runs on every bar; splitting its name each time showed in the
+   profile, 2026-10-15) */
+const laterOf = new Map<string, string | null>();
+const laterNs = (callee: string): string | null => {
+  let ns = laterOf.get(callee);
+  if (ns === undefined) {
+    const dot = callee.indexOf('.');
+    const head = dot < 0 ? '' : callee.slice(0, dot);
+    ns = LATER.has(head) ? head : null;
+    laterOf.set(callee, ns);
+  }
+  return ns;
+};
 
 /* ---- helpers ---------------------------------------------------------------------- */
 
@@ -255,22 +293,117 @@ const asColor = (v: Value): PineColor | null => (isColor(v) ? v : typeof v === '
 const fmtNum = (v: number): string => (Number.isNaN(v) ? 'NaN' : Number.isInteger(v) ? String(v) : String(Number(v.toFixed(8))));
 const tuple = (items: Value[]): Tuple => ({ tuple: items });
 
-/** Positional and named arguments into a map by parameter name */
-export function bind(callee: string, args: CallArg[], line: number): Record<string, Value> {
+/* ---- the clock: New York's, whatever the machine's zone ---------------------------------------------------
+   THE EXCHANGE'S CLOCK (2026-10-15, the audit: `hour` and `minute` read the machine's own zone while syminfo.timezone
+   said New York — on a Los Angeles machine a 9:30 bar said 6). Every reading goes through core/nyTime's nyParts; UTC is
+   the one other zone a script may name. */
+
+/** A bar's calendar and clock as Pine counts them: month 1–12, weekday 0 = Sunday */
+export interface ClockParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  weekday: number;
+}
+
+const NY_ZONES = new Set(['America/New_York', 'US/Eastern', 'EST5EDT']);
+const UTC_ZONES = new Set(['UTC', 'GMT', 'Etc/UTC', 'Etc/GMT', 'UTC+0', 'GMT+0', 'UTC+00:00', 'GMT+00:00', 'Z']);
+
+const partsIn = (ms: number, zone: string, callee: string, line: number): ClockParts => {
+  if (NY_ZONES.has(zone)) return nyParts(ms);
+  if (UTC_ZONES.has(zone)) {
+    const d = new Date(ms);
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), hour: d.getUTCHours(), minute: d.getUTCMinutes(), second: d.getUTCSeconds(), weekday: d.getUTCDay() };
+  }
+  throw new PineError(`${callee}() in the "${zone}" zone is not in this version yet — the exchange's (New York's) and UTC are`, line);
+};
+
+/** The week of the year, weeks starting on Sunday and week 1 holding the 1st of January — on the calendar date given */
+export const weekOfYear = (year: number, month: number, day: number): number => {
+  const start = Date.UTC(year, 0, 1);
+  const days = Math.round((Date.UTC(year, month - 1, day) - start) / 86_400_000);
+  return Math.floor((days + new Date(start).getUTCDay()) / 7) + 1;
+};
+
+/** One field of a reading, by the Pine name that asks for it — `dayofweek` 1 = Sunday … 7 = Saturday */
+export const clockField = (name: string, p: ClockParts): number => {
+  switch (name) {
+    case 'year':
+      return p.year;
+    case 'month':
+      return p.month;
+    case 'weekofyear':
+      return weekOfYear(p.year, p.month, p.day);
+    case 'dayofmonth':
+      return p.day;
+    case 'dayofweek':
+      return p.weekday + 1;
+    case 'hour':
+      return p.hour;
+    case 'minute':
+      return p.minute;
+    case 'second':
+      return p.second;
+  }
+  return NaN;
+};
+
+/* ---- number patterns: `str.format`'s "{0,number,…}" and `str.tostring(x, "#.##")` ------------------------- */
+
+/** A figure with at least `minFrac` and at most `maxFrac` decimals, the integer part grouped by thousands when asked */
+const decimal = (v: number, minFrac: number, maxFrac: number, group: boolean): string => {
+  if (!Number.isFinite(v)) return fmtNum(v);
+  const [int, fracAll = ''] = Math.abs(v).toFixed(maxFrac).split('.');
+  let frac = fracAll;
+  while (frac.length > minFrac && frac.endsWith('0')) frac = frac.slice(0, -1);
+  const zero = /^0*$/.test(int) && /^0*$/.test(frac);
+  return `${v < 0 && !zero ? '-' : ''}${group ? int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : int}${frac ? `.${frac}` : ''}`;
+};
+/** A decimal pattern — "#.##" (at most two decimals), "0.00" (exactly two), "#,##0.0", a trailing "%" — or null when it is not one */
+const byPattern = (v: number, pattern: string): string | null => {
+  const m = /^([#,0]*)(?:\.([0#]*))?(%?)$/.exec(pattern.trim());
+  if (!m || (!m[1] && m[2] === undefined)) return null;
+  const frac = m[2] ?? '';
+  const minFrac = (frac.match(/0/g) ?? []).length;
+  const out = decimal(m[3] ? v * 100 : v, minFrac, frac.length, m[1].includes(','));
+  return m[3] ? `${out}%` : out;
+};
+/** `{n,number,style}` — Java's MessageFormat, which TradingView's str.format follows: plain (grouped, up to three decimals), integer, percent, currency, or a pattern */
+const byStyle = (v: number, style: string): string => {
+  switch (style) {
+    case '':
+      return decimal(v, 0, 3, true);
+    case 'integer':
+      return decimal(v, 0, 0, true);
+    case 'percent':
+      return `${decimal(v * 100, 0, 0, true)}%`;
+    case 'currency':
+      return `${v < 0 ? '-' : ''}$${decimal(Math.abs(v), 2, 2, true)}`;
+  }
+  return byPattern(v, style) ?? fmtNum(v);
+};
+
+/** Positional and named arguments into a map by parameter name — into `out` when the call site keeps one (its arguments
+    fall the same way every bar, so the same map is filled again rather than a new one made) */
+export function bind(callee: string, args: CallArg[], line: number, out: Record<string, Value> = {}): Record<string, Value> {
   const names = SIG[callee];
-  const out: Record<string, Value> = {};
   if (!names) {
     args.forEach((a, i) => (out[a.name ?? String(i)] = a.value));
     return out;
   }
   let pos = 0;
+  let extra = 0;
   for (const a of args) {
     if (a.name) {
       if (!names.includes(a.name)) throw new PineError(`${callee} has no argument named "${a.name}"`, line);
       out[a.name] = a.value;
     } else {
-      if (pos >= names.length) throw new PineError(`${callee} takes ${names.length} argument${names.length === 1 ? '' : 's'}`, line);
-      out[names[pos++]] = a.value;
+      if (pos < names.length) out[names[pos++]] = a.value;
+      else if (VARIADIC.has(callee)) out[String(extra++)] = a.value;
+      else throw new PineError(`${callee} takes ${names.length} argument${names.length === 1 ? '' : 's'}`, line);
     }
   }
   return out;
@@ -295,10 +428,36 @@ const str = (a: Record<string, Value>, key: string, dflt: string): string => (ke
  * in it); `nodeId` names the call for the outputs. Returns the value, or throws
  * a PineError the reader can act on.
  */
-export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: State, nodeId: number, line: number): Value {
-  const a = bind(callee, args, line);
-  const ns = callee.includes('.') ? callee.split('.')[0] : '';
-  if (LATER.includes(ns)) throw new PineError(`${ns}.* is not in this version yet — the runtime draws lines, shapes and fills, and reads the bar`, line);
+export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: State, nodeId: number, line: number, bound?: Record<string, Value>): Value {
+  /* the variadic three read their arguments straight off the call — no map, no array, a bar */
+  switch (callee) {
+    case 'math.avg': {
+      let sum = 0;
+      for (const x of args) sum += asNum(x.value);
+      return sum / args.length;
+    }
+    case 'math.max': {
+      let best = -Infinity;
+      for (const x of args) {
+        const v = asNum(x.value);
+        if (Number.isNaN(v)) return NaN;
+        if (v > best) best = v;
+      }
+      return best;
+    }
+    case 'math.min': {
+      let best = Infinity;
+      for (const x of args) {
+        const v = asNum(x.value);
+        if (Number.isNaN(v)) return NaN;
+        if (v < best) best = v;
+      }
+      return best;
+    }
+  }
+  const a = bind(callee, args, line, bound);
+  const later = laterNs(callee);
+  if (later) throw new PineError(notYet(later), line);
 
   switch (callee) {
     /* ---- the header ---- */
@@ -477,8 +636,23 @@ export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: St
     case 'ta.sum':
     case 'math.sum':
       return ta.sum(state, asNum(need(a, 'source', callee, line)), len(a, 'length', callee, line));
-    case 'ta.vwap':
-      return ta.vwap(state, 'source' in a ? asNum(a.source) : (ctx.high + ctx.low + ctx.close) / 3, ctx.volume, ctx.sessionKey);
+    case 'ta.vwap': {
+      /* TradingView's three forms (2026-10-15): restarting each session (a new New York day intraday, every bar on a
+         daily or longer pane — where TradingView's default anchor, a new day, holds on every bar); restarting where
+         `anchor` holds (and on the first bar); and with `stdev_mult`, the line and its two bands */
+      const src = 'source' in a ? asNum(a.source) : (ctx.high + ctx.low + ctx.close) / 3;
+      let restart: boolean;
+      if ('anchor' in a) restart = asBool(a.anchor);
+      else {
+        const key = ctx.sessionKey();
+        restart = state.k !== key;
+        state.k = key;
+      }
+      const [vw, dev] = ta.vwapRun(state, src, ctx.volume, restart);
+      if (!('stdev_mult' in a)) return vw;
+      const m = asNum(a.stdev_mult);
+      return tuple([vw, vw + m * dev, vw - m * dev]);
+    }
     case 'ta.supertrend':
       return tuple(ta.supertrend(state, ctx.high, ctx.low, ctx.close, asNum(need(a, 'factor', callee, line)), len(a, 'atrPeriod', callee, line)));
     case 'ta.dmi':
@@ -526,14 +700,6 @@ export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: St
     /* ---- math ---- */
     case 'math.abs':
       return Math.abs(asNum(a['0']));
-    case 'math.avg': {
-      const vals = Object.values(a).map(asNum);
-      return vals.reduce((x, y) => x + y, 0) / vals.length;
-    }
-    case 'math.max':
-      return Math.max(...Object.values(a).map(asNum));
-    case 'math.min':
-      return Math.min(...Object.values(a).map(asNum));
     case 'math.ceil':
       return Math.ceil(asNum(a['0']));
     case 'math.floor':
@@ -611,9 +777,9 @@ export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: St
       const v = need(a, 'value', callee, line);
       if (typeof v === 'number' && 'format' in a) {
         const f = asStr(a.format);
-        const m = /\.(#+|0+)/.exec(f);
-        if (m) return v.toFixed(m[1].length);
         if (f === 'percent') return `${(v * 100).toFixed(2)}%`;
+        const p = byPattern(v, f);
+        if (p !== null) return p;
       }
       return asStr(v);
     }
@@ -642,21 +808,35 @@ export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: St
       return s.split(asStr(need(a, 'target', callee, line))).join(asStr(need(a, 'replacement', callee, line)));
     }
     case 'str.format': {
+      /* "{0}", "{1,number}", "{2,number,#.##}", "{3,number,integer}", "{4,number,percent}" — the arguments are the ones
+         after the format, in order (bind files them under "0", "1", …) */
       const f = asStr(need(a, 'formatString', callee, line));
-      const rest = Object.entries(a)
-        .filter(([k]) => k !== 'formatString')
-        .map(([, v]) => v);
-      return f.replace(/\{(\d+)(?:,number,([^}]*))?\}/g, (_, i, fmt) => {
-        const v = rest[Number(i)];
-        if (typeof v === 'number' && fmt) {
-          const m = /\.(#+|0+)/.exec(fmt);
-          if (m) return v.toFixed(m[1].length);
-        }
-        return asStr(v ?? null);
+      return f.replace(/\{\s*(\d+)\s*(?:,\s*number\s*(?:,\s*([^}]*?)\s*)?)?\}/g, (whole: string, i: string, style: string | undefined) => {
+        const v = a[i];
+        if (v === undefined) return whole;
+        if (typeof v === 'number' && whole.includes('number')) return byStyle(v, style ?? '');
+        return asStr(v);
       });
     }
 
     /* ---- time ---- */
+    case 'year':
+    case 'month':
+    case 'weekofyear':
+    case 'dayofmonth':
+    case 'dayofweek':
+    case 'hour':
+    case 'minute':
+    case 'second': {
+      /* the function forms (2026-10-15): the instant handed in, read in the exchange's zone — New York's — unless the
+         script names UTC. The bar's own stamp reads as the variables do (ctx.barClock: on a daily pane the bar's
+         session, so `dayofweek(time)` and `dayofweek` agree); any other instant is read as it is */
+      const at = asNum(need(a, 'time', callee, line));
+      if (Number.isNaN(at)) return NaN;
+      const zone = 'timezone' in a && a.timezone !== null ? asStr(a.timezone) : ctx.timezone;
+      const own = NY_ZONES.has(zone) ? ctx.barClock(at) : null;
+      return clockField(callee, own ?? partsIn(at, zone, callee, line));
+    }
     case 'timestamp':
       throw new PineError('timestamp() is not in this version yet', line);
     case 'time':
