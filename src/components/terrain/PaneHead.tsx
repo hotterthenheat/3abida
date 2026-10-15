@@ -50,9 +50,9 @@ interface PaneHeadProps {
   /** The expiry window on the feed, at the form the host's budget affords; null off the feed or without the room */
   /** `date`: a listed date the rail's Expiry card picked ("Oct 17") — then no window is the one in hand, and the control
       says the date (the audit's A-39: it showed "60d" pressed while the field read one date) */
-  window: { value: WindowValue; onChange: (v: WindowValue) => void; form: 'full' | 'trigger'; date?: string | null } | null;
+  window: { value: WindowValue; onChange: (v: WindowValue) => void; form: 'full' | 'trigger' | 'none'; date?: string | null } | null;
   /** The jumps at the form the host's budget affords, and the calendar's bounds (ISO dates); null without the room */
-  jump: { onSpan: (s: JumpSpan) => void; onDate: (iso: string) => void; minDate?: string; maxDate?: string; form: 'full' | 'trigger' } | null;
+  jump: { onSpan: (s: JumpSpan) => void; onDate: (iso: string) => void; minDate?: string; maxDate?: string; form: 'full' | 'trigger' | 'none' } | null;
   /** Replay · Alerts · Layers — the toolbar's three doors (ChartToolbar `parts`); null when the host's budget sent them
       to the hover row */
   tools: ReactNode | null;
@@ -262,6 +262,8 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
       <span className="shrink-0 flex items-center gap-2 pointer-events-auto">{timeframes ?? tfTrigger}</span>
       {windowControl}
       {jumpControl}
+      {/* the jumps shed for room: the calendar's door stands only while T has its card up */}
+      {jumpForm === 'none' && dateOpen && calendarDoor && <span className="shrink-0 flex items-center pointer-events-auto">{calendarDoor}</span>}
       <span className="flex-1 min-w-0" aria-hidden />
       {tools && (
         <>

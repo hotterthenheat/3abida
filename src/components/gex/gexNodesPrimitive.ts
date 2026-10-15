@@ -448,7 +448,9 @@ class TrailsPaneRenderer {
     }
     if (!this.gapRuns.length) return;
     const paper = src.paper;
-    target.useBitmapCoordinateSpace(scope => {
+    const runs = this.gapRuns;
+    /* words, so over the candles (the top view paints them — TrailsWordsPaneView) */
+    src.pendingWords = (scope: BitmapScope) => {
       const ctx = scope.context;
       const hr = scope.horizontalPixelRatio;
       const vr = scope.verticalPixelRatio;
@@ -463,12 +465,15 @@ class TrailsPaneRenderer {
       const collides = (l: number, rr: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && rr > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
       ctx.font = `${Math.round(px11 * vr)}px ${FONT_SANS}`;
       ctx.textBaseline = 'middle';
-      placeGapNotes(ctx, this.gapRuns, ts, barSpacing, { hr, vr, paneHCss, full, padX: 4 * hr, leftMost: CHIP_LEFT * hr, rightMost: (wCss - CHIP_RIGHT) * hr, padInk: paper ? rgba(paper.pad, 0.88) : 'rgba(5,5,5,0.78)', ink: paper ? paper.neutral : NEUTRAL_RGB }, boxes, collides);
-    });
+      placeGapNotes(ctx, runs, ts, barSpacing, { hr, vr, paneHCss, full, padX: 4 * hr, leftMost: CHIP_LEFT * hr, rightMost: (wCss - CHIP_RIGHT) * hr, padInk: paper ? rgba(paper.pad, 0.88) : 'rgba(5,5,5,0.78)', ink: paper ? paper.neutral : NEUTRAL_RGB }, boxes, collides);
+    };
+    void target;
   }
 
   draw(target: DrawTarget): void {
     const src = this.source;
+    /* a frame that places no words leaves none over the candles from the frame before */
+    src.pendingWords = null;
     if (!src.enabled || !src.chart || !src.series) return;
     if (src.snapshots.length === 0) {
       this.drawGapsAlone(target, src, src.series, src.chart.timeScale());
@@ -827,6 +832,11 @@ class TrailsPaneRenderer {
         this.candleEdges(ctx, series, ts, scope, barSpacing, ground, px, pxV);
       }
 
+      /* THE WORDS STAND OVER THE CANDLES (the orbs' layering: "the candles, the price line, the words"; the audit's B-12: a
+         wall-move chip's words were drawn in this pass, under the candles, and a later candle cut them) — measured and
+         placed here, painted by the field's top view in the same frame (TrailsWordsPaneView) */
+      const drawWords = (top: BitmapScope) => {
+        const ctx = top.context;
       // ---- the words: gap labels, the node pills, the wall-move chips and ticks ----------------------------------
       /* every box placed on the plot; nothing written over another (the orbs message, items 11 and 14) */
       const boxes: { l: number; r: number; t: number; b: number }[] = [];
@@ -975,6 +985,8 @@ class TrailsPaneRenderer {
           ctx.fillText(text, l + padX, top + full / 2);
         }
       }
+      };
+      src.pendingWords = drawWords;
     });
   }
 
@@ -1030,6 +1042,28 @@ class TrailsPaneRenderer {
     if (!any) return;
     ctx.fillStyle = `rgb(${ground[0]},${ground[1]},${ground[2]})`;
     ctx.fill(path);
+  }
+}
+
+/** The field's words, painted over the candles in the frame the field drew them (TrailsPaneRenderer `drawWords`) */
+class TrailsWordsRenderer {
+  constructor(private source: GexTrailsPrimitive) {}
+  draw(target: DrawTarget): void {
+    const run = this.source.pendingWords;
+    if (!run) return;
+    target.useBitmapCoordinateSpace(scope => run(scope));
+  }
+}
+class TrailsWordsPaneView {
+  private _renderer: TrailsWordsRenderer;
+  constructor(source: GexTrailsPrimitive) {
+    this._renderer = new TrailsWordsRenderer(source);
+  }
+  zOrder(): 'top' {
+    return 'top';
+  }
+  renderer(): TrailsWordsRenderer {
+    return this._renderer;
   }
 }
 
@@ -1175,10 +1209,12 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   cwStrike: number | null = null;
   pwStrike: number | null = null;
   flipPrice: number | null = null;
-  private _paneViews: TrailsPaneView[];
+  private _paneViews: (TrailsPaneView | TrailsWordsPaneView)[];
+  /** The words the field placed this frame, for its top view to paint over the candles (null: nothing to say) */
+  pendingWords: ((scope: BitmapScope) => void) | null = null;
 
   constructor() {
-    this._paneViews = [new TrailsPaneView(this)];
+    this._paneViews = [new TrailsPaneView(this), new TrailsWordsPaneView(this)];
   }
 
   setSupreme(strike: number | null): void {
@@ -1222,7 +1258,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     this.requestUpdate = undefined;
   }
 
-  paneViews(): TrailsPaneView[] {
+  paneViews(): (TrailsPaneView | TrailsWordsPaneView)[] {
     return this._paneViews;
   }
 

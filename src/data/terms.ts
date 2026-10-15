@@ -68,12 +68,12 @@ export const TERMS = {
   Pin: 'The max-open-interest strike that price tends to gravitate toward into expiry.',
   Supreme: 'The single largest gamma strike on the whole book — the level that matters most today.',
   // ---- the Map's profile panel ----
-  'Size at a strike': 'How much dealer hedging sits at this one strike. The longer the capsule, the more. Blue pushes back against a move here; orange pushes it along.',
-  'Net at a strike': 'The puts less the calls at this one strike, as a figure and a row of dashes — one dash per tenth of the largest net on screen. Orange, puts lead and hedging amplifies a move here; blue, calls lead and it absorbs one.',
+  'Size at a strike': 'How much dealer hedging sits at this one strike. The longer the capsule, the more. Gold pushes back against a move here; violet pushes it along (the House colours — Thermal draws them cool and warm).',
+  'Net at a strike': 'The puts less the calls at this one strike: a bar from the centre line, to the left where the puts lead and hedging amplifies a move here (violet in the House colours), to the right where the calls lead and it absorbs one (gold), the signed figure at its tip.',
   'The wall now':
     'How much dealer hedging sits at this strike right now, in dollars — the stock dealers must trade for a 1% move because of the options open there (the strike’s net gamma exposure). The bar is that against the biggest wall shown; the figure beside it is the amount, and “was” is what the same contracts were worth at the open.',
   'What a move forces':
-    'What dealers would have to buy or sell for price to get from here to this strike, adding up every strike crossed on the way. Orange speeds the move up; blue slows it down. Always from gamma: the size lane can show delta or vega, but only gamma turns a price move into forced buying or selling.',
+    'What dealers would have to buy or sell for price to get from here to this strike, adding up every strike crossed on the way. Violet speeds the move up; gold slows it down (the House colours — Thermal draws them warm and cool). Always from gamma: the size lane can show delta or vega, but only gamma turns a price move into forced buying or selling.',
   // ---- contracts driving the setup ----
   'Gamma share': 'This contract’s slice of the whole book’s gamma, as a percent. The bigger the slice, the more dealer hedging this one strike commands.',
   'From spot': 'How far the strike sits from the current price — plus above it, minus below. The nearer, the more its hedging bears on today’s tape.',

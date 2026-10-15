@@ -349,6 +349,18 @@ export function sessionBefore(isoDate: string): string {
   return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-${String(p.getDate()).padStart(2, '0')}`;
 }
 
+/** The session after a New York date (YYYY-MM-DD) — weekends and the exchange's holidays skipped (the audit's A-162:
+    "Next session ›" from a Saturday before Labor Day landed on the holiday) */
+export function sessionAfter(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const p = new Date(y, m - 1, d);
+  for (let i = 0; i < 10; i++) {
+    p.setDate(p.getDate() + 1);
+    if (isTradingDay(p)) break;
+  }
+  return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-${String(p.getDate()).padStart(2, '0')}`;
+}
+
 /** Open interest by strike — today's count, and the session before's when `prev` is asked (every 10 min) */
 export function useFeedOi(on: boolean, ticker: string, prev = false): { today: FeedOi | null; before: FeedOi | null } {
   const t = ticker.toUpperCase();

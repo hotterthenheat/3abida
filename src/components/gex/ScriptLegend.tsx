@@ -47,7 +47,9 @@ const clearance = (root: HTMLElement): { top: number; chrome: HTMLElement[] } =>
   if (!box || box.height === 0) return { top: 8, chrome: [] };
   let low = 0;
   const chrome: HTMLElement[] = [];
-  document.querySelectorAll<HTMLElement>('[data-chart-chrome]').forEach(el => {
+  /* the hosts' chrome, and Terrain's hover row of tools (shown under the pointer only — the audit's B-44: it covered the
+     legend's eye and ×), whichever stands */
+  document.querySelectorAll<HTMLElement>('[data-chart-chrome], [data-toolbar-row]').forEach(el => {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return;
     const overlaps = r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.top + box.height / 3;
@@ -81,7 +83,21 @@ const ScriptLegend = ({ paneId, scripts, faults, left = 12 }: { paneId: string; 
     const ro = new ResizeObserver(() => measure());
     ro.observe(box);
     chrome.forEach(el => ro.observe(el));
-    return () => ro.disconnect();
+    /* the hover row comes and goes with the pointer and the keys over the pane, not with a size change: measured again
+       a frame after either */
+    const pane = box.closest('.group') ?? box.parentElement;
+    let raf = 0;
+    const again = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => measure());
+    };
+    const events = ['pointerenter', 'pointerleave', 'focusin', 'focusout'] as const;
+    events.forEach(ev => pane?.addEventListener(ev, again));
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(raf);
+      events.forEach(ev => pane?.removeEventListener(ev, again));
+    };
   });
   return (
     <div ref={rootRef} style={{ top, left }} className="absolute z-10 flex flex-col items-start gap-[3px] pointer-events-none select-none" aria-label="Scripts on this pane" data-script-legend>

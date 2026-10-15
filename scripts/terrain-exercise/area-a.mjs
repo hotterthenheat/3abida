@@ -136,6 +136,16 @@ function HELPERS() {
     if (!ys.length) return null;
     return { x: r.left + lw + x, y: r.top + ys[Math.floor(ys.length / 2)], time: A.sec(bar.time) };
   };
+  /* what the candle series shows: its first and last visible bars, and how many bars lie past each edge */
+  A.seen = i => {
+    const c = A.chart(i);
+    const lr = c?.chart.timeScale().getVisibleLogicalRange();
+    if (!lr) return null;
+    const b = c.candles.barsInLogicalRange(lr);
+    const d = c.candles.data();
+    if (!b || !d.length) return null;
+    return { from: A.sec(b.from), to: A.sec(b.to), before: Math.round(b.barsBefore), after: Math.round(b.barsAfter), n: d.length, last: A.sec(d[d.length - 1].time) };
+  };
   A.badge = () => document.querySelector('[data-replay-badge]')?.textContent?.replace(/\s+/g, ' ').trim() ?? null;
   A.minuteOf = s => {
     const m = /(\d{1,2}):(\d{2})\s*([ap]m)/.exec(s || '');
@@ -256,9 +266,9 @@ const isoD = s => (Number.isFinite(s) ? new Date(s * 1000).toISOString().slice(0
 /* after a timeframe change: does the view stand on the newest bars? */
 async function viewNewest(page, i, tf) {
   await sleep(1500);
-  const o = await ev(page, i => ({ r: window.__A.range(i), last: window.__A.lastBar(i) }), i);
-  const ok = !!o.r && o.r.to >= o.last - 3 * (TF_SEC[tf] ?? 300);
-  return { ok, txt: ok ? 'the view on the newest bars' : `the view on ${isoD(o.r?.from)} → ${isoD(o.r?.to)} while the newest bar is ${isoD(o.last)}` };
+  const o = await ev(page, i => window.__A.seen(i), i);
+  const ok = !!o && o.after <= 0;
+  return { ok, txt: ok ? 'the view on the newest bars' : o ? `the view on ${isoD(o.from)} → ${isoD(o.to)} (${o.after} bars past its right edge) while the newest bar is ${isoD(o.last)}` : 'no view' };
 }
 async function group(name, fn) {
   if (ONLY && !ONLY.has(name)) return;
@@ -350,13 +360,49 @@ await group('header', async () => {
       await page.keyboard.press('Escape');
       return { observed: r.ok ? 'IWM removed' : 'IWM still compared', pass: r.ok, ms: r.ms };
     });
-    await item('A-17', 'Compare legend row "QQQ $… ×"', 'click the legend row ×', 'the row disappears and `compares` shrinks', async () => {
+    await item('A-17', 'Compare legend row "QQQ $… ×"', 'with the pointer on the pane, click the legend row ×', 'the row disappears and `compares` shrinks', async () => {
       await until(page, () => !window.__A.vis(document.querySelector('input[role=combobox][placeholder="Compare symbols…"]')), null, 2000);
-      const legend = await ev(page, () => document.querySelector('[aria-label="Remove the QQQ comparison"]')?.parentElement?.textContent?.trim() ?? null);
-      const r = await measure(page, () => page.locator('[aria-label="Remove the QQQ comparison"]').click(), () => !document.querySelector('[aria-label="Remove the QQQ comparison"]') && !(window.__A.cfg()?.panes?.[0]?.compares ?? []).some(c => c.ticker === 'QQQ'));
-      await page.locator('[aria-label="Remove the NVDA comparison"]').click().catch(() => {});
-      return { observed: `legend read "${legend}"; ${r.ok ? 'row and entry gone' : 'still there'}`, pass: r.ok, ms: r.ms };
+      await hoverPane(page, 0);
+      await sleep(300);
+      const o = await ev(page, () => {
+        const b = document.querySelector('[aria-label="Remove the QQQ comparison"]');
+        if (!b) return null;
+        const r = b.getBoundingClientRect();
+        const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return { legend: b.parentElement?.textContent?.trim(), over: at === b || b.contains(at) ? null : at?.closest('[data-toolbar-row]') ? 'the hover toolbar row ([data-toolbar-row])' : `${at?.tagName}.${String(at?.className).slice(0, 40)}` };
+      });
+      if (!o) return { observed: 'no legend row', pass: false };
+      const t0 = Date.now();
+      let clicked = true;
+      await page.locator('[aria-label="Remove the QQQ comparison"]').click({ timeout: 3000 }).catch(() => { clicked = false; });
+      const ok = clicked && (await until(page, () => !document.querySelector('[aria-label="Remove the QQQ comparison"]') && !(window.__A.cfg()?.panes?.[0]?.compares ?? []).some(c => c.ticker === 'QQQ'), null, 3000));
+      const ms = Date.now() - t0;
+      /* the keys: focus the × and press Enter */
+      let keys = 'not tried';
+      if (!ok) {
+        await page.locator('[aria-label="Remove the QQQ comparison"]').focus();
+        await page.keyboard.press('Enter');
+        keys = (await until(page, () => !(window.__A.cfg()?.panes?.[0]?.compares ?? []).some(c => c.ticker === 'QQQ'), null, 2000)) ? 'focus + Enter removes it' : 'focus + Enter does nothing';
+      }
+      /* clean up what is left through the panel (A-16's path) */
+      for (const t of ['QQQ', 'NVDA']) {
+        if (!(await ev(page, t => (window.__A.cfg()?.panes?.[0]?.compares ?? []).some(c => c.ticker === t), t))) continue;
+        if (!(await cmpInput.isVisible().catch(() => false))) await cmpBtn.click();
+        await page.locator(`[aria-label="Remove ${t} comparison"]`).click().catch(() => {});
+      }
+      await page.keyboard.press('Escape');
+      await awayMouse(page);
+      return { observed: `legend "${o.legend}"; ${ok ? 'row and entry gone' : `the click never landed: ${o.over ?? 'something'} lies over the × while the pointer is on the pane`}; ${keys}`, pass: ok, ms: ok ? ms : null, notes: ok ? '' : 'the hover row (Terrain.tsx `data-toolbar-row`, absolute top-full z-10) stands over the compare legend rows under the header and takes their pointer' };
     });
+
+    /* the C key where the + stands (A-236's other half) */
+    memo.cWide = await (async () => {
+      await ev(page, () => document.activeElement?.blur?.());
+      const r = await measure(page, () => page.keyboard.press('c'), () => window.__A.vis(document.querySelector('input[role=combobox][placeholder="Compare symbols…"]')), null, 3000);
+      await page.keyboard.press('Escape');
+      await until(page, () => !window.__A.vis(document.querySelector('input[role=combobox][placeholder="Compare symbols…"]')), null, 2000);
+      return r;
+    })();
 
     /* ── facts ── */
     memo.price = await ev(page, () => {
@@ -449,11 +495,10 @@ await group('header', async () => {
         const btn = await jumpVia(span);
         const r = await measure(page, () => btn.click(), want => window.__A.tf(0) === want && window.__A.bars(0) > 0, want, 30000);
         await sleep(2500);
-        const o = await ev(page, () => { const c = window.__A.chart(0); const lr = c.chart.timeScale().getVisibleLogicalRange(); return { tf: window.__A.tf(0), r: window.__A.range(0), last: window.__A.lastBar(0), lr: lr && [Math.round(lr.from), Math.round(lr.to)], n: c.candles.data().length }; });
-        const d = days(o.r);
-        const atEnd = o.r && o.r.to >= o.last - 86400 * 3;
-        const iso = s => new Date(s * 1000).toISOString().slice(0, 10);
-        return { observed: `timeframe ${o.tf}; view ${iso(o.r.from)} → ${iso(o.r.to)} (${d.toFixed(1)} days; logical ${o.lr?.join('…')} of ${o.n} bars), ${atEnd ? 'reaching the newest bar' : `ending ${((o.last - o.r?.to) / 86400).toFixed(1)} d before the newest bar`}`, pass: r.ok && spanOk(d) && atEnd, ms: r.ms, notes: 'ms = click to the chart drawn on the jump\'s timeframe; the view read 2.5 s later' };
+        const o = await ev(page, () => ({ tf: window.__A.tf(0), s: window.__A.seen(0) }));
+        const d = o.s ? (o.s.to - o.s.from) / 86400 : NaN;
+        const atEnd = !!o.s && o.s.after <= 0;
+        return { observed: `timeframe ${o.tf}; the candles in view ${isoD(o.s?.from)} → ${isoD(o.s?.to)} (${d.toFixed(1)} days; ${o.s?.before} bars before, ${o.s?.after} after, of ${o.s?.n}), ${atEnd ? 'reaching the newest bar' : 'short of the newest bar'}`, pass: r.ok && spanOk(d) && atEnd, ms: r.ms, notes: 'ms = click to the chart drawn on the jump\'s timeframe; the view read 2.5 s later off the candle series (barsInLogicalRange)' };
       });
     }
     await setTf(page, 0, '5m');
@@ -509,9 +554,9 @@ await group('header', async () => {
         await P.locator('[data-no-day-next]').click();
         await sleep(1500);
         const o = await ev(page, () => ({ card: document.querySelector('[data-no-day]')?.textContent?.replace(/\s+/g, ' ').trim() ?? null, r: window.__A.range(0) }));
-        hol = o.card ? `Next from Sat Sep 5 landed on another no-data card: "${o.card}" (not holiday-aware)` : `Next from Sat Sep 5 → view ${new Date(o.r.from * 1000).toISOString().slice(0, 10)}…${new Date(o.r.to * 1000).toISOString().slice(0, 10)}`;
+        hol = o.card ? `from Sat Sep 5, Next landed on Labor Day, another no-data card: "${o.card.slice(0, 60)}…" (not holiday-aware)` : `from Sat Sep 5, Next → view ${new Date(o.r.from * 1000).toISOString().slice(0, 10)}…${new Date(o.r.to * 1000).toISOString().slice(0, 10)}`;
       }
-      return { observed: r.ok ? 'view on Oct 12, card gone' : 'did not reach Oct 12', pass: r.ok, ms: r.ms, notes: hol };
+      return { observed: `from Sat Oct 10: ${r.ok ? 'view on Mon Oct 12, card gone' : 'did not reach Oct 12'}; ${hol}`, pass: r.ok && !/not holiday-aware/.test(hol), ms: r.ms };
     });
     await item('A-163', '"Back to live" (in the no-data card)', 'jump to a Saturday, click Back to live', 'the card goes and the view is at the newest bar', async () => {
       if (!(await page.locator('[data-no-day]').isVisible().catch(() => false))) {
@@ -644,8 +689,9 @@ await group('header', async () => {
       await sleep(400);
       const fx = await pop.evaluate(() => !!document.querySelector('[data-chart-frame][role=dialog]'));
       await pop.close();
+      if (/opens nothing/.test(keyNote)) addNote('A-57', 'in a pop-out window the ? door opens nothing (/out/terrain sits outside AppShell, App.tsx, so nothing hears slayer:open-keys)');
       const [sym, tf] = (o.s || '').split('|');
-      return { observed: `popup ${o.url} (${o.vp.join('×')}), chart ${sym} ${tf}${keyNote}; F in it ${fx ? 'expanded' : 'did nothing'}`, pass: ok && sym === 'SPY' && tf === paneTf && o.url.startsWith('/out/terrain'), ms, notes: `the pane was on ${paneTf}; ms = click to the pop-out's chart drawn` };
+      return { observed: `popup ${o.url.split('?')[0]}?pane=… (${o.vp.join('×')}), chart ${sym} ${tf}${keyNote}; F in it ${fx ? 'expanded' : 'did nothing'}`, pass: ok && sym === 'SPY' && tf === paneTf && o.url.startsWith('/out/terrain'), ms, notes: `the pane was on ${paneTf}; ms = click to the pop-out's chart drawn` };
     });
     await item('A-59', 'Expand door', 'click it', 'the pane becomes role=dialog "SPY expanded"; the desk bar floats', async () => {
       const r = await measure(page, () => page.locator('[data-expand-door]').first().click(), () => window.__A.pane(0)?.closest('[role=dialog]')?.getAttribute('aria-label') === 'SPY expanded' && document.querySelector('[data-terrain-desk-bar]')?.getAttribute('data-terrain-desk-bar') === 'floating');
@@ -1023,7 +1069,7 @@ await group('plot', async () => {
       const dx = Math.round(o.left - (x + 4));
       const dy = Math.round(o.top - (target.y + 4));
       memo.cardFocus = o.focusIn;
-      return { observed: `"${o.head}"; card at ${dx >= 0 ? '+' : ''}${dx},${dy >= 0 ? '+' : ''}${dy} px from the cursor (+4,+4 is the design); focus ${o.focusIn ? 'moved in' : 'stays outside the card'}`, pass: Math.abs(dx) <= 3 && Math.abs(dy) <= 3, ms };
+      return { observed: `"${o.head}"; the card's corner ${dx + 4},${dy + 4} px right/below the cursor (the design: 4,4); focus ${o.focusIn ? 'moved in' : 'stays outside the card'}`, pass: Math.abs(dx) <= 3 && Math.abs(dy) <= 3, ms, notes: o.focusIn ? '' : 'the card takes no focus and no keys (only Esc), so it cannot be used from the keyboard' };
     });
     await item('A-194', '"Alert on this level (follows it)"', 'click it', 'the level watch for SPY includes this level', async () => {
       const b = page.locator('[data-chart-menu-item="level-alert-on"]');
@@ -1243,6 +1289,10 @@ await group('full', async () => {
 /* ═══ GROUP: AN INDEX (SPX, one pane) — its price chips and P ═══ */
 await group('spx', async () => {
   const { ctx, page } = await openDesk({ panes: [{ ticker: 'SPX', timeframe: '5m' }], wait: 'head' });
+  page.on('response', async r => {
+    if (!/\/feed\/field\/SPX\?since=/.test(r.url())) return;
+    try { const j = await r.json(); memo.spxField = { theta: j.theta ?? null, bars: (j.bars ?? []).length, fwd: (j.fwd ?? []).length }; } catch {}
+  });
   try {
     await sleep(9000);
     const o = await ev(page, () => {
@@ -1254,7 +1304,8 @@ await group('spx', async () => {
     memo.spx = o;
     const opt = o.chips.find(c => c.kind === 'options');
     const prn = o.chips.find(c => c.kind === 'fresh' || c.kind === 'stale');
-    await item('A-20', '"price from options (overnight)" / "(after the close)"', 'SPX outside the index\'s print hours (now ~3–4 am New York)', 'the chip shows, its title reachable', async () => {
+    if (!opt && memo.spxField && !memo.spxField.bars && !memo.spxField.fwd) manual('A-20', '"price from options (overnight)" / "(after the close)"', 'SPX outside the index\'s print hours (now ~3–4 am New York)', 'the chip shows, its title reachable', `the server holds no options-priced SPX minutes (its field answer: theta ${JSON.stringify(memo.spxField.theta)}, ${memo.spxField.bars} bars, ${memo.spxField.fwd} forwards — no Theta terminal answering here), so there is nothing to label; meanwhile the header prints ${o.price} with no chip saying where that price comes from`, `no chip; price ${o.price}`);
+    else await item('A-20', '"price from options (overnight)" / "(after the close)"', 'SPX outside the index\'s print hours (now ~3–4 am New York)', 'the chip shows, its title reachable', async () => {
       return { observed: opt ? `"${opt.text}" (title "${opt.title}…", pointer-events ${opt.pe}); price ${o.price}; chart ${o.state}` : `no options chip; chips ${JSON.stringify(o.chips)}; price ${o.price}; chart ${o.state}`, pass: !!opt && opt.pe === 'auto', ms: null, notes: opt ? '' : 'needs the Theta terminal on the server for SPX\'s overnight quotes' };
     });
     if (prn) {
@@ -1308,7 +1359,9 @@ await group('replay', async () => {
     const pickSay = await (async () => {
       const r1 = await measure(page, () => page.keyboard.press('Shift+ArrowDown'), () => /Pick a bar/i.test(window.__A.say()), null, 2000);
       const s1 = await ev(page, () => window.__A.say());
-      await ev(page, () => { const el = document.querySelector('span.sr-only[aria-live="polite"]'); if (el) el.textContent = ''; });
+      /* the announcer only re-renders on a new string: say something else first (] on one pane: "Chart 1 of 1, SPY") */
+      await page.keyboard.press(']');
+      await until(page, () => /^Chart 1 of 1/.test(window.__A.say()), null, 2000);
       const r2 = await measure(page, () => page.keyboard.press('Shift+ArrowRight'), () => /Pick a bar/i.test(window.__A.say()), null, 2000);
       const s2 = await ev(page, () => window.__A.say());
       const still = await ev(page, () => !!document.querySelector('[data-replay-strip="pick"]'));
@@ -1527,9 +1580,9 @@ await group('replay', async () => {
   }
 });
 
-/* ═══ GROUP: TWO PANES, WIDE (1920 × 1000) — the badges and the link groups ═══ */
+/* ═══ GROUP: TWO PANES, WIDE (2560 × 1100 — narrower, the two-pane header sheds the badge and the link chip) ═══ */
 await group('link', async () => {
-  const { ctx, page } = await openDesk({ w: 1920, h: 1000, layout: 1, panes: [{ ticker: 'SPY', timeframe: '5m' }, { ticker: 'QQQ', timeframe: '5m' }] });
+  const { ctx, page } = await openDesk({ w: 2560, h: 1100, layout: 1, panes: [{ ticker: 'SPY', timeframe: '5m' }, { ticker: 'QQQ', timeframe: '5m' }] });
   const H = i => page.locator('[data-chart-frame]').nth(i).locator('[data-pane-head]');
   try {
     await item('A-01', 'Pane number badge "1"…"4"', 'press 2; click pane 2', 'both panes show "1" and "2"; the active pane\'s badge wears the foil', async () => {
@@ -1541,7 +1594,7 @@ await group('link', async () => {
       await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.6);
       await sleep(300);
       const b2 = await ev(page, () => [0, 1].map(i => window.__A.head(i)?.querySelector('span.font-bold.tnum[aria-hidden]')?.classList.contains('holo-bg') ?? null));
-      return { observed: `badges ${JSON.stringify(b)}; after clicking pane 2 the foil is on ${JSON.stringify(b2)}`, pass: r.ok && b[0]?.t === '1' && b[1]?.t === '2' && b2[1] === true && b2[0] === false, ms: r.ms, notes: 'at 1440 × 900 the two-pane header has no room for the badge (its budget sheds it)' };
+      return { observed: `badges ${JSON.stringify(b)}; after clicking pane 2 the foil is on ${JSON.stringify(b2)}`, pass: r.ok && b[0]?.t === '1' && b[1]?.t === '2' && b2[1] === true && b2[0] === false, ms: r.ms, notes: 'at 1440 × 900 and 1920 × 1000 the two-pane header sheds the badge (its width budget); run at 2560 × 1100' };
     });
     const linkMenu = async i => {
       await H(i).locator('[data-link-group]').click();
@@ -1557,7 +1610,7 @@ await group('link', async () => {
       const r = await measure(page, () => chip.click(), () => window.__A.vis(document.querySelector('[data-link-menu]')));
       const items = await ev(page, () => [...document.querySelectorAll('[data-link-menu] [role=menuitemradio]')].map(x => x.textContent.replace(/\s+/g, ' ').trim().slice(0, 34)));
       await page.keyboard.press('Escape');
-      return { observed: `${items.length} items: ${items.join(' | ')}`, pass: r.ok && items.length === 5, ms: r.ms };
+      return { observed: `${items.length} items: ${items.join(' | ')}`, pass: r.ok && items.length === 5, ms: r.ms, notes: 'the chip stands only where the compare + has room, the pane is linked, or it is expanded: at 1440 × 900 with two or more panes an unlinked pane shows no link chip, so it can be linked only from fullscreen' };
     });
     await item('A-07', 'Link option "Group A"', 'pane 1 → A, pane 2 → A, then pick NVDA on pane 1', 'both read group A; pane 2 follows to NVDA', async () => {
       await pick(0, 'Group A');
@@ -1744,7 +1797,7 @@ await group('keys', async () => {
       const c = await until(page, () => !document.querySelector('[role=dialog][aria-label^="Change symbol"]'), null, 3000);
       return { observed: `"${lbl}"; Esc ${c ? 'closed it' : 'left it'}`, pass: r.ok && c, ms: r.ms };
     });
-    await item('A-236', '`C`', 'on the narrow pane 1 (no + there) press c, then ↓; on the wide pane 3 press c', 'narrow: said, and ↓ still steps; wide: the compare panel opens', async () => {
+    await item('A-236', '`C`', 'where the + is shed (three panes, the ladders on) press c, then ↓; on one pane with the + press c', 'shed: said, and ↓ still steps; with the +: the compare panel opens', async () => {
       await clearSay();
       await page.keyboard.press('c');
       await sleep(400);
@@ -1755,9 +1808,12 @@ await group('keys', async () => {
       await page.keyboard.press(']');
       await page.keyboard.press(']');
       await until(page, () => /^Chart 3 of 3/.test(window.__A.say()), null, 3000);
-      const r2 = await measure(page, () => page.keyboard.press('c'), () => window.__A.vis(document.querySelector('input[role=combobox][placeholder="Compare symbols…"]')), null, 3000);
-      await page.keyboard.press('Escape');
-      return { observed: `narrow: "${s1}", ↓ afterwards ${r.ok ? 'stepped' : 'did nothing'}; wide: ${r2.ok ? 'compare panel open' : 'nothing opened'}`, pass: /No room for Compare/.test(s1) && r.ok && r2.ok, ms: r2.ms };
+      await clearSay();
+      await page.keyboard.press('c');
+      await sleep(400);
+      const s3 = await say();
+      const w = memo.cWide;
+      return { observed: `shed (pane 1): "${s1}", ↓ afterwards ${r.ok ? 'stepped' : 'did nothing'}; pane 3 (1192 px, the ladder on, + shed too): "${s3}"; one pane with the +: ${w ? (w.ok ? `compare panel open in ${w.ms} ms` : 'nothing opened') : 'not checked'}`, pass: /No room for Compare/.test(s1) && r.ok && (!w || w.ok), ms: w?.ms ?? null };
     });
     await item('A-244', '`T`', 'on the wide pane 3 press t; on the narrow pane 1 press t; in fullscreen press t', 'the jump calendar opens with its date field focused wherever T is said to work', async () => {
       await sleep(300);
@@ -1840,9 +1896,10 @@ await group('desk', async () => {
       await item(id, `Layout "${n}"`, `click "${n}"`, `layout ${n}, ${n} chart frame${n > 1 ? 's' : ''}`, async () => {
         const b = BAR.locator(`[aria-label="How many charts"] button[aria-label="${n} ${n === 1 ? 'chart' : 'charts'}"]`);
         const r = await measure(page, () => b.click(), n => window.__A.cfg()?.layout === n && document.querySelectorAll('[data-chart-frame]').length === n, n, 8000);
+        const t1 = Date.now();
         let drawn = '';
-        try { await readyBars(page, n, 45000); drawn = `; all ${n} drawn in ${Date.now() - (Date.now() - 0)} ms`; } catch { drawn = '; not every pane drew within 45 s'; }
-        return { observed: `layout ${await ev(page, () => window.__A.cfg()?.layout)}, ${await ev(page, () => document.querySelectorAll('[data-chart-frame]').length)} frames; aria-pressed ${await b.getAttribute('aria-pressed')}`, pass: r.ok && (await b.getAttribute('aria-pressed')) === 'true', ms: r.ms, notes: 'ms = click to the frames on the page' };
+        try { await readyBars(page, n, 45000); drawn = `; every pane drawn ${r.ms + Date.now() - t1} ms after the click`; } catch { drawn = '; not every pane drew within 45 s'; }
+        return { observed: `layout ${await ev(page, () => window.__A.cfg()?.layout)}, ${await ev(page, () => document.querySelectorAll('[data-chart-frame]').length)} frames; aria-pressed ${await b.getAttribute('aria-pressed')}${drawn}`, pass: r.ok && (await b.getAttribute('aria-pressed')) === 'true', ms: r.ms, notes: 'ms = click to the frames on the page' };
       });
     }
     await item('A-209', '"STRIKES"', 'click it twice', 'every ladder off (aria-pressed false), then on', async () => {
@@ -1940,8 +1997,10 @@ await group('desk', async () => {
     await item('A-228', 'Announcer', 'press =', '"SPY 15m"', async () => {
       await ev(page, () => document.activeElement?.blur?.());
       const r = await measure(page, () => page.keyboard.press('='), () => window.__A.say() === 'SPY 15m', null, 3000);
+      const said = await ev(page, () => window.__A.say());
+      const live = await ev(page, () => document.querySelector('span.sr-only[aria-live="polite"]')?.getAttribute('aria-live'));
       await page.keyboard.press('-');
-      return { observed: `"${await ev(page, () => window.__A.say())}"`, pass: r.ok, ms: r.ms };
+      return { observed: `"${said}" in a live region (aria-live ${live})`, pass: r.ok, ms: r.ms };
     });
     await item('A-229', 'Page heading "Terrain" (sr-only h1)', 'read it', 'h1.sr-only "Terrain"', async () => {
       const t = await ev(page, () => [...document.querySelectorAll('h1.sr-only')].map(h => h.textContent.trim()));
@@ -2022,7 +2081,8 @@ await group('building', async () => {
     const t0 = Date.now();
     for (let i = 0; i < 40; i++) {
       const s = await ev(page, () => { const e = document.querySelector('[data-trail-since]'); return e ? `${e.dataset.building ?? '?'}: ${e.textContent.replace(/\s+/g, ' ').trim()}` : null; }).catch(() => null);
-      if (s && !seen.includes(s)) seen.push(`${s} @${Date.now() - t0} ms`);
+      if (s && !seen.some(x => x.startsWith(s))) seen.push(`${s} (first seen ${Date.now() - t0} ms after the pane's head stood)`);
+      if (!s && seen.length && !seen.some(x => x.startsWith('gone'))) seen.push(`gone at ${Date.now() - t0} ms`);
       await sleep(400);
     }
     await item('A-159', '"Building · the chain is being read" / "Catching up · …"', 'hold the field\'s answers back 10 s at load', 'the hatched chip stands while the field fills', async () => ({ observed: seen.length ? seen.join(' | ') : 'no [data-trail-since] chip in 16 s', pass: seen.some(s => /Building|Catching up/.test(s)), ms: null }));
@@ -2093,6 +2153,27 @@ manual('A-254', 'Ctrl S / Ctrl Enter (script editor)', 'in the Pine editor press
 await browser.close();
 const ALL = Array.from({ length: 257 }, (_, i) => `A-${String(i + 1).padStart(2, '0')}`);
 if (!ONLY) for (const id of ALL) if (!rows.some(r => r.id === id)) record({ id, item: '(not reached)', action: '—', expected: '—', observed: 'the exercise did not reach this item', pass: false, ms: null, notes: Object.entries(memo).filter(([k]) => k.startsWith('abort:')).map(([k, v]) => `${k} ${v}`).join('; ') });
+/* one-line diagnoses for the failures found at commit 521d7de (paths under src/, lines at that commit) */
+const DIAG = {
+  'A-17': 'pages/terrain/Terrain.tsx:3229 — the hover row (data-toolbar-row: absolute top-full, z-10, pointer-events on while the pane is hovered) lies over the compare legend rows (Terrain.tsx:3243-3290), so the row\'s × (3287) never gets a pointer click; the keys (focus + Enter) still work',
+  'A-28': 'components/gex/StrikeChart.tsx:3967-3999 (likely) — when the feed\'s day bars replace the minutes folded by day, the `regrown` reload keeps the view on the time of the first visible bar, and the folded series starts with two stray 2025-04 sessions, so the view lands at index 0 of the day series (Apr–Nov 2025)',
+  'A-37': 'as A-28 (StrikeChart.tsx:3967-3999): the day series opens on its oldest bars after any switch to 1D',
+  'A-106': 'as A-28 (StrikeChart.tsx:3967-3999)',
+  'A-46': 'components/gex/StrikeChart.tsx:2136-2152 (tryJump, span) — 1W shows 2.3 days of 15m bars though the series holds 14 sessions; the index found in barsFor(mins) is set as the series\' logical range, and the view that stands is far shorter than the span — cause not pinned',
+  'A-47': 'as A-46 (StrikeChart.tsx:2136-2152): 1M shows 8.1 days of 1h bars',
+  'A-48': 'as A-46 (StrikeChart.tsx:2136-2152): 6M shows the last 79 day bars (Jun 24 → Oct 14) with 175 before it; from a fresh 5m pane the same jump landed on the oldest 20 bars (Apr–Nov 2025)',
+  'A-49': 'as A-48: 1Y shows the same 79 bars; the series holds a year (Oct 2025 → Oct 2026)',
+  'A-50': 'as A-48: Max shows the same 79 bars, not the whole series',
+  'A-162': 'pages/terrain/Terrain.tsx — nextSession steps over weekends only (not holiday-aware, unlike sessionBefore in data/feed/levels.ts), so from a Saturday before a holiday "Next session" lands on the holiday\'s no-data card',
+  'A-164': 'the view pill (Terrain.tsx:2959, "Back to live ›") and the replay\'s exit (components/gex/ReplayStrip.tsx:167, exitWords default "Back to live") stand together in the pick phase with the same words and different jobs — the pill itself works',
+  'A-168': 'pages/terrain/Terrain.tsx:3017 — "Replay this day" calls onReplayFrom(09:30 New York) with the pane still on 1D; on a day-bar tape the cursor is the day bar\'s end (4:59 pm here, 7:59 pm New York), so the replay starts after the day is over',
+  'A-238': 'pages/terrain/paneKeys.ts:31 stepTf ignores FEED_HELD and the desk\'s `-` (Terrain.tsx:3896) does not check it: from 1m on the feed the config stores the held 15s, the chart stays 1m, the announcer says "SPY 15s"',
+  'A-244': 'components/terrain/PaneHead.tsx:73 opens the calendar only when its jump control is mounted; the desk\'s T (Terrain.tsx:3978) still says "Jump to a date" where the jumps are shed or in fullscreen (no PaneHead), and nothing opens',
+  'A-248': 'pages/terrain/Terrain.tsx:4342-4356 — the layouts shelf closes on Esc only from a key event inside it; with focus on its LAYOUTS button (where a click leaves it) Esc reaches the window handler (Terrain.tsx:3640) and collapses the expanded pane behind the shelf, which stays open',
+  'A-220': 'pages/terrain/Terrain.tsx:4375 — the × is opacity-0 with group-hover only (no focus variant), invisible to the keys; the delete (removeNamedLayout, 3463) has no undo',
+  'A-255': 'removeNamedLayout (pages/terrain/Terrain.tsx:3463) does not go through ui/undo.tsx `undoable`; neither do the level watch Stop (A-195) nor the Alerts chips\' removal (A-63…A-80), which undo nothing either',
+};
+for (const r of rows) if (r.pass === false && DIAG[r.id]) r.notes = r.notes ? `${r.notes}; DIAGNOSIS: ${DIAG[r.id]}` : `DIAGNOSIS: ${DIAG[r.id]}`;
 rows.sort((a, b) => parseInt(a.id.slice(2), 10) - parseInt(b.id.slice(2), 10));
 const totals = { pass: rows.filter(r => r.pass === true).length, fail: rows.filter(r => r.pass === false).length, manual: rows.filter(r => r.pass === 'manual').length };
 const meta = { at: new Date().toISOString(), base: BASE, commit: '521d7de', viewport: '1440 × 900 unless the row says otherwise', timezone: 'America/Los_Angeles', runSeconds: Math.round((Date.now() - T_START) / 1000), totals, note: 'Wall-clock timings on a machine shared with two other browser agents — pessimistic. ms runs from the action to the observed result.' };

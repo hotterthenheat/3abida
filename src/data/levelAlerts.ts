@@ -490,6 +490,16 @@ export function setLevelWatch(ticker: string, id: LevelId, on: boolean): void {
   writeJson(WATCH_KEY, all);
   ring();
 }
+/** Put a name's watch back exactly as it was (the drawer's undo — its confirmation and `chosen` kept), or take it off */
+export function putLevelWatch(ticker: string, entry: LevelWatch | undefined): void {
+  const t = ticker.toUpperCase();
+  const all = { ...levelWatches() };
+  if (entry && entry.ids.length) all[t] = entry;
+  else delete all[t];
+  watchCache = all;
+  writeJson(WATCH_KEY, all);
+  ring();
+}
 export function setConfirmBars(ticker: string, n: number): void {
   const t = ticker.toUpperCase();
   const all = { ...levelWatches() };

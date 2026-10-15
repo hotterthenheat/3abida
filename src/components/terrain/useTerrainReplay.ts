@@ -32,7 +32,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Candle, GexSnapshot } from '../../types/market';
-import { clock, nyIsoDate } from '../../core/nyTime';
+import { clock, nyIsoDate, nyWallTime } from '../../core/nyTime';
 import {
   GrowingCut,
   REPLAY_SPEEDS,
@@ -279,9 +279,21 @@ export function useTerrainReplay(a: Args) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, cursor, frame]);
 
+  /** The tape's minutes hold this day's open (9:30 am New York) — a replay of the day can start there */
+  const holdsOpen = useCallback(
+    (d: string): boolean => {
+      if (!src?.length) return false;
+      const mins = dayMinutes(src, d);
+      const [y, m, dd] = d.split('-').map(Number);
+      return mins.length > 0 && mins[0] <= Math.floor(nyWallTime(y, m, dd, 9, 30) / 1000);
+    },
+    [src]
+  );
+
   return {
     ctl,
     active: playing,
+    holdsOpen,
     cursor,
     asOf: playing ? knowableAt(cursor) : null,
     day,

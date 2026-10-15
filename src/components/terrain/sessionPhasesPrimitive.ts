@@ -130,8 +130,9 @@ export class SessionPhasesPrimitive implements IPanePrimitive<Time> {
         const w = Math.max(1, Math.round(runR * hr) - l);
         ctx.fillStyle = inks.band[runPhase];
         ctx.fillRect(l, 0, w, bitmapSize.height);
-        if (runR - runL >= 64) {
-          ctx.font = `${Math.round(10 * vr)}px ${FONT_SANS}`;
+        if (runR - runL >= 72) {
+          /* words, not ticks: the 11 px floor (the audit's B-31) */
+          ctx.font = `${Math.round(11 * vr)}px ${FONT_SANS}`;
           ctx.fillStyle = inks.word;
           ctx.textBaseline = 'bottom';
           ctx.fillText(PHASE_WORDS[runPhase], l + Math.round(5 * hr), bitmapSize.height - Math.round(6 * vr));

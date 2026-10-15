@@ -35,8 +35,10 @@ import { fieldSpansOf } from '../../core/sessions';
 
 /** 2 (2026-10-15, the orbs' second round): the size reference is the session's largest node so far, not a p85.
     3 (the same day, the SPX overnight field): a cell carries the missed chain read (12th) and the wide-quote share (13th),
-    and an SPX session its three sessions (overnight, regular to 4:15 pm, the curb) */
-export const TILES_FORMAT = 3;
+    and an SPX session its three sessions (overnight, regular to 4:15 pm, the curb).
+    4 (the same day, the Terrain audit's B-38): the bars carry each minute's volume — the sessions kept before it carried
+    none, so the volume pane of every tiled session stood empty */
+export const TILES_FORMAT = 4;
 export const TILE_TFS = [1, 5, 15, 30, 60, 1440] as const;
 export type TileTf = (typeof TILE_TFS)[number];
 export const TILE_WINDOWS: readonly ExpiryWindow[] = ['all', '0dte', 'fri', 'opex'];

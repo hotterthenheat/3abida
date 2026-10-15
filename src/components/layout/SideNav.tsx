@@ -50,6 +50,7 @@
 */
 
 import { clock } from '../../core/nyTime';
+import { pctSigned, usd } from '../../core/format';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useLocation } from 'react-router-dom';
@@ -164,10 +165,12 @@ const RailSubject = ({
   const { quote, missing } = useRailQuote(activeTicker);
   const name = lookup(activeTicker)?.name ?? null;
   const change = quote?.changePct ?? 0;
-  const priceText = quote ? `$${quote.spot.toFixed(2)}` : '—';
+  /* ONE WAY TO SAY A FIGURE (core/format): the price to the cent, the change with its sign and the true minus (the audit's
+     A-22: the rail printed "-0.32%" with a hyphen beside the pane head's "−0.32%") */
+  const priceText = quote ? usd(quote.spot) : '—';
   /* a change no answer carries (an index on the feed) is left off, never a zero */
   const hasChange = !!quote && Number.isFinite(change);
-  const changeText = hasChange ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : '';
+  const changeText = hasChange ? pctSigned(change, 2) : '';
   /* THE SUBJECT, dressed as the search field under the mark: the name you
      are on, its price and change, and the key that changes it. */
   return collapsed ? (
@@ -227,12 +230,12 @@ const RailSubject = ({
 const PhoneSubject = ({ onOpenPalette }: { onOpenPalette: () => void }) => {
   const activeTicker = useActiveTicker();
   const spot = useRailQuote(activeTicker).quote?.spot ?? null;
-  const priceText = spot != null ? `$${spot.toFixed(2)}` : '—';
+  const priceText = spot != null ? usd(spot) : '—';
   return (
     <button type="button" onClick={onOpenPalette} aria-label={`Watching ${activeTicker} ${priceText} — switch`} className="inline-flex items-center gap-2 h-11 rounded-md border border-borderMuted bg-chip px-3" data-mobile-subject>
       <CompanyLogo ticker={activeTicker} size={16} />
       <span className="text-[12px] font-semibold text-textPrimary">{activeTicker}</span>
-      {spot != null && <span className="font-mono text-[11px] tnum text-textPrimary">${spot.toFixed(2)}</span>}
+      {spot != null && <span className="font-mono text-[11px] tnum text-textPrimary">{usd(spot)}</span>}
     </button>
   );
 };

@@ -3,6 +3,10 @@ import type { ExpectedMoveCone } from '../../data/expectedMove';
 import type { ConePoint } from '../../data/feed/pricedMove';
 import { alpha } from './paletteInk';
 import { FONT_SANS } from '../../theme/fonts';
+import { usd } from '../../core/format';
+
+/* a token's ink at an alpha (paletteInk `alpha`, named apart from the strokes' own alpha figures) */
+const inkAt = alpha;
 
 /*
 ==================================================
@@ -37,8 +41,8 @@ import { FONT_SANS } from '../../theme/fonts';
   point, which is the correct picture of the correct fact.
 */
 
-/* Spot's white, at furniture alpha. */
-const INK = '255,255,255';
+/* Spot's ink at furniture alpha — the pane's own (`ink`, a token read off the chart's box), so a paper tape draws it dark
+   (the audit's B-29: a literal white on every ground) */
 const EDGE1_ALPHA = 0.32;
 const EDGE2_ALPHA = 0.16;
 const FILL_ALPHA = 0.05;
@@ -68,6 +72,9 @@ export interface ConeData {
       came from, so every past point is an exact hit. */
   barTimes: number[];
   barMinutes: number;
+  /** The pane's ink and panel, tokens read off the chart's box */
+  ink: string;
+  panel: string;
 }
 /** THE PRICED MOVE ON THE FEED (the owner's item 4, data/feed/pricedMove.ts): the day's ±1σ and ±2σ from the prior
     close's 4:00 pm straddle, standing the whole session, and the cone of what is left — 50%, 68% and 95% bands as
@@ -111,7 +118,7 @@ class ExpectedMoveRenderer {
       drawPriced(target, chart, series, data);
       return;
     }
-    const { cone, barTimes, barMinutes } = data as ConeData;
+    const { cone, barTimes, barMinutes, ink, panel } = data as ConeData;
     if (cone.past.length === 0 && cone.forward.length === 0) return;
 
     target.useBitmapCoordinateSpace(scope => {
@@ -160,9 +167,9 @@ class ExpectedMoveRenderer {
         return y === null ? null : y * vr;
       };
 
-      const stroke = (pts: [number, number][], alpha: number, dash: number[]) => {
+      const stroke = (pts: [number, number][], a: number, dash: number[]) => {
         if (pts.length < 2) return;
-        ctx.strokeStyle = `rgba(${INK},${alpha})`;
+        ctx.strokeStyle = inkAt(ink, a);
         ctx.lineWidth = Math.max(1, Math.round(vr));
         ctx.setLineDash(dash.map(d => d * hr));
         ctx.beginPath();
@@ -194,7 +201,7 @@ class ExpectedMoveRenderer {
 
       /* The session's exits, ticked ON the edge they crossed — the edge
          carries the direction, so no second ink is needed. */
-      ctx.strokeStyle = `rgba(${INK},${CROSSING_ALPHA})`;
+      ctx.strokeStyle = inkAt(ink, CROSSING_ALPHA);
       ctx.lineWidth = Math.max(1, Math.round(vr));
       for (const c of cone.crossings) {
         const x = timeToX(c.time);
@@ -225,7 +232,7 @@ class ExpectedMoveRenderer {
       /* A wash between the ±1σ edges. The runway has no bars under it, so
          the fill costs the tape nothing and gives the cone its shape. */
       if (fUp1.length >= 2) {
-        ctx.fillStyle = `rgba(${INK},${FILL_ALPHA})`;
+        ctx.fillStyle = inkAt(ink, FILL_ALPHA);
         ctx.beginPath();
         ctx.moveTo(fUp1[0][0], fUp1[0][1]);
         for (let i = 1; i < fUp1.length; i++) ctx.lineTo(fUp1[i][0], fUp1[i][1]);
@@ -244,8 +251,9 @@ class ExpectedMoveRenderer {
       if (cone.forward.length > 0) {
         const tip = cone.forward[cone.forward.length - 1];
         const tipW1 = tip.up1 - cone.forward[0].up1; // forward[0] is spot exactly
-        const label = `EM ±$${tipW1.toFixed(2)}`;
-        ctx.font = `${9 * vr}px ${FONT_SANS}`;
+        /* the house's one formatter (core/format) and the type floor, 11 px (the audit's B-29: "EM ±$0.00" at 9 px) */
+        const label = `EM ±${usd(tipW1)}`;
+        ctx.font = `${11 * vr}px ${FONT_SANS}`;
         ctx.textBaseline = 'middle';
         const textW = ctx.measureText(label).width;
         const boxW = textW + 4 * 2 * hr;
@@ -257,9 +265,9 @@ class ExpectedMoveRenderer {
              it never sits on the live price line. */
           const x = Math.max(0, Math.min(w - boxW, tipX - boxW - 4 * hr));
           const top = Math.max(0, tipY - boxH - 2 * vr);
-          ctx.fillStyle = 'rgba(10,10,10,0.55)';
+          ctx.fillStyle = inkAt(panel, 0.55);
           ctx.fillRect(x, top, boxW, boxH);
-          ctx.fillStyle = `rgba(${INK},${TAG_ALPHA})`;
+          ctx.fillStyle = inkAt(ink, TAG_ALPHA);
           ctx.fillText(label, x + 4 * hr, top + boxH / 2);
         }
       }

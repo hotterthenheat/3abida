@@ -98,6 +98,7 @@ import {
   isCashIndex,
   listedDates,
   shortDay,
+  sessionAfter,
   sessionBefore,
   bookFrom,
   useFeedBars,
@@ -132,6 +133,8 @@ import { laggedAt, sessionSpan, type ReplayFrame } from '../../data/replayFrame'
 import { useFeedNamePrints } from '../../data/feed/trace';
 import type { WallsSource } from '../../components/terrain/wallsHeatPrimitive';
 import type { Candle, GexSnapshot } from '../../types/market';
+import PopoverCard from '../../components/ui/PopoverCard';
+import { undoable } from '../../components/ui/undo';
 
 /*
 ==================================================
@@ -1170,6 +1173,27 @@ const Pane = ({
     return () => obs.disconnect();
   }, []);
 
+  /* THE HOVER ROW'S HEIGHT (the audit's A-17, B-44 and the readout): the row of tools stands under the strip, over the
+     plot, while the pointer or the keys are on the pane — the crosshair readout, the crossed names' legend and the
+     scripts' legend stood at the strip's foot and were covered by it, the readout whenever it showed. It is measured as
+     it comes and goes (display none → its height), and what stands under the strip stands under it. */
+  const [hoverRowH, setHoverRowH] = useState(0);
+  const hoverRowObs = useRef<ResizeObserver | null>(null);
+  const hoverRowRef = useCallback((el: HTMLDivElement | null) => {
+    hoverRowObs.current?.disconnect();
+    hoverRowObs.current = null;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      setHoverRowH(0);
+      return;
+    }
+    const obs = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      setHoverRowH(r.height > 0 ? Math.round(r.height) + 2 : 0);
+    });
+    obs.observe(el);
+    hoverRowObs.current = obs;
+  }, []);
+
   /* WHAT THE STRIP'S ROWS CAN ACTUALLY USE — the column, less the gutter it
      clears on each side. Derived from the SAME expression the padding above
      applies, so the two cannot disagree about how much room was taken.
@@ -1183,7 +1207,9 @@ const Pane = ({
      honest default is the full row for one frame, not a shed one that grows. */
   const stripInner = stripW > 0 ? stripW - PRICE_GUTTER_PX - (ownScale ? PRICE_GUTTER_PX : STRIP_PAD_PX) : 0;
   /* the bead legend's form: the whole words where the column holds them in two lines, the short form under that */
-  const railInset = useRailLeftInset();
+  /* on a phone the drawing tools are a sheet behind one door (StrikeChart `toolsSheet`): no rail, no inset */
+  const railInsetPref = useRailLeftInset();
+  const railInset = isPhone ? 0 : railInsetPref;
   const legendShort = stripInner > 0 && stripInner - railInset < LEGEND_FULL_MIN_PX;
   /* The tape, straight from the provider that accumulates it. Read HERE rather
      than threaded down from Terrain: this component already takes fourteen
@@ -1711,13 +1737,28 @@ const Pane = ({
      chip can never disagree (in a replay the cursor's column; on the house its field's last moment) */
   const paneRegime = useMemo<(RegimeRead & { words: string; range: string | null }) | null>(() => {
     if (regimeRead) return regimeRead;
-    const col: GexSnapshot | null = rp.active ? rp.frame?.column ?? null : offHouse ? (fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null) : (Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? []).slice(-1)[0] ?? null;
+    let col: GexSnapshot | null = rp.active ? rp.frame?.column ?? null : offHouse ? (fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null) : (Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? []).slice(-1)[0] ?? null;
+    /* BEFORE TODAY'S FIRST COLUMN (the audit's C-40/C-50: at night the box read "—" while the chart drew yesterday's
+       whole field): the last session's closing column off the server's tiles, said with its day and time — its
+       percentile against the reference as it stood that day, UW's direction (today's) left out */
+    let past: string | null = null;
+    if (!col && offHouse && !rp.active && tileTf)
+      for (let i = tileDays.length - 1; i >= 0 && !col; i--) {
+        const td = tileDay(ticker, tileTf, win, tileDays[i]);
+        const last = td?.cols.length ? td.cols[td.cols.length - 1] : null;
+        if (last && last.levels.length) {
+          col = last;
+          past = tileDays[i];
+        }
+      }
     if (!col || !col.levels.length) return null;
-    const at = col.time;
-    const r = regimeReadOf(netOf(col.levels), nyMinutes(at * 1000), nyIsoDate(at * 1000), regimeForWindow(fRegime, win), win === 'all' && !rp.active ? regimeDir : null, at);
-    return { ...r, words: regimeWordsOf(r, usdCompactSigned, ms => printClock(ms)), range: null };
+    const at = col.pre ? col.pre.at : col.time;
+    const net = col.pre ? col.pre.net : netOf(col.levels);
+    const r = regimeReadOf(net, nyMinutes(at * 1000), nyIsoDate(at * 1000), regimeForWindow(fRegime, win), past ? null : win === 'all' && !rp.active ? regimeDir : null, at);
+    if (past) r.outsideAt = at;
+    return { ...r, words: regimeWordsOf(r, usdCompactSigned, ms => (past ? `${shortDay(past)}, ${printClock(ms)}` : printClock(ms))), range: null };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regimeRead, rp.active, rp.frame, offHouse, fTrail.snaps, ticker, fRegime, win, regimeDir, revision]);
+  }, [regimeRead, rp.active, rp.frame, offHouse, fTrail.snaps, ticker, fRegime, win, regimeDir, revision, tileTf, tileDays, tiles.version]);
   const regimeSure = useMemo(
     () => (paneRegime ? { line: paneRegime.words, range: paneRegime.range, note: "Estimated dealer gamma (assumed sign) — it describes the next 30 to 60 minutes' range and the last half hour's momentum on negative days; never a level, and never the flip's side." } : undefined),
     [paneRegime]
@@ -1786,13 +1827,6 @@ const Pane = ({
     setDayWanted(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayWanted, tilesOn, tileTf, tiledBefore, tileSpan, tileExtra, ticker, win, tiles.version]);
-  /* the sessions either side of a day the tape lacks (weekends skipped; a holiday is found by the tape's own answer) */
-  const nextSession = (iso: string): string => {
-    const d = new Date(`${iso}T12:00:00Z`);
-    do d.setUTCDate(d.getUTCDate() + 1);
-    while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
-    return d.toISOString().slice(0, 10);
-  };
   const jumpMin = useMemo(() => {
     const first = (fDaily && fDaily.length ? fDaily[0] : null) ?? (fBars.bars && fBars.bars.length ? fBars.bars[0] : null) ?? (!offHouse ? (Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? [])[0] : null);
     const fromBars = first ? nyIsoDate(first.time * 1000) : undefined;
@@ -1819,7 +1853,19 @@ const Pane = ({
   /* THE STALE STATE (the UI pass): on the feed with the newest data past its window — the candles at six tenths, the
      beads at four, an amber chip in the header and on the price, a banner naming the last repriced minute, Retry */
   const stale = onFeed && age?.kind === 'old';
-  const lastRepriced = fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1].time * 1000 + 60_000 : age?.at ?? null;
+  /* the FIELD's last repriced minute — today's newest column, else the last session's closing column off the tiles; never
+     the last bar's end (the audit's S-stale: "last repriced 8:00 pm" was the after-hours bar, the field ended 3:59 pm) */
+  const lastRepriced = useMemo(() => {
+    if (fTrail.snaps.length) return fTrail.snaps[fTrail.snaps.length - 1].time * 1000 + 60_000;
+    if (!tileTf) return null;
+    for (let i = tileDays.length - 1; i >= 0; i--) {
+      const td = tileDay(ticker, tileTf, win, tileDays[i]);
+      const last = td?.cols.length ? td.cols[td.cols.length - 1] : null;
+      if (last) return ((last.pre?.at ?? last.time) + 60) * 1000;
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fTrail.snaps, tileTf, tileDays, ticker, win, tiles.version]);
   const retryFeed = useCallback(() => {
     const t = ticker.toUpperCase();
     for (const k of [`levels:bars:${t}`, `levels:bars-new:${t}`, `levels:book:${t}`, priceKey(t)]) refreshFeed(k);
@@ -1873,7 +1919,11 @@ const Pane = ({
       const rows = b.rows.map(r => ({ strike: r.strike, value: r.gex.net }));
       return { walls: pickWalls(rows, b.spot, l => l.value), flip: pickFlip(rows, b.spot, l => l.value), spot: b.spot, at: b.at };
     })() : null;
-    return { day, close, last, walls, flip, regime: regime ? regimeWordsOf(regime, usdCompactSigned, ms => printClock(ms)) : null, nearest, uw, uwFailed: dayBook?.day === day && dayBook.failed, uwWaiting: onFeed && !isCashIndex(ticker) && (!dayBook || dayBook.day !== day) };
+    /* the session's 1m tile still on its way: "reading", never "no column" (the audit's C-55: the panel said there was none
+       for a few tenths of a second, then filled) */
+    const said = tilesOn && day < nyIsoDate() ? tileSaid(ticker, 1, win, day) : null;
+    const colsWaiting = !last && tilesOn && day < nyIsoDate() && !tileHeld(ticker, 1, win, day) && !said?.failed && !said?.none;
+    return { day, close, last, walls, flip, regime: regime ? regimeWordsOf(regime, usdCompactSigned, ms => printClock(ms)) : null, nearest, uw, uwFailed: dayBook?.day === day && dayBook.failed, uwWaiting: onFeed && !isCashIndex(ticker) && (!dayBook || dayBook.day !== day), colsWaiting };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayPanel, fDaily, offHouse, ticker, fTrail.snaps, fRegime, win, dayBook, onFeed, tilesOn, tiles.version]);
   /* the day panel's session at the minute, from its 1m tile */
@@ -1923,7 +1973,8 @@ const Pane = ({
     const have = fin(price) && cands.length > 0;
     out.push({ key: 'levels', label: 'Nearest', words: have ? `${side(above, '▲', false)} · ${side(below, '▼', false)}` : '—', short: have ? `${side(above, '▲', true)} ${side(below, '▼', true)}` : '—', title: "The nearest named level each side of the price — one of the chips on the price axis: a wall, the flip, the supreme (the book's heaviest strike) or Top (the field's largest node now) — its distance in dollars and in σ to the close", tone: null });
     if (sigmaRem && moveNow && sessionMinute != null) {
-      const r = readoutOf(price, moveNow.prevClose, moveNow.sigma, sessionMinute, moveNow.profile);
+      /* no price in hand (no book yet, the page's first poll out) → no place on the day's budget: a σ measured from 0 read −128.9σ */
+      const r = fin(price) ? readoutOf(price, moveNow.prevClose, moveNow.sigma, sessionMinute, moveNow.profile) : null;
       out.push({ key: 'move', label: 'Move', words: `±${usd(sigmaRem.sigma)} to close · ${sigmaRem.src === 'straddle' ? 'market' : 'budget'}${r ? ` · ${r.sigmas >= 0 ? '+' : '−'}${num(Math.abs(r.sigmas), 1)}σ day` : ''}`, short: `±${usd(sigmaRem.sigma)} ${sigmaRem.src === 'straddle' ? 'market' : 'budget'}`, title: `${sigmaRem.src === 'straddle' ? "1σ to the close off the straddle on today's expiry, live" : '1σ to the close as the budget leaves it: σ_day × √(1 − the variance used)'} — and where the price stands on the day's budget`, tone: null });
     } else out.push({ key: 'move', label: 'Move', words: '—', short: '—', title: onFeed ? (sessionMinute != null && sessionMinute >= SESSION_MINUTES ? 'The session is over: nothing left to the close' : 'No priced move yet') : "No priced move off the house's tape", tone: null });
     if (fRecord) {
@@ -2119,6 +2170,29 @@ const Pane = ({
     rp.pick(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rp.ctl]);
+  /* REPLAY THIS DAY (the day panel; the audit's C-58 / A-168): the session from its 9:30 am New York minute, on an intraday
+     chart — a day bar's pick took the whole bar (the cursor stood on the NEXT morning's 9:29 am, the pane left on 1D). The
+     pane goes to 5m on that day, the replay turns on, and the cursor is put on 9:30 once the tape's minutes hold the day */
+  const pendingDay = useRef<string | null>(null);
+  const [dayNonce, setDayNonce] = useState(0);
+  const onReplayDay = useCallback(
+    (day: string) => {
+      jumpDate(day, tfMinutes(timeframe) > 60 ? '5m' : timeframe);
+      pendingDay.current = day;
+      if (!replay) onToggleReplay();
+      setDayNonce(n => n + 1);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [jumpDate, timeframe, replay, onToggleReplay]
+  );
+  useEffect(() => {
+    const day = pendingDay.current;
+    if (!day || !rp.ctl || !rp.holdsOpen(day)) return;
+    pendingDay.current = null;
+    const [y, m, d] = day.split('-').map(Number);
+    rp.seekTo(Math.floor(nyWallTime(y, m, d, 9, 30) / 1000));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rp.ctl, rp.days, dayNonce]);
   /* Esc ends the replay — the top layer, as every overlay on the terminal (ui/layers.ts) */
   /* a mode, not an overlay: Esc ends it, and the shell's ?, / and g keep working through it (the audit's A-247) */
   useEscapeLayer(replayable, onExitReplay, { mode: true });
@@ -2177,7 +2251,10 @@ const Pane = ({
      the overlay and into the pane underneath, and the overlay told assistive
      technology nothing about being modal at all. */
   const overlayRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(expanded, overlayRef);
+  /* the keys land on the way back out, not on the chart library's attribution link — the first control in the box (the
+     audit's area A: an expanded pane put the focus on TradingView's logo) */
+  const collapseRef = useRef<HTMLButtonElement | null>(null);
+  useFocusTrap(expanded, overlayRef, { initialFocus: collapseRef });
 
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => setFocus(null), [ticker]);
@@ -2189,6 +2266,33 @@ const Pane = ({
      and C-35) — modes, not dialogs: the desk's keys keep working while they stand */
   useEscapeLayer(!!dayPanel, () => setDayPanel(null), { mode: true });
   useEscapeLayer(belowLg && narrowLadder, () => setNarrowLadder(false), { mode: true });
+  /* THE KEYS GO IN AND COME BACK (the audit's C-35: focus stayed on the page's body on open and close) — the ladder laid
+     over the chart takes them on its first control, and gives them back to the door that opened it (the peek, else the
+     head's Strikes; the peek again where the door has gone) */
+  const ladderOpener = useRef<HTMLElement | null>(null);
+  /* the ladder was opened in this pane's life — a close hands the keys back; the first render's "closed" does not */
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!belowLg) return;
+    const box = paneBoxRef.current;
+    if (narrowLadder) {
+      opened.current = true;
+      ladderOpener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+      const id = requestAnimationFrame(() => box?.querySelector<HTMLElement>('[data-profile-panel] button')?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+    /* the peek that opened it left the page as the ladder came (the keys fell to the body before this ran): the pane's
+       own door takes them back — the peek, else the head's Strikes */
+    const back = ladderOpener.current;
+    ladderOpener.current = null;
+    if (!opened.current) return;
+    opened.current = false;
+    const id = requestAnimationFrame(() => {
+      if (back?.isConnected) back.focus();
+      else box?.querySelector<HTMLElement>('[data-ladder-peek], [data-narrow-ladder]')?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [narrowLadder, belowLg]);
 
   /* THE GAPS' REASONS (the owner's B1, 2026-10-14: "Never a blank chart without a reason"): a run of bars with no column
      of the field says why, from the store's state — the session's hours (the book is read 9:30 to 4:00 New York, said on
@@ -2813,6 +2917,7 @@ const Pane = ({
             <Deferred index={index} fallback={<ChartSkeleton className="h-full" />} className="h-full animate-fade-in">
             <StrikeChart
               ticker={ticker}
+              toolsSheet={isPhone}
               paneId={`terrain:${index + 1}`}
               revision={rp.active ? replayRev : offHouse ? feedRevision : revision}
               levels={levels}
@@ -3005,7 +3110,7 @@ const Pane = ({
                     <button type="button" onClick={() => jumpDate(sessionBefore(noDay.day))} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-no-day-prev>
                       ‹ Previous session
                     </button>
-                    <button type="button" onClick={() => jumpDate(nextSession(noDay.day))} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-no-day-next>
+                    <button type="button" onClick={() => jumpDate(sessionAfter(noDay.day))} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-no-day-next>
                       Next session ›
                     </button>
                     <button type="button" onClick={backToLive} className="hit ml-auto h-6 px-2 rounded-[3px] bg-ink/[0.14] font-mono text-[11px] font-semibold text-textPrimary" data-no-day-live>
@@ -3035,7 +3140,7 @@ const Pane = ({
                     {dayRead.nearest.length > 0 && <p className="text-textSecondary tnum">Nearest the close: {dayRead.nearest.map(l => `${num(l.strike, l.strike % 1 ? 2 : 0)} ${usdCompactSigned(l.value)}`).join(' · ')}</p>}
                   </>
                 ) : (
-                  <p className="text-textMuted mt-1">No modeled column for this day on this machine.</p>
+                  <p className="text-textMuted mt-1">{dayRead.colsWaiting ? "Reading the session's modeled columns…" : 'No modeled column for this day on this machine.'}</p>
                 )}
                 {onFeed && !isCashIndex(ticker) && (
                   <p className="text-[11px] text-textMuted mt-1 tnum">
@@ -3047,7 +3152,14 @@ const Pane = ({
                     Open this session · 5m
                   </button>
                   {!noBars && (
-                    <button type="button" onClick={() => { const [y, m, d] = dayRead.day.split('-').map(Number); onReplayFrom(Math.floor(nyWallTime(y, m, d, 9, 30) / 1000)); setDayPanel(null); }} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-day-replay>
+                    <button
+                      type="button"
+                      disabled={!rp.holdsOpen(dayRead.day)}
+                      title={rp.holdsOpen(dayRead.day) ? `Replay the session from its open (${marketClock(9, 30)}) on a five-minute chart` : rp.days.includes(dayRead.day) ? "The minutes on this chart start after this day's open — the replay plays from the open" : "This day's minutes are not on this chart — the replay plays minutes"}
+                      onClick={() => { onReplayDay(dayRead.day); setDayPanel(null); }}
+                      className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary disabled:opacity-40 disabled:hover:text-textSecondary"
+                      data-day-replay
+                    >
                       Replay this day
                     </button>
                   )}
@@ -3102,13 +3214,15 @@ const Pane = ({
                 {/* The way back out, at the far right end of the strip — the
                     mirror of the docked corner chip. */}
                 <button
+                  ref={collapseRef}
                   onClick={onToggleExpand}
                   aria-pressed={expanded}
                   aria-label={`Collapse ${ticker}`}
                   title="Collapse — Esc"
-                  className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] transition-colors"
+                  className="hit shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.05] active:bg-ink/[0.10] transition-colors"
+                  data-collapse-pane
                 >
-                  <Minimize2 className="w-3.5 h-3.5" />
+                  <Minimize2 className="w-3.5 h-3.5" aria-hidden />
                 </button>
               </div>
             )}
@@ -3197,9 +3311,12 @@ const Pane = ({
                   timeframes={headTimeframes}
                   tf={{ value: tf, onChange: next => onCfg({ timeframe: next }), held: offHouse ? FEED_HELD : undefined }}
                   window={headPlan.windowForm !== 'none' ? { value: isWindowCut(railCut) ? railCut : 'book', onChange: (v: WindowValue) => onRailCut(v), form: headPlan.windowForm, date: typeof railCut === 'number' ? (feedCutChoices(fListed).find(c => c.value === railCut)?.label ?? null) : null } : null}
-                  jump={headPlan.jumpForm !== 'none' ? { onSpan: jumpSpan, onDate: jumpDate, minDate: jumpMin, maxDate: nyIsoDate(), form: headPlan.jumpForm } : null}
+                  /* shed for room, the jumps still answer T: the head holds the calendar's door while its card is up (the
+                     audit's A-244: T announced "Jump to a date" and opened nothing on a narrow pane) */
+                  jump={{ onSpan: jumpSpan, onDate: jumpDate, minDate: jumpMin, maxDate: nyIsoDate(), form: headPlan.jumpForm }}
                   tools={headPlan.tools ? paneToolbar(false, HEAD_PARTS, true) : null}
-                  keys={headPlan.keys}
+                  /* a pop-out window has no shell, so no sheet of keys to open (the audit's area A: its ? opened nothing) */
+                  keys={headPlan.keys && !bare}
                   doors={expandDoor}
                   openDateNonce={openDateNonce}
                 />
@@ -3281,7 +3398,7 @@ const Pane = ({
                 /* OUT OF THE FLOW (the UI pass, 2026-10-14): it stands under the strip, over the plot, and only while the
                    pointer or the keys are on the pane — so the chrome band the chart keeps clear of is the header, the
                    strip and the legend alone, and a hover moves nothing (the band's height is what fits the scale) */
-                <div className={isPhone ? 'relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 flex items-center gap-2 flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 ' + (stripW > 0 && stripW < 560 ? 'flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'flex-wrap')} style={!isPhone && ownScale ? { left: PRICE_GUTTER_PX + 6 } : undefined} data-toolbar-row>
+                <div className={isPhone ? 'relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 flex items-center gap-2 flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 ' + (stripW > 0 && stripW < 560 ? 'flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'flex-wrap')} style={!isPhone && ownScale ? { left: PRICE_GUTTER_PX + 6 } : undefined} ref={isPhone ? undefined : hoverRowRef} data-toolbar-row>
                   {paneToolbar(false, headPlan.tools ? HOVER_PARTS : HOVER_ALL_PARTS)}
                   {!headPlan.popOut && popOutDoor}
                   {overlays.walls && wallsLens}
@@ -3300,7 +3417,7 @@ const Pane = ({
                 only while a pointer is on the plot or a moment arrives from another pane */}
             {readout && !expanded && (
               /* past the drawing rail where it is docked left and open, as the legend and the candles stand (the audit's B-23) */
-              <div className="pointer-events-none absolute z-10" style={{ top: stripH + 4, left: (ownScale ? PRICE_GUTTER_PX : 12) + railInset }} data-chart-chrome>
+              <div className="pointer-events-none absolute z-10" style={{ top: stripH + 4 + hoverRowH, left: (ownScale ? PRICE_GUTTER_PX : 12) + railInset }} data-chart-chrome>
                 <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} when={readoutWhen} />
               </div>
             )}
@@ -3308,7 +3425,7 @@ const Pane = ({
               <div
                 /* Unconditional, unlike the strip above: the legend rows are
                    ~106px, so even at a 369px column they clear both gutters. */
-                style={{ top: stripH + 4 + (expanded ? 44 : 0) + (readout && !expanded ? 24 : 0), left: ownScale ? PRICE_GUTTER_PX : undefined }}
+                style={{ top: stripH + 4 + hoverRowH + (expanded ? 44 : 0) + (readout && !expanded ? 24 : 0), left: ownScale ? PRICE_GUTTER_PX : undefined }}
                 className="pointer-events-none absolute left-3 z-10 flex flex-col gap-0.5 opacity-70 transition-opacity duration-200 group-hover:opacity-100"
                 data-chart-chrome
               >
@@ -3440,10 +3557,12 @@ const Pane = ({
         {/* THE GUIDE IN FOCUS — over the whole pane, the pane blurred behind it. Its card keeps the dark island on
             either ground: ProfileGuide's figures are drawn for black (a `contents` box — the layer still fills the pane, and
             takes its corners) */}
-        {ladder && (
+        {/* the guide stands wherever its ladder does — on a phone the overlay's, whatever the stored flag (the audit's
+            C-13: How to read did nothing there with the desk's ladder off) */}
+        {(belowLg ? narrowLadder : ladder) && (
           <div className="contents rounded-[inherit]" data-theme="dark">
             <GuideFocus open={guideOpen} onClose={() => setGuideOpen(false)} title="How to read this panel" testId="profile-guide">
-              <ProfileGuide rows={rail.rows} levels={levels} flow={flow} />
+              <ProfileGuide rows={rail.rows} levels={levels} flow={flow} palette={palette} />
             </GuideFocus>
           </div>
         )}
@@ -3490,15 +3609,18 @@ const Terrain = () => {
   const [layoutsOpen, setLayoutsOpen] = useState(false);
   const [layoutName, setLayoutName] = useState('');
   const [layoutNote, setLayoutNote] = useState<string | null>(null);
-  const applyNamedLayout = (entry: NamedLayoutEntry<PaneCfg>) => {
+  const applyNamedLayout = (entry: NamedLayoutEntry<PaneCfg>, name?: string) => {
     const defs = defaultPanes();
     const panes = defs.map((d, i) => entry.panes[i] ?? d);
+    /* the desk it replaces comes back with the undo chip (ui/undo — a recall replaces an arrangement nobody saved) */
+    const was = { layout: cfg.layout, panes: cfg.panes };
     /* Through the dissolve as well — recalling a shelf layout is the biggest
        reflow the desk does. */
     dissolve(() =>
       setCfg(prev => ({ ...prev, layout: (LAYOUTS as readonly number[]).includes(entry.layout) ? (entry.layout as TerrainLayout) : prev.layout, panes }))
     );
     setLayoutsOpen(false);
+    undoable({ label: name ? `Desk set to "${name}"` : 'Desk set to a saved layout', undo: () => dissolve(() => setCfg(prev => ({ ...prev, ...was }))), key: 'terrain-layout-recall' });
   };
   const saveCurrentLayout = () => {
     const next = saveNamedLayout(namedLayouts, layoutName, cfg.layout, cfg.panes, Date.now());
@@ -3512,9 +3634,18 @@ const Terrain = () => {
     setLayoutNote(null);
   };
   const removeNamedLayout = (name: string) => {
+    const before = namedLayouts;
     const next = deleteNamedLayout(namedLayouts, name);
     setNamedLayouts(next);
     persistNamedLayouts(next);
+    /* acts at once, with the house's way back (ui/undo) — never "are you sure?" */
+    undoable({
+      label: `Layout "${name}" deleted`,
+      undo: () => {
+        setNamedLayouts(before);
+        persistNamedLayouts(before);
+      },
+    });
   };
   useEffect(() => {
     try {
@@ -3828,6 +3959,9 @@ const Terrain = () => {
   const deskSrc = useTerrainSource();
   const deskOnFeedRef = useRef(deskSrc === 'feed');
   deskOnFeedRef.current = deskSrc === 'feed';
+  /* off the house's tape a pane holds the timeframes no plan carries (FEED_HELD) — the − and = keys step over them */
+  const deskOffHouseRef = useRef(deskSrc !== 'stand-in');
+  deskOffHouseRef.current = deskSrc !== 'stand-in';
   /* The key handler has to know a menu is up. `editable` already covers the
      search box inside one — but the focus trap can put focus on the panel
      itself, and ↑/↓ pressed there belong to the list being read, not to the
@@ -3946,7 +4080,7 @@ const Terrain = () => {
         }
         case '-': case '=':
           e.preventDefault();
-          patch(q => ({ timeframe: stepTf(q.timeframe, e.key === '=' ? 1 : -1) }), q => `${q.ticker} ${q.timeframe}`);
+          patch(q => ({ timeframe: stepTf(q.timeframe, e.key === '=' ? 1 : -1, deskOffHouseRef.current ? FEED_HELD : undefined) }), q => `${q.ticker} ${q.timeframe}`);
           return;
         /*
           THE WATCHLIST FLIP — the active pane's symbol, without the picker.
@@ -4348,8 +4482,8 @@ const Terrain = () => {
           onClick={() => setCfg(prev => ({ ...prev, panes: prev.panes.map(p => ({ ...p, ladder: !anyLadder })) }))}
           aria-pressed={anyLadder}
           title={anyLadder ? 'Hide every strike rail — Shift R' : 'Show the strike rail beside every chart — Shift R'}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider transition-colors ${
-            anyLadder ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
+          className={`hit pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider transition-colors ${
+            anyLadder ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary active:bg-ink/[0.12]'
           }`}
         >
           Strikes
@@ -4372,87 +4506,87 @@ const Terrain = () => {
           <DistanceUnitPicker dense />
         </span>
 
-        {/* T-18 — the named-layouts shelf, in the desk's own cluster. */}
-        <span className="relative pointer-events-auto">
-          <button
-            onClick={() => setLayoutsOpen(o => !o)}
-            aria-haspopup="dialog"
-            aria-expanded={layoutsOpen}
-            title="Named layouts — save this arrangement, recall another"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider transition-colors ${
-              layoutsOpen ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary'
-            }`}
-          >
-            <Rows3 className="w-3 h-3" /> Layouts
-          </button>
-          {layoutsOpen && (
-            <>
-              <span className="fixed inset-0 z-30" onClick={() => setLayoutsOpen(false)} aria-hidden />
-              <div
-                role="dialog"
-                aria-label="Named layouts"
-                onKeyDown={e => {
-                  /* Escape closes the shelf from anywhere inside it — a
-                     panel with a click-away backdrop and no key out is a
-                     trap for keyboard readers (and the probe that found
-                     this). Stopped, so the desk's own Escape does not also
-                     fire. */
-                  if (e.key === 'Escape') {
-                    e.stopPropagation();
-                    setLayoutsOpen(false);
-                  }
-                }}
-                className="absolute bottom-full right-0 mb-2 z-40 w-64 border border-borderMuted bg-panel/95 rounded-md p-2 shadow-xl shadow-black/50"
+        {/* T-18 — the named-layouts shelf, in the desk's own cluster. The house's card (ui/PopoverCard, the audit's A-248):
+            Esc closes it from the trigger as from inside — the local panel heard Esc only inside itself, so an Esc with the
+            keys on its button collapsed the full-screen pane and left the shelf open — focus goes in and comes back. */}
+        <span className="pointer-events-auto inline-flex">
+          <PopoverCard
+            open={layoutsOpen}
+            onOpenChange={o => {
+              setLayoutsOpen(o);
+              if (!o) setLayoutNote(null);
+            }}
+            title="Named layouts"
+            meta={`${Object.keys(namedLayouts).length} of ${MAX_NAMED_LAYOUTS}`}
+            width={272}
+            testId="terrain-layouts"
+            trigger={
+              <button
+                type="button"
+                title="Named layouts — save this arrangement, recall another"
+                className={`hit inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                  layoutsOpen ? 'bg-ink/[0.16] text-textPrimary' : 'bg-canvas/40 text-textSecondary hover:text-textPrimary active:bg-ink/[0.12]'
+                }`}
+                data-terrain-layouts
               >
-                <div className="font-mono text-[11px] uppercase tracking-widest text-textMuted px-1 pb-1.5">
-                  Named layouts · {Object.keys(namedLayouts).length}/{MAX_NAMED_LAYOUTS}
-                </div>
-                {Object.entries(namedLayouts)
-                  .sort((a, b) => b[1].savedAt - a[1].savedAt)
-                  .map(([name, entry]) => (
-                    <div key={name} className="flex items-center gap-1 group">
-                      <button
-                        onClick={() => applyNamedLayout(entry)}
-                        title={`${entry.layout} pane${entry.layout === 1 ? '' : 's'} · ${entry.panes.slice(0, entry.layout).map(pn => pn.ticker).join(' ')}`}
-                        className="flex-1 min-w-0 text-left px-1.5 py-1 rounded font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.05] truncate transition-colors"
-                      >
-                        {name}
-                        <span className="ml-1.5 text-[11px] text-textMuted tnum">
-                          {entry.layout}× {entry.panes.slice(0, entry.layout).map(pn => pn.ticker).join('·')}
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => removeNamedLayout(name)}
-                        aria-label={`Delete the layout ${name}`}
-                        className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted opacity-0 group-hover:opacity-100 hover:text-textPrimary hover:bg-ink/[0.08] transition-all"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                {Object.keys(namedLayouts).length === 0 && (
-                  <div className="px-1.5 py-1 font-mono text-[11px] text-textMuted">Nothing saved yet — name this desk below.</div>
-                )}
-                <div className="mt-1.5 pt-1.5 border-t border-borderSubtle/60 flex items-center gap-1">
-                  <input
-                    value={layoutName}
-                    onChange={e => { setLayoutName(e.target.value); setLayoutNote(null); }}
-                    onKeyDown={e => { if (e.key === 'Escape') { setLayoutsOpen(false); return; } e.stopPropagation(); if (e.key === 'Enter') saveCurrentLayout(); }}
-                    placeholder="name this arrangement"
-                    aria-label="Layout name"
-                    className="flex-1 min-w-0 px-1.5 py-1 rounded border border-borderSubtle bg-inset font-mono text-[11px] text-textPrimary placeholder:text-textMuted outline-none focus:border-borderMuted"
-                  />
-                  <button
-                    onClick={saveCurrentLayout}
-                    className="shrink-0 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider text-select hover:bg-select/10 transition-colors"
-                  >
-                    Save
-                  </button>
-                </div>
-                {layoutNote && <div className="px-1.5 pt-1 font-mono text-[11px] text-textMuted">{layoutNote}</div>}
+                <Rows3 className="w-3 h-3" aria-hidden /> Layouts
+              </button>
+            }
+          >
+            <div className="p-2">
+              {Object.entries(namedLayouts)
+                .sort((a, b) => b[1].savedAt - a[1].savedAt)
+                .map(([name, entry]) => (
+                  <div key={name} className="flex items-center gap-1 group">
+                    <button
+                      type="button"
+                      onClick={() => applyNamedLayout(entry, name)}
+                      title={`${entry.layout} pane${entry.layout === 1 ? '' : 's'} · ${entry.panes.slice(0, entry.layout).map(pn => pn.ticker).join(' ')}`}
+                      className="hit flex-1 min-w-0 text-left px-1.5 py-1 rounded font-mono text-[11px] text-textSecondary hover:text-textPrimary hover:bg-ink/[0.05] active:bg-ink/[0.08] truncate transition-colors"
+                      data-layout-recall={name}
+                    >
+                      {name}
+                      <span className="ml-1.5 text-[11px] text-textMuted tnum">
+                        {entry.layout}× {entry.panes.slice(0, entry.layout).map(pn => pn.ticker).join('·')}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeNamedLayout(name)}
+                      aria-label={`Delete the layout ${name}`}
+                      title={`Delete the layout ${name}`}
+                      className="hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 hover:text-textPrimary hover:bg-ink/[0.08] transition-all"
+                      data-layout-delete={name}
+                    >
+                      <X className="w-3 h-3" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              {Object.keys(namedLayouts).length === 0 && <div className="px-1.5 py-1 font-mono text-[11px] text-textMuted">Nothing saved yet — name this desk below.</div>}
+              <div className="mt-1.5 pt-1.5 border-t border-borderSubtle/60 flex items-center gap-1">
+                <input
+                  value={layoutName}
+                  onChange={e => {
+                    setLayoutName(e.target.value);
+                    setLayoutNote(null);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') return;
+                    e.stopPropagation();
+                    if (e.key === 'Enter') saveCurrentLayout();
+                  }}
+                  placeholder="Name this arrangement"
+                  aria-label="Layout name"
+                  className="flex-1 min-w-0 px-1.5 py-1 rounded border border-borderSubtle bg-inset font-mono text-[11px] text-textPrimary placeholder:text-textMuted outline-none focus:border-borderMuted"
+                  data-layout-name
+                />
+                <button type="button" onClick={saveCurrentLayout} className="hit shrink-0 px-2 py-1 rounded font-mono text-[11px] text-select hover:bg-select/10 active:bg-select/20 transition-colors" data-layout-save>
+                  Save
+                </button>
               </div>
-            </>
-          )}
+              {layoutNote && <div className="px-1.5 pt-1 font-mono text-[11px] text-textMuted" role="status">{layoutNote}</div>}
+            </div>
+          </PopoverCard>
         </span>
 
         {/* THE PINE DOOR, FULLSCREEN ONLY (Noah, 2026-09-12: "there should be
@@ -4465,7 +4599,7 @@ const Terrain = () => {
           <button
             onClick={() => openEditor(null, `terrain:${expanded + 1}`)}
             title="Write a Pine script for this chart — the editor opens beside it"
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary transition-colors"
+            className="hit pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-ink/[0.08] bg-canvas/40 backdrop-blur-[3px] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary active:bg-ink/[0.12] transition-colors"
             data-terrain-pine
           >
             <Code2 className="w-3 h-3" /> Pine
@@ -4492,9 +4626,11 @@ const Terrain = () => {
         {expanded !== null && (
           <button
             onClick={() => closeExpanded()}
-            className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle bg-canvas/70 backdrop-blur-[2px] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary"
+            title="Back to the desk — Esc"
+            className="hit pointer-events-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-borderSubtle bg-canvas/70 backdrop-blur-[2px] font-mono text-[11px] uppercase tracking-wider text-textSecondary hover:text-textPrimary active:bg-ink/[0.12]"
+            data-terrain-close-expanded
           >
-            <X className="w-3.5 h-3.5" /> Esc
+            <X className="w-3.5 h-3.5" aria-hidden /> Esc
           </button>
         )}
       </div>

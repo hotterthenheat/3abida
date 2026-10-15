@@ -27,7 +27,9 @@
 import { fmtUsd } from '../../data/gex';
 import { fmtFlow, type FlowLadder } from '../../data/hedgeFlow';
 import type { GexLevel } from '../../types/market';
-import type { PanelLevels } from './ProfilePanel';
+import type { PanelLevels, ProfilePalette } from './ProfilePanel';
+import { HEAT_MODE, heatCellStyle, type HeatMode } from './heatmap';
+import { num } from '../../core/format';
 import { splinePath } from './spline';
 import { FONT_SANS } from '../../theme/fonts';
 import { GuideSvg } from '../ui/GuideSvg';
@@ -37,13 +39,10 @@ const INK_2 = 'rgb(var(--text-secondary))';
 const INK_3 = 'rgb(var(--text-muted))';
 const SILVER = 'rgb(var(--silver))'; /* the silver token — deep steel on the light terminal (2026-09-12) */
 const GRID = 'rgb(var(--ink) / 0.07)';
-/* The thermal ramp's stops, as the calendar and the panel paint them */
-const COOL_1 = '#ABD9E9';
-const COOL_2 = '#74ADD1';
-const COOL_3 = '#4575B4';
-const WARM_1 = '#FDAE61';
-const WARM_2 = '#F46D43';
-const WARM_3 = '#D73027';
+/* THE LADDER'S OWN INKS (the audit's C-36: the figures stood in the old thermal hexes, orange and blue, beside a ladder
+   drawing gold and violet): every fill is the ladder's heat cell at that strength (heatmap.ts heatCellStyle — the
+   reader's palette, House or Thermal, and the colour-vision pair), on the guide's dark card */
+export type Heat = (v: number) => { fill: string; ink: string };
 /* the figures' voice — Helvetica's digits are tabular (theme/fonts.ts) */
 const FIG = FONT_SANS;
 const SANS = FONT_SANS;
@@ -52,7 +51,7 @@ const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** A capsule with its figure inside, the panel's own drawing */
-const Capsule = ({ x, y, w, fill, text, ink = '#0a0a0a', h = 14, s }: { x: number; y: number; w: number; fill: string; text?: string; ink?: string; h?: number; s: number }) => (
+const Capsule = ({ x, y, w, fill, text, ink = 'rgb(var(--on-silver))', h = 14, s }: { x: number; y: number; w: number; fill: string; text?: string; ink?: string; h?: number; s: number }) => (
   <g>
     <rect x={x} y={y - h / 2} width={w} height={h} rx={h / 2} fill={fill} />
     {text && (
@@ -75,26 +74,6 @@ const Strike = ({ y, children, fill = INK_2, s }: { y: number; children: string;
   </text>
 );
 
-/* The thermal ramp's journey from the centre's pale yellow out to a pole — the
-   legs' own surface, at the strength each leg earns */
-const YELLOW = '#FFFFBF';
-const hexRgb = (h: string): [number, number, number] => {
-  const n = parseInt(h.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-};
-const mix = (a: string, b: string, t: number) => {
-  const [r1, g1, b1] = hexRgb(a);
-  const [r2, g2, b2] = hexRgb(b);
-  return `rgb(${Math.round(r1 + (r2 - r1) * t)},${Math.round(g1 + (g2 - g1) * t)},${Math.round(b1 + (b2 - b1) * t)})`;
-};
-const rampAt = (stops: string[], t: number) => {
-  const tt = Math.max(0, Math.min(1, t)) * (stops.length - 1);
-  const i = Math.min(stops.length - 2, Math.floor(tt));
-  return mix(stops[i], stops[i + 1], tt - i);
-};
-const WARM_RAMP = [YELLOW, WARM_1, WARM_2, WARM_3];
-const COOL_RAMP = [YELLOW, COOL_1, COOL_2, COOL_3];
-
 /* THE FIGURES' STRIKES ARE THE PANE'S (the audit's TE-14: the guide's 493–497 stood beside a market at 477): the five
    strikes over the name's own price, a strike apart on its own grid — the shapes stay the drawing's */
 const strikesOver = (spot: number, step: number, n: number) => {
@@ -103,7 +82,7 @@ const strikesOver = (spot: number, step: number, n: number) => {
 };
 
 /** FIGURE 1 — SIZE: the ladder; puts grow left, calls grow right, the spine leans to the side that wins */
-const SizeFigure = ({ ks }: { ks: string[] }) => {
+const SizeFigure = ({ ks, heat }: { ks: string[]; heat: Heat }) => {
   const MID = 200;
   const REACH = 112;
   const LEAN = 58;
@@ -120,7 +99,8 @@ const SizeFigure = ({ ks }: { ks: string[] }) => {
   const spine = splinePath(rows.map(r => ({ x: spineX(r), y: r.y })), MID - LEAN - 4, MID + LEAN + 4);
   const ghost = splinePath(rows.map(r => ({ x: MID + (spineX(r) - MID) * 0.55, y: r.y })), MID - LEAN - 4, MID + LEAN + 4);
   const H = 6;
-  const wallInk = (w: 'call' | 'put' | undefined) => (w === 'call' ? 'rgb(var(--bull))' : w === 'put' ? 'rgb(var(--bear))' : INK_2);
+  /* the walls wear the gamma pair, as on the chart and the ladder: the call wall the absorbing gold, the put wall violet */
+  const wallInk = (w: 'call' | 'put' | undefined) => (w === 'call' ? 'rgb(var(--absorb))' : w === 'put' ? 'rgb(var(--amplify))' : INK_2);
   return (
     <GuideSvg w={368} h={166} word={9.75} label="Five strikes on the ladder: the put leg grows left from a centre line, the call leg grows right, and one line leans through the rows toward the side that wins each strike" figure="size">
       {({ w, t }) => (
@@ -132,16 +112,16 @@ const SizeFigure = ({ ks }: { ks: string[] }) => {
               return (
                 <g key={r.k}>
                   <linearGradient id={`g-put-${r.k}`} x1="1" x2="0" y1="0" y2="0">
-                    <stop offset="0" stopColor={YELLOW} />
-                    <stop offset="0.33" stopColor={rampAt(WARM_RAMP, ps / 3)} />
-                    <stop offset="0.66" stopColor={rampAt(WARM_RAMP, (2 * ps) / 3)} />
-                    <stop offset="1" stopColor={rampAt(WARM_RAMP, ps)} />
+                    <stop offset="0" stopColor={heat(0).fill} />
+                    <stop offset="0.33" stopColor={heat(ps / 3).fill} />
+                    <stop offset="0.66" stopColor={heat((2 * ps) / 3).fill} />
+                    <stop offset="1" stopColor={heat(ps).fill} />
                   </linearGradient>
                   <linearGradient id={`g-call-${r.k}`} x1="0" x2="1" y1="0" y2="0">
-                    <stop offset="0" stopColor={YELLOW} />
-                    <stop offset="0.33" stopColor={rampAt(COOL_RAMP, cs / 3)} />
-                    <stop offset="0.66" stopColor={rampAt(COOL_RAMP, (2 * cs) / 3)} />
-                    <stop offset="1" stopColor={rampAt(COOL_RAMP, cs)} />
+                    <stop offset="0" stopColor={heat(0).fill} />
+                    <stop offset="0.33" stopColor={heat(-cs / 3).fill} />
+                    <stop offset="0.66" stopColor={heat((-2 * cs) / 3).fill} />
+                    <stop offset="1" stopColor={heat(-cs).fill} />
                   </linearGradient>
                 </g>
               );
@@ -178,7 +158,7 @@ const SizeFigure = ({ ks }: { ks: string[] }) => {
           {/* What the drawing says, in three lines */}
           <circle cx={50} cy={128} r={4} fill={SILVER} />
           <Label x={59} y={128} size={w}>puts grow left, calls grow right · longer is more hedging</Label>
-          <circle cx={50} cy={143} r={4} fill={WARM_2} />
+          <circle cx={50} cy={143} r={4} fill={heat(0.66).fill} />
           <Label x={59} y={143} size={w}>puts push moves along · calls push back · hotter is heavier</Label>
           <line x1={45} x2={55} y1={158.5} y2={158.5} stroke="rgba(237,237,237,0.85)" strokeWidth={1.5} />
           <Label x={59} y={158} size={w}>the line leans to the side that wins · dashed is at the open</Label>
@@ -189,7 +169,7 @@ const SizeFigure = ({ ks }: { ks: string[] }) => {
 };
 
 /** FIGURE 2 — FLOW: a trip from spot to a strike; every strike crossed adds its weight */
-const FlowFigure = ({ ks, spot }: { ks: string[]; spot: string }) => {
+const FlowFigure = ({ ks, spot, heat }: { ks: string[]; spot: string; heat: Heat }) => {
   const spotY = 116;
   const steps = [
     { y: 88, k: ks[0], add: '+$30M', total: 34, text: '$30M' },
@@ -219,9 +199,9 @@ const FlowFigure = ({ ks, spot }: { ks: string[]; spot: string }) => {
             <g key={s.k}>
               <Strike s={w} y={s.y}>{s.k}</Strike>
               <circle cx={44} cy={s.y} r={3} fill={SILVER} />
-              <Capsule s={w} x={54} y={s.y} w={44} fill={i === 2 ? COOL_3 : i === 1 ? COOL_2 : COOL_1} text={s.add} ink={i === 2 ? '#ffffff' : '#0a0a0a'} h={12} />
+              <Capsule s={w} x={54} y={s.y} w={44} fill={heat(-(i + 1) / 3).fill} text={s.add} ink={heat(-(i + 1) / 3).ink} h={12} />
               {/* The running total on the right, growing with every strike crossed */}
-              <Capsule s={w} x={208} y={s.y} w={s.total} fill={i === 2 ? WARM_3 : i === 1 ? WARM_2 : WARM_1} text={s.text} ink={i === 2 ? '#ffffff' : '#0a0a0a'} />
+              <Capsule s={w} x={208} y={s.y} w={s.total} fill={heat((i + 1) / 3).fill} text={s.text} ink={heat((i + 1) / 3).ink} />
             </g>
           ))}
           <Label x={110} y={88} fill={INK_3} size={w}>crossed first</Label>
@@ -240,9 +220,17 @@ interface ProfileGuideProps {
   rows: GexLevel[];
   levels: PanelLevels;
   flow: FlowLadder | null;
+  /** The ladder's colours — the guide draws in the same */
+  palette?: ProfilePalette;
 }
 
-const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
+const ProfileGuide = ({ rows, levels, flow, palette = 'house' }: ProfileGuideProps) => {
+  /* the ladder's heat cell on the guide's dark card, the reader's palette (heatCellStyle reads the colour-vision pair) */
+  const mode: HeatMode = palette === 'house' ? HEAT_MODE : 'thermal-yellow';
+  const heat: Heat = v => {
+    const c = heatCellStyle(v, 1, mode, false);
+    return { fill: String(c.backgroundColor ?? 'rgb(var(--panel))'), ink: String(c.color ?? 'rgb(var(--text-primary))') };
+  };
   /* the name's own grid: the smallest gap between two of its strikes */
   let step = Infinity;
   const asc = rows.map(r => r.strike).sort((a, b) => a - b);
@@ -278,16 +266,16 @@ const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
           Each row is one strike. The put hedging grows left from the centre line and the call hedging grows right: the more sits there, the longer the leg and the hotter its colour. That is why the walls are the longest. The put side pushes moves along at that strike; the call side pushes back. The line through the rows leans to whichever side wins each strike, and the dashed line is where it leaned at the open.
         </p>
         <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
-          <SizeFigure ks={ks} />
+          <SizeFigure ks={ks} heat={heat} />
         </div>
       </div>
       <div>
         <p className="text-[12px] font-semibold text-textPrimary">What a move forces · what it costs to get there</p>
         <p className="mt-0.5 text-[11.5px] leading-relaxed text-textSecondary">
-          Pick a strike. To reach it, price has to cross every strike in between, and each one adds its hedging to the bill. The capsule shows the total dealers would have to buy or sell by the time price arrives, so it grows the further the strike is from where the market is now. Orange means that trading pushes the move along, so it speeds up. Blue means it pushes back, so it slows down.
+          Pick a strike. To reach it, price has to cross every strike in between, and each one adds its hedging to the bill. The capsule shows the total dealers would have to buy or sell by the time price arrives, so it grows the further the strike is from where the market is now. Violet means that trading pushes the move along, so it speeds up. Gold means it pushes back, so it slows down (the House colours; Thermal draws them warm and cool).
         </p>
         <div className="mt-2 rounded-md border border-borderSubtle/60 bg-panel px-2 py-2">
-          <FlowFigure ks={ks} spot={levels.spot.toFixed(2)} />
+          <FlowFigure ks={ks} spot={num(levels.spot, 2)} heat={heat} />
         </div>
       </div>
       {examples.length > 0 && (
@@ -299,7 +287,7 @@ const ProfileGuide = ({ rows, levels, flow }: ProfileGuideProps) => {
       {/* THE FIELD ON THE CHART, one line (2026-10-13): which beads were read as they stood and which were rebuilt, and the
           scale they share */}
       <p className="text-[11px] text-textMuted" data-guide-field>
-        On the chart, each bead is estimated dealer gamma (assumed sign) at one strike and one minute. On the feed every minute is modeled from what was known by then; a bead priced on the session before's closing vols draws a step quieter — hover a bead for which, and for Unusual Whales' own figure beside it. Each column's grey ticks are its own flip, a gap where it has none; a wall's move comes from price, vol or time, never new positions. A bead's strength is measured against the columns at or before it.
+        On the chart, each oval is estimated dealer gamma (assumed sign) at one strike and one candle: its size the strike's total gamma against the session's largest node so far, its colour the side that wins — gold absorbs, violet amplifies, grey is balanced. On the feed every minute is modeled from what was known by then; an oval with a soft edge stands on stale or carried vols — hover it for which, and for Unusual Whales' own figure beside it. Each column's grey ticks are its own flip, a gap where it has none; a wall's move comes from price, vol or time, never new positions.
       </p>
       <p className="text-[11px] text-textMuted">Hover any strike to see both numbers in the line under the lanes · click to keep it there.</p>
     </div>

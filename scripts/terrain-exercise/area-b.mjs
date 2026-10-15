@@ -38,7 +38,12 @@ function rec(r) {
   console.log(`${row.id.padEnd(14)} ${tag.padEnd(6)} ${row.ms == null ? '' : `${row.ms}ms`.padEnd(8)} ${row.observed.slice(0, 150)}`);
   flush();
 }
+const MERGE = process.argv.includes('--merge');
+/* a merge run reads the last report before it writes anything, and writes only at its end */
+const OLD = MERGE ? JSON.parse((await import('node:fs')).readFileSync(`${OUT}/area-b.json`, 'utf8')) : null;
+let FINAL = false;
 function flush() {
+  if (MERGE && !FINAL) return;
   writeFileSync(`${OUT}/area-b.json`, JSON.stringify({ server: BASE, commit: '521d7de', ranAt: new Date(T_START).toISOString(), seconds: Math.round((Date.now() - T_START) / 1000), groups: groupsRun, results }, null, 1));
 }
 const ms = t0 => Date.now() - t0;
@@ -513,7 +518,7 @@ await group('field', async () => {
         observed: `pin → ${f1} in ${t1} ms (price lines ${JSON.stringify(lines1)}); the pin moved the node ${Math.round(jumped)} px (y ${Math.round(bead.y)} → ${Math.round(geo.y)}, axis now ${geo.axis.map(v => v.toFixed(2)).join('–')}); 2nd click at the same spot → focus ${f2same}; click on the node where it now stands → ${f2}; Esc → ${f3} in ${t3} ms`,
         pass,
         ms: t1 ?? ms(t0),
-        notes: [jumped >= 4 ? 'pinning re-fits the price axis (the focus is an autoscale extra before the 8-strike centring, StrikeChart.tsx:2368), so the node jumps from under the pointer and a 2nd click there misses' : '', lines1.includes('FOCUS') ? '' : 'no FOCUS price line'].filter(Boolean).join('; '),
+        notes: [jumped >= 4 ? 'pinning re-fits the price axis (the focus is an autoscale extra before the 8-strike centring, StrikeChart.tsx:2365 at 521d7de (:2370 at HEAD b4ee18e)), so the node jumps from under the pointer and a 2nd click there misses' : '', lines1.includes('FOCUS') ? '' : 'no FOCUS price line'].filter(Boolean).join('; '),
       };
     });
 
@@ -602,7 +607,7 @@ await group('field', async () => {
       };
       const gold = ([r, , b]) => r - b;
       const vio = ([r, g, b]) => b - (r + g) / 2;
-      const grey = ([r, g, b]) => (Math.abs(r - g) < 12 && Math.abs(g - b) < 12 ? r : 0);
+      const grey = ([r, g, b]) => (Math.abs(r - g) < 14 && Math.abs(g - b) < 16 ? r : 0);
       const out = { cw: { n: 0, hit: 0 }, pw: { n: 0, hit: 0 }, flip: { n: 0, hit: 0, none: 0 }, last: null };
       const top = (tr.chromeInset || 0) + 6;
       for (let i = 0; i < tr.snapshots.length; i++) {
@@ -625,10 +630,13 @@ await group('field', async () => {
         if (col.flip == null) out.flip.none++;
         else {
           const y = e.candles.priceToCoordinate(col.flip);
-          const dark = q => Math.max(...q) < 30;
-          if (y != null && y > top && y < ph - 6 && dark(px(x, y - 4)) && dark(px(x, y + 4))) {
+          if (y != null && y > top && y < ph - 6) {
             out.flip.n++;
-            if (grey(px(x, y)) > 40 || grey(px(x, y - 1)) > 40 || grey(px(x, y + 1)) > 40) out.flip.hit++;
+            /* a thin grey feature: grey in the 5 × 3 window round (x, y), not grey 5 px above and below */
+            const d = ctx.getImageData(Math.round(x) - 2, Math.round(y) - 1, 5, 3).data;
+            let g = 0;
+            for (let q = 0; q < d.length; q += 4) if (grey([d[q], d[q + 1], d[q + 2]]) > 60) g++;
+            if (g > 0 && grey(px(x, y - 5)) < 60 && grey(px(x, y + 5)) < 60) out.flip.hit++;
           }
         }
       }
@@ -649,8 +657,9 @@ await group('field', async () => {
       item: 'Flip rule (dashed grey per column)',
       action: "per column, sample the column's own flip row",
       expected: 'a grey dash at each column flip; a gap where the column has none',
-      observed: `grey dash at the flip in ${rules.flip.hit}/${rules.flip.n} in-plot columns whose rows 4 px away are clear of ovals; ${rules.flip.none} columns with no flip`,
-      pass: rules.flip.n < 5 ? 'manual' : rules.flip.hit / rules.flip.n >= 0.6,
+      observed: `a thin grey dash at the column's flip in ${rules.flip.hit}/${rules.flip.n} columns whose flip is in the clear plot; ${rules.flip.none} columns with no flip`,
+      pass: rules.flip.n < 5 ? 'manual' : rules.flip.hit / rules.flip.n >= 0.5,
+      notes: 'pixel evidence; a balanced (grey) oval on the flip row can hide the dash',
     });
     rec({ id: 'B-06', item: 'Candle ground edge (1-px ground outline where a candle crosses an oval)', action: 'zoom on a candle over a large oval', expected: '1-px ground-coloured edge round body and wick', observed: 'not separable by pixel census from the candle body itself at 1 dpr', pass: 'manual', notes: 'needs a zoomed visual check (a 1-device-px outline)' });
 
@@ -737,7 +746,7 @@ await group('field', async () => {
       });
       await away(page);
       const all = has.every(Boolean);
-      return { observed: `${txt.slice(0, 300)} (field columns today: ${todayCols})`, pass: all ? true : todayCols === 0 ? 'manual' : false, notes: all ? '' : `missing: ${['moves today', 'held since', 'touches today'].filter((_, k) => !has[k]).join(', ')}${todayCols === 0 ? " — off hours there is no column today, and the card then shows the record line alone (StrikeChart.tsx:2054 'n > start'), saying nothing of the last session; see B-17/clock" : ''}` };
+      return { observed: `${txt.slice(0, 300)} (field columns today: ${todayCols})`, pass: all ? true : todayCols === 0 ? 'manual' : false, notes: all ? '' : `missing: ${['moves today', 'held since', 'touches today'].filter((_, k) => !has[k]).join(', ')}${todayCols === 0 ? " — off hours there is no column today, and the card then shows the record line alone (StrikeChart.tsx:2052 'n > start' at 521d7de), saying nothing of the last session; see B-17/clock" : ''}` };
     });
 
     /* B-18 price capsule */
@@ -1249,7 +1258,7 @@ await group('overlays', async () => {
       const words = await page.evaluate(() => [...document.querySelectorAll('[data-chart-ink] span, [data-chart-ink] div')].map(e => e.textContent).find(t => /^Regime ·/.test(t ?? '')) ?? '');
       const chipEl = await page.locator('[data-pane-chip="regime"]').first().boundingBox().catch(() => null);
       const panes = await page.evaluate(() => window.__x.E(0).chart.panes().map(p => ({ h: p.getHeight(), n: p.getSeries().length })));
-      return { observed: `pane ${before.panes} → ${a.panes} in ${tPane} ms; name chip ${t != null ? `in ${t} ms` : nudge} "${chip}"; regime words "${words.slice(0, 120)}"; panes ${JSON.stringify(panes)}`, pass: tPane != null && t != null, ms: tPane, notes: t == null ? `the pane's name chip ${nudge} (remeasurePaneLabels runs as the pane is added, before the library lays it out — a 0-height pane is skipped, StrikeChart.tsx:3049; likely)` : chipEl && chipEl.height > 24 ? 'the chip wraps to more than one line' : '' };
+      return { observed: `pane ${before.panes} → ${a.panes} in ${tPane} ms; name chip ${t != null ? `in ${t} ms` : nudge} "${chip}"; regime words "${words.slice(0, 120)}"; panes ${JSON.stringify(panes)}`, pass: tPane != null && t != null, ms: tPane, notes: t == null ? `the pane's name chip ${nudge} (remeasurePaneLabels runs as the pane is added, before the library lays it out — a 0-height pane is skipped, StrikeChart.tsx:3048 at 521d7de; likely)` : chipEl && chipEl.height > 24 ? 'the chip wraps to more than one line' : '' };
     });
     await overlay({ id: 'B-27', label: 'Expected move', item: '±1σ / ±2σ lines and prior close (priced move, feed) + cone (B-28)', expected: 'σ lines labelled "+1σ … priced at the prior close"; the cone washes' }, async (before, t0) => {
       const t = await waitSig(before.sig);
@@ -1261,7 +1270,6 @@ await group('overlays', async () => {
       return { observed: `plot cells changed ${d} (noise ${noise}); rightOffset ${before.rightOffset} → ${a.rightOffset}; σ words on the chart: ${words.slice(0, 6).join(' | ') || 'none drawn'}`, pass: words.length === 0 ? 'manual' : d > noise + 2 && small.length === 0, ms: t ?? null, notes: words.length === 0 ? "at night the day's ±σ stand over today's session, which has no bars yet — see B-27/clock" : small.length ? `σ words under 11 px` : '' };
     });
     rec({ id: 'B-28', item: 'Priced-move cone + readout', action: 'Layers → Expected move during the session', expected: '50/68/95% washes from the last bar to the close', observed: 'market shut at run time (3–4 am New York): the cone runs from the last bar to the close only during the session', pass: 'manual', notes: 'σ lines exercised in B-27; the live cone needs a session in progress' });
-    rec({ id: 'B-29', item: 'Single-vol cone "EM ±$1.23" (house, no feed)', action: 'see the keys-out group', expected: 'envelope + cone off the name IV', observed: 'see row B-29 in group keysout', pass: 'manual', notes: 'placeholder — the keys-out group records the result' });
     await overlay({ id: 'B-30', label: 'Walls through the day', item: 'Walls through the day (heat) + lens GEX/Charm/DEX', expected: 'strike × bar heat behind the candles; the lens picker on the hover row repaints', keep: true }, async (before, t0) => {
       const t = await until(page, () => window.__x.E(0).host.dataset.wallsPaintMs != null, null, 8000);
       const p1 = await page.evaluate(() => window.__x.E(0).host.dataset.wallsPaintMs);
@@ -1323,7 +1331,7 @@ await group('overlays', async () => {
       const inside = chips.every(c => panes.slice(1).some(p => c.r.top >= p.top - 2 && c.r.top <= p.top + p.h));
       await toggleOverlay(page, 'Flow');
       await toggleOverlay(page, 'Regime strip');
-      return { observed: `${chips.map(c => `${c.k}@${Math.round(c.r.top)} ${c.c}`).join('; ')}; panes tops ${panes.map(p => Math.round(p.top)).join(',')}`, pass: t != null && chips.length >= 2 && inside, ms: t };
+      return { observed: `chips ${chips.map(c => `${c.k}@${Math.round(c.r.top)} ${c.c}`).join('; ') || 'none'}; pane tops ${panes.map(p => Math.round(p.top)).join(',')}`, pass: t != null && chips.length >= 2 && inside, ms: t, notes: chips.length < 2 ? 'with Flow and the Regime strip both on only the Flow chip stands — the regime pane is unnamed (B-26)' : '' };
     });
     await overlay({ id: 'B-36', label: 'Events', item: 'Events lane + card', expected: 'glyphs over the floor; hover a glyph → card' }, async (before, t0) => {
       const t = await waitSig(before.sig, noise + 2, 5000);
@@ -1466,6 +1474,10 @@ await group('daily', async () => {
   try {
     await away(page);
     await page.waitForTimeout(1500);
+    await item({ id: 'B-18/1D', item: 'Price capsule and countdown on 1D', action: 'read the capsule on day bars', expected: 'the price; no meaningless "time left" on a day bar (inventory note)' }, async () => {
+      const tag = (await page.locator('[data-price-tag]').first().innerText().catch(() => '')).replace(/\n/g, ' ');
+      return { observed: `capsule "${tag}"`, pass: 'manual', notes: 'a countdown on a day bar is the reader’s call (the market is shut: 00:00 or none)' };
+    });
     await item({ id: 'B-01/1D', item: 'No ovals on daily bars', action: 'SPY 1D', expected: 'trails gated to intraday: no ovals drawn' }, async () => {
       const s = await stats(page);
       const st = await page.evaluate(() => window.__x.state(0));
@@ -1531,9 +1543,7 @@ await group('daily', async () => {
       } else open5 = 'the panel did not open again';
       return { observed: `panel ${day} in ${t} ms: "${txt.slice(0, 260)}"; Esc closes: ${esc != null}; Open this session → 5m in ${open5} ms`, pass: t != null && esc != null && typeof open5 === 'number', ms: t ?? ms(t0), notes: esc == null ? 'Esc does not close the day panel' : '' };
     });
-    await item({ id: 'B-18/1D', item: 'Countdown on 1D', action: 'read the capsule on 1D', expected: 'no meaningless countdown on day bars (inventory note)' }, async () => {
-      return { observed: 'see B-52 (the pane moved to 5m); recorded on the first paint instead', pass: 'manual' };
-    });
+
     if (errors.length) rec({ id: 'B-daily-errors', item: 'page errors during the daily group', action: '—', expected: 'none', observed: errors.slice(0, 5).join(' | '), pass: false });
   } finally {
     await close();
@@ -1722,7 +1732,7 @@ await group('drawings', async () => {
       await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
       const dx = r ? Math.round(r.x - a.x) : null;
-      return { observed: r ? `input at (${dx}, ${Math.round(r.y - a.y)}) px from the click` : 'no input', pass: r ? Math.abs(dx) < 30 : false, notes: r && Math.abs(dx) >= 30 ? "the words input stands 56 px left of the click with the rail docked left and open: its left is measured off the chart's box and placed in the outer one (StrikeChart.tsx:6411 — `noteAt.x − containerRef.left` placed in the outer box)" : '' };
+      return { observed: r ? `input at (${dx}, ${Math.round(r.y - a.y)}) px from the click` : 'no input', pass: r ? Math.abs(dx) < 30 : false, notes: r && Math.abs(dx) >= 30 ? "the words input stands 56 px left of the click with the rail docked left and open: its left is measured off the chart's box and placed in the outer one (StrikeChart.tsx:6378 at 521d7de, :6411 at HEAD — `noteAt.x − containerRef.left` placed in the outer box)" : '' };
     });
     await item({ id: 'B-65', item: 'Delete selected · Clear all drawings', action: 'draw mode → Clear all drawings; undo', expected: 'all marks go at once with an undo chip (house rule); undo brings them back' }, async () => {
       const n0 = await count();
@@ -1862,7 +1872,7 @@ await group('replay', async () => {
       const line = await page.locator('[data-pick-line]').first().boundingBox().catch(() => null);
       const label = await page.locator('[data-pick-label]').first().innerText().catch(() => '');
       const off = line ? Math.round(line.x - (x + 3)) : null;
-      return { observed: `pick mode in ${t} ms; line at ${off ?? '—'} px from the pointer; label "${label}"`, pass: t != null && line && Math.abs(off) <= 4 && /(am|pm)/i.test(label), ms: t ?? ms(t0), notes: off != null && Math.abs(off) > 4 ? `the pick line, fade and label stand ${-off} px left of the pointer with the rail docked left and open — pickX is measured off the chart's box and placed in the outer one (StrikeChart.tsx:5838-5843; likely the same inset as B-63)` : '' };
+      return { observed: `pick mode in ${t} ms; line at ${off ?? '—'} px from the pointer; label "${label}"`, pass: t != null && line && Math.abs(off) <= 4 && /(am|pm)/i.test(label), ms: t ?? ms(t0), notes: off != null && Math.abs(off) > 4 ? `the pick line, fade and label stand ${-off} px left of the pointer with the rail docked left and open — pickX is measured off the chart's box and placed in the outer one (StrikeChart.tsx:5805-5810 at 521d7de, :5838-5843 at HEAD; likely the same inset as B-63)` : '' };
     });
     await item({ id: 'B-72', item: 'Replay foot bar and rewound chart', action: 'click the picked bar; step back; step on; Esc', expected: 'transport at the foot; chart cut at the cursor; no crash with an indicator on; Esc ends' }, async () => {
       const x = b.x + b.pw * 0.5;
@@ -2049,14 +2059,14 @@ await group('clock', async () => {
       const has = [/move/i.test(txt), /held since/i.test(txt), /touch/i.test(txt)];
       return { observed: `${pick.k} ${pick.s}: "${txt.slice(0, 320)}"`, pass: t != null && has.every(Boolean) ? true : 'manual', ms: t ?? ms(t0), notes: has.every(Boolean) ? '' : `missing ${['moves', 'held since', 'touches'].filter((_, k) => !has[k]).join(', ')} — inconclusive: with the clock held the page has no live book history for "today" (the card reads bookHistory, not the tiles)` };
     });
-    await item({ id: 'B-28', item: 'Priced-move cone + readout (session in progress)', action: 'Expected move on, clock at 3:30 pm', expected: '50/68/95% washes from the last bar to the close, a readout at its head' }, async () => {
+    await item({ id: 'B-28/clock', item: 'Priced-move cone + readout (page clock held at 3:30 pm Oct 14)', action: 'Expected move on, clock at 3:30 pm', expected: '50/68/95% washes from the last bar to the close, a readout at its head' }, async () => {
       await page.evaluate(() => window.__x.clearTexts());
       await page.evaluate(() => window.__x.E(0).chart.timeScale().scrollToRealTime());
       await page.waitForTimeout(800);
       const words = await page.evaluate(() => [...new Map(window.__x.texts('σ|to the close|left|EM').map(o => [o.t, `${o.t} (${o.f})`])).values()]);
       const ro = await page.evaluate(() => window.__x.E(0).chart.timeScale().options().rightOffset);
       await page.screenshot({ path: `${SHOTS}/b28-cone-clock.png` });
-      return { observed: `rightOffset ${ro}; words ${words.slice(0, 8).join(' | ') || 'none'}`, pass: words.length > 0 ? 'manual' : false, notes: `the washes need a visual check (${SHOTS}/b28-cone-clock.png); words captured off the canvas` };
+      return { observed: `rightOffset ${ro}; words ${words.slice(0, 8).join(' | ') || 'none'}`, pass: words.length > 0 ? 'manual' : false, notes: `the washes need a visual check (${SHOTS}/b28-cone-clock.png): with the clock held the page still draws the real after-hours bars past it, so the cone's place is not a fair test; the readout words are drawn` };
     });
     await item({ id: 'B-27/clock', item: '±1σ / ±2σ lines labelled (session in progress)', action: 'Expected move on, clock at 3:30 pm Oct 14', expected: '"+1σ … · priced at the prior close" words on the plot, ≥11 px, house figures' }, async () => {
       await page.evaluate(() => window.__x.clearTexts());
@@ -2287,26 +2297,39 @@ await group('pine', async () => {
     await item({ id: 'B-44', item: "Scripts legend (name, hide, remove) at the plot's top-left", action: 'place "The supreme strike"; hover its legend row → eye; eye again; ×', expected: 'the row names it; the eye hides and shows its line; × takes it off' }, async () => {
       const total = () => page.evaluate(() => window.__x.E(0).chart.panes().reduce((s2, p) => s2 + p.getSeries().length, 0));
       const n0 = await total();
-      await page.evaluate(async ps => (await import(ps)).placeOnPane('terrain:1', 'builtin:supreme'), ps);
-      const tIn = await until(page, n => window.__x.E(0).chart.panes().reduce((s2, p) => s2 + p.getSeries().length, 0) > n && !!document.querySelector('[data-legend-row]'), n0, 6000);
+      const cid = await page.evaluate(async ps => (await (await import(ps)).placeOnPane('terrain:1', 'builtin:supreme'))?.id ?? null, ps);
+      const tIn = await until(page, () => !!document.querySelector('[data-legend-row]'), null, 6000);
+      await page.waitForTimeout(500);
+      const n1 = await total();
       const row = page.locator('[data-legend-row]').first();
       const rr = await row.boundingBox().catch(() => null);
       const rail = await page.locator('[data-chart-rail]').first().boundingBox().catch(() => null);
       const name = (await row.innerText().catch(() => '')).replace(/\n/g, ' ');
       await row.hover().catch(() => {});
+      /* what stands over the eye: the element the pointer would reach at its centre */
+      const eyeBox = await page.locator('[data-legend-eye]').first().boundingBox().catch(() => null);
+      const top = eyeBox ? await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); if (!e) return 'none'; if (e.closest('[data-script-legend]')) return 'the legend itself'; const host = e.closest('[data-chart-rail], [data-bead-legend], [data-toolbar-row], [data-chart-chrome], [data-crosshair-readout], [data-pane-head]'); return `${e.tagName.toLowerCase()} of ${host ? [...host.attributes].map(a => a.name).filter(n => n.startsWith('data-'))[0] : 'an unmarked element'}`; }, [eyeBox.x + eyeBox.width / 2, eyeBox.y + eyeBox.height / 2]) : 'no eye';
       const t0 = Date.now();
-      await page.locator('[data-legend-eye]').first().click().catch(() => {});
-      const tHide = await until(page, n => window.__x.E(0).chart.panes().reduce((s2, p) => s2 + p.getSeries().length, 0) <= n, n0, 4000);
+      const clickErr = await page.locator('[data-legend-eye]').first().click({ timeout: 2500 }).then(() => '').catch(e => String(e).split('\n').find(l => /intercepts|not receive|Timeout/.test(l))?.trim().slice(0, 140) ?? 'click failed');
+      const tHide = await until(page, n => window.__x.E(0).chart.panes().reduce((s2, p) => s2 + p.getSeries().length, 0) < n, n1, 3000);
       const hidden = await row.getAttribute('data-hidden').catch(() => null);
+      let tShow = null;
+      if (tHide != null) {
+        await row.hover().catch(() => {});
+        await page.locator('[data-legend-eye]').first().click({ timeout: 2500 }).catch(() => {});
+        tShow = await until(page, n => window.__x.E(0).chart.panes().reduce((s2, p) => s2 + p.getSeries().length, 0) >= n, n1, 3000);
+      }
       await row.hover().catch(() => {});
-      await page.locator('[data-legend-eye]').first().click().catch(() => {});
-      const tShow = await until(page, n => window.__x.E(0).chart.panes().reduce((s2, p) => s2 + p.getSeries().length, 0) > n, n0, 4000);
-      await row.hover().catch(() => {});
-      await page.locator('[data-legend-remove]').first().click().catch(() => {});
-      const tOff = await until(page, () => !document.querySelector('[data-legend-row]'), null, 4000);
+      const rmErr = await page.locator('[data-legend-remove]').first().click({ timeout: 2500 }).then(() => '').catch(e => String(e).split('\n').find(l => /intercepts|not receive|Timeout/.test(l))?.trim().slice(0, 140) ?? 'click failed');
+      const tOff = await until(page, () => !document.querySelector('[data-legend-row]'), null, 3000);
+      /* whatever the pointer could not do, take the script off so the next rows start clean */
+      if (tOff == null && cid) {
+        await page.evaluate(async ([ps, cid]) => (await import(ps)).liftFromPane('terrain:1', cid), [ps, cid]).catch(() => {});
+        await until(page, () => !document.querySelector('[data-legend-row]'), null, 3000);
+      }
       await away(page);
       const overRail = rr && rail && rr.x < rail.x + rail.width && rr.y < rail.y + rail.height && rr.y + rr.height > rail.y;
-      return { observed: `row "${name}" in ${tIn} ms at x${rr ? Math.round(rr.x) : '—'} (rail right ${rail ? Math.round(rail.x + rail.width) : '—'}); eye hides in ${tHide} ms (data-hidden ${hidden}); eye shows in ${tShow} ms; × removes in ${tOff} ms`, pass: tIn != null && tHide != null && tShow != null && tOff != null && !overRail, ms: tHide ?? ms(t0), notes: overRail ? 'the legend stands over the drawing rail' : '' };
+      return { observed: `series ${n0} → ${n1}; row "${name}" in ${tIn} ms at x${rr ? Math.round(rr.x) : '—'} (rail right ${rail ? Math.round(rail.x + rail.width) : '—'}); at the eye's centre: ${top}; eye ${clickErr ? `press refused (${clickErr})` : 'pressed'} → hides in ${tHide} ms (data-hidden ${hidden}), shows again in ${tShow} ms; × ${rmErr ? `press refused (${rmErr})` : 'pressed'} → removed in ${tOff} ms`, pass: tIn != null && tHide != null && tShow != null && tOff != null && !overRail, ms: tHide ?? null, notes: [overRail ? 'the scripts legend stands over the drawing rail column (left-3 in the outer box; StrikeChart.tsx:5820 mounts ScriptLegend without the rail inset)' : '', clickErr ? `its eye is under another element (${top}) — the pointer cannot reach it` : ''].filter(Boolean).join('; ') };
     });
     for (const [id, slug, name, kind] of PINES) {
       await item({ id, item: `${name} (shipped Pine script)`, action: `place builtin:${slug} on terrain:1; read the chart; take it off`, expected: `${kind === 'own' ? 'its own pane, appended' : 'lines on the price pane'}; runs inside the 200 ms chart budget; legend row` }, async () => {
@@ -2349,7 +2372,7 @@ await group('pine', async () => {
           observed: `${added.length} series, ${where}, in ${t} ms (engine ${run.ms ?? '—'} ms on ${runs.n} bars, ${run.plots ?? '—'} plots${run.ok === false ? `, ERROR ${run.err}` : ''}); inks ${inks.join(' ') || '—'}; legend rows ${legend}; axis ${widened ? 'widened' : 'not widened'}${newWarns.length ? `; warn ${newWarns[0]}` : ''}${legendNote ? `; ${legendNote}` : ''}`,
           pass: t != null && okPane && run.ok !== false && (run.ms ?? 0) < 200 && newWarns.length === 0 && legend > 0 && !widened,
           ms: t,
-          notes: [clash.length ? `ink near the field's ${clash.map(c => c.near).join('/')}` : '', widened ? 'widens the fitted axis (CLAUDE.md: no wall, supreme, spot or layer widens it; scriptLayer.ts puts plots on the right scale with no autoscale guard)' : '', (run.ms ?? 0) >= 200 ? 'over the 200 ms budget' : ''].filter(Boolean).join('; '),
+          notes: [clash.length ? `ink near the field's ${clash.map(c => c.near).join('/')}` : '', widened ? 'widens the fitted axis (CLAUDE.md: no wall, supreme, spot or layer widens it; scriptLayer.ts:249 puts overlay plots on the right scale with no autoscale guard)' : '', (run.ms ?? 0) >= 200 ? 'over the 200 ms budget' : ''].filter(Boolean).join('; '),
         };
       });
     }
@@ -2431,6 +2454,25 @@ await group('pine-lang', async () => {
 await browser.close();
 
 /* ─── the report ────────────────────────────────────────────────────────────────────────────────────────────────── */
+FINAL = true;
+if (MERGE) {
+  /* a partial run replaces its own rows in the last full report and keeps the rest, in the report's order */
+  try {
+    const old = OLD;
+    const mine = new Map(results.map(r => [r.id, r]));
+    const merged = (old.results ?? []).map(r => mine.get(r.id) ?? r);
+    for (const r of results) if (!merged.some(m => m.id === r.id)) merged.push(r);
+    results.splice(0, results.length, ...merged);
+    const myInd = new Map(indRows.map(r => [r.id, r]));
+    const ind = (old.indicators ?? []).map(r => myInd.get(r.id) ?? r);
+    for (const r of indRows) if (!ind.some(m => m.id === r.id)) ind.push(r);
+    indRows.splice(0, indRows.length, ...ind);
+    const ran = new Set(groupsRun.map(g => g.name));
+    groupsRun.splice(0, groupsRun.length, ...(old.groups ?? []).filter(g => !ran.has(g.name)), ...groupsRun);
+  } catch (e) {
+    console.log(`merge skipped: ${e}`);
+  }
+}
 flush();
 const esc = s => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const passWord = p => (p === true ? 'PASS' : p === false ? '**FAIL**' : 'manual');

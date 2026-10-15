@@ -24,6 +24,7 @@ import {
   type SetupMap,
   type SymbolSetup,
 } from '../src/pages/terrain/setups';
+import { stepTf } from '../src/pages/terrain/paneKeys';
 
 let pass = 0, fail = 0;
 const check = (name: string, ok: boolean, extra = '') => {
@@ -158,6 +159,14 @@ check('symKey trims and upper-cases', symKey('  spy ') === 'SPY');
     'capture → JSON → read → apply is lossless',
     applied.timeframe === '5m' && applied.chartStyle === 'area' && applied.indicators.ema21 === true
   );
+}
+
+// the − and = keys step over a held timeframe (the audit's A-238: − from 1m stored the feed's held 15s)
+{
+  const held = { '15s': 'no seconds on the feed' } as const;
+  check('− from 1m with 15s held stays on 1m', stepTf('1m', -1, held) === '1m', stepTf('1m', -1, held));
+  check('− from 1m with nothing held goes to 15s', stepTf('1m', -1) === '15s', stepTf('1m', -1));
+  check('= from 1m with 15s held goes to 5m', stepTf('1m', 1, held) === '5m', stepTf('1m', 1, held));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

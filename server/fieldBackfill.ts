@@ -169,6 +169,8 @@ export interface MinuteBar {
   open?: number;
   high?: number;
   low?: number;
+  /** the minute's shares (UW's `volume`; since 2026-10-15 — the bars kept before it carry none, and are asked again once) */
+  volume?: number;
 }
 export interface PastState {
   ready: string[];
@@ -291,7 +293,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     }
     if (!Number.isFinite(open) || !Number.isFinite(lo)) throw new Error('no prices that day');
     const minutes: MinuteBar[] = bars.rows
-      .map(r => ({ time: Date.parse(String(r.start_time)) / 1000, close: num(r.close) ?? NaN, session: (r.market_time === 'r' ? 'r' : r.market_time === 'pr' ? 'pre' : 'post') as MinuteBar['session'], open: num(r.open) ?? undefined, high: num(r.high) ?? undefined, low: num(r.low) ?? undefined }))
+      .map(r => ({ time: Date.parse(String(r.start_time)) / 1000, close: num(r.close) ?? NaN, session: (r.market_time === 'r' ? 'r' : r.market_time === 'pr' ? 'pre' : 'post') as MinuteBar['session'], open: num(r.open) ?? undefined, high: num(r.high) ?? undefined, low: num(r.low) ?? undefined, volume: num(r.volume) ?? undefined }))
       .filter(b => Number.isFinite(b.time) && Number.isFinite(b.close))
       .sort((a, b) => a.time - b.time);
     return { open, lo, hi, calls: 1, bars: minutes };
@@ -578,13 +580,20 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
   }
 
   /** A session's minute bars: the file kept beside it, else one call (kept then) — null where the vendor has none */
+  /** the kept sessions asked again for their volume in this process — once each, answered or not */
+  const noVolume = new Set<string>();
   async function bars(name: string, day: string): Promise<MinuteBar[] | null> {
     const file = join(root, name, day, BARS);
+    let kept: MinuteBar[] | null = null;
     try {
-      if (existsSync(file)) return JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')) as MinuteBar[];
+      if (existsSync(file)) kept = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')) as MinuteBar[];
     } catch {
       /* a file cut short: read again */
     }
+    /* A KEPT SESSION WITH NO VOLUME (the audit's B-38: the bars were kept without UW's `volume` until 2026-10-15, so every
+       tiled session drew an empty volume pane and the readout said V0) is asked again once — one call — and kept whole */
+    if (kept && (!kept.length || kept.some(b => b.volume != null) || noVolume.has(`${name}|${day}`))) return kept;
+    if (kept) noVolume.add(`${name}|${day}`);
     try {
       const b = await barsOf(name, day);
       /* KEPT ONLY ONCE THE SESSION HAS CLOSED (2026-10-14): a scorecard run by hand mid-session asked today's bars and
@@ -597,7 +606,7 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
       }
       return b.bars;
     } catch {
-      return null;
+      return kept;
     }
   }
 

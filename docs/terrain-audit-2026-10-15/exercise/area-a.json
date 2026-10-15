@@ -1,0 +1,2588 @@
+{
+ "meta": {
+  "at": "2026-10-15T08:41:19.255Z",
+  "base": "http://127.0.0.1:5181",
+  "commit": "521d7de",
+  "viewport": "1440 × 900 unless the row says otherwise",
+  "timezone": "America/Los_Angeles",
+  "runSeconds": 442,
+  "totals": {
+   "pass": 236,
+   "fail": 17,
+   "manual": 4
+  },
+  "note": "Wall-clock timings on a machine shared with two other browser agents — pessimistic. ms runs from the action to the observed result."
+ },
+ "rows": [
+  {
+   "id": "A-01",
+   "item": "Pane number badge \"1\"…\"4\"",
+   "action": "press 2; click pane 2",
+   "expected": "both panes show \"1\" and \"2\"; the active pane's badge wears the foil",
+   "observed": "badges [{\"t\":\"1\",\"foil\":true},{\"t\":\"2\",\"foil\":false}]; after clicking pane 2 the foil is on [false,true]",
+   "pass": true,
+   "ms": 280,
+   "notes": "at 1440 × 900 and 1920 × 1000 the two-pane header sheds the badge (its width budget); run at 2560 × 1100"
+  },
+  {
+   "id": "A-02",
+   "item": "Replay badge",
+   "action": "press P; pick a bar",
+   "expected": "\"REPLAY · pick a bar\", then \"REPLAY · <day> · <time>\"; on an index on the feed P says why and no badge stands",
+   "observed": "pick: \"Replay· pick a bar\" (uppercase); after a bar click: \"Replay· Oct 14 · 1:39 pm\"; SPX: said \"No replay for SPX: its minute bars are not on this plan\", badge none",
+   "pass": true,
+   "ms": null,
+   "notes": "the bar click goes back to the pick phase below for the strip tests"
+  },
+  {
+   "id": "A-03",
+   "item": "Symbol chip \"[logo] SPY ▾\"",
+   "action": "click the chip",
+   "expected": "the \"Change symbol\" dialog opens",
+   "observed": "dialog open: \"Change symbol — currently SPY\"",
+   "pass": true,
+   "ms": 176,
+   "notes": ""
+  },
+  {
+   "id": "A-04",
+   "item": "Symbol picker dialog (search and list)",
+   "action": "type \"QQQ\", press Enter",
+   "expected": "the pane changes to QQQ (config and chart) and the dialog closes",
+   "observed": "config QQQ, chart QQQ, dialog closed",
+   "pass": true,
+   "ms": 1216,
+   "notes": "ms = Enter to the QQQ chart drawn with bars"
+  },
+  {
+   "id": "A-05",
+   "item": "Link chip",
+   "action": "click it",
+   "expected": "the link-group menu opens with 5 radio items",
+   "observed": "5 items: NoneStands alone — its own name | Group ANo name yet — this pane giv | Group BNo name yet — this pane giv | Group CNo name yet — this pane giv | Group DNo name yet — this pane giv",
+   "pass": true,
+   "ms": 803,
+   "notes": "the chip stands only where the compare + has room, the pane is linked, or it is expanded: at 1440 × 900 with two or more panes an unlinked pane shows no link chip, so it can be linked only from fullscreen"
+  },
+  {
+   "id": "A-06",
+   "item": "Link option \"None\"",
+   "action": "pane 1 → None",
+   "expected": "data-link-group \"none\" and no link in the config",
+   "observed": "chip none; config link null",
+   "pass": true,
+   "ms": 375,
+   "notes": ""
+  },
+  {
+   "id": "A-07",
+   "item": "Link option \"Group A\"",
+   "action": "pane 1 → A, pane 2 → A, then pick NVDA on pane 1",
+   "expected": "both read group A; pane 2 follows to NVDA",
+   "observed": "pane 2 joined A true, read SPY true; NVDA on pane 1 → pane 2 chart NVDA; config [{\"t\":\"NVDA\",\"link\":\"A\"},{\"t\":\"NVDA\",\"link\":\"A\"}]",
+   "pass": true,
+   "ms": 1580,
+   "notes": "ms = the pick to pane 2 drawing NVDA"
+  },
+  {
+   "id": "A-08",
+   "item": "Link option \"Group B\"",
+   "action": "pane 1 → Group B",
+   "expected": "data-link-group \"B\" and the config's link B",
+   "observed": "chip B; config link B",
+   "pass": true,
+   "ms": 518,
+   "notes": ""
+  },
+  {
+   "id": "A-09",
+   "item": "Link option \"Group C\"",
+   "action": "pane 1 → Group C",
+   "expected": "data-link-group \"C\" and the config's link C",
+   "observed": "chip C; config link C",
+   "pass": true,
+   "ms": 523,
+   "notes": ""
+  },
+  {
+   "id": "A-10",
+   "item": "Link option \"Group D\"",
+   "action": "pane 1 → Group D",
+   "expected": "data-link-group \"D\" and the config's link D",
+   "observed": "chip D; config link D",
+   "pass": true,
+   "ms": 353,
+   "notes": ""
+  },
+  {
+   "id": "A-11",
+   "item": "Compare \"+\"",
+   "action": "click the +",
+   "expected": "the compare panel opens with the \"Compare symbols…\" input (not clipped)",
+   "observed": "panel open; panel box [367,46,747,334] in pane [242,6,1434,858] (whole)",
+   "pass": true,
+   "ms": 175,
+   "notes": ""
+  },
+  {
+   "id": "A-12",
+   "item": "Compare search \"Compare symbols…\"",
+   "action": "type \"QQQ\", then Esc",
+   "expected": "listbox rows appear; Esc closes the panel",
+   "observed": "4 option row(s); Esc closed the panel",
+   "pass": true,
+   "ms": 70,
+   "notes": ""
+  },
+  {
+   "id": "A-13",
+   "item": "Compare mode \"Same % scale\"",
+   "action": "type QQQ, hover the row, click \"Same % scale\"",
+   "expected": "compares gains {QQQ, percent}; the legend row \"QQQ … ×\" appears",
+   "observed": "compares [{\"ticker\":\"QQQ\",\"mode\":\"percent\",\"ink\":\"#5B9CF6\"}]; legend row shown",
+   "pass": true,
+   "ms": 158,
+   "notes": ""
+  },
+  {
+   "id": "A-14",
+   "item": "Compare mode \"New price scale\"",
+   "action": "add IWM with \"New price scale\"",
+   "expected": "mode `scale`; the header strip takes a left padding",
+   "observed": "compares [{\"ticker\":\"QQQ\",\"mode\":\"percent\",\"ink\":\"#5B9CF6\"},{\"ticker\":\"IWM\",\"mode\":\"scale\",\"ink\":\"#BBB2E8\"}]; strip padding-left \"94px\"",
+   "pass": true,
+   "ms": 180,
+   "notes": ""
+  },
+  {
+   "id": "A-15",
+   "item": "Compare mode \"New pane\"",
+   "action": "add NVDA with \"New pane\"",
+   "expected": "mode `pane`",
+   "observed": "compares [{\"ticker\":\"QQQ\",\"mode\":\"percent\",\"ink\":\"#5B9CF6\"},{\"ticker\":\"IWM\",\"mode\":\"scale\",\"ink\":\"#BBB2E8\"},{\"ticker\":\"NVDA\",\"mode\":\"pane\",\"ink\":\"#EDE4CD\"}]",
+   "pass": true,
+   "ms": 233,
+   "notes": ""
+  },
+  {
+   "id": "A-16",
+   "item": "\"Added symbols\" list, remove ×",
+   "action": "open the panel, click \"Remove IWM comparison\"",
+   "expected": "IWM leaves `compares`",
+   "observed": "IWM removed",
+   "pass": true,
+   "ms": 532,
+   "notes": ""
+  },
+  {
+   "id": "A-17",
+   "item": "Compare legend row \"QQQ $… ×\"",
+   "action": "with the pointer on the pane, click the legend row ×",
+   "expected": "the row disappears and `compares` shrinks",
+   "observed": "legend \"QQQ$722.10\"; the click never landed: the hover toolbar row ([data-toolbar-row]) lies over the × while the pointer is on the pane; focus + Enter removes it",
+   "pass": false,
+   "ms": null,
+   "notes": "the hover row (Terrain.tsx `data-toolbar-row`, absolute top-full z-10) stands over the compare legend rows under the header and takes their pointer; DIAGNOSIS: pages/terrain/Terrain.tsx:3229 — the hover row (data-toolbar-row: absolute top-full, z-10, pointer-events on while the pane is hovered) lies over the compare legend rows (Terrain.tsx:3243-3290), so the row's × (3287) never gets a pointer click; the keys (focus + Enter) still work"
+  },
+  {
+   "id": "A-18",
+   "item": "Price \"$512.34\"",
+   "action": "read the header price, fresh and stale",
+   "expected": "one current price; with old data the warn ink and data-price-stale, its title reachable",
+   "observed": "old data: $767.38, data-price-stale true, title \"The price is as old as the data\", pointer-events auto; closed: $767.18, stale false, pointer-events auto",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-19",
+   "item": "Index print chip \"3:59 pm print · stale\"",
+   "action": "read SPX's print chip",
+   "expected": "the time of the newest print, \"· stale\" past two minutes",
+   "observed": "no print chip now; chips []",
+   "pass": "manual",
+   "ms": null,
+   "notes": "the chip is for the regular session; at the hour of the run SPX is priced from its options (A-20) — not reproducible now"
+  },
+  {
+   "id": "A-20",
+   "item": "\"price from options (overnight)\" / \"(after the close)\"",
+   "action": "SPX outside the index's print hours (now ~3–4 am New York)",
+   "expected": "the chip shows, its title reachable",
+   "observed": "no chip; price $7715.00",
+   "pass": "manual",
+   "ms": null,
+   "notes": "the server holds no options-priced SPX minutes (its field answer: theta null, 0 bars, 0 forwards — no Theta terminal answering here), so there is nothing to label; meanwhile the header prints $7715.00 with no chip saying where that price comes from"
+  },
+  {
+   "id": "A-21",
+   "item": "\"Strikes\" (below lg)",
+   "action": "at 900 wide, open the ladder from the header (or the peek that stands in its place)",
+   "expected": "the ladder lays over the chart; again (or Esc) hides it",
+   "observed": "the peek stands in its place (rows nearest the price): ladder over the chart; Esc → hidden",
+   "pass": true,
+   "ms": 238,
+   "notes": ""
+  },
+  {
+   "id": "A-22",
+   "item": "Change \"+0.42%\"",
+   "action": "read the header change against the rail",
+   "expected": "a signed percent in the direction ink with data-dir; agrees with the rail",
+   "observed": "header −0.31% (data-dir down, bear ink); rail -0.31%",
+   "pass": true,
+   "ms": null,
+   "notes": "same figure, but the rail prints \"-0.31%\" with a hyphen-minus where the header prints the true minus (core/format) — outside Area A"
+  },
+  {
+   "id": "A-23",
+   "item": "Age chip \"● Live\" / \"● 3m old\" / \"● Closed · …\"",
+   "action": "with the market open and the data old, read the chip",
+   "expected": "data-pane-age \"old\" in the warn ink; its words reachable by the pointer",
+   "observed": "market open, old data: \"14h 26m old\" (old, warn true, pointer-events auto, title \"The newest data is 14h 26m old — the feed has not answered s\"); at the real hour (closed): \"Closed · 5:04 pm\" (closed, words, pointer-events auto)",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-24",
+   "item": "Timeframe tab \"1m\"",
+   "action": "click the 1m tab",
+   "expected": "config and chart on 1m; the tab aria-pressed",
+   "observed": "config 1m, chart 1m, aria-pressed true; the view on the newest bars",
+   "pass": true,
+   "ms": 235,
+   "notes": "ms = click to the chart drawn on the new timeframe"
+  },
+  {
+   "id": "A-25",
+   "item": "Timeframe tab \"5m\"",
+   "action": "click the 5m tab",
+   "expected": "config and chart on 5m; the tab aria-pressed",
+   "observed": "config 5m, chart 5m, aria-pressed true; the view on the newest bars",
+   "pass": true,
+   "ms": 181,
+   "notes": "ms = click to the chart drawn on the new timeframe"
+  },
+  {
+   "id": "A-26",
+   "item": "Timeframe tab \"15m\"",
+   "action": "click the 15m tab",
+   "expected": "config and chart on 15m; the tab aria-pressed",
+   "observed": "config 15m, chart 15m, aria-pressed true; the view on the newest bars",
+   "pass": true,
+   "ms": 219,
+   "notes": "ms = click to the chart drawn on the new timeframe"
+  },
+  {
+   "id": "A-27",
+   "item": "Timeframe tab \"1h\"",
+   "action": "click the 1h tab",
+   "expected": "config and chart on 1h; the tab aria-pressed",
+   "observed": "config 1h, chart 1h, aria-pressed true; the view on the newest bars",
+   "pass": true,
+   "ms": 231,
+   "notes": "ms = click to the chart drawn on the new timeframe"
+  },
+  {
+   "id": "A-28",
+   "item": "Timeframe tab \"1D\"",
+   "action": "click the 1D tab",
+   "expected": "config and chart on 1D; the tab aria-pressed",
+   "observed": "config 1D, chart 1D, aria-pressed true; the view on 2025-04-02 → 2025-11-07 (233 bars past its right edge) while the newest bar is 2026-10-14",
+   "pass": false,
+   "ms": 139,
+   "notes": "ms = click to the chart drawn on the new timeframe; DIAGNOSIS: components/gex/StrikeChart.tsx:3967-3999 (likely) — when the feed's day bars replace the minutes folded by day, the `regrown` reload keeps the view on the time of the first visible bar, and the folded series starts with two stray 2025-04 sessions, so the view lands at index 0 of the day series (Apr–Nov 2025)"
+  },
+  {
+   "id": "A-29",
+   "item": "Current timeframe label \"30m\" beside the tabs",
+   "action": "set 30m from the hover row",
+   "expected": "the label \"30m\" appears beside the tabs",
+   "observed": "label \"30m\"",
+   "pass": true,
+   "ms": 276,
+   "notes": ""
+  },
+  {
+   "id": "A-30",
+   "item": "Header timeframe trigger \"5m ▾\"",
+   "action": "on a narrow pane (tabs shed), click it",
+   "expected": "the timeframe list opens",
+   "observed": "8 options; title \"Timeframe — − and = step it\"",
+   "pass": true,
+   "ms": 121,
+   "notes": ""
+  },
+  {
+   "id": "A-31",
+   "item": "Option \"15s\"",
+   "action": "open the list, read 15s",
+   "expected": "disabled on the feed with its reason",
+   "observed": "disabled true; title \"No seconds on the feed here yet — the panes draw bars of a minute and up\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-32",
+   "item": "Option \"1m\"",
+   "action": "open the list, pick 1m",
+   "expected": "the pane on 1m; the card closes",
+   "observed": "config 1m, chart 1m; the view on the newest bars",
+   "pass": true,
+   "ms": 543,
+   "notes": ""
+  },
+  {
+   "id": "A-33",
+   "item": "Option \"5m\"",
+   "action": "open the list, pick 5m",
+   "expected": "the pane on 5m; the card closes",
+   "observed": "config 5m, chart 5m; the view on the newest bars",
+   "pass": true,
+   "ms": 461,
+   "notes": ""
+  },
+  {
+   "id": "A-34",
+   "item": "Option \"15m\"",
+   "action": "open the list, pick 15m",
+   "expected": "the pane on 15m; the card closes",
+   "observed": "config 15m, chart 15m; the view on the newest bars",
+   "pass": true,
+   "ms": 659,
+   "notes": ""
+  },
+  {
+   "id": "A-35",
+   "item": "Option \"30m\"",
+   "action": "open the list, pick 30m",
+   "expected": "the pane on 30m; the card closes",
+   "observed": "config 30m, chart 30m; the view on the newest bars",
+   "pass": true,
+   "ms": 469,
+   "notes": ""
+  },
+  {
+   "id": "A-36",
+   "item": "Option \"1h\"",
+   "action": "open the list, pick 1h",
+   "expected": "the pane on 1h; the card closes",
+   "observed": "config 1h, chart 1h; the view on the newest bars",
+   "pass": true,
+   "ms": 494,
+   "notes": ""
+  },
+  {
+   "id": "A-37",
+   "item": "Option \"1D\"",
+   "action": "open the list, pick 1D",
+   "expected": "the pane on 1D; the card closes",
+   "observed": "config 1D, chart 1D; the view on 2025-04-02 → 2025-11-07 (233 bars past its right edge) while the newest bar is 2026-10-14",
+   "pass": false,
+   "ms": 403,
+   "notes": "DIAGNOSIS: as A-28 (StrikeChart.tsx:3967-3999): the day series opens on its oldest bars after any switch to 1D"
+  },
+  {
+   "id": "A-38",
+   "item": "Option \"1W\"",
+   "action": "open the list, pick 1W",
+   "expected": "the pane on 1W; the card closes",
+   "observed": "config 1W, chart 1W; the view on the newest bars",
+   "pass": true,
+   "ms": 380,
+   "notes": ""
+  },
+  {
+   "id": "A-39",
+   "item": "Expiry window control (chips / trigger / a listed date)",
+   "action": "read it with a listed date picked in the Expiry card, and at one and two panes",
+   "expected": "it names the date (not \"60d\" pressed); chips at one pane, a trigger at two",
+   "observed": "railCut 1: control reads \"date\", names \"Oct 16\", pressed []; forms: full at one pane, trigger at two",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-40",
+   "item": "Window \"0DTE\"",
+   "action": "pick 0DTE (the trigger on pane 1 at two panes; the chips at one pane)",
+   "expected": "railCut === w:0dte; every pane's window control reads w:0dte; the card closes",
+   "observed": "trigger: railCut w:0dte, panes read w:0dte / w:0dte; chips (one pane, full): ok in 276 ms",
+   "pass": true,
+   "ms": 520,
+   "notes": ""
+  },
+  {
+   "id": "A-41",
+   "item": "Window \"Fri (to Friday)\"",
+   "action": "pick Fri (the trigger on pane 1 at two panes; the chips at one pane)",
+   "expected": "railCut === w:fri; every pane's window control reads w:fri; the card closes",
+   "observed": "trigger: railCut w:fri, panes read w:fri / w:fri; chips (one pane, full): ok in 335 ms",
+   "pass": true,
+   "ms": 507,
+   "notes": ""
+  },
+  {
+   "id": "A-42",
+   "item": "Window \"OPEX (to monthly OPEX)\"",
+   "action": "pick OPEX (the trigger on pane 1 at two panes; the chips at one pane)",
+   "expected": "railCut === w:opex; every pane's window control reads w:opex; the card closes",
+   "observed": "trigger: railCut w:opex, panes read w:opex / w:opex; chips (one pane, full): ok in 236 ms",
+   "pass": true,
+   "ms": 479,
+   "notes": ""
+  },
+  {
+   "id": "A-43",
+   "item": "Window \"60d (all 60 days)\"",
+   "action": "pick 60d (the trigger on pane 1 at two panes; the chips at one pane)",
+   "expected": "railCut === book; every pane's window control reads book; the card closes",
+   "observed": "trigger: railCut book, panes read book / book; chips (one pane, full): ok in 285 ms",
+   "pass": true,
+   "ms": 444,
+   "notes": ""
+  },
+  {
+   "id": "A-44",
+   "item": "Jump trigger \"Jump ▾\"",
+   "action": "click it",
+   "expected": "the jump list opens with 6 rows with hints",
+   "observed": "6 rows: TodayThe session f | 1WThe last week —  | 1MThe last month — | 6MSix months of da | 1YA year of day ba | MaxEverything the ",
+   "pass": true,
+   "ms": 93,
+   "notes": ""
+  },
+  {
+   "id": "A-45",
+   "item": "Jump \"Today\"",
+   "action": "on 1h, Jump ▾ → Today",
+   "expected": "the pane goes to 5m and the view spans the session",
+   "observed": "timeframe 5m; the candles in view 2026-10-13 → 2026-10-14 (1.2 days; 750 bars before, -35 after, of 1000), reaching the newest bar",
+   "pass": true,
+   "ms": 150,
+   "notes": "ms = click to the chart drawn on the jump's timeframe; the view read 2.5 s later off the candle series (barsInLogicalRange)"
+  },
+  {
+   "id": "A-46",
+   "item": "Jump \"1W\"",
+   "action": "on 5m, Jump ▾ → 1W",
+   "expected": "the pane goes to 15m and the view spans 1W",
+   "observed": "timeframe 15m; the candles in view 2026-10-12 → 2026-10-14 (2.3 days; 741 bars before, -22 after, of 894), reaching the newest bar",
+   "pass": false,
+   "ms": 363,
+   "notes": "ms = click to the chart drawn on the jump's timeframe; the view read 2.5 s later off the candle series (barsInLogicalRange); DIAGNOSIS: components/gex/StrikeChart.tsx:2136-2152 (tryJump, span) — 1W shows 2.3 days of 15m bars though the series holds 14 sessions; the index found in barsFor(mins) is set as the series' logical range, and the view that stands is far shorter than the span — cause not pinned"
+  },
+  {
+   "id": "A-47",
+   "item": "Jump \"1M\"",
+   "action": "on 5m, Jump ▾ → 1M",
+   "expected": "the pane goes to 1h and the view spans 1M",
+   "observed": "timeframe 1h; the candles in view 2026-10-06 → 2026-10-14 (8.1 days; 125 bars before, -15 after, of 224), reaching the newest bar",
+   "pass": false,
+   "ms": 441,
+   "notes": "ms = click to the chart drawn on the jump's timeframe; the view read 2.5 s later off the candle series (barsInLogicalRange); DIAGNOSIS: as A-46 (StrikeChart.tsx:2136-2152): 1M shows 8.1 days of 1h bars"
+  },
+  {
+   "id": "A-48",
+   "item": "Jump \"6M\"",
+   "action": "on 5m, Jump ▾ → 6M",
+   "expected": "the pane goes to 1D and the view spans 6M",
+   "observed": "timeframe 1D; the candles in view 2026-06-24 → 2026-10-14 (112.0 days; 175 bars before, -12 after, of 254), reaching the newest bar",
+   "pass": false,
+   "ms": 396,
+   "notes": "ms = click to the chart drawn on the jump's timeframe; the view read 2.5 s later off the candle series (barsInLogicalRange); DIAGNOSIS: as A-46 (StrikeChart.tsx:2136-2152): 6M shows the last 79 day bars (Jun 24 → Oct 14) with 175 before it; from a fresh 5m pane the same jump landed on the oldest 20 bars (Apr–Nov 2025)"
+  },
+  {
+   "id": "A-49",
+   "item": "Jump \"1Y\"",
+   "action": "on 5m, Jump ▾ → 1Y",
+   "expected": "the pane goes to 1D and the view spans 1Y",
+   "observed": "timeframe 1D; the candles in view 2026-06-24 → 2026-10-14 (112.0 days; 175 bars before, -12 after, of 254), reaching the newest bar",
+   "pass": false,
+   "ms": 545,
+   "notes": "ms = click to the chart drawn on the jump's timeframe; the view read 2.5 s later off the candle series (barsInLogicalRange); DIAGNOSIS: as A-48: 1Y shows the same 79 bars; the series holds a year (Oct 2025 → Oct 2026)"
+  },
+  {
+   "id": "A-50",
+   "item": "Jump \"Max\"",
+   "action": "on 5m, Jump ▾ → Max",
+   "expected": "the pane goes to 1D and the view spans Max",
+   "observed": "timeframe 1D; the candles in view 2026-06-24 → 2026-10-14 (112.0 days; 175 bars before, -12 after, of 254), reaching the newest bar",
+   "pass": false,
+   "ms": 460,
+   "notes": "ms = click to the chart drawn on the jump's timeframe; the view read 2.5 s later off the candle series (barsInLogicalRange); DIAGNOSIS: as A-48: Max shows the same 79 bars, not the whole series"
+  },
+  {
+   "id": "A-51",
+   "item": "Calendar door",
+   "action": "click the calendar icon",
+   "expected": "\"Jump to a day\" opens with a date field and Go",
+   "observed": "card open with the date field",
+   "pass": true,
+   "ms": 117,
+   "notes": ""
+  },
+  {
+   "id": "A-52",
+   "item": "Date field \"Jump to a day\"",
+   "action": "set 2026-10-09",
+   "expected": "the field holds the day; min = first bar, max = today (New York)",
+   "observed": "value 2026-10-09, min 2025-04-02, max 2026-10-15",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-53",
+   "item": "\"Go\"",
+   "action": "click Go",
+   "expected": "the card closes and the view jumps to Oct 9",
+   "observed": "view 2026-10-08T19:50 → 2026-10-12T12:05Z on 5m; card closed",
+   "pass": true,
+   "ms": 427,
+   "notes": ""
+  },
+  {
+   "id": "A-54",
+   "item": "Header Alerts door (bell)",
+   "action": "click it",
+   "expected": "the alerts menu opens for this name",
+   "observed": "menu open (\"Alert price for SPY\")",
+   "pass": true,
+   "ms": 114,
+   "notes": ""
+  },
+  {
+   "id": "A-55",
+   "item": "Header Overlays door (layers + count)",
+   "action": "click it",
+   "expected": "the 14 overlay switches open",
+   "observed": "14 switches; the door's accessible name \"2\"",
+   "pass": true,
+   "ms": 101,
+   "notes": "compact form: the accessible name is the count alone (aria-label is set only when the label is empty, ChartToolbar.tsx:397)"
+  },
+  {
+   "id": "A-56",
+   "item": "Replay door in the header",
+   "action": "find the Replay door in a docked pane and click it twice",
+   "expected": "it renders, puts the replay badge up, then takes it down",
+   "observed": "door renders (title \"Replay session history — P\"); on → badge up (aria-pressed true); off → badge gone",
+   "pass": true,
+   "ms": 192,
+   "notes": ""
+  },
+  {
+   "id": "A-57",
+   "item": "\"?\" door",
+   "action": "click it",
+   "expected": "the keys sheet opens, listing Terrain's keys",
+   "observed": "sheet open; Terrain | Terrain · the desk | Terrain · the active chart; Esc closed it",
+   "pass": true,
+   "ms": 609,
+   "notes": "in a pop-out window the ? door opens nothing (/out/terrain sits outside AppShell, App.tsx, so nothing hears slayer:open-keys)"
+  },
+  {
+   "id": "A-58",
+   "item": "Pop-out door",
+   "action": "click it",
+   "expected": "a window opens on /out/terrain with the same name and timeframe",
+   "observed": "popup /out/terrain?pane=… (1100×700), chart SPY 1D; its ? door opens nothing (no shell there); F in it did nothing",
+   "pass": true,
+   "ms": 4799,
+   "notes": "the pane was on 1D; ms = click to the pop-out's chart drawn"
+  },
+  {
+   "id": "A-59",
+   "item": "Expand door",
+   "action": "click it",
+   "expected": "the pane becomes role=dialog \"SPY expanded\"; the desk bar floats",
+   "observed": "expanded, desk bar floating",
+   "pass": true,
+   "ms": 1097,
+   "notes": ""
+  },
+  {
+   "id": "A-60",
+   "item": "Price box (placeholder = spot)",
+   "action": "type 780, press Enter",
+   "expected": "a price alert at 780 is armed for SPY",
+   "observed": "placeholder \"767.17\"; 1 alert(s) stored, one at 780",
+   "pass": true,
+   "ms": 116,
+   "notes": ""
+  },
+  {
+   "id": "A-61",
+   "item": "\"Set\"",
+   "action": "type 781, click Set",
+   "expected": "the alert is armed and the refusal clears",
+   "observed": "armed true; refusal after cleared; the same price again → \"There is already an alert there\"",
+   "pass": true,
+   "ms": 79,
+   "notes": ""
+  },
+  {
+   "id": "A-62",
+   "item": "Refusal line",
+   "action": "type \"abc\", click Set",
+   "expected": "\"That is not a price\"",
+   "observed": "\"That is not a price\"",
+   "pass": true,
+   "ms": 290,
+   "notes": ""
+  },
+  {
+   "id": "A-63",
+   "item": "Alerts chip \"Call wall\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 103,
+   "notes": ""
+  },
+  {
+   "id": "A-64",
+   "item": "Alerts chip \"Put wall\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 87,
+   "notes": ""
+  },
+  {
+   "id": "A-65",
+   "item": "Alerts chip \"Flip\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 100,
+   "notes": ""
+  },
+  {
+   "id": "A-66",
+   "item": "Alerts chip \"Supreme\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 105,
+   "notes": ""
+  },
+  {
+   "id": "A-67",
+   "item": "Alerts chip \"VWAP\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 136,
+   "notes": ""
+  },
+  {
+   "id": "A-68",
+   "item": "Alerts chip \"EMA 9\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 81,
+   "notes": ""
+  },
+  {
+   "id": "A-69",
+   "item": "Alerts chip \"EMA 21\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 97,
+   "notes": ""
+  },
+  {
+   "id": "A-70",
+   "item": "Alerts chip \"EMA 50\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 105,
+   "notes": ""
+  },
+  {
+   "id": "A-71",
+   "item": "Alerts chip \"RSI 70\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 79,
+   "notes": ""
+  },
+  {
+   "id": "A-72",
+   "item": "Alerts chip \"RSI 30\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 90,
+   "notes": ""
+  },
+  {
+   "id": "A-73",
+   "item": "Alerts chip \"GEX flips sign\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 115,
+   "notes": ""
+  },
+  {
+   "id": "A-74",
+   "item": "Alerts chip \"New supreme\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 102,
+   "notes": ""
+  },
+  {
+   "id": "A-75",
+   "item": "Alerts chip \"News lands\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 115,
+   "notes": ""
+  },
+  {
+   "id": "A-76",
+   "item": "Alerts chip \"Wall ±2\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 95,
+   "notes": ""
+  },
+  {
+   "id": "A-77",
+   "item": "Alerts chip \"Wall ±4\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 118,
+   "notes": ""
+  },
+  {
+   "id": "A-78",
+   "item": "Alerts chip \"$250K\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 108,
+   "notes": ""
+  },
+  {
+   "id": "A-79",
+   "item": "Alerts chip \"$1M\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 78,
+   "notes": ""
+  },
+  {
+   "id": "A-80",
+   "item": "Alerts chip \"$5M\"",
+   "action": "click it, then click it again",
+   "expected": "aria-pressed true (an alert armed), then false",
+   "observed": "on: pressed true (alerts 2→3); off: released (→2)",
+   "pass": true,
+   "ms": 95,
+   "notes": ""
+  },
+  {
+   "id": "A-81",
+   "item": "Overlay \"Exposure trails\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.trails flips, aria-checked follows, then flips back",
+   "observed": "on → off (aria-checked false) → back ok; hint \"An oval a strike a candle — size the gamma, colour the side \"; the legend gone",
+   "pass": true,
+   "ms": 347,
+   "notes": ""
+  },
+  {
+   "id": "A-82",
+   "item": "Overlay \"Key levels\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.levels flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Call & put walls, flip and supreme, marked on the field\"",
+   "pass": true,
+   "ms": 108,
+   "notes": ""
+  },
+  {
+   "id": "A-83",
+   "item": "Overlay \"Dark pool\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.darkpool flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Off-exchange print lines\"",
+   "pass": true,
+   "ms": 85,
+   "notes": ""
+  },
+  {
+   "id": "A-84",
+   "item": "Overlay \"Volume\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.volume flips, aria-checked follows, then flips back",
+   "observed": "on → off (aria-checked false) → back ok; hint \"Session bars along the floor\"",
+   "pass": true,
+   "ms": 120,
+   "notes": ""
+  },
+  {
+   "id": "A-85",
+   "item": "Overlay \"Flow\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.flow flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Option premium from the tape — calls up, puts down\"",
+   "pass": true,
+   "ms": 145,
+   "notes": ""
+  },
+  {
+   "id": "A-86",
+   "item": "Overlay \"Net drift\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.netDrift flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Running call & put premium totals — the session's lean\"",
+   "pass": true,
+   "ms": 174,
+   "notes": ""
+  },
+  {
+   "id": "A-87",
+   "item": "Overlay \"Vol drift\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.volDrift flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Realised vol off these bars against the implied the feed rep\"",
+   "pass": true,
+   "ms": 158,
+   "notes": ""
+  },
+  {
+   "id": "A-88",
+   "item": "Overlay \"Session levels\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.session flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Yesterday's high, low & close, the opening range and the fir\"; opening-range row shown",
+   "pass": true,
+   "ms": 97,
+   "notes": ""
+  },
+  {
+   "id": "A-89",
+   "item": "Overlay \"Expected move\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.cone flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"The ±1σ/±2σ band the options priced for today, and what's le\"",
+   "pass": true,
+   "ms": 96,
+   "notes": ""
+  },
+  {
+   "id": "A-90",
+   "item": "Overlay \"Events\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.events flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Earnings, FOMC/CPI/NFP and the biggest option prints, marked\"",
+   "pass": true,
+   "ms": 166,
+   "notes": ""
+  },
+  {
+   "id": "A-91",
+   "item": "Overlay \"Alert lines\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.alerts flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"A dotted line where each price alert waits — the bell tells \"",
+   "pass": true,
+   "ms": 73,
+   "notes": ""
+  },
+  {
+   "id": "A-92",
+   "item": "Overlay \"Walls through the day\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.walls flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"Each strike's exposure through the session, drawn behind the\"",
+   "pass": true,
+   "ms": 80,
+   "notes": ""
+  },
+  {
+   "id": "A-93",
+   "item": "Overlay \"Regime strip\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.regime flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"The column's net a minute, estimated dealer gamma on an assu\"",
+   "pass": true,
+   "ms": 179,
+   "notes": ""
+  },
+  {
+   "id": "A-94",
+   "item": "Overlay \"Session phases\"",
+   "action": "click the row, then click it again",
+   "expected": "overlays.phases flips, aria-checked follows, then flips back",
+   "observed": "off → on (aria-checked true) → back ok; hint \"The open, lunch and power hour as quiet bands on the tape, a\"",
+   "pass": true,
+   "ms": 126,
+   "notes": ""
+  },
+  {
+   "id": "A-95",
+   "item": "Opening range \"5m\"",
+   "action": "with Session levels on, click 5m",
+   "expected": "sessionOr === 5",
+   "observed": "sessionOr 5; pressed \"5m\"",
+   "pass": true,
+   "ms": 83,
+   "notes": ""
+  },
+  {
+   "id": "A-96",
+   "item": "Opening range \"15m\"",
+   "action": "with Session levels on, click 15m",
+   "expected": "sessionOr === 15",
+   "observed": "sessionOr 15; pressed \"15m\"",
+   "pass": true,
+   "ms": 128,
+   "notes": ""
+  },
+  {
+   "id": "A-97",
+   "item": "Opening range \"30m\"",
+   "action": "with Session levels on, click 30m",
+   "expected": "sessionOr === 30",
+   "observed": "sessionOr 30; pressed \"30m\"",
+   "pass": true,
+   "ms": 97,
+   "notes": ""
+  },
+  {
+   "id": "A-98",
+   "item": "The hover row itself",
+   "action": "move the pointer off the pane, onto it, off again, then Tab into the pane",
+   "expected": "hidden at rest; display flex on hover and on focus-within",
+   "observed": "at rest none; on hover flex; on focus flex; holds: No seconds on the feed h · 1m · 5m · 15m · 30m · 1h · 1D · 1W · Indicators and scripts · Chart style & price scal · Candle theme · Glacier · The reference grows thro · One reference for the wh · One reference for the wh · Off · 5% · 10% · 25% · The bead legend's line —",
+   "pass": true,
+   "ms": 92,
+   "notes": "phone: the row stands inline (flex, overflow-x auto)"
+  },
+  {
+   "id": "A-99",
+   "item": "Hover-row timeframe (trigger or strip)",
+   "action": "hover the pane, open the timeframe control",
+   "expected": "a list of the 8 timeframes",
+   "observed": "strip form: 15s 1m 5m 15m 30m 1h 1D 1W",
+   "pass": true,
+   "ms": null,
+   "notes": "the header shows the same timeframe as tabs: two controls for one state in one pane"
+  },
+  {
+   "id": "A-100",
+   "item": "Hover-row option \"15s\"",
+   "action": "pick 15s from the hover row",
+   "expected": "disabled on the feed, with its reason",
+   "observed": "disabled true; title \"No seconds on the feed here yet — the panes draw bars of a minute and up\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-101",
+   "item": "Hover-row option \"1m\"",
+   "action": "pick 1m from the hover row",
+   "expected": "the pane on 1m",
+   "observed": "config 1m, chart 1m; the view on the newest bars",
+   "pass": true,
+   "ms": 392,
+   "notes": ""
+  },
+  {
+   "id": "A-102",
+   "item": "Hover-row option \"5m\"",
+   "action": "pick 5m from the hover row",
+   "expected": "the pane on 5m",
+   "observed": "config 5m, chart 5m; the view on the newest bars",
+   "pass": true,
+   "ms": 361,
+   "notes": ""
+  },
+  {
+   "id": "A-103",
+   "item": "Hover-row option \"15m\"",
+   "action": "pick 15m from the hover row",
+   "expected": "the pane on 15m",
+   "observed": "config 15m, chart 15m; the view on the newest bars",
+   "pass": true,
+   "ms": 279,
+   "notes": ""
+  },
+  {
+   "id": "A-104",
+   "item": "Hover-row option \"30m\"",
+   "action": "pick 30m from the hover row",
+   "expected": "the pane on 30m",
+   "observed": "config 30m, chart 30m; the view on the newest bars",
+   "pass": true,
+   "ms": 217,
+   "notes": ""
+  },
+  {
+   "id": "A-105",
+   "item": "Hover-row option \"1h\"",
+   "action": "pick 1h from the hover row",
+   "expected": "the pane on 1h",
+   "observed": "config 1h, chart 1h; the view on the newest bars",
+   "pass": true,
+   "ms": 201,
+   "notes": ""
+  },
+  {
+   "id": "A-106",
+   "item": "Hover-row option \"1D\"",
+   "action": "pick 1D from the hover row",
+   "expected": "the pane on 1D",
+   "observed": "config 1D, chart 1D; the view on 2025-04-02 → 2025-11-07 (233 bars past its right edge) while the newest bar is 2026-10-14",
+   "pass": false,
+   "ms": 168,
+   "notes": "DIAGNOSIS: as A-28 (StrikeChart.tsx:3967-3999)"
+  },
+  {
+   "id": "A-107",
+   "item": "Hover-row option \"1W\"",
+   "action": "pick 1W from the hover row",
+   "expected": "the pane on 1W",
+   "observed": "config 1W, chart 1W; the view on the newest bars",
+   "pass": true,
+   "ms": 145,
+   "notes": ""
+  },
+  {
+   "id": "A-108",
+   "item": "\"Indicators\" door (with count)",
+   "action": "open it, search EMA, turn on \"EMA 21\", then off",
+   "expected": "the library opens; the count chip goes up by one",
+   "observed": "library open; \"pineEMA ribbonThe 9, 21 and 50 exponenti\" on → count 0→1; off → back",
+   "pass": true,
+   "ms": 109,
+   "notes": ""
+  },
+  {
+   "id": "A-109",
+   "item": "\"Candles\" door (chart style & price scale)",
+   "action": "click it",
+   "expected": "the style, scale, bar clock and Export PNG menu opens",
+   "observed": "menu: CandlesHollow candlesBarsLineStep lineAreaBaselinePrice scaleLINLOG%100Bar clockTime$0.50$210k50kExport PNG",
+   "pass": true,
+   "ms": 148,
+   "notes": ""
+  },
+  {
+   "id": "A-110",
+   "item": "Style \"Candles\"",
+   "action": "pick Candles",
+   "expected": "chartStyle === candles; the menu closes",
+   "observed": "chartStyle candles; menu closed",
+   "pass": true,
+   "ms": 355,
+   "notes": ""
+  },
+  {
+   "id": "A-111",
+   "item": "Style \"Hollow candles\"",
+   "action": "pick Hollow candles",
+   "expected": "chartStyle === hollow; the menu closes",
+   "observed": "chartStyle hollow; menu closed",
+   "pass": true,
+   "ms": 385,
+   "notes": ""
+  },
+  {
+   "id": "A-112",
+   "item": "Style \"Bars\"",
+   "action": "pick Bars",
+   "expected": "chartStyle === bars; the menu closes",
+   "observed": "chartStyle bars; menu closed",
+   "pass": true,
+   "ms": 366,
+   "notes": ""
+  },
+  {
+   "id": "A-113",
+   "item": "Style \"Line\"",
+   "action": "pick Line",
+   "expected": "chartStyle === line; the menu closes",
+   "observed": "chartStyle line; menu closed",
+   "pass": true,
+   "ms": 380,
+   "notes": ""
+  },
+  {
+   "id": "A-114",
+   "item": "Style \"Step line\"",
+   "action": "pick Step line",
+   "expected": "chartStyle === step; the menu closes",
+   "observed": "chartStyle step; menu closed",
+   "pass": true,
+   "ms": 383,
+   "notes": ""
+  },
+  {
+   "id": "A-115",
+   "item": "Style \"Area\"",
+   "action": "pick Area",
+   "expected": "chartStyle === area; the menu closes",
+   "observed": "chartStyle area; menu closed",
+   "pass": true,
+   "ms": 401,
+   "notes": ""
+  },
+  {
+   "id": "A-116",
+   "item": "Style \"Baseline\"",
+   "action": "pick Baseline",
+   "expected": "chartStyle === baseline; the menu closes",
+   "observed": "chartStyle baseline; menu closed",
+   "pass": true,
+   "ms": 415,
+   "notes": ""
+  },
+  {
+   "id": "A-117",
+   "item": "\"Price scale\" label",
+   "action": "open the menu, read the section",
+   "expected": "a \"Price scale\" head over four chips",
+   "observed": "head present; chips LIN LOG % 100",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-118",
+   "item": "Scale \"LIN\"",
+   "action": "pick LIN",
+   "expected": "priceScale === normal",
+   "observed": "priceScale normal; the chart's right scale mode 0",
+   "pass": true,
+   "ms": 382,
+   "notes": ""
+  },
+  {
+   "id": "A-119",
+   "item": "Scale \"LOG\"",
+   "action": "pick LOG",
+   "expected": "priceScale === log",
+   "observed": "priceScale log; the chart's right scale mode 1",
+   "pass": true,
+   "ms": 375,
+   "notes": ""
+  },
+  {
+   "id": "A-120",
+   "item": "Scale \"%\"",
+   "action": "pick %",
+   "expected": "priceScale === percent",
+   "observed": "priceScale percent; the chart's right scale mode 2",
+   "pass": true,
+   "ms": 380,
+   "notes": ""
+  },
+  {
+   "id": "A-121",
+   "item": "Scale \"100\"",
+   "action": "pick 100",
+   "expected": "priceScale === indexed",
+   "observed": "priceScale indexed; the chart's right scale mode 3",
+   "pass": true,
+   "ms": 333,
+   "notes": ""
+  },
+  {
+   "id": "A-122",
+   "item": "Bar clock \"Time\"",
+   "action": "pick Time",
+   "expected": "clock === time",
+   "observed": "clock time; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 362,
+   "notes": ""
+  },
+  {
+   "id": "A-123",
+   "item": "Bar clock \"$0.50\"",
+   "action": "pick $0.50",
+   "expected": "clock === r50; the held overlays dim",
+   "observed": "clock r50; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 360,
+   "notes": ""
+  },
+  {
+   "id": "A-124",
+   "item": "Bar clock \"$2\"",
+   "action": "pick $2",
+   "expected": "clock === r200; the held overlays dim",
+   "observed": "clock r200; chart SPY|5m|1000; 10 overlay rows held",
+   "pass": true,
+   "ms": 376,
+   "notes": ""
+  },
+  {
+   "id": "A-125",
+   "item": "Bar clock \"10k\"",
+   "action": "pick 10k",
+   "expected": "clock === v10k; the held overlays dim",
+   "observed": "clock v10k; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 355,
+   "notes": ""
+  },
+  {
+   "id": "A-126",
+   "item": "Bar clock \"50k\"",
+   "action": "pick 50k",
+   "expected": "clock === v50k; the held overlays dim",
+   "observed": "clock v50k; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 404,
+   "notes": ""
+  },
+  {
+   "id": "A-127",
+   "item": "Rule-bar note",
+   "action": "with $2 picked, read the note in the menu",
+   "expected": "the note says what the feed folds (its one-minute bars)",
+   "observed": "\"Rule bars fold the one-minute bars, their history included — the interval-based overlays sit out.\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-128",
+   "item": "\"Export PNG\"",
+   "action": "click it",
+   "expected": "a PNG downloads",
+   "observed": "downloaded \"SPY-5m-202610150835.png\" (131471 bytes)",
+   "pass": true,
+   "ms": 601,
+   "notes": ""
+  },
+  {
+   "id": "A-129",
+   "item": "\"Theme\" door",
+   "action": "click it",
+   "expected": "the candle theme list with a live preview",
+   "observed": "13 themes; preview canvas drawn",
+   "pass": true,
+   "ms": 187,
+   "notes": ""
+  },
+  {
+   "id": "A-130",
+   "item": "Theme \"Glacier\"",
+   "action": "pick Glacier",
+   "expected": "theme === glacier; the pane's ground follows",
+   "observed": "theme glacier; ground light → dark",
+   "pass": true,
+   "ms": 357,
+   "notes": ""
+  },
+  {
+   "id": "A-131",
+   "item": "Theme \"Foil\"",
+   "action": "pick Foil",
+   "expected": "theme === foil; the pane's ground follows",
+   "observed": "theme foil; ground dark → dark",
+   "pass": true,
+   "ms": 334,
+   "notes": ""
+  },
+  {
+   "id": "A-132",
+   "item": "Theme \"Chrome\"",
+   "action": "pick Chrome",
+   "expected": "theme === chrome; the pane's ground follows",
+   "observed": "theme chrome; ground dark → dark",
+   "pass": true,
+   "ms": 503,
+   "notes": ""
+  },
+  {
+   "id": "A-133",
+   "item": "Theme \"Velvet\"",
+   "action": "pick Velvet",
+   "expected": "theme === velvet; the pane's ground follows",
+   "observed": "theme velvet; ground dark → dark",
+   "pass": true,
+   "ms": 416,
+   "notes": ""
+  },
+  {
+   "id": "A-134",
+   "item": "Theme \"Mono\"",
+   "action": "pick Mono",
+   "expected": "theme === mono; the pane's ground follows",
+   "observed": "theme mono; ground dark → dark",
+   "pass": true,
+   "ms": 416,
+   "notes": ""
+  },
+  {
+   "id": "A-135",
+   "item": "Theme \"Neon\"",
+   "action": "pick Neon",
+   "expected": "theme === classic; the pane's ground follows",
+   "observed": "theme classic; ground dark → dark",
+   "pass": true,
+   "ms": 468,
+   "notes": ""
+  },
+  {
+   "id": "A-136",
+   "item": "Theme \"Market\"",
+   "action": "pick Market",
+   "expected": "theme === market; the pane's ground follows",
+   "observed": "theme market; ground dark → dark",
+   "pass": true,
+   "ms": 381,
+   "notes": ""
+  },
+  {
+   "id": "A-137",
+   "item": "Theme \"Tide\"",
+   "action": "pick Tide",
+   "expected": "theme === tide; the pane's ground follows",
+   "observed": "theme tide; ground dark → dark",
+   "pass": true,
+   "ms": 411,
+   "notes": ""
+  },
+  {
+   "id": "A-138",
+   "item": "Theme \"Harbor\"",
+   "action": "pick Harbor",
+   "expected": "theme === harbor; the pane's ground follows",
+   "observed": "theme harbor; ground dark → dark",
+   "pass": true,
+   "ms": 321,
+   "notes": ""
+  },
+  {
+   "id": "A-139",
+   "item": "Theme \"Whipsaw\"",
+   "action": "pick Whipsaw",
+   "expected": "theme === whipsaw; the pane's ground follows",
+   "observed": "theme whipsaw; ground dark → dark",
+   "pass": true,
+   "ms": 341,
+   "notes": ""
+  },
+  {
+   "id": "A-140",
+   "item": "Theme \"Contrast\"",
+   "action": "pick Contrast",
+   "expected": "theme === contrast; the pane's ground follows",
+   "observed": "theme contrast; ground dark → dark",
+   "pass": true,
+   "ms": 367,
+   "notes": ""
+  },
+  {
+   "id": "A-141",
+   "item": "Theme \"Wire\"",
+   "action": "pick Wire",
+   "expected": "theme === wire; the pane's ground follows",
+   "observed": "theme wire; ground dark → dark",
+   "pass": true,
+   "ms": 364,
+   "notes": ""
+  },
+  {
+   "id": "A-142",
+   "item": "Theme \"Stone\"",
+   "action": "pick Stone",
+   "expected": "theme === stone; the pane's ground follows",
+   "observed": "theme stone; ground dark → light",
+   "pass": true,
+   "ms": 335,
+   "notes": ""
+  },
+  {
+   "id": "A-143",
+   "item": "Preview and \"Use Tide\"",
+   "action": "hover Tide in the list, then click Use",
+   "expected": "the preview redraws for Tide; Use applies it",
+   "observed": "preview button \"Use Tide\" (after moving onto it \"Use Tide\"); Use → theme tide",
+   "pass": true,
+   "ms": 104,
+   "notes": ""
+  },
+  {
+   "id": "A-144",
+   "item": "Walls lens \"GEX\"",
+   "action": "with the walls overlay on, click GEX",
+   "expected": "wallsLens === gex",
+   "observed": "wallsLens gex; pressed true",
+   "pass": true,
+   "ms": 122,
+   "notes": ""
+  },
+  {
+   "id": "A-145",
+   "item": "Walls lens \"Charm\"",
+   "action": "with the walls overlay on, click Charm",
+   "expected": "wallsLens === charm",
+   "observed": "wallsLens charm; pressed true",
+   "pass": true,
+   "ms": 258,
+   "notes": ""
+  },
+  {
+   "id": "A-146",
+   "item": "Walls lens \"DEX\"",
+   "action": "with the walls overlay on, click DEX",
+   "expected": "wallsLens === dex",
+   "observed": "wallsLens dex; pressed true",
+   "pass": true,
+   "ms": 129,
+   "notes": ""
+  },
+  {
+   "id": "A-147",
+   "item": "Bead basis \"Session so far\"",
+   "action": "click Session so far",
+   "expected": "beadBasis unset; the legend's basis follows (or says it fell back)",
+   "observed": "beadBasis (unset); legend basis session — \"…y ·grey = balanced ·soft edge = stale ·Full size = $5.7B per 1% · the session's largest so far, as of 12:59 pm\"",
+   "pass": true,
+   "ms": 228,
+   "notes": ""
+  },
+  {
+   "id": "A-148",
+   "item": "Bead basis \"Fixed\"",
+   "action": "click Fixed",
+   "expected": "beadBasis === fixed; the legend's basis follows (or says it fell back)",
+   "observed": "beadBasis fixed; legend basis fixed — \"…ft edge = stale ·Full size = $62.8B per 1% · the largest over the 13 sessions before Oct 14, fixed for the day\"",
+   "pass": true,
+   "ms": 230,
+   "notes": ""
+  },
+  {
+   "id": "A-149",
+   "item": "Bead basis \"Prior session\"",
+   "action": "click Prior session",
+   "expected": "beadBasis === prior; the legend's basis follows (or says it fell back)",
+   "observed": "beadBasis prior; legend basis prior — \"…= amplify ·grey = balanced ·soft edge = stale ·Full size = $62.8B per 1% · the prior session's largest, Oct 13\"",
+   "pass": true,
+   "ms": 216,
+   "notes": ""
+  },
+  {
+   "id": "A-150",
+   "item": "\"Every strike\" checkbox",
+   "action": "check it, then uncheck it",
+   "expected": "beadDensity === false, then unset",
+   "observed": "checked → beadDensity false: true; unchecked → unset: true",
+   "pass": true,
+   "ms": 127,
+   "notes": ""
+  },
+  {
+   "id": "A-151",
+   "item": "Floor \"Off\"",
+   "action": "click Off",
+   "expected": "beadFloor unset",
+   "observed": "beadFloor (unset); legend names it",
+   "pass": true,
+   "ms": 201,
+   "notes": ""
+  },
+  {
+   "id": "A-152",
+   "item": "Floor \"5%\"",
+   "action": "click 5%",
+   "expected": "beadFloor === 0.05; the legend says what is hidden",
+   "observed": "beadFloor 0.05; legend names it",
+   "pass": true,
+   "ms": 156,
+   "notes": ""
+  },
+  {
+   "id": "A-153",
+   "item": "Floor \"10%\"",
+   "action": "click 10%",
+   "expected": "beadFloor === 0.1; the legend says what is hidden",
+   "observed": "beadFloor 0.1; legend names it",
+   "pass": true,
+   "ms": 156,
+   "notes": ""
+  },
+  {
+   "id": "A-154",
+   "item": "Floor \"25%\"",
+   "action": "click 25%",
+   "expected": "beadFloor === 0.25; the legend says what is hidden",
+   "observed": "beadFloor 0.25; legend names it",
+   "pass": true,
+   "ms": 187,
+   "notes": ""
+  },
+  {
+   "id": "A-155",
+   "item": "\"Legend\" door",
+   "action": "click it twice",
+   "expected": "legend === false and the legend goes; then it comes back",
+   "observed": "off: legend gone; on: back",
+   "pass": true,
+   "ms": 216,
+   "notes": ""
+  },
+  {
+   "id": "A-156",
+   "item": "Bead legend (full form)",
+   "action": "read the legend on a wide pane",
+   "expected": "the full words: size, gold, violet, grey, soft edge, the scale",
+   "observed": "form full; \"size = total gamma at the strike ·gold = absorb ·violet = amplify ·grey = balanced ·soft edge = stale ·Full size = $5.7B per 1% · the session's largest so far, as of 12:59 pm\"",
+   "pass": true,
+   "ms": null,
+   "notes": "pane 1 (593 px) wears the short form: \"absorbamplifybalanced ·size = total gamma · soft edge = stale ·Full size $5.7B\""
+  },
+  {
+   "id": "A-157",
+   "item": "Decision strip",
+   "action": "look for it under the header",
+   "expected": "present (its boxes are another area's)",
+   "observed": "\"—▲PW 770 +$2.93 0.5σ · ▼ —±$5.97 to close · budget · −0.4σ day2 sessions · 153 touches · thinOI dated Oct 14 · book figured 1:15 pm\"",
+   "pass": true,
+   "ms": null,
+   "notes": "presence only — the boxes belong to another area"
+  },
+  {
+   "id": "A-158",
+   "item": "Crosshair readout",
+   "action": "hover a bar",
+   "expected": "the readout shows the bar's figures",
+   "observed": "\"9:05 amO770.56H770.80L770.47C770.67V0\"",
+   "pass": true,
+   "ms": 44,
+   "notes": "presence only — the readout belongs to another area"
+  },
+  {
+   "id": "A-159",
+   "item": "\"Building · the chain is being read\" / \"Catching up · …\"",
+   "action": "hold the field's answers back 10 s at load",
+   "expected": "the hatched chip stands while the field fills",
+   "observed": "field: Building · the chain is being read (first seen 34 ms after the pane's head stood)",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-160",
+   "item": "Stale banner + \"Retry\"",
+   "action": "with old data, click Retry",
+   "expected": "the banner names the age; Retry asks the feed again (bars, book, price)",
+   "observed": "\"Data 14h 26m old · last repriced 5:04 pmRetry\"; Retry → 4 feed request(s) in 2.5 s: /feed/uw/api/stock/SPY/ohlc · /feed/uw/api/stock/SPY/stock-state · /feed/field/SPY",
+   "pass": true,
+   "ms": 144,
+   "notes": ""
+  },
+  {
+   "id": "A-161",
+   "item": "No-data card \"No data for Oct 10\" · \"‹ Previous session\"",
+   "action": "jump to Saturday 2026-10-10, click Previous session",
+   "expected": "the card shows; Previous moves the view to Friday Oct 9",
+   "observed": "card \"No data for Oct 10The tape holds Oct 1 to Oct 14 on this timeframe.‹ Previous sessionNext session ›Back to live\"; Previous → view on Oct 9, card gone",
+   "pass": true,
+   "ms": 155,
+   "notes": "the card came up in 518 ms"
+  },
+  {
+   "id": "A-162",
+   "item": "\"Next session ›\"",
+   "action": "jump to Saturday Oct 10, click Next session",
+   "expected": "the view moves to Monday Oct 12",
+   "observed": "from Sat Oct 10: view on Mon Oct 12, card gone; from Sat Sep 5, Next landed on Labor Day, another no-data card: \"No data for Sep 7The tape holds Apr 2 to Oct 14 on this time…\" (not holiday-aware)",
+   "pass": false,
+   "ms": 150,
+   "notes": "DIAGNOSIS: pages/terrain/Terrain.tsx — nextSession steps over weekends only (not holiday-aware, unlike sessionBefore in data/feed/levels.ts), so from a Saturday before a holiday \"Next session\" lands on the holiday's no-data card"
+  },
+  {
+   "id": "A-163",
+   "item": "\"Back to live\" (in the no-data card)",
+   "action": "jump to a Saturday, click Back to live",
+   "expected": "the card goes and the view is at the newest bar",
+   "observed": "card gone, view at the newest bar",
+   "pass": true,
+   "ms": 103,
+   "notes": ""
+  },
+  {
+   "id": "A-164",
+   "item": "\"Back to live ›\" pill",
+   "action": "jump the view back (Oct 9), click the pill; then in a replay's pick phase pan back",
+   "expected": "the pill returns the view to the newest bar; it is not confused with the replay's exit",
+   "observed": "docked: pill shown after the jump, click → view at the newest bar; pick phase panned back: pill \"Back to live ›\", replay exit \"Back to live\"",
+   "pass": false,
+   "ms": 151,
+   "notes": "both \"Back to live\" controls stand together in the pick phase, one ends the replay and one moves the view; DIAGNOSIS: the view pill (Terrain.tsx:2959, \"Back to live ›\") and the replay's exit (components/gex/ReplayStrip.tsx:167, exitWords default \"Back to live\") stand together in the pick phase with the same words and different jobs — the pill itself works"
+  },
+  {
+   "id": "A-165",
+   "item": "Day panel (1D: click a day bar)",
+   "action": "on 1D, click a day bar",
+   "expected": "the panel opens: the day, close, regime, walls, flip, nearest strikes, UW's end-of-day book",
+   "observed": "2026-10-09: \"Oct 9close 778.57×No modeled column for this day on this machine.Unusual Whales' end-of-day book: asking…Open this session · 5mReplay this day\"",
+   "pass": true,
+   "ms": 101,
+   "notes": ""
+  },
+  {
+   "id": "A-166",
+   "item": "Day panel close \"×\" (and Esc)",
+   "action": "press Esc; reopen; click ×",
+   "expected": "Esc closes it (its title says \"Close — Esc\"); × closes it",
+   "observed": "Esc closed it; × closed it",
+   "pass": true,
+   "ms": 166,
+   "notes": "Esc took 42 ms"
+  },
+  {
+   "id": "A-167",
+   "item": "\"Open this session · 5m\"",
+   "action": "open the panel, click it",
+   "expected": "the pane goes to 5m on that day",
+   "observed": "day 2026-10-08; timeframe 5m; view 2026-10-07T19:55 → 2026-10-09T11:55Z",
+   "pass": true,
+   "ms": 351,
+   "notes": ""
+  },
+  {
+   "id": "A-168",
+   "item": "\"Replay this day\"",
+   "action": "on 1D, open the panel, click it",
+   "expected": "the replay starts at 9:30 New York that day (6:30 am on this Los Angeles clock)",
+   "observed": "day 2026-10-09; badge \"Replay· Oct 9 · 4:59 pm\" with the pane on 1D",
+   "pass": false,
+   "ms": 287,
+   "notes": "DIAGNOSIS: pages/terrain/Terrain.tsx:3017 — \"Replay this day\" calls onReplayFrom(09:30 New York) with the pane still on 1D; on a day-bar tape the cursor is the day bar's end (4:59 pm here, 7:59 pm New York), so the replay starts after the day is over"
+  },
+  {
+   "id": "A-169",
+   "item": "Ladder peek (phone)",
+   "action": "tap the peek",
+   "expected": "the three strikes nearest the price; a tap opens the ladder",
+   "observed": "\"768 +$1.2B767 +$547M766 +$304MStrikes ›\" → ladder open",
+   "pass": true,
+   "ms": 214,
+   "notes": ""
+  },
+  {
+   "id": "A-170",
+   "item": "Pick strip \"Select a bar on the chart · the replay starts there\"",
+   "action": "press P",
+   "expected": "the pick strip shows; a bar click moves it to the play card",
+   "observed": "\"Select a bar on the chart · the replay starts thereBack to live\"",
+   "pass": true,
+   "ms": null,
+   "notes": "the move to the play card is A-02's bar click"
+  },
+  {
+   "id": "A-171",
+   "item": "Go-to door",
+   "action": "in the pick phase, click it",
+   "expected": "the \"Go to\" card with Session and Time",
+   "observed": "card open",
+   "pass": true,
+   "ms": 924,
+   "notes": ""
+  },
+  {
+   "id": "A-172",
+   "item": "\"Session\" dropdown",
+   "action": "open it, pick the second-newest session",
+   "expected": "one option per session the tape holds, newest first",
+   "observed": "4 sessions: Oct 14, Oct 13, Oct 12, Oct 9…; picked \"Oct 13\", the field shows \"SessionOct 13\"",
+   "pass": true,
+   "ms": 841,
+   "notes": ""
+  },
+  {
+   "id": "A-173",
+   "item": "\"Time, on your clock\"",
+   "action": "type \"10:42 am\"",
+   "expected": "the field holds it; the placeholder is a 12-hour time",
+   "observed": "placeholder \"7:00 am\"; value \"10:42 am\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-174",
+   "item": "\"Go\"",
+   "action": "click Go",
+   "expected": "the cursor at about 10:42 am on that session",
+   "observed": "badge \"Replay· Oct 13 · 10:42 am\"; strip play; the card closed",
+   "pass": true,
+   "ms": 919,
+   "notes": ""
+  },
+  {
+   "id": "A-175",
+   "item": "Go-to message",
+   "action": "type \"3 am\", click Go",
+   "expected": "a message says why nothing moved",
+   "observed": "\"No minute at \"3 am\" on that day — the tape runs 1:00 am to 4:58 pm\"; badge \"Replay· Oct 13 · 10:42 am\"",
+   "pass": true,
+   "ms": 826,
+   "notes": ""
+  },
+  {
+   "id": "A-176",
+   "item": "Random start",
+   "action": "click it",
+   "expected": "the cursor moves to a random ready minute, or the note says why none is ready",
+   "observed": "title \"A random start — one of the 3 sessions the replay can draw whole, at a random time\"; badge \"Replay· Oct 13 · 9:44 am\" → \"Replay· Oct 12 · 11:30 am\"",
+   "pass": true,
+   "ms": 223,
+   "notes": ""
+  },
+  {
+   "id": "A-177",
+   "item": "Random note",
+   "action": "press Random with no session ready",
+   "expected": "the note says why, for 4 s",
+   "observed": "not shown: Random found a ready session",
+   "pass": "manual",
+   "ms": null,
+   "notes": "every session the tape held could be drawn whole, so the note had no reason to show"
+  },
+  {
+   "id": "A-178",
+   "item": "Hide / show the future",
+   "action": "click it twice",
+   "expected": "\"shown\" with aria-pressed true, then \"hidden\"",
+   "observed": "shown (pressed) → hidden",
+   "pass": true,
+   "ms": 129,
+   "notes": ""
+  },
+  {
+   "id": "A-179",
+   "item": "\"Back to live\" (replay exit)",
+   "action": "press P, click \"Back to live\"",
+   "expected": "the replay ends",
+   "observed": "\"Back to live\" → replay ended",
+   "pass": true,
+   "ms": 320,
+   "notes": ""
+  },
+  {
+   "id": "A-180",
+   "item": "Pace \"1×\"",
+   "action": "pick 1×",
+   "expected": "the pace is 1×; the words follow",
+   "observed": "field \"Pace1×\"; words \"1 candle / 5 sec\" → \"1 candle / 5 min\"",
+   "pass": true,
+   "ms": 347,
+   "notes": ""
+  },
+  {
+   "id": "A-181",
+   "item": "Pace \"5×\"",
+   "action": "pick 5×",
+   "expected": "the pace is 5×; the words follow",
+   "observed": "field \"Pace5×\"; words \"1 candle / 15 sec\" → \"1 candle / min\"",
+   "pass": true,
+   "ms": 747,
+   "notes": ""
+  },
+  {
+   "id": "A-182",
+   "item": "Pace \"20×\"",
+   "action": "pick 20×",
+   "expected": "the pace is 20×; the words follow",
+   "observed": "field \"Pace20×\"; words \"1 candle / min\" → \"1 candle / 15 sec\"",
+   "pass": true,
+   "ms": 986,
+   "notes": ""
+  },
+  {
+   "id": "A-183",
+   "item": "Pace \"60×\"",
+   "action": "pick 60×",
+   "expected": "the pace is 60×; the words follow; playing moves about a minute of tape a second",
+   "observed": "field \"Pace60×\"; words \"1 candle / 15 sec\" → \"1 candle / 5 sec\"; played 4.2 s → the cursor moved 4 min",
+   "pass": true,
+   "ms": 330,
+   "notes": ""
+  },
+  {
+   "id": "A-184",
+   "item": "Pace words \"1 candle / min\"",
+   "action": "change the pace, read the words",
+   "expected": "the words name the pace in this chart's candles",
+   "observed": "\"1 candle / 5 min\" at 1×",
+   "pass": true,
+   "ms": null,
+   "notes": "the change with the pace is in A-180 to A-183"
+  },
+  {
+   "id": "A-185",
+   "item": "To the start",
+   "action": "click it",
+   "expected": "the cursor at the session's start; the back doors shut",
+   "observed": "badge \"Replay· Oct 13 · 6:30 am\"; start door disabled",
+   "pass": true,
+   "ms": 213,
+   "notes": ""
+  },
+  {
+   "id": "A-186",
+   "item": "One step back",
+   "action": "click it",
+   "expected": "the cursor moves one bar back (5m)",
+   "observed": "649 → 644: -5",
+   "pass": true,
+   "ms": 196,
+   "notes": ""
+  },
+  {
+   "id": "A-187",
+   "item": "Play / Pause",
+   "action": "click Play, then Pause",
+   "expected": "aria-pressed true while playing, then false",
+   "observed": "play pressed; pause released",
+   "pass": true,
+   "ms": 165,
+   "notes": ""
+  },
+  {
+   "id": "A-188",
+   "item": "One step on",
+   "action": "click it",
+   "expected": "the cursor moves one bar on (5m)",
+   "observed": "646 → 649 (minutes of the day): +3",
+   "pass": true,
+   "ms": 169,
+   "notes": ""
+  },
+  {
+   "id": "A-189",
+   "item": "To the end",
+   "action": "click it",
+   "expected": "the cursor at the session's end; the forward doors shut",
+   "observed": "badge \"Replay· Oct 13 · 12:59 pm\"; end door disabled",
+   "pass": true,
+   "ms": 301,
+   "notes": ""
+  },
+  {
+   "id": "A-190",
+   "item": "Track (scrubber)",
+   "action": "hover the middle of the track, then click it",
+   "expected": "a tag names the moment under the pointer; the click moves the cursor there",
+   "observed": "hover tag \"9:44 am\"; click → badge \"Replay· Oct 13 · 9:44 am\"",
+   "pass": true,
+   "ms": 108,
+   "notes": ""
+  },
+  {
+   "id": "A-191",
+   "item": "Moment \"Oct 13 · 10:42 am · REPLAY\"",
+   "action": "read it",
+   "expected": "the cursor's day and time on the reader's clock",
+   "observed": "\"Oct 13 · 10:42 am · replay\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-192",
+   "item": "Fold \"˅\" / open \"˄\"",
+   "action": "fold the card, then open it",
+   "expected": "a small pill, then the card again",
+   "observed": "folded (tools hidden) → open",
+   "pass": true,
+   "ms": 75,
+   "notes": ""
+  },
+  {
+   "id": "A-193",
+   "item": "Level card header (right-click on a level)",
+   "action": "right-click on Flip 777.54+$10.47",
+   "expected": "the card names the level within 8 px, placed at the cursor",
+   "observed": "\"The flip · 777.54\"; the card's corner 4,3 px right/below the cursor (the design: 4,4); focus stays outside the card",
+   "pass": true,
+   "ms": 457,
+   "notes": "the card takes no focus and no keys (only Esc), so it cannot be used from the keyboard"
+  },
+  {
+   "id": "A-194",
+   "item": "\"Alert on this level (follows it)\"",
+   "action": "click it",
+   "expected": "the level watch for SPY includes this level",
+   "observed": "watch {\"ids\":[\"flip\"],\"confirmBars\":3}",
+   "pass": true,
+   "ms": 837,
+   "notes": ""
+  },
+  {
+   "id": "A-195",
+   "item": "\"Stop the alert on the flip\"",
+   "action": "right-click the watched level, click Stop",
+   "expected": "the id leaves the watch",
+   "observed": "\"Stop the alert on the flipSPY's watch lets the flip go\"; watch after null; no undo offered",
+   "pass": true,
+   "ms": 702,
+   "notes": ""
+  },
+  {
+   "id": "A-196",
+   "item": "Flip confirmation \"1\"",
+   "action": "right-click the watched flip, click 1",
+   "expected": "confirmBars === 1",
+   "observed": "offered 1 2 3; confirmBars 1",
+   "pass": true,
+   "ms": 716,
+   "notes": "only 1, 2, 3 offered; the store and CLAUDE.md allow 1 to 5"
+  },
+  {
+   "id": "A-197",
+   "item": "Flip confirmation \"2\"",
+   "action": "right-click the watched flip, click 2",
+   "expected": "confirmBars === 2",
+   "observed": "offered 1 2 3; confirmBars 2",
+   "pass": true,
+   "ms": 656,
+   "notes": "only 1, 2, 3 offered; the store and CLAUDE.md allow 1 to 5"
+  },
+  {
+   "id": "A-198",
+   "item": "Flip confirmation \"3\"",
+   "action": "right-click the watched flip, click 3",
+   "expected": "confirmBars === 3",
+   "observed": "offered 1 2 3; confirmBars 3",
+   "pass": true,
+   "ms": 645,
+   "notes": "only 1, 2, 3 offered; the store and CLAUDE.md allow 1 to 5"
+  },
+  {
+   "id": "A-199",
+   "item": "\"Reset chart view · Alt+R\" (in the level card)",
+   "action": "pan the view back, right-click the level, click Reset",
+   "expected": "the view returns to the opening view",
+   "observed": "view to 10-15T02:50 → panned 10-13T14:20 → reset 10-15T02:50Z",
+   "pass": true,
+   "ms": 789,
+   "notes": ""
+  },
+  {
+   "id": "A-200",
+   "item": "Expanded top strip",
+   "action": "press F, look at the strip at rest",
+   "expected": "the strip stands at rest with identity, toolbar and Collapse",
+   "observed": "strip visible: Reads SPY — pick anoth · Link this pane to a gr · Compare symbol · 1m — 1m: between its E · 5m, on this pane — 5m: · 15m — 15m: below its E · 1h — 1h: below its EMA · 1D — 1D: not enough hi · No seconds on the feed · 1m · 5m · 15m · 30m · 1h · 1D · 1W · Replay session history · Indicators and scripts · Alerts · Chart style & price sc · Overlays · Candle theme · Glacier · Collapse SPY",
+   "pass": true,
+   "ms": null,
+   "notes": "not in fullscreen: age chip, window control, jumps, calendar, ? door, pop-out, walls lens, bead basis, floor, Every strike, Legend door; on a fresh load the 5 s toast \"AAPL’s session recap is in the JournalOct 14\" stood over Overlays, Candle theme · Glaci, Collapse — Esc (AlertToasts z-[86] over the strip's z-[80]) and took their clicks"
+  },
+  {
+   "id": "A-201",
+   "item": "\"REPLAY\" button (expanded)",
+   "action": "click it, then click it again",
+   "expected": "the replay badge comes up; the button says it is pressed; then off",
+   "observed": "\"Replay\"; on → badge (aria-pressed true); off → gone; still expanded true",
+   "pass": true,
+   "ms": 249,
+   "notes": ""
+  },
+  {
+   "id": "A-202",
+   "item": "Collapse (minimize icon)",
+   "action": "press F, click Collapse",
+   "expected": "the pane returns to the grid",
+   "observed": "collapsed; .hit no",
+   "pass": true,
+   "ms": 299,
+   "notes": ""
+  },
+  {
+   "id": "A-203",
+   "item": "Second line \"SPY · 5m · $… · %\"",
+   "action": "read it",
+   "expected": "ticker · timeframe · price · change",
+   "observed": "\"SPY·5m·$767.37−0.29%\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-204",
+   "item": "Desk bar (floating in fullscreen)",
+   "action": "look at it at rest, then hover it",
+   "expected": "floating at 40% until hovered, then 100%",
+   "observed": "floating, opacity 0.4 at rest → 1 under the pointer",
+   "pass": true,
+   "ms": 833,
+   "notes": "docked: docked, opacity 1; phone: desk bar absent (by design)"
+  },
+  {
+   "id": "A-205",
+   "item": "Layout \"1\"",
+   "action": "click \"1\"",
+   "expected": "layout 1, 1 chart frame",
+   "observed": "layout 1, 1 frames; aria-pressed true; every pane drawn 722 ms after the click",
+   "pass": true,
+   "ms": 584,
+   "notes": "ms = click to the frames on the page"
+  },
+  {
+   "id": "A-206",
+   "item": "Layout \"2\"",
+   "action": "click \"2\"",
+   "expected": "layout 2, 2 chart frames",
+   "observed": "layout 2, 2 frames; aria-pressed true; every pane drawn 792 ms after the click",
+   "pass": true,
+   "ms": 311,
+   "notes": "ms = click to the frames on the page"
+  },
+  {
+   "id": "A-207",
+   "item": "Layout \"3\"",
+   "action": "click \"3\"",
+   "expected": "layout 3, 3 chart frames",
+   "observed": "layout 3, 3 frames; aria-pressed true; every pane drawn 1782 ms after the click",
+   "pass": true,
+   "ms": 556,
+   "notes": "ms = click to the frames on the page"
+  },
+  {
+   "id": "A-208",
+   "item": "Layout \"4\"",
+   "action": "click \"4\"",
+   "expected": "layout 4, 4 chart frames",
+   "observed": "layout 4, 4 frames; aria-pressed true; every pane drawn 1322 ms after the click",
+   "pass": true,
+   "ms": 614,
+   "notes": "ms = click to the frames on the page"
+  },
+  {
+   "id": "A-209",
+   "item": "\"STRIKES\"",
+   "action": "click it twice",
+   "expected": "every ladder off (aria-pressed false), then on",
+   "observed": "off true; on true",
+   "pass": true,
+   "ms": 269,
+   "notes": ""
+  },
+  {
+   "id": "A-210",
+   "item": "\"Colours\" dropdown",
+   "action": "click it",
+   "expected": "two options",
+   "observed": "ThermalYellow in the middle, red where h | HouseGold where hedging absorbs, violet ",
+   "pass": true,
+   "ms": 193,
+   "notes": ""
+  },
+  {
+   "id": "A-211",
+   "item": "Colours \"Thermal\"",
+   "action": "pick Thermal",
+   "expected": "palette and rails === thermal",
+   "observed": "palette thermal, rails thermal",
+   "pass": true,
+   "ms": 345,
+   "notes": ""
+  },
+  {
+   "id": "A-212",
+   "item": "Colours \"House\"",
+   "action": "pick House",
+   "expected": "palette and rails === house",
+   "observed": "palette house, rails house",
+   "pass": true,
+   "ms": 332,
+   "notes": ""
+  },
+  {
+   "id": "A-213",
+   "item": "Distance \"$\"",
+   "action": "click $",
+   "expected": "the desk-wide distance unit is $",
+   "observed": "stored $; pressed true",
+   "pass": true,
+   "ms": 179,
+   "notes": "what it changes on Terrain is the drawing measure label alone (the ladder, axis chips and strip print $, % and σ fixed)"
+  },
+  {
+   "id": "A-214",
+   "item": "Distance \"%\"",
+   "action": "click %",
+   "expected": "the desk-wide distance unit is %",
+   "observed": "stored %; pressed true",
+   "pass": true,
+   "ms": 86,
+   "notes": "what it changes on Terrain is the drawing measure label alone (the ladder, axis chips and strip print $, % and σ fixed)"
+  },
+  {
+   "id": "A-215",
+   "item": "Distance \"ATR\"",
+   "action": "click ATR",
+   "expected": "the desk-wide distance unit is ATR",
+   "observed": "stored ATR; pressed true",
+   "pass": true,
+   "ms": 68,
+   "notes": "what it changes on Terrain is the drawing measure label alone (the ladder, axis chips and strip print $, % and σ fixed)"
+  },
+  {
+   "id": "A-216",
+   "item": "Distance \"σ\"",
+   "action": "click σ",
+   "expected": "the desk-wide distance unit is σ",
+   "observed": "stored σ; pressed true",
+   "pass": true,
+   "ms": 69,
+   "notes": "what it changes on Terrain is the drawing measure label alone (the ladder, axis chips and strip print $, % and σ fixed)"
+  },
+  {
+   "id": "A-217",
+   "item": "\"LAYOUTS\"",
+   "action": "click it",
+   "expected": "the \"Named layouts\" shelf opens; aria-expanded true",
+   "observed": "open; aria-expanded true; focus left on the button; aria-modal null",
+   "pass": true,
+   "ms": 132,
+   "notes": ""
+  },
+  {
+   "id": "A-218",
+   "item": "Shelf header \"NAMED LAYOUTS · 2/12\"",
+   "action": "read it after two saves",
+   "expected": "the count against the cap",
+   "observed": "\"Named layouts · 2/12\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-219",
+   "item": "Saved entry \"morning 1× SPY\"",
+   "action": "go to 3 charts, open the shelf, click \"morning\"",
+   "expected": "the layout and panes come back; the shelf closes",
+   "observed": "title \"1 pane · SPY\"; → layout 1, shelf closed",
+   "pass": true,
+   "ms": 307,
+   "notes": ""
+  },
+  {
+   "id": "A-220",
+   "item": "Delete \"×\"",
+   "action": "open the shelf, hover \"evening\", click ×; also focus a × by the keys",
+   "expected": "the entry goes and storage follows; the × can be seen when focused",
+   "observed": "entries after [\"morning\"]; the × focused by the keys has opacity 0; no undo chip",
+   "pass": false,
+   "ms": 111,
+   "notes": "the × is opacity-0 until hovered, with no focus variant (Terrain.tsx, the shelf's delete button); DIAGNOSIS: pages/terrain/Terrain.tsx:4375 — the × is opacity-0 with group-hover only (no focus variant), invisible to the keys; the delete (removeNamedLayout, 3463) has no undo"
+  },
+  {
+   "id": "A-221",
+   "item": "Empty note",
+   "action": "read the empty shelf",
+   "expected": "\"Nothing saved yet — name this desk below.\"",
+   "observed": "\"Nothing saved yet — name this desk below.\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-222",
+   "item": "Name field \"name this arrangement\"",
+   "action": "type \"morning\", press Enter",
+   "expected": "saved under \"morning\"",
+   "observed": "saved: [\"morning\"]; maxlength none",
+   "pass": true,
+   "ms": 78,
+   "notes": "no maxlength — a long name is cut to 24 silently (layouts.ts LAYOUT_NAME_MAX)"
+  },
+  {
+   "id": "A-223",
+   "item": "\"SAVE\"",
+   "action": "type \"evening\", click Save",
+   "expected": "the entry appears; the field clears",
+   "observed": "entries [\"morning\",\"evening\"]; field \"\"",
+   "pass": true,
+   "ms": 109,
+   "notes": ""
+  },
+  {
+   "id": "A-224",
+   "item": "Shelf note",
+   "action": "click Save with no name",
+   "expected": "\"give it a name\"",
+   "observed": "\"give it a name\"",
+   "pass": true,
+   "ms": 113,
+   "notes": ""
+  },
+  {
+   "id": "A-225",
+   "item": "\"PINE\" (fullscreen only)",
+   "action": "click it",
+   "expected": "the script editor docks at the right for this pane",
+   "observed": "editor dock open (520 px)",
+   "pass": true,
+   "ms": 7556,
+   "notes": "slow: in isolation the dock opens in 1.2–1.5 s; after a Replay on/off in the same fullscreen it took ~10 s although the editor chunks were in within 1.1 s and the main thread never stalled over 200 ms (probed separately) — cause not pinned"
+  },
+  {
+   "id": "A-226",
+   "item": "Session chip",
+   "action": "read it now (about 3–4 am New York)",
+   "expected": "the phase of the week now, its title pointing to Session phases",
+   "observed": "\"GLOBEX · EUROPE\" at Thu 4:40 AM New York; title \"The overnight session, European hours — London is trading the same book. The session's pha…\"; focusable false",
+   "pass": true,
+   "ms": null,
+   "notes": "it names CME futures phases (Globex) on an options desk; SPX's Cboe overnight hours differ"
+  },
+  {
+   "id": "A-227",
+   "item": "\"× ESC\" chip (fullscreen only)",
+   "action": "click it",
+   "expected": "the pane collapses",
+   "observed": "collapsed; accessible name \"Esc\"",
+   "pass": true,
+   "ms": 286,
+   "notes": ""
+  },
+  {
+   "id": "A-228",
+   "item": "Announcer",
+   "action": "press =",
+   "expected": "\"SPY 15m\"",
+   "observed": "\"SPY 15m\" in a live region (aria-live polite)",
+   "pass": true,
+   "ms": 154,
+   "notes": ""
+  },
+  {
+   "id": "A-229",
+   "item": "Page heading \"Terrain\" (sr-only h1)",
+   "action": "read it",
+   "expected": "h1.sr-only \"Terrain\"",
+   "observed": "[\"Terrain\"]",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-230",
+   "item": "`1` `2` `3` `4`",
+   "action": "press 2, 4, 1, 3",
+   "expected": "the layout and its announcement follow each key",
+   "observed": "2: \"2 charts\" 190 ms; 4: \"4 charts\" 224 ms; 1: \"One chart\" 346 ms; 3: \"3 charts\" 300 ms",
+   "pass": true,
+   "ms": 190,
+   "notes": "on a phone: key 2 → layout 2 with 1 frame(s) drawn, no desk bar to show it"
+  },
+  {
+   "id": "A-231",
+   "item": "`[` `]`",
+   "action": "press ], then [",
+   "expected": "\"Chart 2 of 3, QQQ\", then \"Chart 1 of 3, SPY\"",
+   "observed": "\"Chart 2 of 3, QQQ\" → \"Chart 1 of 3, SPY\"",
+   "pass": true,
+   "ms": 131,
+   "notes": ""
+  },
+  {
+   "id": "A-232",
+   "item": "Shift R",
+   "action": "press Shift+R twice",
+   "expected": "every visible ladder off (\"Every strike rail hidden\"), then on",
+   "observed": "\"Every strike rail hidden\" → \"Strike rail on every chart\"",
+   "pass": true,
+   "ms": 180,
+   "notes": ""
+  },
+  {
+   "id": "A-233",
+   "item": "`W`",
+   "action": "press w four times",
+   "expected": "book → 0DTE → Fri → OPEX → book, said each time",
+   "observed": "w:0dte \"Expiry window: 0DTE\" → w:fri \"Expiry window: to Friday\" → w:opex \"Expiry window: to monthly OPEX\" → book \"Expiry window: all 60 days\"",
+   "pass": true,
+   "ms": 223,
+   "notes": "from a listed date: railCut 1 → book (\"Expiry window: all 60 days\")"
+  },
+  {
+   "id": "A-234",
+   "item": "`F`",
+   "action": "press f, then f again",
+   "expected": "\"SPY expanded\", then collapsed",
+   "observed": "expand: \"SPY expanded\"; again: collapsed (\"SPY collapsed\")",
+   "pass": true,
+   "ms": 167,
+   "notes": ""
+  },
+  {
+   "id": "A-235",
+   "item": "`S`",
+   "action": "press s, then Esc",
+   "expected": "the active pane's symbol picker opens; Esc closes it",
+   "observed": "\"Change symbol — currently SPY\"; Esc closed it",
+   "pass": true,
+   "ms": 100,
+   "notes": ""
+  },
+  {
+   "id": "A-236",
+   "item": "`C`",
+   "action": "where the + is shed (three panes, the ladders on) press c, then ↓; on one pane with the + press c",
+   "expected": "shed: said, and ↓ still steps; with the +: the compare panel opens",
+   "observed": "shed (pane 1): \"No room for Compare in this chart — F opens it full size\", ↓ afterwards stepped; pane 3 (1192 px, the ladder on, + shed too): \"No room for Compare in this chart — F opens it full size\"; one pane with the +: compare panel open in 66 ms",
+   "pass": true,
+   "ms": 66,
+   "notes": ""
+  },
+  {
+   "id": "A-237",
+   "item": "↑ ↓ / `k` `j`",
+   "action": "press ↓, then ↑; then j and k",
+   "expected": "the active pane steps round the ring and back, said with its place",
+   "observed": "↓ \"QQQ, 2 of 4\"; ↑ \"SPY, 1 of 4\"; j stepped, k back",
+   "pass": true,
+   "ms": 151,
+   "notes": "between md and lg: ↓ at 900 wide: SPY (nothing said)"
+  },
+  {
+   "id": "A-238",
+   "item": "`-` `=`",
+   "action": "press =, -, then - twice more from 5m",
+   "expected": "15m then 5m; at 1m on the feed - does not land on the held 15s",
+   "observed": "= → 15m true; - → 5m true; - from 1m → config 15s, chart 1m, said \"SPY 15s\"",
+   "pass": false,
+   "ms": 155,
+   "notes": "stepTf (pages/terrain/paneKeys.ts:31) does not skip FEED_HELD, and the desk key handler (Terrain.tsx `case '-'`) does not check it: the config stores the held 15s while the chart draws 1m; DIAGNOSIS: pages/terrain/paneKeys.ts:31 stepTf ignores FEED_HELD and the desk's `-` (Terrain.tsx:3896) does not check it: from 1m on the feed the config stores the held 15s, the chart stays 1m, the announcer says \"SPY 15s\""
+  },
+  {
+   "id": "A-239",
+   "item": "`P`",
+   "action": "press p, then (at the end) p again",
+   "expected": "\"SPY replay on\" and the badge; then \"SPY replay off\"",
+   "observed": "badge Replay· pick a bar; said \"SPY replay on\"; off: \"SPY replay off\", badge gone",
+   "pass": true,
+   "ms": 158,
+   "notes": ""
+  },
+  {
+   "id": "A-240",
+   "item": "Shift ↓",
+   "action": "in the pick phase, then in the play phase, press Shift+↓ twice",
+   "expected": "pick: says a bar must be picked; play: \"Replay playing\" then \"Replay paused\"",
+   "observed": "pick phase: \"Pick a bar to replay from first\"; play: \"Replay playing\", playing → \"Replay paused\"",
+   "pass": true,
+   "ms": 83,
+   "notes": ""
+  },
+  {
+   "id": "A-241",
+   "item": "Shift →",
+   "action": "in the pick phase, then in the play phase, press Shift+→",
+   "expected": "pick: says a bar must be picked; play: \"Replay one bar on\" and the cursor a bar on",
+   "observed": "pick phase: \"Pick a bar to replay from first\"; play: \"Replay one bar on\", 689 → 694",
+   "pass": true,
+   "ms": 79,
+   "notes": ""
+  },
+  {
+   "id": "A-242",
+   "item": "`D`",
+   "action": "press d twice",
+   "expected": "\"SPY draw mode on\", then off",
+   "observed": "\"SPY draw mode on\" → \"SPY draw mode off\"",
+   "pass": true,
+   "ms": 113,
+   "notes": ""
+  },
+  {
+   "id": "A-243",
+   "item": "`R` (r)",
+   "action": "press r twice",
+   "expected": "the active pane's ladder off, then on, said",
+   "observed": "\"SPY strike rail hidden\"; the other panes [true,true]; again → on (\"SPY strike rail shown\")",
+   "pass": true,
+   "ms": 135,
+   "notes": ""
+  },
+  {
+   "id": "A-244",
+   "item": "`T`",
+   "action": "on the wide pane 3 press t; on the narrow pane 1 press t; in fullscreen press t",
+   "expected": "the jump calendar opens with its date field focused wherever T is said to work",
+   "observed": "wide pane: date field focused; narrow pane (jumps none): nothing opened, said \"Jump to a date\"; fullscreen: nothing opened, said \"Jump to a date\"",
+   "pass": false,
+   "ms": 115,
+   "notes": "where the jump control is shed (or in fullscreen, no PaneHead) T announces \"Jump to a date\" and opens nothing (PaneHead.tsx:71 needs `jump`); DIAGNOSIS: components/terrain/PaneHead.tsx:73 opens the calendar only when its jump control is mounted; the desk's T (Terrain.tsx:3978) still says \"Jump to a date\" where the jumps are shed or in fullscreen (no PaneHead), and nothing opens"
+  },
+  {
+   "id": "A-245",
+   "item": "`L`",
+   "action": "press l twice",
+   "expected": "legend === false, said; then back",
+   "observed": "\"SPY bead legend hidden\" → shown",
+   "pass": true,
+   "ms": 77,
+   "notes": "in fullscreen: works"
+  },
+  {
+   "id": "A-246",
+   "item": "Esc (fullscreen)",
+   "action": "press F, then Esc",
+   "expected": "the pane collapses",
+   "observed": "collapsed",
+   "pass": true,
+   "ms": 28,
+   "notes": ""
+  },
+  {
+   "id": "A-247",
+   "item": "Esc (replay)",
+   "action": "press Esc",
+   "expected": "the replay ends (the badge goes)",
+   "observed": "replay ended",
+   "pass": true,
+   "ms": 173,
+   "notes": "Esc on the Go-to card first: card closed, replay kept"
+  },
+  {
+   "id": "A-248",
+   "item": "Esc closes the open menu, not the pane",
+   "action": "in fullscreen open Overlays, press Esc",
+   "expected": "the menu closes; the pane stays expanded",
+   "observed": "Overlays: menu closed, pane still expanded; layouts shelf (focus on its button): Esc left the shelf open and collapsed the pane",
+   "pass": false,
+   "ms": 24,
+   "notes": "DIAGNOSIS: pages/terrain/Terrain.tsx:4342-4356 — the layouts shelf closes on Esc only from a key event inside it; with focus on its LAYOUTS button (where a click leaves it) Esc reaches the window handler (Terrain.tsx:3640) and collapses the expanded pane behind the shelf, which stays open"
+  },
+  {
+   "id": "A-249",
+   "item": "Alt+R",
+   "action": "pan the view back, hover the chart, press Alt+R",
+   "expected": "the view under the pointer resets",
+   "observed": "view reset to the opening view",
+   "pass": true,
+   "ms": 116,
+   "notes": ""
+  },
+  {
+   "id": "A-250",
+   "item": "`?`",
+   "action": "press ? (during a replay)",
+   "expected": "the keys sheet opens; Esc closes the sheet and leaves the replay",
+   "observed": "sheet opened; Esc → sheet closed, replay still on",
+   "pass": true,
+   "ms": 95,
+   "notes": ""
+  },
+  {
+   "id": "A-251",
+   "item": "`/`",
+   "action": "press / (during a replay)",
+   "expected": "the command line opens (Terrain has no search)",
+   "observed": "palette opened; Esc → closed, replay still on",
+   "pass": true,
+   "ms": 128,
+   "notes": "outside a replay: opens in 181 ms"
+  },
+  {
+   "id": "A-252",
+   "item": "Ctrl K",
+   "action": "press Ctrl+K (during a replay)",
+   "expected": "the command line opens",
+   "observed": "palette opened",
+   "pass": true,
+   "ms": 81,
+   "notes": ""
+  },
+  {
+   "id": "A-253",
+   "item": "`g` then `t`",
+   "action": "from /glossary press g, then t",
+   "expected": "the page goes to /terrain",
+   "observed": "at /terrain",
+   "pass": true,
+   "ms": 760,
+   "notes": "ms = the keys to the first pane on /terrain"
+  },
+  {
+   "id": "A-254",
+   "item": "Ctrl S / Ctrl Enter (script editor)",
+   "action": "in the Pine editor press Ctrl+S / Ctrl+Enter",
+   "expected": "save / run the script",
+   "observed": "—",
+   "pass": "manual",
+   "ms": null,
+   "notes": "the editor's keys are out of Area A's scope (the inventory marks it so); the Pine door that opens the editor is A-225"
+  },
+  {
+   "id": "A-255",
+   "item": "Ctrl Z",
+   "action": "after the delete, press Ctrl+Z",
+   "expected": "the deleted layout comes back (the house undo)",
+   "observed": "nothing came back ([\"morning\"])",
+   "pass": false,
+   "ms": null,
+   "notes": "the named-layout delete does not use ui/undo.tsx `undoable`; nor do the level watch Stop (A-195) and the alert-chip removals (A-63…); DIAGNOSIS: removeNamedLayout (pages/terrain/Terrain.tsx:3463) does not go through ui/undo.tsx `undoable`; neither do the level watch Stop (A-195) nor the Alerts chips' removal (A-63…A-80), which undo nothing either"
+  },
+  {
+   "id": "A-256",
+   "item": "Letter keys with Caps Lock on",
+   "action": "a synthetic keydown \"P\" with Caps Lock, then \"R\" with Caps Lock",
+   "expected": "P acts as p (replay on); Caps-R acts as r (one ladder), not Shift R",
+   "observed": "Caps P → \"SPY replay on\"; Caps R → ladders [true,true,true] → [false,true,true] (\"SPY strike rail hidden\")",
+   "pass": true,
+   "ms": null,
+   "notes": "a synthetic KeyboardEvent with modifierCapsLock: headless Chromium has no Caps Lock to press"
+  },
+  {
+   "id": "A-257",
+   "item": "Keys while a house layer is open",
+   "action": "open ? (the keys sheet), press 2",
+   "expected": "the layout behind the sheet does not change",
+   "observed": "sheet open; after 2: layout 3, 3 frames",
+   "pass": true,
+   "ms": 197,
+   "notes": ""
+  }
+ ]
+}

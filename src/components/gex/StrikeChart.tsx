@@ -785,6 +785,10 @@ interface StrikeChartProps {
    * the same one at the size the host can afford.
    */
   compact?: boolean;
+  /** The drawing tools as a sheet behind one door rather than the rail's column — `compact`'s by default; a host with
+      the type floor to keep (Terrain on a phone: the audit's B-56 — the 44 × 281 rail took a phone's chart) asks for the
+      sheet alone */
+  toolsSheet?: boolean;
   /**
    * THIS CHART IS INSIDE A PAGE THAT SCROLLS — leave the wheel to it.
    *
@@ -1184,6 +1188,7 @@ const StrikeChart = ({
   keepView = false,
   trailsGreek = 'gex',
   compact = false,
+  toolsSheet,
   pageScroll = false,
   frameless = false,
   focusPrice = null,
@@ -1270,6 +1275,16 @@ const StrikeChart = ({
       otherwise the prop. A string, so effects can key on it safely. */
   const scaleMode = priceScaleLockedBy(compares)?.mode ?? priceScale;
   const panRef = useRef(false); // a pointer is down on the plot (the drawing tools own `dragRef` below)
+  /* A RANGE JUMP HOLDS ITS RANGE WHILE THE BARS ARRIVE (the audit's A-47/A-48): 1M and 6M change the timeframe, and the
+     new timeframe's bars come in pieces — today's minutes folded, then the server's tiles, then the day bars — so a jump
+     placed on the first piece (53 hourly bars, 14 day bars) was kept on those bars' times as the rest arrived (five days
+     shown for a month, three weeks for six months). The jump's nonce stands here until the reader moves the view (a
+     press or a wheel on the chart) or a new world loads; while it stands, bars arriving place the range again.
+     THE OPENING VIEW HOLDS THE SAME WAY ('recent', the audit's S-1D-view): a 1D pane opened on the 14 day bars the minutes
+     fold to, and when the 254 day bars came the view was kept on the first bar's time — April 2025, "Back to live" up,
+     the ladder empty, about one load in two. Until the reader moves it, the opening view is laid again on the bars that
+     came. */
+  const spanHoldRef = useRef<number | 'recent'>(0);
   const pendingRef = useRef<number | null>(null);
   useEffect(() => {
     if (panRef.current) pendingRef.current = revisionProp;
@@ -1280,6 +1295,10 @@ const StrikeChart = ({
     if (!el) return;
     const down = () => {
       panRef.current = true;
+      spanHoldRef.current = 0;
+    };
+    const wheel = () => {
+      spanHoldRef.current = 0;
     };
     const up = () => {
       if (!panRef.current) return;
@@ -1294,10 +1313,12 @@ const StrikeChart = ({
       }
     };
     el.addEventListener('pointerdown', down);
+    el.addEventListener('wheel', wheel, { passive: true });
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', up);
     return () => {
       el.removeEventListener('pointerdown', down);
+      el.removeEventListener('wheel', wheel);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
     };
@@ -1372,6 +1393,9 @@ const StrikeChart = ({
      decide, and with three optional panes the offsets depend on which of them
      happen to be open. */
   const [paneLabels, setPaneLabels] = useState<{ key: string; bottom: number }[]>([]);
+  const labelRetryRef = useRef(0);
+  /* the pane chips' measure, reachable from the resize observer (defined before it) */
+  const remeasureLabelsRef = useRef<() => void>(() => undefined);
   /*
     THE RUNWAY — a series that draws nothing and holds only WHITESPACE.
 
@@ -1778,6 +1802,8 @@ const StrikeChart = ({
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         if (chartRef.current) showRecent();
+        /* the panes' heights moved with the box: the chips stand on their new tops */
+        remeasureLabelsRef.current();
       });
     });
     obs.observe(el);
@@ -1875,6 +1901,7 @@ const StrikeChart = ({
     if (!chart) return;
     chart.priceScale('right').applyOptions({ autoScale: true });
     showRecent();
+    spanHoldRef.current = 'recent';
   }, [showRecent]);
 
   useEffect(() => {
@@ -2132,10 +2159,12 @@ const StrikeChart = ({
     const last = bars[bars.length - 1].time;
     const first = bars[0].time;
     const barSec = Math.max(60, mins * 60);
+    if (jumpTo.kind !== 'span') spanHoldRef.current = 0;
     if (jumpTo.kind === 'live') jumpAppliedRef.current = jumpTo.nonce;
     if (jumpTo.kind === 'live') {
       chart.priceScale('right').applyOptions({ autoScale: true });
       showRecent();
+      spanHoldRef.current = 'recent';
       return;
     }
     if (jumpTo.kind === 'span') {
@@ -2153,6 +2182,7 @@ const StrikeChart = ({
       if (fromIdx < 0) fromIdx = Math.max(0, bars.length - 2);
       if (wantWhole(fromIdx)) return;
       jumpAppliedRef.current = jumpTo.nonce;
+      spanHoldRef.current = jumpTo.nonce;
       chart.priceScale('right').applyOptions({ autoScale: true });
       ts.setVisibleLogicalRange({ from: fromIdx - offset, to: held.length - 1 + 6 });
       return;
@@ -2367,7 +2397,10 @@ const StrikeChart = ({
     (original: () => { priceRange: { minValue: number; maxValue: number } | null } | null) => {
       const base = original();
       const lv = levelsRef.current;
-      const extras = (fitCandlesRef.current ? [focusPriceRef.current ?? NaN] : [lv.putWall, lv.callWall, lv.supreme, lv.spot, focusPriceRef.current ?? NaN, ...roomRef.current]).filter(v =>
+      /* on a fit the focused strike is not in here: it widens the range only where it stands outside the fitted span
+         (below) — taken in first, it moved the 8-strike floor's middle, the axis re-fitted on a pin and the node pinned
+         jumped 91 px from the pointer (the audit's B-08) */
+      const extras = (fitCandlesRef.current ? [] : [lv.putWall, lv.callWall, lv.supreme, lv.spot, focusPriceRef.current ?? NaN, ...roomRef.current]).filter(v =>
         Number.isFinite(v)
       );
       const range = base?.priceRange ?? null;
@@ -2391,6 +2424,13 @@ const StrikeChart = ({
         const mid = (hi + lo) / 2;
         lo = mid - least / 2;
         hi = mid + least / 2;
+      }
+      /* a strike sent here to be SEEN cannot be off-screen (Noah, 2026-08-22) — on a fit, only when it is */
+      const f = fitCandlesRef.current ? focusPriceRef.current : null;
+      if (f != null && Number.isFinite(f)) {
+        const room = Math.max((hi - lo) * 0.04, 0.01);
+        if (f < lo) lo = f - room;
+        if (f > hi) hi = f + room;
       }
       return { priceRange: { minValue: lo, maxValue: hi } };
     },
@@ -3038,6 +3078,9 @@ const StrikeChart = ({
       { key: 'regime', series: regimeSeriesRef.current },
     ];
     let next: { key: string; bottom: number }[] = [];
+    /* a pane just added has no height until the library lays it out — measured again a frame later, a few times (the
+       audit's B-26/B-34: the regime strip's and the vol drift's chips never came, no tick asking again as the flow's does) */
+    let short = false;
     if (chart) {
       try {
         const panes = chart.panes();
@@ -3051,7 +3094,10 @@ const StrikeChart = ({
           if (idx <= 0 || idx >= heights.length) continue;
           /* A band collapsed to a sliver has no room for a chip, and one drawn
              anyway would sit over the pane above it. */
-          if (heights[idx] <= 8) continue;
+          if (heights[idx] <= 8) {
+            short = true;
+            continue;
+          }
           let up = axisH;
           for (let j = idx; j < heights.length; j++) up += heights[j];
           next.push({ key: w.key, bottom: up - PANE_LABEL_H - PANE_LABEL_INSET });
@@ -3066,7 +3112,12 @@ const StrikeChart = ({
         ? prev
         : next
     );
+    if (short && labelRetryRef.current < 12) {
+      labelRetryRef.current++;
+      requestAnimationFrame(() => remeasureLabelsRef.current());
+    } else if (!short) labelRetryRef.current = 0;
   }, []);
+  remeasureLabelsRef.current = remeasurePaneLabels;
 
   /*
     THE FLOW BAND: Trace's premium, in this chart's own buckets.
@@ -3258,11 +3309,27 @@ const StrikeChart = ({
         return { time: t as UTCTimestamp, value: b.net, color: alpha(b.net >= 0 ? putInk : callInk, light) };
       })
     );
+    /* BEFORE TODAY'S FIRST BAR (the audit's C-40): the strip draws the sessions before, so the chip reads the newest of
+       them, said with its day — its percentile against the reference as it stood that day, UW's direction (today's) not
+       asked of it */
+    let pastDay: string | null = null;
+    if (lastNet == null && bars.length) {
+      const [t, b] = bars[bars.length - 1];
+      lastNet = b.net;
+      lastAt = t;
+      pastDay = nyIsoDateOf(t * 1000);
+    }
     const netNow: number | null = lastNet;
     const atNow: number | null = lastAt;
     if (netNow == null || atNow == null) {
       setRegimeWords('');
       handRegime(null);
+    } else if (pastDay) {
+      const read = regimeReadOf(netNow, nyMinuteOf(atNow * 1000), pastDay, regimeRef, null, atNow);
+      read.outsideAt = atNow;
+      const words = regimeWordsOf(read, usdCompactSigned, ms => `${isoDayLabel(pastDay!)}, ${readerClock(ms)}`);
+      setRegimeWords(words);
+      handRegime({ ...read, words, range: null });
     } else {
       /* ONE READING for the chip and the host's decision strip (trailModel regimeReadOf / regimeWordsOf): the meaning,
          never the bare sign (the owner, 2026-10-14: "Labels say the meaning, not the bare sign ('calls absorb −$2.1B')"),
@@ -3714,7 +3781,7 @@ const StrikeChart = ({
          regime strip's or the flow band's pane) */
       const paneIndex = own ? chart.panes().length : 0;
       if (own) ownPanes++;
-      const made = drawRun(chart, result, bars, paneIndex);
+      const made = drawRun(chart, result, bars, paneIndex, { fitCandles: !!fitCandles });
       handles.set(ps.chart.id, made);
       if (own) ownPaneOf.push(paneIndex);
     }
@@ -4002,7 +4069,11 @@ const StrikeChart = ({
     const slid = held && bars.length === prevLen && lastT !== prevLast;
     const regrown = !changed && prevLen > 0 && !slid && (bars.length !== prevLen + (lastT !== prevLast && prevLast > 0 ? 1 : 0) || (lastT === prevLast && firstNow !== prevFirst));
     let keepAt: { time: number; off: number; span: number } | null = null;
-    if (regrown && !jumped) {
+    /* a range jump still standing is placed again on the bars that came (tryJump, at the end of the load below) */
+    const respan = regrown && !jumped && typeof spanHoldRef.current === 'number' && spanHoldRef.current !== 0 && spanHoldRef.current === jumpAppliedRef.current;
+    const reopen = regrown && !jumped && spanHoldRef.current === 'recent';
+    if (respan) jumpAppliedRef.current = 0;
+    else if (regrown && !jumped && !reopen) {
       const r = chart.timeScale().getVisibleLogicalRange();
       if (r) {
         const i0 = Math.max(0, Math.min(prevLen - 1, Math.round(r.from)));
@@ -4025,6 +4096,7 @@ const StrikeChart = ({
          right edge, not to a bar index. */
       candleSeries.setData(bars.map(toMain));
       volumeSeries.setData(bars.map(b => toVolume(b, theme)));
+      if (reopen) showRecent();
       if (keepAt) {
         let idx = 0;
         while (idx < bars.length - 1 && bars[idx].time < keepAt.time) idx++;
@@ -4048,6 +4120,8 @@ const StrikeChart = ({
         (candleSeries as unknown as ISeriesApi<'Baseline'>).applyOptions({ baseValue: { type: 'price', price: baseValue } });
       }
       if (newWorld) {
+        /* a new world drops a range jump's hold — the jump that asked for this world places itself below */
+        spanHoldRef.current = 0;
         // A new name/interval is a fresh greeting — autoscale returns with it.
         chart.priceScale('right').applyOptions({ autoScale: true });
         const kept = keepViewRef.current ? KEPT_VIEWS.get(`${ticker}|${timeframe}|${barClock}`) : undefined;
@@ -4057,6 +4131,7 @@ const StrikeChart = ({
           chart.timeScale().scrollToPosition(kept.scroll, false);
         } else {
           showRecent(); // theme swaps must not yank the user's pan/zoom
+          spanHoldRef.current = 'recent';
         }
         /* A timeframe change BREATHES in (Noah, 2026-08-22: "should have a
            smooth transition, not quick"): the new world lands at zero and
@@ -4349,9 +4424,11 @@ const StrikeChart = ({
       cone: buildExpectedMoveCone(sess, iv, Math.max(0, RTH_MINUTES - elapsed), mins),
       barTimes: bars.map(b => b.time),
       barMinutes: mins,
+      ink: readToken('--ink', undefined, boxElRef.current ?? undefined),
+      panel: readToken('--panel', undefined, boxElRef.current ?? undefined),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker, timeframe, revision, overlays.cone, replay, mainNonce, altSpec, pricedMove]);
+  }, [ticker, timeframe, revision, overlays.cone, replay, mainNonce, altSpec, pricedMove, themeKey]);
 
   /*
     THE EVENT MARKERS — T-11. The calendar half (this name's report, the
@@ -4914,10 +4991,16 @@ const StrikeChart = ({
          effect) — set here, against the live window still on the series, the
          library re-anchored it past the last bar and the 1m replay opened blank */
     } else {
+      /* ONLY A REPLAY THAT REWOUND THE SERIES HANDS IT BACK (the audit's A-46–A-50): this ran on every timeframe change
+         with no replay at all — the series loaded afresh a second time and its opening view (showRecent) undid a range
+         jump that had just landed (1W stood on a day and a half, 1M on five days, 6M on the first twenty day bars) */
+      const rewound = replayDataRef.current != null;
       replayDataRef.current = null;
       setReplayPlaying(false);
-      loadedRef.current = { ticker: '', timeframe: '1m', theme: '', clock: 'time', full: false };
-      setReloadNonce(n => n + 1);
+      if (rewound) {
+        loadedRef.current = { ticker: '', timeframe: '1m', theme: '', clock: 'time', full: false };
+        setReloadNonce(n => n + 1);
+      }
     }
     /* On the host's clock a timeframe change re-cuts the same moment on the
        new bars (the Map keeps replaying); on its own transport it exits below */
@@ -4982,7 +5065,11 @@ const StrikeChart = ({
   const pickLineRef = useRef<HTMLDivElement | null>(null);
   const pickLabelRef = useRef<HTMLDivElement | null>(null);
   const pickXRef = useRef(0);
-  const placePick = (x: number) => {
+  /* the plot starts after the drawing rail (railLeftInset): the line, the fade and the label stand in the outer box, so
+     the chart's own x is moved by the rail's width (the audit's B-71: 56 px left of the pointer) */
+  const pickInsetRef = useRef(0);
+  const placePick = (chartX: number) => {
+    const x = chartX + pickInsetRef.current;
     pickXRef.current = x;
     if (pickFadeRef.current) pickFadeRef.current.style.left = `${x}px`;
     if (pickLineRef.current) pickLineRef.current.style.left = `${x}px`;
@@ -5225,7 +5312,9 @@ const StrikeChart = ({
   const gap = useToolbarGap(containerRef, rail.dock === 'top');
   /* THE PLOT STARTS AFTER THE RAIL (the owner, 2026-10-13: "The floating drawing toolbar covers candles on the left
      edge. Move it off the plot or keep candles clear of it"): docked left and open, the chart's box begins past it */
-  const railLeftInset = !compact && (drawing || onEnterDraw) && rail.open && rail.dock === 'left' ? RAIL_LEFT_INSET_PX : 0;
+  const sheetTools = toolsSheet ?? compact;
+  const railLeftInset = !sheetTools && (drawing || onEnterDraw) && rail.open && rail.dock === 'left' ? RAIL_LEFT_INSET_PX : 0;
+  pickInsetRef.current = railLeftInset;
   const topDockStyle = rail.dock === 'top' && gap ? { left: gap.left + gap.width / 2, transform: 'translateX(-50%)', maxWidth: Math.max(160, gap.width - 16) } : undefined;
   const [, forceMark] = useReducer((x: number) => x + 1, 0);
   const [barPos, setBarPos] = useState<{ x: number; y: number } | null>(null);
@@ -5836,10 +5925,10 @@ const StrikeChart = ({
       >
         {picking && pickFade && (
           <>
-            <div ref={pickFadeRef} aria-hidden className="absolute top-0 z-[5] pointer-events-none" style={{ left: pickXRef.current, right: pickFade.right, bottom: pickFade.bottom, background: 'rgba(10,10,10,0.72)' }} data-pick-fade />
-            <div ref={pickLineRef} aria-hidden className="absolute top-0 z-[6] w-px pointer-events-none" style={{ left: pickXRef.current, bottom: pickFade.bottom, background: 'rgba(199,211,232,0.9)' }} data-pick-line />
+            <div ref={pickFadeRef} aria-hidden className="absolute top-0 z-[5] pointer-events-none" style={{ left: pickXRef.current, right: pickFade.right, bottom: pickFade.bottom, background: 'rgb(var(--canvas) / 0.72)' }} data-pick-fade />
+            <div ref={pickLineRef} aria-hidden className="absolute top-0 z-[6] w-px pointer-events-none" style={{ left: pickXRef.current, bottom: pickFade.bottom, background: 'rgb(var(--silver) / 0.9)' }} data-pick-line />
             {/* The bar's day and minute under the line — its text moves through the ref with the pointer */}
-            <div ref={pickLabelRef} aria-hidden className="absolute z-[6] -translate-x-1/2 px-1.5 py-0.5 rounded-[3px] font-mono text-[11px] tnum whitespace-nowrap pointer-events-none" style={{ left: pickXRef.current, bottom: pickFade.bottom + 4, background: '#C7D3E8', color: '#0a0a0a' }} data-pick-label>
+            <div ref={pickLabelRef} aria-hidden className="absolute z-[6] -translate-x-1/2 px-1.5 py-0.5 rounded-[3px] bg-silverFill text-onSilver font-mono text-[11px] tnum whitespace-nowrap pointer-events-none" style={{ left: pickXRef.current, bottom: pickFade.bottom + 4 }} data-pick-label>
               {ownLabelRef.current}
             </div>
           </>
@@ -5957,7 +6046,7 @@ const StrikeChart = ({
             onPointerUp={onDrawUp}
           />
         )}
-        {!compact && (drawing || onEnterDraw) && !rail.open && (
+        {!sheetTools && (drawing || onEnterDraw) && !rail.open && (
           /* THE WAY BACK — a slim tab at the docked edge, always there, so a
              hidden toolbar is one click from found (TV's collapse grammar). */
           <button
@@ -5977,7 +6066,7 @@ const StrikeChart = ({
             <Pencil className="w-3 h-3" />
           </button>
         )}
-        {!compact && (drawing || onEnterDraw) && rail.open && (
+        {!sheetTools && (drawing || onEnterDraw) && rail.open && (
           /*
             THE TOOL RAIL — persistent, and the reader's to place (Noah,
             2026-08-28: "lets start by adding a toolbar that we talked
@@ -6111,7 +6200,7 @@ const StrikeChart = ({
         )}
         {/* ON A NARROW PANE THE SHEET IS THE TOOLBAR: the rail is off there, and until now the only door to drawing was the `d`
             key — which a phone has not got. A slim tab at the edge opens every tool as a bottom sheet. */}
-        {compact && (drawing || onEnterDraw) && (
+        {sheetTools && (drawing || onEnterDraw) && (
           <button
             onClick={() => setSheetOpen(o => !o)}
             title="Drawing tools"
@@ -6408,7 +6497,8 @@ const StrikeChart = ({
           <div
             className="absolute z-40"
             style={{
-              left: Math.max(4, Math.min(noteAt.x - (containerRef.current?.getBoundingClientRect().left ?? 0), (containerRef.current?.clientWidth ?? 400) - 190)),
+              /* the container starts after the drawing rail; this box stands in the outer one (the audit's B-63: 56 px left) */
+              left: railLeftInset + Math.max(4, Math.min(noteAt.x - (containerRef.current?.getBoundingClientRect().left ?? 0), (containerRef.current?.clientWidth ?? 400) - 190)),
               top: Math.max(4, Math.min(noteAt.y - (containerRef.current?.getBoundingClientRect().top ?? 0) - 14, (containerRef.current?.clientHeight ?? 300) - 36)),
             }}
           >
@@ -6416,7 +6506,7 @@ const StrikeChart = ({
               autoFocus
               type="text"
               maxLength={80}
-              placeholder={noteAt.kind === 'note' ? 'note, Enter to place' : 'words, Enter to place'}
+              placeholder={noteAt.kind === 'note' ? 'Note, Enter to place' : 'Words, Enter to place'}
               aria-label="The mark's words — Enter places them where you clicked"
               className="w-[184px] px-2 py-1 rounded border border-select/60 bg-panel/95 font-mono text-[11px] text-textPrimary placeholder:text-textMuted shadow-xl shadow-black/50 outline-none"
               onKeyDown={e => {

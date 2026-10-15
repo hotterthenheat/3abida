@@ -616,6 +616,37 @@ check('ladder: the key names what is drawn, the Δ wears its direction, the card
 /* ─── A JUMP ON A LONG ONE-MINUTE TAPE (the audit's B-73) ─────────────────────────────────────────────────────────────
    Before: the jump counted bars over the whole tape (five weeks of minutes, thousands of bars) while the series held
    only the recent 1,000, so a day a week back set a range far past the series and the view showed no bar of that day. */
+/* A RANGE JUMP KEEPS ITS RANGE (the audit's A-46–A-50): 1W and 6M change the timeframe, whose bars arrive in pieces; the
+   timeframe's own second load (a replay hand-back that ran with no replay) and the pieces arriving after the jump had put
+   1W on a day and a half and 6M on three weeks */
+check('jump: 1W and 6M land on their range and keep it as the bars arrive', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const notes = [];
+    let pass = true;
+    for (const [span, tf, lo, hi] of [['1w', '15m', 5, 9.5], ['6m', '1D', 150, 200]]) {
+      const door = page.locator(`[data-pane-head] [data-jump="${span}"]`).first();
+      if (!(await door.isVisible().catch(() => false))) await page.locator('[data-jump-trigger]').first().click();
+      await page.locator(`[data-jump="${span}"]`).first().click();
+      await page.waitForTimeout(6000);
+      const got = await page.evaluate(() => {
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+        const r = e.chart.timeScale().getVisibleRange();
+        const d = e.candles.data().filter(x => 'close' in x);
+        return { tf: (e.host.getAttribute('data-chart-state') ?? '').split('|')[1], days: r ? (r.to - r.from) / 86400 : 0, last: d[d.length - 1]?.time ?? 0, to: r?.to ?? 0, n: d.length };
+      });
+      const ok = got.tf === tf && got.days >= lo && got.days <= hi && got.to >= got.last;
+      pass &&= ok;
+      notes.push(`${span}: ${got.tf}, the view ${got.days.toFixed(1)} days wide (${lo}–${hi} asked), ${got.to >= got.last ? 'reaching the newest bar' : 'short of the newest bar'}, ${got.n} bars held`);
+    }
+    if (errors.length) notes.push(`page errors: ${errors.join(' | ')}`);
+    return { pass: pass && !errors.length, ms: Date.now() - t0, notes };
+  } finally {
+    await done();
+  }
+});
+
 check('jump: a day a week back on one-minute bars lands on that day', async () => {
   const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '1m', overlays: { trails: true }, ladder: true }]);
   try {
@@ -790,6 +821,265 @@ check('full screen: the age, the window, the jumps, T and the legend stand there
     await page.keyboard.press('Escape');
     const pass = got.extras === 1 && got.age === 1 && got.window >= 4 && got.jumps >= 5 && got.legend === 1 && cal && !errors.length;
     return { pass, ms: Date.now() - t0, notes: [`full screen: age chip ${got.age}, window choices ${got.window}, jumps ${got.jumps}, Legend door ${got.legend}; T ${cal ? 'opens the calendar' : 'does nothing'}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+/* ---- the audit's exercise runs (2026-10-15, batch 4): each fix with its check ---------------------------------------- */
+const chartOf = () => {
+  const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+  return e;
+};
+
+/* C-58 / A-168: "Replay this day" from a 1D pane plays the day's session from 9:30 am New York on five-minute bars */
+check('day panel: Replay this day starts the session at 9:30 am New York on 5m, or says why it cannot', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '1D', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const notes = [];
+    let day = null;
+    for (let back = 0; back <= 6 && !day; back++) {
+      const g = await page.evaluate(([back, f]) => {
+        const e = eval(f)();
+        const d = e.candles.data().filter(x => 'close' in x);
+        const b = d[d.length - 1 - back];
+        const r = e.host.getBoundingClientRect();
+        const x = e.chart.timeScale().timeToCoordinate(b.time);
+        const y = e.candles.priceToCoordinate((b.high + b.low) / 2);
+        return { x: r.left + x, y: r.top + y };
+      }, [back, `(${chartOf.toString()})`]);
+      await page.mouse.click(g.x, g.y);
+      const opened = await page.waitForSelector('[data-day-panel]', { timeout: 2500 }).then(() => true).catch(() => false);
+      if (!opened) continue;
+      const d = await page.getAttribute('[data-day-panel]', 'data-day-panel');
+      const btn = page.locator('[data-day-replay]');
+      if (await btn.isDisabled()) {
+        notes.push(`${d}: not offered — "${await btn.getAttribute('title')}"`);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+        continue;
+      }
+      day = d;
+      await btn.click();
+    }
+    if (!day) return { pass: notes.length > 0 && notes.every(n => /minutes/.test(n)) && !errors.length, ms: Date.now() - t0, notes: ['no day on the tape holds its open', ...notes] };
+    await page.waitForTimeout(5000);
+    const got = await page.evaluate(() => ({ badge: document.querySelector('[data-replay-badge]')?.textContent ?? '', tf: (document.querySelector('[data-chart-state]')?.getAttribute('data-chart-state') ?? '').split('|')[1], asOf: Number(document.querySelector('[data-as-of]')?.getAttribute('data-as-of') ?? 0) }));
+    const ny = got.asOf ? new Date(got.asOf).toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+    const nyDay = got.asOf ? new Date(got.asOf).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) : '';
+    const pass = got.tf === '5m' && nyDay === day && /^9:3\d AM$/.test(ny) && !errors.length;
+    notes.push(`${day}: the pane on ${got.tf}, the cursor knowable at ${ny} New York; badge "${got.badge}"`);
+    return { pass, ms: Date.now() - t0, notes: [...notes, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+/* S-1D-view / A-28: a 1D pane opens on the newest bars — every load, and from a switch — never on the oldest */
+check('1D view: a 1D pane opens on the newest bars, loaded or switched to', async () => {
+  const notes = [];
+  let pass = true;
+  const t0 = Date.now();
+  for (let k = 0; k < 3; k++) {
+    const { page, done } = await terrain([{ ticker: 'SPY', timeframe: k < 2 ? '1D' : '5m', overlays: { trails: true }, ladder: true }]);
+    try {
+      if (k === 2) {
+        const tab = page.locator('[data-confluence-tabs] button[data-tf="1D"]').first();
+        if (await tab.count()) await tab.click();
+        else {
+          await page.locator('[data-tf-trigger]').first().click();
+          await page.locator('[data-tf-pick="1D"]').first().click();
+        }
+        await page.waitForTimeout(5000);
+      }
+      const r = await page.evaluate(f => {
+        const e = eval(f)();
+        const v = e.chart.timeScale().getVisibleRange();
+        const d = e.candles.data().filter(x => 'close' in x);
+        return { to: v.to, last: d[d.length - 1].time, n: d.length, back: !!document.querySelector('[data-back-to-live]') };
+      }, `(${chartOf.toString()})`);
+      const ok = r.to >= r.last && !r.back;
+      pass &&= ok;
+      notes.push(`${k < 2 ? 'loaded on 1D' : 'switched from 5m'}: ${r.n} day bars, ${ok ? 'the view reaches the newest' : 'the view stops short of the newest'}${r.back ? ', Back to live up' : ''}`);
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* A-248 / A-220 / A-255: the named layouts are the house's card — Esc from its button closes it and leaves the full-screen
+   pane; a delete acts at once and comes back on the undo */
+check('layouts: Esc from the button closes the shelf, not the full screen; a delete comes back on Ctrl Z', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true } }], { layout: 2 });
+  try {
+    const t0 = Date.now();
+    await page.locator('[data-expand-door]').first().click();
+    await page.waitForTimeout(800);
+    const focusOnOpen = await page.evaluate(() => document.activeElement?.hasAttribute('data-collapse-pane') ?? false);
+    await page.locator('[data-terrain-layouts]').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-popover-card="terrain-layouts"]', { timeout: 3000 });
+    await page.locator('[data-terrain-layouts]').focus();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() => ({ shelf: !!document.querySelector('[data-popover-card="terrain-layouts"]'), expanded: !!document.querySelector('[role=dialog][aria-label$="expanded"]') }));
+    await page.locator('[data-terrain-layouts]').click();
+    await page.fill('[data-layout-name]', 'Proof desk');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    const saved = await page.locator('[data-layout-recall="Proof desk"]').count();
+    await page.locator('[data-layout-delete="Proof desk"]').click({ force: true });
+    await page.waitForTimeout(200);
+    const gone = await page.locator('[data-layout-recall="Proof desk"]').count();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Control+z');
+    await page.waitForTimeout(300);
+    await page.locator('[data-terrain-layouts]').click();
+    const back = await page.locator('[data-layout-recall="Proof desk"]').count();
+    if (back) await page.locator('[data-layout-delete="Proof desk"]').click({ force: true });
+    const pass = focusOnOpen && !after.shelf && after.expanded && saved === 1 && gone === 0 && back === 1 && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`full screen focus on Collapse: ${focusOnOpen}; Esc with the keys on the button: shelf ${after.shelf ? 'still open' : 'closed'}, pane ${after.expanded ? 'still expanded' : 'collapsed'}; saved ${saved}, after delete ${gone}, after Ctrl Z ${back}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+/* C-35 / C-13 / B-56: on a phone the ladder lays over the chart (the chart keeps its width), takes the keys and gives them
+   back; How to read opens there with the desk's ladder off; the drawing tools are a sheet, not the rail's column */
+check('phone: the ladder lays over the chart, the keys go in and back, How to read opens, the tools are a sheet', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: false }], { width: 390, height: 844 });
+  try {
+    const t0 = Date.now();
+    const before = await page.evaluate(() => Math.round(document.querySelector('[data-chart-ink]')?.getBoundingClientRect().width ?? 0));
+    const door = page.locator('[data-ladder-peek], [data-narrow-ladder]').first();
+    await door.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(700);
+    const open = await page.evaluate(() => ({ w: Math.round(document.querySelector('[data-chart-ink]')?.getBoundingClientRect().width ?? 0), panel: Math.round(document.querySelector('[data-profile-panel]')?.getBoundingClientRect().width ?? 0), pos: getComputedStyle(document.querySelector('[data-profile-panel]')).position, inside: !!document.activeElement?.closest('[data-profile-panel]') }));
+    await page.locator('[data-profile-panel] [data-profile-guide]').first().click().catch(() => {});
+    const guide = await page.waitForSelector('[data-popover-card="profile-guide"]', { timeout: 2500 }).then(() => true).catch(() => false);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    const closed = await page.evaluate(() => ({ panel: !!document.querySelector('[data-profile-panel]'), back: !!document.activeElement?.closest('[data-ladder-peek], [data-narrow-ladder]') }));
+    const sheetDoor = await page.locator('[data-draw-sheet-door]').count();
+    const pass = open.pos === 'absolute' && open.w >= before - 2 && open.inside && guide && !closed.panel && closed.back && sheetDoor >= 1 && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`chart ${before} px wide, ${open.w} px with the ladder (${open.panel} px, ${open.pos}) over it; the keys ${open.inside ? 'in the ladder' : 'elsewhere'}; How to read ${guide ? 'opened' : 'did nothing'}; after Esc the ladder ${closed.panel ? 'stands' : 'closed'} and the keys ${closed.back ? 'back on its door' : 'elsewhere'}; the drawing tools: ${sheetDoor ? 'a sheet behind one door' : 'no sheet door'}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+/* B-26 / B-34 / B-35: every product pane wears its name chip from the first load */
+check('pane chips: the flow, regime and vol drift panes are named from the first load', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true, regime: true, volDrift: true, flow: true }, ladder: true }]);
+  try {
+    const chips = await page.evaluate(() => [...document.querySelectorAll('[data-pane-chip]')].map(e => e.getAttribute('data-pane-chip')));
+    const pass = ['flow', 'regime', 'volDrift'].every(k => chips.includes(k)) && !errors.length;
+    return { pass, notes: [`chips: ${chips.join(', ') || 'none'}`] };
+  } finally {
+    await done();
+  }
+});
+
+/* B-08: pinning a node in view keeps the fitted axis where it was — the node stays under the pointer */
+check('pin: a node pinned in view leaves the axis where it was', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const at = await page.evaluate(f => {
+      const e = eval(f)();
+      const tr = e.trails;
+      const r = e.host.getBoundingClientRect();
+      const ps = e.candles.priceScale();
+      const before = ps.getVisibleRange?.() ?? null;
+      for (let y = Math.round(r.height * 0.35); y < r.height * 0.85; y += 3)
+        for (let x = Math.round(r.width * 0.5); x < r.width * 0.85; x += 4) {
+          const b = tr.beadAt(x, y);
+          if (b) return { x: r.left + x, y: r.top + y, strike: b.strike, before };
+        }
+      return null;
+    }, `(${chartOf.toString()})`);
+    if (!at) return { pass: false, notes: ['no node found to pin'] };
+    const range = () => page.evaluate(f => { const e = eval(f)(); const h = e.host.getBoundingClientRect().height; return [e.candles.coordinateToPrice(0), e.candles.coordinateToPrice(h * 0.8)]; }, `(${chartOf.toString()})`);
+    const r0 = await range();
+    await page.mouse.click(at.x, at.y);
+    await page.waitForTimeout(700);
+    const r1 = await range();
+    const moved = Math.max(Math.abs(r1[0] - r0[0]), Math.abs(r1[1] - r0[1]));
+    const still = await page.evaluate(([f, x, y]) => { const e = eval(f)(); const r = e.host.getBoundingClientRect(); return e.trails.beadAt(x - r.left, y - r.top)?.strike ?? null; }, [`(${chartOf.toString()})`, at.x, at.y]);
+    await page.keyboard.press('Escape');
+    const pass = moved < 0.01 && still === at.strike && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`pinned ${at.strike}: the axis moved ${moved.toFixed(3)}; under the pointer after: ${still}`] };
+  } finally {
+    await done();
+  }
+});
+
+/* C-40 / C-50: with the market shut and no column today, the decision strip's regime reads the last session, dated */
+check('regime at night: the strip reads the last session, dated, never a bare dash', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const box = await page.evaluate(() => {
+      const b = document.querySelector('[data-decision-box="regime"]');
+      return b ? { text: b.textContent ?? '', title: b.getAttribute('title') ?? '' } : null;
+    });
+    const live = await page.evaluate(() => document.querySelector('[data-pane-age]')?.getAttribute('data-pane-age'));
+    if (live === 'live') return { pass: true, notes: [`the market is open (the age chip reads live) — the night's case does not arise: "${box?.text}"`] };
+    const pass = !!box && !/^Regime\s*—$/.test(box.text.trim()) && /amplify|absorb/.test(box.text + box.title) && !errors.length;
+    return { pass, notes: [`regime box: "${box?.text}" — title "${box?.title.slice(0, 140)}"`] };
+  } finally {
+    await done();
+  }
+});
+
+/* A-17 / B-44 / the readout: with the pointer on the plot the hover row covers none of the chrome under the strip */
+check('hover row: the readout and the legends stand clear of the hover row', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.55);
+    await page.waitForTimeout(800);
+    const r = await page.evaluate(() => {
+      const box = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 ? r : null; };
+      const row = [...document.querySelectorAll('[data-toolbar-row]')].map(box).find(Boolean);
+      const others = [...document.querySelectorAll('[data-chart-chrome], [data-script-legend]')].map(e => ({ e, r: box(e) })).filter(x => x.r && !x.e.contains(document.querySelector('[data-toolbar-row]')));
+      const hit = row ? others.filter(o => Math.min(o.r.right, row.right) - Math.max(o.r.left, row.left) > 1 && Math.min(o.r.bottom, row.bottom) - Math.max(o.r.top, row.top) > 1) : [];
+      return { row: !!row, n: others.length, hit: hit.length };
+    });
+    const pass = r.row && r.hit === 0 && !errors.length;
+    return { pass, notes: [`hover row ${r.row ? 'shown' : 'not shown'}; ${r.hit} of ${r.n} chrome boxes under it`] };
+  } finally {
+    await done();
+  }
+});
+
+/* A-244: T on a pane whose jumps were shed for room still opens the calendar */
+check('T key: a narrow pane with its jumps shed still opens the calendar', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], { layout: 4, width: 1280, height: 800 });
+  try {
+    const form = await page.evaluate(() => document.querySelector('[data-pane-head]')?.getAttribute('data-jump-form'));
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    await page.mouse.click(b.x + b.width * 0.4, b.y + 30);
+    await page.keyboard.press('t');
+    const cal = await page.waitForSelector('[data-jump-date-input]', { timeout: 3000 }).then(() => true).catch(() => false);
+    await page.keyboard.press('Escape');
+    return { pass: cal && !errors.length, notes: [`the first pane's jumps: ${form}; T ${cal ? 'opens the calendar' : 'opens nothing'}`] };
+  } finally {
+    await done();
+  }
+});
+
+/* A-22: the rail prints the change with the true minus, as the pane head does */
+check('rail: the change wears the true minus', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true } }]);
+  try {
+    const t = await page.evaluate(() => [...document.querySelectorAll('[data-subject]')].map(e => e.textContent + ' ' + (e.getAttribute('data-tip') ?? '') + ' ' + (e.getAttribute('aria-label') ?? '')).join(' | '));
+    const hyphen = /(^|\s)-\d/.test(t);
+    return { pass: !hyphen && !errors.length, notes: [`the rail's subject: "${t.slice(0, 160)}"`] };
   } finally {
     await done();
   }

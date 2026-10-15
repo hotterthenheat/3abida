@@ -244,9 +244,17 @@ export interface ScriptHandle {
  * Draw one run onto a pane. `paneIndex` 0 is the tape; an own-pane script
  * takes the index the host allocated.
  */
-export function drawRun(chart: IChartApi, run: RunResult, bars: Bar[], paneIndex: number): ScriptHandle {
+export function drawRun(chart: IChartApi, run: RunResult, bars: Bar[], paneIndex: number, opts: { fitCandles?: boolean } = {}): ScriptHandle {
   const overlay = paneIndex === 0;
-  const baseOpts = { priceLineVisible: false, lastValueVisible: !overlay, crosshairMarkerVisible: false, ...(overlay ? { priceScaleId: 'right' } : {}) };
+  /* ON A FITTED AXIS AN OVERLAY NEVER WIDENS IT (the audit's D-11/D-12: "The walls" and "The flip" pulled the axis out to
+     the walls, the candles squeezed into a band) — the same rule as the built-in overlays (StrikeChart `fitCandles`) */
+  const baseOpts = {
+    priceLineVisible: false,
+    lastValueVisible: !overlay,
+    crosshairMarkerVisible: false,
+    ...(overlay ? { priceScaleId: 'right' } : {}),
+    ...(overlay && opts.fitCandles ? { autoscaleInfoProvider: () => null } : {}),
+  };
   const sig = shapeSig(run);
   const plotSeries: { index: number; series: AnySeries }[] = [];
   const series: AnySeries[] = [];

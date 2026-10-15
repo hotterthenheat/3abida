@@ -53,7 +53,7 @@
 ==================================================
 */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MutableRefObject, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { num, pct, pctSigned, usdSigned } from '../../core/format';
 import { Info, X } from 'lucide-react';
 import Simulator from '../../core/simulator';
@@ -499,6 +499,10 @@ const ProfilePanel = ({
   }, [sized]);
   const maxW = hostW > 0 ? Math.max(PROFILE_MIN_W, Math.round(hostW * maxShare)) : Number.POSITIVE_INFINITY;
   const shownW = sized ? Math.min(dragW ?? width, maxW) : undefined;
+  /* A DRAG OF THE GRIP OR THE SASH IS NOT A CLICK (the audit's C-29b): the click that follows a drag lands on the panel
+     (the nearest box holding both ends) and kept the strike under the pointer — its end is noted, and a click on its
+     heels, or on a separator, keeps nothing */
+  const dragEndRef = useRef(0);
   const onGripDown = (e: ReactPointerEvent<HTMLSpanElement>) => {
     if (!onWidth) return;
     e.preventDefault();
@@ -516,6 +520,7 @@ const ProfilePanel = ({
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
+      dragEndRef.current = performance.now();
       setDragW(null);
       onWidth(last);
     };
@@ -538,6 +543,7 @@ const ProfilePanel = ({
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
+      dragEndRef.current = performance.now();
       setDragSplit(null);
       setSplitPref(last);
     };
@@ -935,7 +941,8 @@ const ProfilePanel = ({
             ctx.fillText('NET GAMMA', sizeL + 8, hy);
             ctx.fillStyle = ink.ink3;
             ctx.font = `9px ${FIG}`;
-            ctx.fillText('puts · calls', sizeL + 8 + ctx.measureText('NET GAMMA ').width + 8, hy);
+            /* the sides as the Sides view keeps them: puts (amplify) to the left of the centre line, calls to the right */
+            ctx.fillText('◂ puts · calls ▸', sizeL + 8 + ctx.measureText('NET GAMMA ').width + 8, hy);
             ctx.font = `600 9px ${FIG}`;
           } else {
             ctx.textAlign = 'center';
@@ -948,9 +955,10 @@ const ProfilePanel = ({
         }
         ctx.textAlign = 'left';
         ctx.fillText('STRIKE', colL + 6, hy);
-        if (colW === COL_W_WIDE && view === 'ladder') {
+        /* both views print the Δ from spot and the σ in the wide column (below), so both name them (the audit's C-16) */
+        if (colW === COL_W_WIDE) {
           ctx.textAlign = 'right';
-          ctx.fillText('Δ SPOT', colR - 6, hy);
+          ctx.fillText(sigmaRemRef.current && sigmaRemRef.current > 0 ? 'Δ SPOT · σ' : 'Δ SPOT', colR - 6, hy);
         }
         if (showFlow) {
           ctx.textAlign = 'left';
@@ -1027,8 +1035,9 @@ const ProfilePanel = ({
           rule(prof.vpoc, 0.4, []);
           if (prof.vpoc !== null) {
             const y = p.yFor(prof.vpoc);
-            if (y != null && y > HEAD_BAND + 8 && y < H - FOOT_BAND) {
-              ctx.font = `7px ${FIG}`;
+            if (y != null && y > HEAD_BAND + 12 && y < H - FOOT_BAND) {
+              /* a word, so the floor (the audit's C-11: 7 px) */
+              ctx.font = `11px ${FIG}`;
               ctx.fillStyle = ink.volText;
               ctx.textAlign = 'left';
               ctx.textBaseline = 'bottom';
@@ -1165,10 +1174,11 @@ const ProfilePanel = ({
       };
       if (showSize && view === 'net') {
         /* THE NET VIEW — A DIVERGING BAR (the Terrain UI pass, 2026-10-14; the partner's row of dashes until then): from
-           the lane's centre line, a bar to the right where hedging amplifies (puts, the put ramp's ink) and to the left
-           where it absorbs (calls, the call ramp's), its length the strike's |net| against the largest |net| on screen,
-           the net figure at its tip in the sign's ink; the length eases the way the legs do, and a kept strike's ring
-           stands round its bar. */
+           the lane's centre line, a bar to the LEFT where hedging amplifies (puts, the put ramp's ink) and to the RIGHT
+           where it absorbs (calls, the call ramp's) — the sides the Sides view and the spine keep (the audit's C-07: the
+           net view had them the other way round under a head reading "puts · calls") — its length the strike's |net|
+           against the largest |net| on screen, the signed net figure at its tip in the sign's ink; the length eases the
+           way the legs do, and a kept strike's ring stands round its bar. */
         const laneW = sizeR - sizeL;
         const mid = sizeL + laneW / 2;
         const figures = laneW >= 110 && barH >= 8;
@@ -1194,15 +1204,16 @@ const ProfilePanel = ({
           const e = ease(`n:${r.strike}`, target, sideInk(sign), 0, barHN);
           const len = Math.max(1, e.len);
           const y = Math.round(r.y - e.h / 2);
-          const x0 = sign > 0 ? mid : mid - len;
+          const x0 = sign > 0 ? mid - len : mid;
           ctx.fillStyle = sideInk(sign);
           ctx.fillRect(x0, y, len, Math.max(1, e.h));
           if (figures) {
             ctx.font = `700 ${pitch >= 30 ? 10 : 9}px ${FIG}`;
             ctx.fillStyle = sideInk(sign);
             ctx.textBaseline = 'middle';
-            ctx.textAlign = sign > 0 ? 'left' : 'right';
-            ctx.fillText(`${sign > 0 ? '' : '−'}${fmtUsd(Math.abs(r.value))}`, sign > 0 ? mid + len + 4 : mid - len - 4, r.y + 0.5);
+            ctx.textAlign = sign > 0 ? 'right' : 'left';
+            /* signed both ways, as the peek and the strip print a net */
+            ctx.fillText(`${sign > 0 ? '+' : '−'}${fmtUsd(Math.abs(r.value))}`, sign > 0 ? mid - len - 4 : mid + len + 4, r.y + 0.5);
           }
           const ring = ringFor(r.strike);
           if (ring) {
@@ -1607,7 +1618,9 @@ const ProfilePanel = ({
     if (!hoverRef.current || !near(hoverRef.current.strike, best.strike) || Math.abs(hoverRef.current.x - x) > 2) setHover({ strike: best.strike, x, y: best.y });
   };
   const onLeave = () => setHover(null);
-  const onClick = () => {
+  const onClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (performance.now() - dragEndRef.current < 400) return;
+    if ((e.target as Element | null)?.closest?.('[role="separator"]')) return;
     if (hoverRef.current && onSelect) onSelect(hoverRef.current.strike);
   };
 
@@ -1840,6 +1853,7 @@ const ProfilePanel = ({
      whatever the tier. Below the full tier the head is TWO ROWS: the view tabs and the host's
      card on the first, these tools on the second (a 340 head cannot hold them all on one). */
   const twoRowHead = tier !== 'full';
+  const laneNames = panelW >= 640;
   const laneTools = (
     <>
       {onLane && (roomForLanes || twoRowHead) && <DropdownSelect label="Lanes" value={lane} options={LANE_OPTIONS} onChange={onLane} title="What the panel draws" testId="lanes" align={twoRowHead ? 'start' : 'end'} size="sm" />}
@@ -1899,7 +1913,9 @@ const ProfilePanel = ({
   return (
     <div
       ref={rootRef}
-      className={`relative h-full select-none ${sized ? 'shrink-0' : 'flex-1 min-w-0'} ${className}`}
+      /* a host that lays the panel OVER its chart (Terrain's phone ladder) names its own position — `relative` here beat the
+         host's `absolute` and the panel took the row, the chart squeezed to 12 px (the audit's C-35) */
+      className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative'} h-full select-none ${sized ? 'shrink-0' : 'flex-1 min-w-0'} ${className}`}
       style={sized ? { width: shownW } : undefined}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
@@ -1953,7 +1969,10 @@ const ProfilePanel = ({
               {headCard}
             </span>
           )}
-          {!twoRowHead && showSize && (
+          {/* THE LANES' NAMES WHERE THEY FIT (the audit's C-09: at the 476–520 px rest widths the tabs, the Expiry card and the
+              tools left them 0–28 px — in the DOM, never read): from 640 px; under it the column heads on the rows name the
+              lanes, and How to read defines them */}
+          {!twoRowHead && laneNames && showSize && (
             <span className="min-w-0 flex-1 flex items-center gap-2 text-[11px] text-textMuted pl-1" data-lane-head="size">
               <Term k={view === 'net' ? 'Net at a strike' : 'Size at a strike'} className="pointer-events-auto truncate">
                 {view === 'net' ? 'Net' : 'Size'} · {greek}
@@ -1961,7 +1980,7 @@ const ProfilePanel = ({
               </Term>
             </span>
           )}
-          {!twoRowHead && showFlow && (
+          {!twoRowHead && laneNames && showFlow && (
             <span className="min-w-0 flex-1 flex items-center gap-2 text-[11px] text-textMuted pl-1" data-lane-head="flow">
               <Term k="What a move forces" className="pointer-events-auto truncate">
                 What a move forces <span className="text-textMuted">· from gamma</span>

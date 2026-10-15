@@ -28,10 +28,13 @@ import { symKey } from './setups';
 /* One step along the interval list, CLAMPED at both ends. Wrapping would
    turn one keypress on a 1-minute chart into a weekly chart, which is a
    different instrument, not a smaller adjustment. */
-export const stepTf = (tf: Timeframe, dir: 1 | -1): Timeframe => {
+/* `held`: the timeframes the pane cannot draw (a feed's 15 s) — stepped over, as the menus grey them (the audit's
+   A-238: − from 1 m stored the held 15 s while the chart stayed on 1 m); at the end with nothing past it, it stays */
+export const stepTf = (tf: Timeframe, dir: 1 | -1, held?: Partial<Record<Timeframe, unknown>>): Timeframe => {
   const i = TIMEFRAMES.findIndex(t => t.value === tf);
-  const j = Math.max(0, Math.min(TIMEFRAMES.length - 1, (i < 0 ? 2 : i) + dir));
-  return TIMEFRAMES[j].value;
+  let j = Math.max(0, Math.min(TIMEFRAMES.length - 1, (i < 0 ? 2 : i) + dir));
+  while (held && held[TIMEFRAMES[j].value] && j + dir >= 0 && j + dir < TIMEFRAMES.length) j += dir;
+  return held && held[TIMEFRAMES[j].value] ? tf : TIMEFRAMES[j].value;
 };
 
 /*

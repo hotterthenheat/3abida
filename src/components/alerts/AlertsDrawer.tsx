@@ -60,7 +60,7 @@ import { marketClock, nyClock, nyParts, nyWallTime, viewerDay } from '../../core
 import { SNOOZE_MS } from './AlertToasts';
 import AllComposer from './AllComposer';
 import { usd } from '../../core/format';
-import { LEVEL_NAMES, clearLevelLog, levelLog, markLevelAlertsSeen, noteLevelEvents, setConfirmBars, setLevelWatch, useLevelLog, useLevelWatches, type LevelEvent } from '../../data/levelAlerts';
+import { LEVEL_NAMES, clearLevelLog, levelLog, levelWatches, putLevelWatch, markLevelAlertsSeen, noteLevelEvents, setConfirmBars, setLevelWatch, useLevelLog, useLevelWatches, type LevelEvent } from '../../data/levelAlerts';
 
 /** The kind's icon — a lucide outline, one per thing an alert can watch */
 const KIND_ICON: Record<AlertKind, LucideIcon> = {
@@ -328,7 +328,17 @@ const LevelShelf = ({ pick, go }: { pick: string | null; go: (ticker: string, to
                     </span>
                   )}
                   <Door label="Terrain" onClick={() => go(t, '/terrain')} />
-                  <IconButton onClick={() => setLevelWatch(t, id, false)} label={`Stop following ${LEVEL_NAMES[id]} on ${t}`} title="Stop following it" testId="data-level-watch-remove">
+                  <IconButton
+                    onClick={() => {
+                      const was = levelWatches()[t.toUpperCase()];
+                      setLevelWatch(t, id, false);
+                      /* the house's way back (ui/undo), as every other take-off in this drawer (the audit's A-255) */
+                      undoable({ label: `Stopped following ${LEVEL_NAMES[id]} on ${t}`, undo: () => putLevelWatch(t, was) });
+                    }}
+                    label={`Stop following ${LEVEL_NAMES[id]} on ${t}`}
+                    title="Stop following it"
+                    testId="data-level-watch-remove"
+                  >
                     <X className="w-3 h-3" />
                   </IconButton>
                 </div>

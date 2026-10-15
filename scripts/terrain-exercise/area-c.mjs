@@ -7,6 +7,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 
 const BASE = 'http://127.0.0.1:5181';
 const OUT = 'docs/terrain-audit-2026-10-15/exercise';
@@ -317,6 +318,18 @@ const sixC = async (page, label) => {
   }
   await page.click('[data-chart-frame] [data-profile-view="net"]').catch(() => {});
   await away(page);
+  const ks = near.map(r => r.strike);
+  const cols = await page.evaluate(ks => {
+    const s = window.__ex.chart(0).trails.snapshots;
+    const hm = t => new Date(t * 1000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+    const day = t => new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const out = {};
+    for (const want of ['15:34', '15:59']) {
+      const c = s.filter(c => day(c.time) === '2026-10-14' && hm(c.time) === want).slice(-1)[0];
+      if (c) out[want] = Object.fromEntries(c.levels.filter(l => ks.includes(l.strike)).map(l => [l.strike, l.value]));
+    }
+    return out;
+  }, ks);
   const fieldBy = new Map((base.field?.levels || []).map(l => [l.strike, l]));
   const rows = out.map(o => {
     const f = fieldBy.get(o.strike);
@@ -333,7 +346,7 @@ const sixC = async (page, label) => {
       sameSign: f ? Math.sign(f.value) === Math.sign(o.value) : null,
     };
   });
-  SIX[label] = { spot: base.spot, levels: base.levels, fieldTime: base.field?.time ?? null, fieldTimeNY: base.field ? new Date(base.field.time * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }) : null, nSnaps: base.nSnaps, fieldStrikes: base.field?.levels.length ?? 0, ladderStrikes: base.rows.length, fresh: base.fresh, state: base.state, rows };
+  SIX[label] = { cols, spot: base.spot, levels: base.levels, fieldTime: base.field?.time ?? null, fieldTimeNY: base.field ? new Date(base.field.time * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }) : null, nSnaps: base.nSnaps, fieldStrikes: base.field?.levels.length ?? 0, ladderStrikes: base.rows.length, fresh: base.fresh, state: base.state, rows };
   log('6c', label, JSON.stringify(SIX[label]).slice(0, 600));
   return SIX[label];
 };
@@ -606,10 +619,13 @@ const groupB = async () => {
       const x = r.left + Math.min(20, r.width / 2);
       const y = r.top + r.height / 2;
       const top = document.elementFromPoint(x, y);
-      return { x, y, onTop: !!top && (top === el || el.contains(top)), top: top ? top.tagName + '.' + String(top.className).slice(0, 40) : null };
+      const row = el.closest('[data-lane-head]').parentElement;
+      const kids = [...row.children].map(c => `${c.getAttribute('data-lane-head') ? 'lane ' + c.getAttribute('data-lane-head') : c.hasAttribute('data-profile-views') ? 'views' : c.hasAttribute('data-profile-head-card') ? 'expiry' : c.hasAttribute('data-profile-tools') ? 'tools' : c.tagName}:${Math.round(c.getBoundingClientRect().width)}`).join(' ');
+      return { x, y, w: Math.round(r.width), kids, onTop: !!top && (top === el || el.contains(top)), top: top ? top.tagName + '.' + String(top.className).slice(0, 40) : null };
     });
     let how = 'pointer';
     let r = await timed(page, () => (tb ? page.mouse.move(tb.x, tb.y) : Promise.resolve()), () => [...document.querySelectorAll('[role="tooltip"]')].some(e => window.__ex.vis(e)), null, 3000);
+    const byPointer = r.ok;
     if (!r.ok) {
       how = 'focus';
       r = await timed(page, () => page.focus('[data-lane-head="size"] [role="button"]').catch(() => {}), () => [...document.querySelectorAll('[role="tooltip"]')].some(e => window.__ex.vis(e)), null, 3000);
@@ -621,7 +637,7 @@ const groupB = async () => {
       await page.keyboard.press('f');
       await page.waitForTimeout(800);
     }
-    return { observed: `head "${clip(head, 80)}" (pane expanded for the full tier: ${expanded}); tooltip by ${how} ${r.ok ? `"${clip(tip, 300)}"` : '(none)'}; under the pointer: ${tb?.onTop ? 'the Term' : tb?.top}`, pass: !!head && r.ok, ms: r.ms, notes: (tb && !tb.onTop ? `the pointer cannot reach the Term: ${tb.top} lies over it. ` : '') + (/dash|Orange|blue|capsule/i.test(tip) ? 'STALE TEXT: the tooltip still speaks of dashes / orange-blue, the view is a gold/violet diverging bar (data/terms.ts:70-76)' : '') };
+    return { observed: `head "${clip(head, 80)}" in the DOM, drawn ${tb?.w ?? 0} px wide (head row: ${tb?.kids}); tooltip by ${how} ${r.ok ? `"${clip(tip, 300)}"` : '(none)'}; under the pointer: ${tb?.onTop ? 'the Term' : tb?.top}`, pass: !!head && (tb?.w ?? 0) >= 40 && byPointer, ms: r.ms, notes: ((tb?.w ?? 0) < 40 ? `THE LANE WORDS HAVE NO ROOM: on the full tier the head row gives the view tabs, the Expiry card and the tools their width and the lane head (min-w-0 flex-1) what is left — ${tb?.w ?? 0} px at the 476 px rest, 28 px at the 520 px expanded width (measured) — so the words truncate to nothing and cannot be hovered (ProfilePanel.tsx head row ~1950-1975). ` : '') + (tb && !tb.onTop ? `At its point the pointer hits ${tb.top}. ` : '') + (/dash|Orange|blue|capsule/i.test(tip) ? 'STALE TEXT: the tooltip still speaks of dashes / orange-blue, the view is a gold/violet diverging bar (data/terms.ts:70-76)' : '') };
   });
   await item('C-10', 'Lanes menu', 'Lanes → Flow, Both, Size', "data-lane follows; stored as the pane's lane; head 'A MOVE FORCES' in Flow", async () => {
     const pick = async v => {
@@ -854,34 +870,6 @@ const groupB = async () => {
     const has = await page.evaluate(() => /Read this/.test(document.body.innerText) || !!document.querySelector('[data-read-this]'));
     return { observed: has ? 'a Read this is present' : 'absent', pass: !has, ms: null, notes: 'as inventoried; no ReadThis on Terrain' };
   });
-  await item('C-61', 'Bead hover card (reference, area B)', 'hover the newest column at the nearest strike', 'three lines: strike · time, net, % of the book', async () => {
-    /* the field's largest node in its newest column: always drawn (TOP_NODES) */
-    const k = await page.evaluate(() => {
-      const s = window.__ex.chart(0).trails.snapshots;
-      const l = s[s.length - 1].levels;
-      return [...l].sort((a, b) => (b.gross ?? Math.abs(b.value)) - (a.gross ?? Math.abs(a.value)))[0].strike;
-    });
-    const g = await page.evaluate(k => {
-      const e = window.__ex.chart(0);
-      const s = e.trails.snapshots;
-      const r = e.host.getBoundingClientRect();
-      const x = e.chart.timeScale().timeToCoordinate(s[s.length - 1].time);
-      return { x: r.left + x, y: window.__ex.y(0, k) };
-    }, k);
-    let card = null;
-    const t = Date.now();
-    for (const dx of [0, 2, -2, -4, 4, -7, -10, -15]) {
-      await page.mouse.move(g.x + dx, g.y);
-      await page.waitForTimeout(60);
-      card = await page.evaluate(() => document.querySelector('[data-bead-card]')?.innerText ?? null);
-      if (card) break;
-    }
-    const ms = Date.now() - t;
-    await away(page);
-    SIX._bead = { strike: k, card };
-    return { observed: card ? `${k}: "${clip(card, 300)}"` : `(no bead card at ${k}, the newest column's largest node)`, pass: card ? true : 'manual', ms, notes: card ? '' : 'no oval under the pointer there' };
-  });
-
   /* C-13 guide, C-36 its card, C-60 Glossary */
   await item('C-13', 'How to read door → ProfileGuide', 'click [data-profile-guide]; Esc', 'a dark card over the blurred pane; Esc closes it', async () => {
     const a = await timed(page, () => page.click('[data-profile-guide]'), () => window.__ex.vis(document.querySelector('[data-profile-guide-card]')), null, 5000);
@@ -927,6 +915,34 @@ const groupC = async () => {
     const s = await sixC(page, 'SPY 5m');
     const matched = s.rows.filter(r => r.diffPct != null && Math.abs(r.diffPct) <= 1).length;
     return { observed: `${matched}/${s.rows.length} strikes within 1%; field column ${s.fieldTimeNY} NY`, pass: matched === s.rows.length, ms: null, notes: 'see the 6c table' };
+  });
+  await item('C-61', 'Bead hover card (reference, area B)', 'hover the largest node of the newest field column in view (5m)', 'three lines: strike · time, net, % of the book', async () => {
+    const g = await page.evaluate(() => {
+      const e = window.__ex.chart(0);
+      const vr = e.chart.timeScale().getVisibleRange();
+      const s = e.trails.snapshots.filter(c => vr && c.time >= vr.from && c.time <= vr.to);
+      const c = s[s.length - 1];
+      if (!c) return null;
+      const big = [...c.levels].sort((a, b) => (b.gross ?? Math.abs(b.value)) - (a.gross ?? Math.abs(a.value)))[0];
+      const r = e.host.getBoundingClientRect();
+      return { k: big.strike, x: r.left + e.chart.timeScale().timeToCoordinate(c.time), y: window.__ex.y(0, big.strike), at: new Date(c.time * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }) };
+    });
+    if (!g) return { observed: 'no field column in view', pass: 'manual', ms: null, notes: '' };
+    let card = null;
+    const t = Date.now();
+    outer: for (const dx of [0, -2, 2, -4, 4, -6, 6, -9, -12]) {
+      for (const dy of [0, -2, 2, -4, 4]) {
+        await page.mouse.move(g.x + dx, g.y + dy);
+        await page.waitForTimeout(45);
+        card = await page.evaluate(() => document.querySelector('[data-bead-card]')?.innerText ?? null);
+        if (card) break outer;
+      }
+    }
+    const ms = Date.now() - t;
+    if (card) await shot(page, 'C-beadcard');
+    await away(page);
+    SIX._bead = { strike: g.k, at: g.at, card };
+    return { observed: card ? `${g.k} at ${g.at}: "${clip(card, 300)}"` : `(no bead card at ${g.k}, ${g.at})`, pass: card ? true : 'manual', ms, notes: card ? 'ms includes the search over a small grid round the node' : 'no oval under the pointer there' };
   });
   await item('S-gaps-5m', 'Gaps at 5m', 'read the chart’s gap runs in view', 'every blank run wears its cause', async () => {
     const g = await page.evaluate(() => (window.__ex.chart(0)?.gaps?.() || []).map(r => JSON.stringify(r).slice(0, 160)));
@@ -1120,12 +1136,15 @@ const groupD = async () => {
   await item('C-55', 'Day panel', 'click the 3rd-from-last day bar; Esc', "the card under the strip: the day, its close, regime, CW/PW/flip at the last modeled column, the 3 nearest strikes; Esc closes", async () => {
     const r = await openDay(page, 2);
     const g = r.g;
+    const t0 = await page.evaluate(() => document.querySelector('[data-day-panel]')?.innerText ?? '');
+    await page.waitForTimeout(1500);
     const t = await page.evaluate(() => ({ day: document.querySelector('[data-day-panel]')?.getAttribute('data-day-panel'), t: document.querySelector('[data-day-panel]')?.innerText }));
+    const flash = /No modeled column/.test(t0) && !/No modeled column/.test(t.t || '');
     day = t.day;
     await shot(page, 'D-daypanel');
     const e = await timed(page, () => esc(page), () => !document.querySelector('[data-day-panel]'), null, 3000);
     await page.waitForTimeout(600);
-    return { observed: `opened ${r.ok} for ${t.day} (bar ${new Date(g.time * 1000).toISOString().slice(0, 10)}, ${r.tries} click${r.tries > 1 ? 's' : ''}): "${clip(t.t, 300)}"; Esc closed ${e.ok}`, pass: r.ok && e.ok && /close/.test(t.t || ''), ms: r.ms, notes: `Esc ${e.ms} ms; walls/flip are raw pickWalls on the day's last column (inventory)${r.tries > 1 ? `; the bar click needed ${r.tries} tries` : ''}` };
+    return { observed: `opened ${r.ok} for ${t.day} (bar ${new Date(g.time * 1000).toISOString().slice(0, 10)}, ${r.tries} click${r.tries > 1 ? 's' : ''}): "${clip(t.t, 300)}"; Esc closed ${e.ok}`, pass: r.ok && e.ok && /close/.test(t.t || ''), ms: r.ms, notes: `Esc ${e.ms} ms; walls/flip are raw pickWalls on the day's last column (inventory)${r.tries > 1 ? `; the bar click needed ${r.tries} tries` : ''}${flash ? "; on open it first says 'No modeled column for this day on this machine' and fills 0.1–0.35 s later when the day's 1m tile arrives — a loading state worded as an absence (Terrain.tsx ~3000)" : ''}` };
   });
   await item('C-56', 'Day panel: UW end-of-day line', 'open the day panel; wait for the UW line', "'asking…' then 'Unusual Whales' end-of-day book: CW … PW … flip … (figured at …)'", async () => {
     const o = await openDay(page, 2);
@@ -1165,29 +1184,78 @@ const groupD = async () => {
   }
   await item('S-1D-view', 'A 1D pane opens on the newest bars', 'load SPY 1D twice; read the visible logical range', 'the view ends on the last bar (no "Back to live" on a fresh load)', async () => {
     const bad = DAYVIEWS.filter(v => v.back || (v.to != null && v.to < v.n - 2));
-    return { observed: DAYVIEWS.map((v, i) => `load ${i + 1}: ${v.n} bars, logical ${v.from}..${v.to}, ${v.range}, Back to live ${v.back}`).join(' ; '), pass: bad.length === 0, ms: null, notes: bad.length ? 'INTERMITTENT: the pane first gets 14 day bars (one from Apr 2025, the rest recent) and shows logical 0..20; when the 254-bar series replaces them the view sometimes keeps the logical range 0..20 (Apr–Nov 2025) instead of the bar times it showed, so the pane opens a year back with the ladder empty (current strikes off its price range). Seen in 2 of 4 loads while debugging. Area B (StrikeChart series reload); the day-panel items below click "Back to live" first.' : 'seen intermittently while debugging (2 of 4 loads stayed on Apr–Nov 2025); not in these two loads' };
+    return { observed: DAYVIEWS.map((v, i) => `load ${i + 1}: ${v.n} bars, logical ${v.from}..${v.to}, ${v.range}, Back to live ${v.back}`).join(' ; '), pass: bad.length === 0, ms: null, notes: bad.length ? 'INTERMITTENT: the pane first gets 14 day bars (one from Apr 2025, the rest recent) and shows logical 0..20; when the 254-bar series replaces them the view sometimes keeps the logical range 0..20 (Apr–Nov 2025) instead of the bar times it showed, so the pane opens a year back with the ladder empty (current strikes off its price range). Seen on about half the 1D loads this session (9 of ~19, counting the debugging loads). Area B (StrikeChart series reload); the day-panel items below click "Back to live" first.' : 'seen intermittently while debugging (2 of 4 loads stayed on Apr–Nov 2025); not in these two loads' };
   });
   await item('C-58', 'Day panel: Replay this day', 'click a day bar, then [data-day-replay]', 'the replay starts at 9:30 am New York on that day', async () => {
     const o = await openDay(p2, 2);
     if (!o.ok) return { observed: 'the day panel did not open after 3 bar clicks', pass: false, ms: o.ms, notes: '' };
     const d = await p2.evaluate(() => document.querySelector('[data-day-panel]')?.getAttribute('data-day-panel'));
-    const r = await timed(p2, () => p2.click('[data-day-replay]'), () => !!document.querySelector('[data-replay-track]') && /Replay ·/.test(document.body.innerText), null, 20000);
+    const r = await timed(p2, () => p2.click('[data-day-replay]'), () => !!document.querySelector('[data-replay-badge]'), null, 20000);
     await p2.waitForTimeout(1500);
-    const badge = await p2.evaluate(() => (document.body.innerText.match(/Replay · [^\n]+/) || [null])[0]);
+    const badge = await p2.evaluate(() => document.querySelector('[data-replay-badge]')?.textContent ?? null);
+    const tf = await p2.evaluate(() => (document.querySelector('[data-chart-frame] [data-chart-state]')?.getAttribute('data-chart-state') || '').split('|')[1]);
+    const want = new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
     await shot(p2, 'D-replay');
-    return { observed: `day ${d}; replay ${r.ok}; badge "${badge}"`, pass: r.ok && /9:3\d am/.test(badge || ''), ms: r.ms, notes: '' };
+    const ok = r.ok && (badge || '').includes(want) && /9:30 am/.test(badge || '');
+    return { observed: `day ${d} ("${want}"); replay ${r.ok}; badge "${badge}"; the pane stays on ${tf}`, pass: ok, ms: r.ms, notes: ok ? '' : `the replay asked for ${want} 9:30 am New York (Terrain.tsx:3017 onReplayFrom(nyWallTime(day, 9, 30))) with the pane left on ${tf}: the cursor lands on the day bar's grid and the badge names the NEXT day at 9:29 am (seen 3 of 3 times)` };
   });
-  await item('C-38', 'How sure: Replay section', 'in the replay, open How sure (ladder door, else a strip box)', "'Replay · <day> · <time>' and what the ladder stands on", async () => {
+  await item('C-38b', 'How sure in a 1D replay (from the day panel)', 'in the C-58 replay, open How sure (ladder door, else a strip box)', "'Replay · <day> · <time>' and what the ladder stands on", async () => {
+    await p2.waitForFunction(() => !!document.querySelector('[data-profile-panel] [data-how-sure="book"]'), null, { timeout: 10000, polling: 100 }).catch(() => {});
     let door = await p2.$('[data-profile-panel] [data-how-sure="book"]');
-    if (!door) door = await p2.$('[data-decision-box="regime"]');
-    if (!door) return { observed: 'no How sure door in the replay (no column at the cursor?)', pass: false, ms: null, notes: '' };
+    let via = 'the ladder’s door';
+    if (!door) {
+      door = await p2.$('[data-decision-box="regime"]');
+      via = 'the strip’s Regime box';
+    }
+    const pending = await p2.evaluate(() => document.querySelectorAll('[data-how-sure-pending]').length);
+    if (!door) return { observed: `no How sure door in the replay; pending doors ${pending}`, pass: false, ms: null, notes: '' };
     const r = await timed(p2, () => door.click(), () => !!document.querySelector('[data-how-sure-replay]'), null, 5000);
     const t = await p2.evaluate(() => document.querySelector('[data-how-sure-replay]')?.innerText ?? null);
+    const ladder = await p2.evaluate(() => !!window.__ex.lad(0));
     await esc(p2);
-    return { observed: t ? clip(t, 300) : '(section absent)', pass: r.ok, ms: r.ms, notes: '' };
+    return { observed: t ? `via ${via}: ${clip(t, 300)}` : `(section absent; via ${via}; ladder ${ladder}; pending doors ${pending} — "The read opens once the first book is in")`, pass: r.ok, ms: r.ms, notes: t ? '' : 'waited 10 s: in this replay (the 1D pane, cursor on a day bar) no field column stands at the cursor, so the ladder never comes and How sure has no book; its doors stand pending and the replay section cannot be read here' };
   });
   log('D errors', p2.__errs.length, p2.__errs.slice(0, 5).join(' || '));
   await o2.ctx.close();
+  /* the inventory's own path to How sure's replay section: P on an intraday pane, pick a bar */
+  const o3 = await open({ cfg: { layout: 1, panes: [paneCfg('SPY', '5m')] }, label: 'D 5m replay' });
+  const p3 = o3.page;
+  await ready(p3, 1);
+  await ladReady(p3, 0).catch(() => {});
+  await p3.waitForTimeout(2500);
+  await item('C-38', 'How sure: Replay section', 'P on a 5m pane, click a bar mid-session; open the ladder’s How sure', "'Replay · <day> · <time>' and what the ladder stands on", async () => {
+    await blur(p3);
+    await p3.keyboard.press('p');
+    await p3.waitForTimeout(600);
+    const g = await p3.evaluate(() => {
+      const e = window.__ex.chart(0);
+      const d = e.candles.data();
+      const b = d[Math.max(0, d.length - 1 - 70)];
+      const r = e.host.getBoundingClientRect();
+      return { x: r.left + e.chart.timeScale().timeToCoordinate(b.time), y: r.top + e.candles.priceToCoordinate(b.close), t: b.time };
+    });
+    const a = await timed(p3, () => p3.mouse.click(g.x, g.y), () => !!document.querySelector('[data-replay-badge]'), null, 8000);
+    const tl = Date.now();
+    const gone = await p3.evaluate(() => !document.querySelector('[data-profile-panel]'));
+    const back = await p3.waitForFunction(() => !!document.querySelector('[data-profile-panel] [data-how-sure="book"]'), null, { timeout: 20000, polling: 50 }).then(() => Date.now() - tl).catch(() => null);
+    SIX._replayLadder = { gone, back };
+    const badge = await p3.evaluate(() => document.querySelector('[data-replay-badge]')?.textContent ?? null);
+    let door = await p3.$('[data-profile-panel] [data-how-sure="book"]');
+    let via = 'the ladder’s door';
+    if (!door) {
+      door = await p3.$('[data-decision-box="regime"]');
+      via = 'the strip’s Regime box';
+    }
+    if (!door) return { observed: `replay ${a.ok} "${badge}"; no How sure door`, pass: false, ms: a.ms, notes: '' };
+    const r = await timed(p3, () => door.click(), () => !!document.querySelector('[data-how-sure-replay]'), null, 5000);
+    const t = await p3.evaluate(() => document.querySelector('[data-how-sure-replay]')?.innerText ?? null);
+    await shot(p3, 'D-replay-howsure');
+    await esc(p3);
+    await p3.waitForTimeout(300);
+    await esc(p3);
+    return { observed: `replay ${a.ok}, badge "${badge}"; the ladder ${gone ? `left the pane on the pick and came back after ${back ?? '>20000'} ms` : 'stayed'}; How sure via ${via}: ${t ? `"${clip(t, 300)}"` : '(no replay section)'}`, pass: a.ok && r.ok, ms: r.ms, notes: `replay start ${a.ms} ms; ms = door click → card` + (gone ? `; the ladder (and How sure with it) is missing for ${back ?? '>20000'} ms after the pick while the cursor's column comes in — the strip's boxes stand pending meanwhile` : '') };
+  });
+  await o3.ctx.close();
 };
 
 /* ================================================================================================================ */
@@ -1418,7 +1486,7 @@ const groupG = async () => {
     let retry = null;
     if (seen?.banner) {
       const t1 = Date.now();
-      const req = page.waitForRequest(r => new URL(r.url()).pathname.startsWith('/feed/'), { timeout: 5000 }).then(r => r.url()).catch(() => null);
+      const req = page.waitForRequest(r => /\/feed\/.*(stock-state|ohlc|spot-exposures\/strike|bars)/.test(r.url()), { timeout: 5000 }).then(r => r.url()).catch(() => null);
       await page.click('[data-stale-retry]');
       const u = await req;
       retry = { ms: Date.now() - t1, url: u ? u.replace(BASE, '').slice(0, 80) : null };
@@ -1483,16 +1551,50 @@ fs.writeFileSync(path.join(OUT, `area-c${suffix}.json`), JSON.stringify({ at: ne
 const esc_ = s => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 let md = `# Terrain audit 2026-10-15 — area C exercised\n\nRun ${new Date().toISOString()} against ${BASE} (commit 521d7de), Chromium headless at 1x, viewer zone ${TZ}, dark theme. ` +
   `Night in New York (market closed). The machine is shared with two other agents' browsers, so every timing is pessimistic. ` +
-  `${tot.all} items: **${tot.pass} pass, ${tot.fail} fail, ${tot.manual} manual**. Run took ${Math.round((Date.now() - T0) / 1000)} s.\n\n` +
+  `${tot.all} items: **${tot.pass} pass, ${tot.fail} fail, ${tot.manual} manual**.${MERGE ? '' : ` Run took ${Math.round((Date.now() - T0) / 1000)} s.`}\n\n` +
   `ms = from the action to the observed result (polled every 25 ms). Screenshots: area-c-*.png beside this file.\n\n` +
-  (MERGE ? `Groups ${process.env.ONLY} were re-run at ${new Date().toISOString()} (the script's own readiness check had counted the session recap's off-screen charts, and the 1D view had to be brought back to the newest bars first); their rows are marked in area-c.json (\`rerun\`).\n\n` : '') +
+  (R.some(r => r.rerun) ? `Rows marked \`rerun\` in area-c.json (groups ${[...new Set(R.filter(r => r.rerun).map(r => r.rerun))].join('; ')}) come from later runs of their group, after fixes to this script (its readiness check had counted the session recap's off-screen charts; the 1D view had to be brought back to the newest bars first; How sure's replay section is read once the ladder returns). The run was ${new Date().toISOString().slice(0, 16)}Z, 03:20–04:20 am New York.\n\n` : '') +
   `| id | item | action → expected | observed | pass | ms |\n|---|---|---|---|---|---|\n`;
 for (const r of R) md += `| ${r.id} | ${esc_(r.item)} | ${esc_(r.action)} → ${esc_(r.expected)} | ${esc_(r.observed)}${r.notes ? ` _(${esc_(r.notes)})_` : ''} | ${r.pass === true ? 'PASS' : r.pass === false ? '**FAIL**' : 'manual'} | ${r.ms ?? ''} |\n`;
-for (const [label, s] of Object.entries(SIX)) {
+for (const [label, s] of Object.entries(SIX).sort(([a], [b]) => a.localeCompare(b))) {
   if (label.startsWith('_')) continue;
   md += `\n## 6c — ${label}: the ladder's net against the chart's field\n\nSpot ${s.spot}; the ladder holds ${s.ladderStrikes} rows (Unusual Whales' book, ${s.fresh ? esc_(s.fresh) : 'freshness —'}); the field's newest column is ${s.fieldTimeNY} New York (${s.fieldStrikes} strikes, ${s.nSnaps} columns on the chart). Ladder levels: CW ${s.levels.callWall} · PW ${s.levels.putWall} · flip ${s.levels.flip} · supreme ${s.levels.supreme}.\n\n`;
   md += `| strike | ladder net (canvas, as printed) | ladder read line (Sides) | field net (newest column, ladder's format) | field gross | difference | same sign |\n|---|---|---|---|---|---|---|\n`;
   for (const r of s.rows) md += `| ${r.strike} | ${esc_(r.ladderPrinted)} | ${esc_(r.ladderRead)} | ${esc_(r.fieldPrinted)} | ${r.fieldGross != null ? Math.round(r.fieldGross).toLocaleString('en-US') : '—'} | ${r.diffPct == null ? '—' : `${r.diffPct > 0 ? '+' : ''}${r.diffPct}%`} | ${r.sameSign == null ? '—' : r.sameSign ? 'yes' : 'NO'} |\n`;
+}
+/* 6c split by cause: the recorder's stored reads of Oct 14 (read-only) against the chart's own columns */
+try {
+  const dir = '.feed-cache/field/SPY/2026-10-14';
+  const lines = f => zlib.gunzipSync(fs.readFileSync(path.join(dir, f))).toString('utf8').trim().split('\n').map(l => JSON.parse(l));
+  const B = lines('books.jsonl.gz').slice(-1)[0];
+  const B60 = lines('books60.jsonl.gz').slice(-1)[0];
+  const ev = new Map(B.rows.map(r => [Number(r.strike), -(Number(r.call_gamma_oi) + Number(r.put_gamma_oi))]));
+  const s60 = new Map(B60.rows.map(r => [r[0], -(r[1] + r[2])]));
+  const six = SIX['SPY 1m'];
+  const fmtB = v => (v == null || !Number.isFinite(v) ? '—' : `${v < 0 ? '−' : ''}$${Math.abs(v) >= 1e9 ? (Math.abs(v) / 1e9).toFixed(2) + 'B' : (Math.abs(v) / 1e6).toFixed(0) + 'M'}`);
+  const x = (a, b) => (a != null && b ? `${(a / b).toFixed(2)}×` : '—');
+  const nyT = ms => new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York' });
+  md += `\n## 6c — the gap split by cause (SPY, Oct 14)\n\nThe recorder's last stored reads of Unusual Whales' books (read-only, .feed-cache/field/SPY/2026-10-14: the every-expiry book /spot-exposures/strike stamped ${nyT(Date.parse(B.rows[0].time))} at ${B.rows[0].price}, and the 60-day book by expiry, ${B60.expiries.length} expiries ${B60.expiries[0]} to ${B60.expiries[B60.expiries.length - 1]}, from the same moment), in the house's sign, beside the chart's own field columns at 3:34 pm and 3:59 pm (read off \`trails.snapshots\` in the 1m run) and the ladder now (UW's book figured 4:15 pm).\n\n`;
+  md += `| strike | UW every expiry, 3:34 pm | UW 60 days, 3:34 pm | universe (every ÷ 60d) | field, 3:34 pm | model (UW 60d ÷ field) | field, 3:59 pm | ladder now (UW, 4:15 pm) | ladder now ÷ field 3:59 |\n|---|---|---|---|---|---|---|---|---|\n`;
+  for (const r of six?.rows || []) {
+    const k = r.strike;
+    const f34 = six.cols?.['15:34']?.[k];
+    const f59 = six.cols?.['15:59']?.[k] ?? r.fieldRaw;
+    md += `| ${k} | ${fmtB(ev.get(k))} | ${fmtB(s60.get(k))} | ${x(ev.get(k), s60.get(k))} | ${fmtB(f34)} | ${x(s60.get(k), f34)} | ${fmtB(f59)} | ${fmtB(r.ladderRaw)} | ${x(r.ladderRaw, f59)} |\n`;
+  }
+  /* the plain conclusion, its figures off the tables above */
+  const s1 = SIX['SPY 1m'];
+  const s5 = SIX['SPY 5m'];
+  const within = s => (s ? s.rows.filter(r => r.diffPct != null && Math.abs(r.diffPct) <= 1).length : 0);
+  const k771 = s1?.cols?.['15:34']?.[771];
+  const k771b = s1?.cols?.['15:59']?.[771];
+  md += `\n**Do they match? No.** For the same strikes, the ladder and the chart's field agree on the SIGN at every strike, but their sizes match (within 1%) at ${within(s1)} of ${s1?.rows.length ?? 0} strikes at 1m and ${within(s5)} of ${s5?.rows.length ?? 0} at 5m. They are not the same minute and not the same source:\n\n` +
+    `1. **Time.** At night the ladder holds Unusual Whales' book as UW last figured it (4:15 pm, after the bell, at 769.60), and its spot chip is the after-hours quote; the field's newest column is the 3:59 pm minute (1m) or the 3:55–4:00 bar's per-strike PEAK minute (5m — so 769 reads +$4.4B there against $377M at 1m). The field reprices today's expiring contracts on the minute's clock, so in the last half hour their gamma leaves the strikes beside the money: 771 fell from ${fmtB(k771)} at 3:34 pm to ${fmtB(k771b)} at 3:59 pm on the field, while UW's figure barely moved (${fmtB(ev.get(771))} at 3:34 pm, ${fmtB(s1?.rows.find(r => r.strike === 771)?.ladderRaw)} at 4:15 pm). This is most of the gap near the money (771, 769, 768: 2.4× to 4.6×).\n` +
+    `2. **Model.** At the same moment (3:34 pm) the field against UW's own 60-day book differs by −12% to +44% per strike (column "model"): UW sums its per-contract gamma; the house reprices each contract at one spot and clock (the stated residual in How sure's "Model agreement").\n` +
+    `3. **Universe** (the inventory's suspicion: every expiry on the ladder, 60 days on the field): ≤3% at these strikes — the expiries past 60 days carry almost no gamma near the money. It matters for the label ("All 60 days" over a ladder that reads every expiry), not for these figures.\n\n` +
+    `So the two surfaces can only agree inside a live session, minute for minute, up to the model's residual; after the close they also stand at different moments, and on 5m and longer panes the field's cell is the bar's peak minute, not its last.\n`;
+} catch (e) {
+  md += `\n(6c split by cause not written: ${String(e?.message || e).slice(0, 160)})\n`;
 }
 fs.writeFileSync(path.join(OUT, `area-c${suffix}.md`), md);
 log('wrote', path.join(OUT, `area-c${suffix}.md`), JSON.stringify(tot));

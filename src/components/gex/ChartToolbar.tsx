@@ -394,8 +394,9 @@ const Dropdown = ({
          without this those triggers announce as an empty button. */
       aria-haspopup="menu"
       aria-expanded={open}
-      aria-label={label ? undefined : title}
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] ${cased ? '' : 'uppercase'} tracking-wider transition-colors ${
+      /* a count alone ("2") is not a name: the title says what is counted (the audit's A — the Overlays door read "2") */
+      aria-label={label && /^\d+$/.test(label) ? `${title}, ${label} on` : label ? undefined : title}
+      className={`hit inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] ${cased ? '' : 'uppercase'} tracking-wider transition-colors ${
         open
           ? 'bg-ink/[0.07] text-textPrimary'
           : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
