@@ -36,6 +36,7 @@ import { onGlide, promisedWidth } from '../../core/glide';
 import { compile, explain, run as runScript, type Compiled } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
+import { INDICATOR_INKS, MACD_HIST_INK, MACD_SIGNAL_INK, paperInk, paperInksWith, parseInk } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
 import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
@@ -163,16 +164,15 @@ const DRIFT_PUT_INK = BEAR;
 /*
   THE TWO VOLATILITY LINES ADD NO NEW HUE.
 
-  Both values already exist in this file as INDICATOR_INKS — the pale violet
-  the ema21 wears and the warm cream the ema50 wears — and that is the correct
-  register rather than a convenient one: realised vol is a line COMPUTED from
-  the bars, which is what every ink in that set marks. The reference happens to
-  draw the same pair as saturated purple and yellow; these are the house's
-  muted version of the same two positions.
+  Both values are the compare lines' second and third inks (Terrain
+  COMPARE_INKS) — the pale violet and the warm cream the EMA 21 and EMA 50
+  wore until their own family (indicatorInks.ts, 2026-10-15). The reference
+  happens to draw the same pair as saturated purple and yellow; these are the
+  house's muted version of the same two positions.
 
-  Written out rather than read from INDICATOR_INKS on purpose. Reaching into
-  that map would couple the vol pane to the EMA palette, so recolouring an
-  indicator would silently recolour a different pane in a different unit.
+  Written out rather than read from another map on purpose: reaching into one
+  would couple the vol pane to that palette, so recolouring a line there would
+  silently recolour a different pane in a different unit.
 */
 const RV_INK = '#BBB2E8';
 const IV_INK = '#EDE4CD';
@@ -307,38 +307,9 @@ export const DEFAULT_INDICATORS: ChartIndicators = {
   bb: false, vwapBands: false, sma: false, rsi: false, macd: false, atrPane: false,
 };
 
-/* One categorical ink family for auxiliary lines (indicators here, compare
-   lines in the widget) — hues that carry no house meaning. Each key's LEAD
-   ink; multi-line indicators carry their parts in INDICATOR_PARTS below. */
-export const INDICATOR_INKS: Record<keyof ChartIndicators, string> = {
-  ema9: '#5B9CF6',
-  ema21: '#BBB2E8',
-  ema50: '#EDE4CD',
-  vwap: '#6BD3C7',
-  bb: '#C7A9CF',
-  vwapBands: '#6BD3C7',
-  sma: '#D8BC8F',
-  rsi: '#A9C77F',
-  macd: '#8FB8D8',
-  atrPane: '#C0C7CF',
-};
-
-/* THE SAME INKS ON A LIGHT TAPE (the round-3 audit, D(d)): the dark set read 1.0 to 1.5:1 on the Stone tape — invisible.
-   Each is its own hue darkened until it reads 3:1 or better on the darkest light ground (Stone on a dark page, #BEBDB8;
-   5:1 on the paper panel). Keyed by the dark ink, so every part of an indicator follows. */
-const INDICATOR_INKS_LIGHT: Record<string, string> = {
-  '#5B9CF6': '#3C67A2',
-  '#BBB2E8': '#676280',
-  '#EDE4CD': '#6B675C',
-  '#6BD3C7': '#397069',
-  '#C7A9CF': '#716076',
-  '#D8BC8F': '#72644C',
-  '#A9C77F': '#5B6B45',
-  '#8FB8D8': '#52697B',
-  '#C0C7CF': '#64676C',
-  '#D8A6A6': '#7A5656',
-  'rgba(226,234,244,0.30)': 'rgba(60,64,72,0.30)',
-};
+/* THE INDICATORS' INKS are their own family (components/gex/indicatorInks.ts — the owner's approval 4, 2026-10-15: off
+   the field's gold and violet, apart from each other and from the compare lines), each with its pair for a light tape
+   (paperInk). Multi-line indicators carry their parts in INDICATOR_PARTS below. */
 
 /*
   T-3/T-4 — WHAT EACH INDICATOR DRAWS, AND WHERE, as data.
@@ -391,9 +362,9 @@ const INDICATOR_PARTS: Record<keyof ChartIndicators, { pane: 'overlay' | 'sub'; 
       /* The histogram draws FIRST so the lines read over it. One steel wash
          for its bars, not red/green — the sign of momentum is not the price
          direction the pair is reserved for. */
-      { part: 'hist', kind: 'hist', ink: 'rgba(226,234,244,0.30)' },
+      { part: 'hist', kind: 'hist', ink: MACD_HIST_INK },
       { part: 'line', kind: 'line', ink: INDICATOR_INKS.macd },
-      { part: 'signal', kind: 'line', ink: '#D8A6A6' },
+      { part: 'signal', kind: 'line', ink: MACD_SIGNAL_INK },
     ],
   },
   atrPane: { pane: 'sub', parts: [{ part: 'line', kind: 'line', ink: INDICATOR_INKS.atrPane }] },
@@ -2228,7 +2199,9 @@ const StrikeChart = ({
       const point = series.dataByIndex(idx) as { value?: number } | null;
       const v = num(point?.value);
       if (v != null) {
-        indicatorValues.push({ key, ink: INDICATOR_INKS[key], value: v });
+        /* the line's own ink as drawn — its paper pair on a light tape, so the figure reads where the line does */
+        const drawn = (series.options() as { color?: unknown }).color;
+        indicatorValues.push({ key, ink: typeof drawn === 'string' ? drawn : INDICATOR_INKS[key], value: v });
       }
     }
     return {
@@ -3513,7 +3486,7 @@ const StrikeChart = ({
          put RSI, MACD or ATR inside the regime strip's, the flow band's or a drift's pane on its scale. Our own series are
          gone by now and the library drops a pane with none, so the panes left are the others' */
       const subFrom = chart.panes().length;
-      const inkOf = (ink: string) => (lightTape ? INDICATOR_INKS_LIGHT[ink] ?? ink : ink);
+      const inkOf = (ink: string) => (lightTape ? paperInk(ink) : ink);
       for (const key of active) {
         const spec = INDICATOR_PARTS[key];
         const paneIndex = spec.pane === 'overlay' ? 0 : subFrom + subsActive.indexOf(key);
@@ -3670,7 +3643,21 @@ const StrikeChart = ({
     const paneCompareOn = compares.some(c => c.mode === 'pane');
     const subBase = paneCompareOn ? 2 : 1;
     const live = paneScripts.filter(p => p.chart.visible && p.script.status === 'ok');
-    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${live.map(p => `${p.chart.id}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
+    /* ON A LIGHT TAPE a script's inks are the paper's (the owner's approval 4, 2026-10-15): the shipped family's pairs and
+       the house's own inks — a wall, the flip, the supreme, the direction pair — read off the tape's tokens, as the field
+       reads them. The ground and the reader's colour vision are in the signature, so a change of either redraws. */
+    const lightTape = chartGround(themeKey) === 'light';
+    let paperOf: ((css: string) => string) | undefined;
+    const inkFor = () => {
+      if (!lightTape) return undefined;
+      const box = boxElRef.current;
+      /* the walls as the field's ovals take them on a light ground (heatmap.ts: the light ground's gold and violet — the
+         box is a dark island whose light set leaves the pair alone); the flip, the supreme, the direction pair and the
+         silver as the tape's own chrome reads them, off its box */
+      paperOf ??= paperInksWith(name => (name === '--absorb' || name === '--amplify' ? groundRgb(name, 'light') : (parseInk(readToken(name, undefined, box))?.rgb ?? null)));
+      return paperOf;
+    };
+    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${lightTape ? 'light' : 'dark'}|${appTheme}|${live.map(p => `${p.chart.id}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
     const rebuild = scriptSigRef.current !== sig;
     if (rebuild) tearDown();
     const slayer = { callWall: levels.callWall, putWall: levels.putWall, flip: levels.flip, supreme: levels.supreme };
@@ -3729,7 +3716,7 @@ const StrikeChart = ({
          regime strip's or the flow band's pane) */
       const paneIndex = own ? chart.panes().length : 0;
       if (own) ownPanes++;
-      const made = drawRun(chart, result, bars, paneIndex, { fitCandles: !!fitCandles });
+      const made = drawRun(chart, result, bars, paneIndex, { fitCandles: !!fitCandles, ink: inkFor() });
       handles.set(ps.chart.id, made);
       if (own) ownPaneOf.push(paneIndex);
     }
@@ -3748,7 +3735,7 @@ const StrikeChart = ({
       setScriptFaults(faults);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paneId, paneScripts, indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, levels]);
+  }, [paneId, paneScripts, indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, levels, themeKey, appTheme]);
 
   /* the handles go with the chart */
   useEffect(

@@ -1754,6 +1754,199 @@ check('lists: the expiry windows and the replay paces offered on screen are the 
   }
 });
 
+/* ─── THE INDICATORS' INKS (the owner's approvals 4, 5 and 11, 2026-10-15) ──────────────────────────────────────────────
+   Before: EMA 9, SMA 200, RSI, MACD's signal, the Pine averages, Ichimoku's base, Keltner, the stochastic, ATR and
+   Williams %R stood within OKLab 0.15 of the field's gold or violet; EMA 9/21/50 and VWAP wore the compare lines' own
+   inks, and the Pine EMA ribbon, VWAP, Donchian, MFI, CCI and OBV repeated them; six shipped scripts repeated a chart
+   built-in; and "The flip" washed the pane red under it. Each line the chart draws is read off the chart itself: each
+   Indicators-menu key ticked in the library alone, each shipped script placed alone, on a dark page's tape and a light
+   page's, the field's gold and violet read off the tape's own box. */
+check('inks: every indicator and shipped script draws its own ink, off gold and violet, readable on a light tape; the six are off the shelf and a placed one is kept', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const oklab = ([r, g, b]) => {
+    const [R, G, B] = [lin(r), lin(g), lin(b)];
+    const l = Math.cbrt(0.4122214708 * R + 0.5363325363 * G + 0.0514459929 * B);
+    const m = Math.cbrt(0.2119034982 * R + 0.6806995451 * G + 0.1073969566 * B);
+    const s = Math.cbrt(0.0883024619 * R + 0.2817188376 * G + 0.6299787005 * B);
+    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+  };
+  const dE = (a, b) => Math.hypot(...oklab(a).map((v, i) => v - oklab(b)[i]));
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const parse = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return { rgb: [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)), a: m[2] ? parseInt(m[2], 16) / 255 : 1 };
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/i.exec(s);
+    return m ? { rgb: [+m[1], +m[2], +m[3]], a: m[4] == null ? 1 : +m[4] } : null;
+  };
+  const hex = rgb => `#${rgb.map(v => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+  const COMPARE = ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'].map(c => parse(c).rgb);
+  const SIX = ['ema-ribbon', 'vwap', 'bollinger', 'rsi', 'macd', 'atr'];
+  for (const theme of ['dark', 'light']) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], { theme });
+    try {
+      /* the series on the chart now, and the house's inks off the tape's own box */
+      const snap = () =>
+        page.evaluate(() => {
+          const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+          window.__inkSeen ??= new WeakSet();
+          const all = e.chart.panes().flatMap((p, i) => p.getSeries().map(s => ({ s, i })));
+          const fresh = all.filter(o => !window.__inkSeen.has(o.s));
+          const inks = fresh.flatMap(({ s, i }) => {
+            const o = s.options();
+            const base = [o.color, o.lineColor].filter(c => typeof c === 'string');
+            const per = [...new Set(s.data().map(d => d.color).filter(Boolean))];
+            const visible = o.visible !== false && (o.lineVisible !== false || o.pointMarkersVisible) && s.data().some(d => 'value' in d);
+            return visible ? [...base, ...per].map(c => ({ c, pane: i })) : [];
+          });
+          return { n: all.length, inks };
+        });
+      const seenAll = () => page.evaluate(() => {
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+        window.__inkSeen ??= new WeakSet();
+        for (const p of e.chart.panes()) for (const s of p.getSeries()) window.__inkSeen.add(s);
+        return e.chart.panes().reduce((n, p) => n + p.getSeries().length, 0);
+      });
+      const tokens = await page.evaluate(() => {
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+        const box = e.box();
+        const css = getComputedStyle(box);
+        const t = n => css.getPropertyValue(n).trim().split(/\s+/).map(Number);
+        const bg = e.chart.options().layout.background;
+        const light = e.host.closest('[data-chart-ground]')?.getAttribute('data-chart-ground') === 'light';
+        /* the field's gold and violet on this tape's ground, as the ovals take them (heatmap.ts: off a probe of the ground) */
+        const probe = document.createElement('span');
+        probe.setAttribute('data-theme', light ? 'light' : 'dark');
+        probe.style.display = 'none';
+        document.body.appendChild(probe);
+        const pcs = getComputedStyle(probe);
+        const g = n => pcs.getPropertyValue(n).trim().split(/\s+/).map(Number);
+        const out = { gold: g('--absorb'), violet: g('--amplify'), bull: t('--bull'), bear: t('--bear'), supreme: t('--supreme'), flip: t('--flip'), select: t('--select'), ground: bg?.color ?? null, light };
+        probe.remove();
+        return out;
+      });
+      const ground = parse(tokens.ground)?.rgb ?? (tokens.light ? [221, 220, 215] : [10, 10, 10]);
+      const HOUSE = [tokens.gold, tokens.violet, tokens.bull, tokens.bear, tokens.supreme, tokens.flip, tokens.select, ...['#E8B94A', '#8064F7', '#30D158', '#FF3B30', '#EA00FF', '#9CA3AF', '#C7D3E8'].map(c => parse(c).rgb)].map(hex);
+      /* every owner's inks: [owner, part ink] */
+      const owned = [];
+      const take = (owner, got) => {
+        for (const { c } of got.inks) {
+          const p = parse(c);
+          if (!p || p.a === 0) continue;
+          owned.push({ owner, rgb: p.rgb, a: p.a, css: c });
+        }
+      };
+      /* the Indicators menu, one key at a time, through the library as a reader ticks it */
+      const openLib = async () => {
+        if (await page.locator('[data-library]').count()) return;
+        const b = await page.locator('[data-chart-ink]').first().boundingBox();
+        await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.55);
+        await page.waitForTimeout(150);
+        await page.locator('button[data-scripts-door]').filter({ visible: true }).first().click();
+        await page.locator('[data-library]').first().waitFor({ timeout: 5000 });
+      };
+      const closeLib = async () => {
+        await page.keyboard.press('Escape');
+        await page.locator('[data-library]').first().waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+      };
+      const tick = async key => {
+        await openLib();
+        await page.locator('[data-library-shelf="chart"]').first().click();
+        await page.locator(`[data-library-row="chart:${key}"] [data-library-toggle]`).first().click();
+        await closeLib();
+        await page.waitForTimeout(700);
+      };
+      for (const key of ['ema9', 'ema21', 'ema50', 'sma', 'vwap', 'vwapBands', 'bb', 'rsi', 'macd', 'atrPane']) {
+        await seenAll();
+        await tick(key);
+        take(`indicator:${key}`, await snap());
+        await tick(key);
+      }
+      /* the shelf, read in the library, then every shipped script on it placed alone */
+      await openLib();
+      await page.locator('[data-library-shelf="technicals"]').first().click();
+      const technicals = await page.locator('[data-library-row]').evaluateAll(els => els.map(e => e.getAttribute('data-library-row')));
+      await page.locator('[data-library-shelf="slayer"]').first().click();
+      const slayerRows = await page.locator('[data-library-row]').evaluateAll(els => els.map(e => e.getAttribute('data-library-row')));
+      await closeLib();
+      const shelf = [...slayerRows, ...technicals].filter(k => k?.startsWith('builtin:'));
+      const still = SIX.filter(s => shelf.includes(`builtin:${s}`));
+      if (still.length) {
+        pass = false;
+        notes.push(`${theme}: the shelf still lists ${still.join(', ')}`);
+      }
+      for (const id of shelf) {
+        const n0 = await seenAll();
+        const placed = await page.evaluate(async id => (await window.__paneScripts.place('terrain:1', id)).id, id);
+        await page.waitForFunction(n0 => [...window.__charts].find(x => x.trails && x.host.isConnected).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) > n0, n0, { timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(300);
+        take(id.replace('builtin:', 'script:'), await snap());
+        await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), placed);
+        await page.waitForTimeout(300);
+      }
+      /* the measure: categorical inks only (a wall, the flip, the supreme, the direction pair and the silver are the house's) */
+      const lines = owned.filter(o => o.a >= 0.6 && !HOUSE.includes(hex(o.rgb)));
+      const uniq = [];
+      for (const o of lines) if (!uniq.some(u => u.owner === o.owner && hex(u.rgb) === hex(o.rgb))) uniq.push(o);
+      const field = uniq.map(o => ({ o, d: Math.min(dE(o.rgb, tokens.gold), dE(o.rgb, tokens.violet)) })).filter(x => x.d < 0.15);
+      const pairs = [];
+      for (let a = 0; a < uniq.length; a++) for (let b = a + 1; b < uniq.length; b++) {
+        const d = dE(uniq[a].rgb, uniq[b].rgb);
+        if (d < 0.08) pairs.push(`${uniq[a].owner} ${hex(uniq[a].rgb)} ~ ${uniq[b].owner} ${hex(uniq[b].rgb)} ${d.toFixed(3)}`);
+      }
+      const cmp = uniq.flatMap(o => COMPARE.filter(c => dE(o.rgb, c) < 0.08).map(c => `${o.owner} ${hex(o.rgb)} ~ compare ${hex(c)}`));
+      const dim = tokens.light ? uniq.filter(o => contrast(o.rgb, ground) < 3).map(o => `${o.owner} ${hex(o.rgb)} ${contrast(o.rgb, ground).toFixed(2)}:1`) : [];
+      /* the house's inks a script draws, on a light tape: the tape's own tokens */
+      const houseOnLight = tokens.light ? owned.filter(o => ['#E8B94A', '#8064F7', '#30D158', '#FF3B30', '#EA00FF', '#9CA3AF'].includes(hex(o.rgb))).map(o => `${o.owner} ${hex(o.rgb)}`) : [];
+      const owners = new Set(owned.map(o => o.owner));
+      notes.push(`${theme} page (${tokens.light ? 'light' : 'dark'} tape ${tokens.ground}): ${owners.size} indicators and scripts read, ${uniq.length} inks of their own; shelf ${shelf.length}`);
+      if (field.length) notes.push(`  near the field's gold or violet: ${field.slice(0, 8).map(x => `${x.o.owner} ${hex(x.o.rgb)} ${x.d.toFixed(3)}`).join('; ')}`);
+      if (pairs.length) notes.push(`  under 0.08 apart: ${pairs.slice(0, 8).join('; ')}${pairs.length > 8 ? ` … ${pairs.length} in all` : ''}`);
+      if (cmp.length) notes.push(`  on a compare line's ink: ${cmp.slice(0, 6).join('; ')}`);
+      if (dim.length) notes.push(`  under 3:1 on the light tape: ${dim.slice(0, 8).join('; ')}${dim.length > 8 ? ` … ${dim.length} in all` : ''}`);
+      if (houseOnLight.length) notes.push(`  a house ink drawn in its dark value on the light tape: ${houseOnLight.slice(0, 6).join('; ')}`);
+      if (owners.size < 25 || field.length || pairs.length || cmp.length || dim.length || houseOnLight.length) pass = false;
+      /* "The flip" paints no wash: its own run, in the page's own modules */
+      const flipRun = await page.evaluate(async () => {
+        const b = await import('/src/data/builtinScripts.ts');
+        const p = await import('/src/core/pine/index.ts');
+        const flip = b.builtinScripts().find(s => s.id === 'builtin:flip');
+        const bars = Array.from({ length: 200 }, (_, i) => ({ time: 1_760_000_000 + i * 60, open: 480, high: 481, low: 479, close: 479.5 + Math.sin(i / 9), volume: 1000 }));
+        const r = p.run(p.compile(flip.source), bars, { timeframe: '1m', slayer: { callWall: 485, putWall: 475, flip: 480, supreme: 482 } });
+        return { fills: r.fills.length, washed: (r.bgcolors ?? []).filter(Boolean).length, ink: r.plots[0]?.ink };
+      });
+      if (theme === 'dark') notes.push(`  "The flip": ${flipRun.fills} fills, ${flipRun.washed} washed bars, its line ${flipRun.ink}`);
+      if (flipRun.fills || flipRun.washed || String(flipRun.ink).toUpperCase() !== '#9CA3AF') pass = false;
+      /* a reader who had the RSI script on a pane keeps it, as their own, through a reload */
+      if (theme === 'dark') {
+        await page.evaluate(async () => window.__paneScripts.place('terrain:1', 'builtin:rsi'));
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('[data-chart-ink]', { timeout: 60_000 });
+        await page.waitForTimeout(4000);
+        const legend = await page.locator('[data-script-legend] [data-legend-row]').evaluateAll(els => els.map(e => e.getAttribute('data-legend-row')));
+        await openLib();
+        await page.locator('[data-library-shelf="mine"]').first().click();
+        const mine = await page.locator('[data-library-row]').evaluateAll(els => els.map(e => `${e.getAttribute('data-library-row')} ${e.textContent?.slice(0, 40) ?? ''}`));
+        await closeLib();
+        const keptOk = legend.includes('builtin:rsi') && mine.some(m => m.startsWith('builtin:rsi '));
+        notes.push(`  the RSI script placed before, after a reload: legend ${legend.join(', ') || 'empty'}; My scripts ${mine.join(' | ') || 'empty'}`);
+        if (!keptOk) pass = false;
+      }
+      if (errors.length) {
+        pass = false;
+        notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
 let failed = 0;
 for (const { name, fn } of results) {
   let r;

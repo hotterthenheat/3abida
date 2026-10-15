@@ -18,13 +18,19 @@
   A private window, or a browser with site data
   blocked, gets a memory driver that lives for the
   page — the editor works, nothing survives a reload.
+
+  A SHIPPED SCRIPT THAT LEFT THE SHELF (2026-10-15,
+  the six that repeated a chart built-in) is kept,
+  once, as the reader's own under its old id, when
+  something of theirs still names it — a pane, a
+  star, an alert (keepAsOwn).
 ==================================================
 */
 
 import { compile, explain } from '../core/pine';
 import type { ChartScript, PaneId, Script, ScriptFavourite, ScriptInputValue, ScriptSave, ScriptShelf, ScriptStore, ScriptVersion } from '../types/scripts';
 import { SCRIPT_CAPS } from '../types/scripts';
-import { builtinScripts, hashSource } from './builtinScripts';
+import { RETIRED_IDS, builtinScripts, hashSource, retiredBuiltin } from './builtinScripts';
 
 const DB = 'slayer_scripts';
 const DB_VERSION = 1;
@@ -130,8 +136,80 @@ const byUpdated = (a: Script, b: Script) => b.updatedAt - a.updatedAt;
 
 class BrowserScriptStore implements ScriptStore {
   private db = new Db();
+  private kept: Promise<void> | null = null;
+
+  /*
+    THE SIX THAT LEFT THE SHELF, KEPT (2026-10-15 — the owner, approval 5). A pane, a star or a script alert names a
+    script by id, and a placement whose script is gone is lifted without a word (data/paneScripts.ts) — so a retired
+    built-in that something of the reader's still names becomes THEIR OWN script, under the same id, with its source
+    (builtinScripts RETIRED): the placement, its inputs, the alert and the star stand as they were, and the library
+    lists it under My scripts. Once: the row stays, and a reader who deletes it is not given it back (the row keeps its
+    deletedAt). Nobody else is given one — a retired id nothing names is never made.
+  */
+  private keeping = new Map<string, Promise<Script | null>>();
+  /** One keep at a time an id — two panes asking at once write one row */
+  private keepAsOwn(id: string): Promise<Script | null> {
+    let p = this.keeping.get(id);
+    if (!p) {
+      p = this.keepOnce(id).finally(() => this.keeping.delete(id));
+      this.keeping.set(id, p);
+    }
+    return p;
+  }
+  private async keepOnce(id: string): Promise<Script | null> {
+    const was = retiredBuiltin(id);
+    if (!was) return null;
+    const have = await this.db.get<Script>('scripts', id);
+    if (have) return have.deletedAt ? null : have;
+    const now = Date.now();
+    let meta: Script['meta'] = null;
+    let status: Script['status'] = 'ok';
+    let error: Script['error'];
+    try {
+      meta = compile(was.source).meta;
+    } catch (e) {
+      const { line, message } = explain(e);
+      status = 'error';
+      error = { line, message };
+    }
+    const script: Script = {
+      id,
+      ownerId: 'me',
+      shelf: 'mine',
+      title: was.title,
+      description: was.description,
+      tags: was.tags,
+      visibility: 'private',
+      source: was.source,
+      sourceHash: hashSource(was.source),
+      meta,
+      status,
+      ...(error ? { error } : {}),
+      forkedFrom: id,
+      version: 1,
+      readOnly: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.db.put('scripts', script as unknown as Record<string, unknown>);
+    const v: ScriptVersion & { key: string } = { key: `${id}:1`, scriptId: id, version: 1, source: was.source, createdAt: now, message: 'Kept as yours when the shipped copy left the library — Chart built-ins draws the same line' };
+    await this.db.put('versions', v as unknown as Record<string, unknown>);
+    return script;
+  }
+
+  /** Once a page: every retired id a pane or a star names, kept (an alert's is kept when it asks, through get) */
+  private keepNamed(): Promise<void> {
+    if (!this.kept)
+      this.kept = (async () => {
+        const [placed, stars] = await Promise.all([this.db.all<ChartScript>('chartScripts'), this.db.all<ScriptFavourite>('favourites')]);
+        const named = new Set([...placed.map(c => c.scriptId), ...stars.map(f => f.scriptId)].filter(id => RETIRED_IDS.includes(id)));
+        for (const id of named) await this.keepAsOwn(id);
+      })().catch(() => {});
+    return this.kept;
+  }
 
   private async mine(): Promise<Script[]> {
+    await this.keepNamed();
     const rows = await this.db.all<Script>('scripts');
     return rows.filter(s => !s.deletedAt).sort(byUpdated);
   }
@@ -146,6 +224,7 @@ class BrowserScriptStore implements ScriptStore {
     const b = builtinScripts().find(s => s.id === id);
     if (b) return b;
     const s = await this.db.get<Script>('scripts', id);
+    if (!s && RETIRED_IDS.includes(id)) return this.keepAsOwn(id);
     return s && !s.deletedAt ? s : null;
   }
 

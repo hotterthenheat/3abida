@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { compile, run, runSource, explain } from '../src/core/pine';
 import type { Bar, RunOptions, RunResult } from '../src/core/pine';
-import { builtinScripts } from '../src/data/builtinScripts';
+import { builtinScripts, retiredBuiltin } from '../src/data/builtinScripts';
 import { BEAR, BULL, CALL_WALL, PUT_WALL } from '../src/components/gex/palette';
 import { markersFor } from '../src/components/gex/scriptMarkers';
 import { SCRIPT_CAPS } from '../src/types/scripts';
@@ -686,7 +686,8 @@ plot(close)`);
   check('bug 9: every shipped wall wears the house\'s wall inks (palette CALL_WALL / PUT_WALL), never bull/bear', wallWrong.length === 0, wallWrong.join('; '));
   const walls = bySlug('walls');
   check('bug 9: "The walls" no longer says the call wall is above and the put wall below', !/\babove\b|\bbelow\b/i.test(walls.description), walls.description);
-  const macd = tryRun(bySlug('macd').source);
+  /* the MACD left the shelf on 2026-10-15 (approval 5); the source a reader who had it keeps is held to the same rule */
+  const macd = tryRun(retiredBuiltin('builtin:macd')!.source);
   const hist = macd.r?.plots.find(p => p.title === 'Histogram');
   const steel = (css: string) => /^rgba\(226, 234, 244, 0\.3\)$/.test(css);
   check('bug 9: the Pine MACD\'s histogram is the built-in\'s one steel wash, not red and green', !!hist && hist.colors === null && steel(hist.ink), hist ? `${hist.ink} ${hist.colors ? 'per-bar colours' : ''}` : macd.err);

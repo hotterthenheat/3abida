@@ -13,6 +13,12 @@
   One handle per placed script: a tick updates it
   in place, a change of shape rebuilds it, and the
   host tears it down whole.
+
+  ON A LIGHT TAPE every ink a run hands back goes
+  through the host's `ink` (indicatorInks
+  paperInksWith): the shipped family's paper pairs
+  and the house's inks read off the tape's tokens —
+  the dark set read 1.0 to 2:1 on the Stone tape.
 ==================================================
 */
 
@@ -229,6 +235,19 @@ function bandsFor(run: RunResult, bars: Bar[]): { times: number[]; bands: Band[]
   return { times: timesFor(bars, offset), bands };
 }
 
+/** A run with every ink passed through `ink` — plots, their per-bar colours, hlines, shapes, fills and the washes */
+function inkRun(run: RunResult, ink: (css: string) => string): RunResult {
+  const each = (cs: (string | null)[] | null) => (cs ? cs.map(c => (c ? ink(c) : c)) : cs);
+  return {
+    ...run,
+    plots: run.plots.map(p => ({ ...p, ink: ink(p.ink), colors: each(p.colors) })),
+    hlines: run.hlines.map(h => ({ ...h, ink: ink(h.ink) })),
+    shapes: run.shapes.map(sh => ({ ...sh, ink: ink(sh.ink), colors: each(sh.colors) })),
+    fills: run.fills.map(f => ({ ...f, ink: ink(f.ink), colors: each(f.colors) })),
+    bgcolors: each(run.bgcolors),
+  };
+}
+
 /** The shape of a run — a different one means the series must be rebuilt */
 const shapeSig = (run: RunResult): string => `${run.plots.map(p => `${p.hidden ? 'h' : p.style}:${p.width}:${p.ink}`).join(',')}|${run.shapes.length}|${run.hlines.length}|${run.fills.length}|${run.bgcolors ? 1 : 0}`;
 
@@ -244,8 +263,10 @@ export interface ScriptHandle {
  * Draw one run onto a pane. `paneIndex` 0 is the tape; an own-pane script
  * takes the index the host allocated.
  */
-export function drawRun(chart: IChartApi, run: RunResult, bars: Bar[], paneIndex: number, opts: { fitCandles?: boolean } = {}): ScriptHandle {
+export function drawRun(chart: IChartApi, given: RunResult, bars: Bar[], paneIndex: number, opts: { fitCandles?: boolean; ink?: (css: string) => string } = {}): ScriptHandle {
   const overlay = paneIndex === 0;
+  const inked = (r: RunResult) => (opts.ink ? inkRun(r, opts.ink) : r);
+  const run = inked(given);
   /* ON A FITTED AXIS AN OVERLAY NEVER WIDENS IT (the audit's D-11/D-12: "The walls" and "The flip" pulled the axis out to
      the walls, the candles squeezed into a band) — the same rule as the built-in overlays (StrikeChart `fitCandles`) */
   const baseOpts = {
@@ -307,7 +328,8 @@ export function drawRun(chart: IChartApi, run: RunResult, bars: Bar[], paneIndex
   }
 
   return {
-    update(next, nextBars) {
+    update(nextGiven, nextBars) {
+      const next = inked(nextGiven);
       if (shapeSig(next) !== sig) return false;
       for (const { index, series: s } of plotSeries) s.setData(pointsFor(next.plots[index], nextBars) as never);
       if (!plotSeries.length) anchor.setData(nextBars.map(b => ({ time: b.time as UTCTimestamp, value: b.close })) as never);
