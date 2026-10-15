@@ -137,10 +137,28 @@ from the source. Three recorded browser runs then exercised every item that a br
 1440 × 900 unless a row says otherwise, commit 521d7de, 3–4 am New York with the market shut, a shared 4-core machine —
 every time is an upper bound): **area A 257 items, 236 pass, 17 fail, 4 manual; area B 144 rows, 107 pass, 16 fail, 21
 manual; area C 90 items, 74 pass, 14 fail, 2 manual.** Every fail that was a bug is fixed (da5b42f, 9115af0, 646b2ff)
-and each fix has a check in `npm run terrain:check` (scripts/terrain-ui-proof.mjs — 45 checks, 45 pass at 646b2ff) or a
+and each fix has a check in `npm run terrain:check` (scripts/terrain-ui-proof.mjs — 47 checks, 47 of 47 passing in one full run at this commit) or a
 unit proof in `npm test`.
 **The full table, one row per item, is [TABLE.md](TABLE.md)**; the runs' own rows, observations and timings are in
 [exercise/](exercise/) (area-a.md, area-b.md, area-c.md) with their scripts in scripts/terrain-exercise/.
+
+**The after-run** — the same three scripts run again on the fixed code, bcdb2f0, on this machine
+([BEFORE-AFTER.md](BEFORE-AFTER.md), every row that changed and 38 pairs of pictures; the rows in
+[exercise-after/](exercise-after/)):
+
+| area | before, 521d7de: pass / fail / manual | after, bcdb2f0: pass / fail / manual |
+|---|---|---|
+| A · header, toolbar, desk bar, keys (257) | 236 / 17 / 4 | 251 / 2 / 4 |
+| B · the chart, indicators, Pine (144) | 107 / 16 / 21 | 122 / 1 / 21 |
+| C · panels, states, layouts (90) | 74 / 14 / 2 | 86 / 2 / 2 |
+
+The five fails left: A-47 (data: this machine's hourly tiles stop short of a month), A-168 (by design: "Replay this day"
+is disabled, with its reason, for a day whose minutes the chart does not hold — proposal 16), B-41 (yours: the Key levels
+switch, 6j item 6), and 6c-1m and 6c-5m (yours: the ladder's source, 6j item 1). The after-run also found five things
+the first runs had not, all fixed in bcdb2f0 or this commit, each with a check that fails on the old code: the level
+card never took the keys (the house focus trap's one try), the house popover card's dialog had no name, the priced
+move's readout ran off the plot's edge in a session, a layout's delete × did not show on every focus, and the phone's
+ladder, laid over the chart, had no ground of its own (the candles showed through).
 
 ## 6c · The Strikes tab against the chart — they do not match, and why
 
@@ -302,12 +320,21 @@ the browser) or a unit proof in `npm test`.
 | da5b42f | full screen lost the age chip, window, jumps, T and the legend; a script that fails at run left its last lines drawn; a replay before a pick showed two "Back to live"; narrow panes | "full screen:…", "scripts: a script that fails…", "replay: before a bar is picked…" |
 | 9115af0 | range jumps (1W, 1M, 6M) and the 1D opening view; Replay this day; the layouts shelf (Esc, delete, undo); the phone ladder, its focus, its guide, the drawing sheet; the hover row over the readout and legends; a pin re-fitting the axis; the regime at night; T on a narrow pane; the rail's minus; − into a held 15 s; the pane chips; the field's words under the candles; the cone tag; the phase words and VPOC under 11 px; script overlays widening the axis; the pick line and note input 56 px off; minute volume missing on tiled sessions; Next session onto a holiday; the Move box's σ with no price; the Net view's sides; a grip drag pinning; the guide's orange and blue | "jump: 1W and 6M…", "1D view:…", "day panel:…", "layouts:…", "phone:…", "hover row:…", "pin:…", "regime at night:…", "T key:…", "rail:…", "pane chips:…", "canvas words:…", "Net view:…", "ladder: a drag of the width grip…", "Move box:…", "scripts: an overlay script far off…", "replay pick:…", "field words:…", "volume:…", "guide:…", "pop-out:…"; terrain-setups-proof (held timeframes), sessions-proof (holidays), alerts-proof (a stopped watch's undo) |
 | 646b2ff | **the first trend line after a pick from the drawing sheet was lost (B-59)**: the sheet stands inside the chart's box, so a tap on a tab or tile bubbled to the chart's own click and pinned the oval under it, and that card took the next drag — the chart's click, hover and double-click now act only on the plot itself; **one-off Escape handlers onto the house's layer stack and focus contract** (ui/layers `useOverlay` / `useEscapeLayer`): the toolbar's menus (Overlays, Alerts, Indicators, Candles, Style, Timeframe), the compare and symbol pickers, the drawing sheet and the rail's family lists, the level-alert card and the chart's right-click card — a menu's Esc no longer lets a pinned strike go, the keys go in and come back, and Esc from the alerts' price field closes its menu; the pin's Esc a mode on the stack; the flip's confirmation offers 1 to 5 in both pickers (A-196…A-198: they offered 1–3); the flow lane's figures and the pane's index price on core/format (it printed "$7715.00"); an index on the feed with no quote says it shows the book's price and when; `.hit` on the Vol switch, the ladder's close and the Reset pill; a race that built a session's tiles without volume (two asks for one session's bars at once; tiles format 5) | "drawings: a press in the sheet pins no node, and the first drag after a pick draws", "menus: Esc closes the drawing sheet, the right-click card and the alerts field's menu…", level-alerts-proof (1 to 5, both pickers); and the checks 9115af0's fixes waited for: "ladder: a drag of the lanes' sash pins no strike; the Net view heads its Δ column; a lane name stands only where it fits", "note: the words field opens at the click…", "day panel: no "No modeled column" flash…", orbs-proof (the ladder's terms speak gold and violet) |
+| bcdb2f0 | found by running the three exercise areas again: **the house focus trap** (ui/useFocusTrap) tried focus once, so a box placed after its first frame — the right-click level card, hidden until measured — never took the keys; it tries again a frame later, up to ten; **the house popover card** names its dialog (the layouts shelf was an unnamed dialog); **the priced move's readout** ("−1.6σ · 100% of the day's variance used …") was right-aligned to the newest bar, which can stand past the plot's edge — with the clock in a session it ran 22 px off the plot, cut; a named layout's delete × shows on any focus; the exercise scripts' own faults (a Playwright locator click scrolls the page when its first hit test misses, and the next raw-coordinate click then missed; a menu pressed again while it was still closing; stale expectations from 9115af0's deliberate changes) | "level card: the keys go into it; on, then a second right-click on the level offers Stop", "cone readout: in a session (the clock held at 3:30 pm) the words stay inside the plot" (each fails on the old code) |
+| this commit | the phone's ladder over the chart stands on the pane's own ground (`bg-panel`) — the after-run's picture showed the candles, ovals and their words through its rows | "phone: the ladder lays over the chart on its own ground, …" (fails on the old code: "ground rgba(0, 0, 0, 0) — see-through") |
 
 **Not bugs.** A-59, A-204, A-227 (that run's expand failed under load; the expand is exercised by "layouts:" and "full
 screen:"); A-225 (the Pine door: two dev servers shared one node_modules/.vite cache, CodeMirror loaded twice — it opens
 on a clean server); the readout naming only the single-line overlays (by design: a band or a sub-pane's value is in its
 own units — D-06…D-10; each pane naming its own value under the crosshair is a proposal on the approval list); 1M
-showing four sessions (this machine's hourly tiles hold four).
+showing four sessions (this machine's hourly tiles hold four). **From the after-run, also not bugs:** A-47 — 1M at one
+hour lands right on what the tape holds, and this machine's hourly tiles stop short of a month (a few old sessions, then
+nothing before Oct 9 in one probe, Sep 29 in another); "Replay this day" is offered only for a day whose minutes this
+chart holds (Oct 14 and Oct 12 of nine days probed) and says why otherwise — proposal 16 below; the dark pool's three
+lines labelled "DP $385M · Oct 14" are three crosses of $385M a cent apart (769.2401, 769.2317, 769.2301), not one drawn
+three times. **Seen, not fixed:** a click on a day bar at the same instant as Esc (0 ms apart) was lost in 2 of 4 tries; at
+50, 150, 300, 500 and 900 ms apart, 4 of 4 each opened the panel; one early probe lost every other click 300 ms after
+Esc while the page was still loading its tiles, which a settled page did not repeat.
 
 ## 6i · Redundancies and dead code — for your approval (nothing removed)
 
@@ -388,7 +415,7 @@ region, over the ovals); six shipped scripts repeat the built-in indicators in t
 
 ## 6j · For your approval — nothing here is changed until you say
 
-Each is a change to what a reader sees or a removal, so it waits for you. My recommendation is first; the other way is
+Each is a change to what a reader sees, a removal, or a feature beyond the fix, so it waits for you. My recommendation is first; the other way is
 named.
 
 | # | what | where it was found | I recommend | the other way |
@@ -408,6 +435,9 @@ named.
 | 13 | **`barcolor()`** runs in Pine but never colours a candle | 6e, 6i | wire it (a common Pine call) | delete it from the engine and refuse it with words |
 | 14 | **The pop-out's keys** (/out/terrain): none of the desk's keys work there | 6i | wire the pane's own keys (P, R, T, W, L, timeframes) in the pop-out | leave the pop-out mouse-only |
 | 15 | **The crosshair readout** names the price pane's single lines only; RSI, MACD, ATR, the bands and Bollinger say nothing under the crosshair | D-06…D-10 | each pane's legend prints its own value at the crosshair (TradingView's way) | leave the readout as it is |
+
+| 16 | **"Replay this day" for any day on the tape**: today it is offered only where the chart already holds the day's minutes (two of the last nine days on this machine), disabled with its reason elsewhere | the after-run, A-168 | the button loads that day's minutes on demand (the tiles hold them) and then starts the replay at 9:30 am | keep it to the days already held |
+| 17 | **The ladder's lane names** stand only from a 640 px ladder (since 9115af0 — at the rest widths they were laid out 0–28 px wide); below it the column heads name the lanes and the definitions are in How to read, so the lane's own tooltip is not there | the after-run, C-09 | a second head row for the names when the first is full | keep the rule |
 
 **Outside Terrain, found on the way, not changed:** Pinpoint's Compare (CompareAxis) and the exposure field on Pinpoint's
 Map and Pulse (ExposureField) still keep a capture-phase Escape of their own — the pattern 646b2ff took off Terrain; they

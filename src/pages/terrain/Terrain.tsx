@@ -3558,7 +3558,9 @@ const Pane = ({
               onSelect={price => setFocus(cur => (cur != null && Math.abs(cur - price) < 1e-9 ? null : price))}
               /* the ladder is drawn on the ground of the tape beside it */
               ground={ground}
-              className={belowLg ? 'absolute right-0 inset-y-0 z-[25] shadow-2xl shadow-black/50' : 'hidden lg:block'}
+              /* OVER THE CHART, ON THE PANE'S OWN GROUND (the after-run's phone shot: laid over the chart with no ground of its
+                 own, the candles, ovals and their words showed through its rows) */
+              className={belowLg ? 'absolute right-0 inset-y-0 z-[25] bg-panel shadow-2xl shadow-black/50' : 'hidden lg:block'}
             />
           )}
         </div>

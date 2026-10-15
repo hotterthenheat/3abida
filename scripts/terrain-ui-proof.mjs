@@ -952,7 +952,7 @@ check('layouts: Esc from the button closes the shelf, not the full screen; a del
 
 /* C-35 / C-13 / B-56: on a phone the ladder lays over the chart (the chart keeps its width), takes the keys and gives them
    back; How to read opens there with the desk's ladder off; the drawing tools are a sheet, not the rail's column */
-check('phone: the ladder lays over the chart, the keys go in and back, How to read opens, the tools are a sheet', async () => {
+check('phone: the ladder lays over the chart on its own ground, the keys go in and back, How to read opens, the tools are a sheet', async () => {
   const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: false }], { width: 390, height: 844 });
   try {
     const t0 = Date.now();
@@ -961,7 +961,9 @@ check('phone: the ladder lays over the chart, the keys go in and back, How to re
     await door.focus();
     await page.keyboard.press('Enter');
     await page.waitForTimeout(700);
-    const open = await page.evaluate(() => ({ w: Math.round(document.querySelector('[data-chart-ink]')?.getBoundingClientRect().width ?? 0), panel: Math.round(document.querySelector('[data-profile-panel]')?.getBoundingClientRect().width ?? 0), pos: getComputedStyle(document.querySelector('[data-profile-panel]')).position, inside: !!document.activeElement?.closest('[data-profile-panel]') }));
+    const open = await page.evaluate(() => ({ w: Math.round(document.querySelector('[data-chart-ink]')?.getBoundingClientRect().width ?? 0), panel: Math.round(document.querySelector('[data-profile-panel]')?.getBoundingClientRect().width ?? 0), pos: getComputedStyle(document.querySelector('[data-profile-panel]')).position, bg: getComputedStyle(document.querySelector('[data-profile-panel]')).backgroundColor, inside: !!document.activeElement?.closest('[data-profile-panel]') }));
+    /* its own ground, opaque (the after-run's shot: the chart's candles and words showed through its rows) */
+    const opaque = /^rgb\(/.test(open.bg) || /^rgba\([^)]*,\s*1\)$/.test(open.bg);
     await page.locator('[data-profile-panel] [data-profile-guide]').first().click().catch(() => {});
     const guide = await page.waitForSelector('[data-popover-card="profile-guide"]', { timeout: 2500 }).then(() => true).catch(() => false);
     await page.keyboard.press('Escape');
@@ -970,8 +972,8 @@ check('phone: the ladder lays over the chart, the keys go in and back, How to re
     await page.waitForTimeout(500);
     const closed = await page.evaluate(() => ({ panel: !!document.querySelector('[data-profile-panel]'), back: !!document.activeElement?.closest('[data-ladder-peek], [data-narrow-ladder]') }));
     const sheetDoor = await page.locator('[data-draw-sheet-door]').count();
-    const pass = open.pos === 'absolute' && open.w >= before - 2 && open.inside && guide && !closed.panel && closed.back && sheetDoor >= 1 && !errors.length;
-    return { pass, ms: Date.now() - t0, notes: [`chart ${before} px wide, ${open.w} px with the ladder (${open.panel} px, ${open.pos}) over it; the keys ${open.inside ? 'in the ladder' : 'elsewhere'}; How to read ${guide ? 'opened' : 'did nothing'}; after Esc the ladder ${closed.panel ? 'stands' : 'closed'} and the keys ${closed.back ? 'back on its door' : 'elsewhere'}; the drawing tools: ${sheetDoor ? 'a sheet behind one door' : 'no sheet door'}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+    const pass = open.pos === 'absolute' && opaque && open.w >= before - 2 && open.inside && guide && !closed.panel && closed.back && sheetDoor >= 1 && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`chart ${before} px wide, ${open.w} px with the ladder (${open.panel} px, ${open.pos}, ground ${open.bg}${opaque ? '' : ' — see-through'}) over it; the keys ${open.inside ? 'in the ladder' : 'elsewhere'}; How to read ${guide ? 'opened' : 'did nothing'}; after Esc the ladder ${closed.panel ? 'stands' : 'closed'} and the keys ${closed.back ? 'back on its door' : 'elsewhere'}; the drawing tools: ${sheetDoor ? 'a sheet behind one door' : 'no sheet door'}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
   } finally {
     await done();
   }

@@ -42,7 +42,11 @@ async function item(id, name, action, expected, fn) {
     const r = await fn();
     record({ id, item: name, action, expected, observed: r.observed, pass: r.pass, ms: r.ms ?? null, notes: r.notes ?? '' });
   } catch (e) {
-    record({ id, item: name, action, expected, observed: `exercise error: ${String(e?.message || e).split('\n')[0].slice(0, 220)}`, pass: false, ms: null, notes: 'the step itself threw; see observed' });
+    /* the first line, and the line of Playwright's call log that says what stood in the way (an element that "intercepts
+       pointer events", one "not visible" or "not enabled") — a full run's failure says its cause */
+    const lines = String(e?.message || e).replace(/\u001b\[[0-9;]*m/g, '').split('\n');
+    const why = lines.find(l => /intercepts pointer events|not visible|not enabled|not stable|detached/.test(l));
+    record({ id, item: name, action, expected, observed: `exercise error: ${lines[0].slice(0, 220)}${why ? ` — ${why.trim().slice(0, 240)}` : ''}`, pass: false, ms: null, notes: 'the step itself threw; see observed' });
   }
 }
 function addNote(id, text) {
@@ -1988,6 +1992,8 @@ await group('desk', async () => {
       const row = SHELF.locator('div.group').filter({ hasText: /^evening/ }).first();
       const x = SHELF.locator('[aria-label="Delete the layout evening"]');
       await x.focus();
+      /* the × fades in (transition-all, 150 ms): read it once the fade is done */
+      await sleep(300);
       const focusOpacity = await x.evaluate(e => getComputedStyle(e).opacity);
       await row.hover();
       const r = await measure(page, () => x.click(), () => { try { return !('evening' in JSON.parse(localStorage.getItem('slayer_terrain_layouts_v1') || '{}')); } catch { return false; } });
