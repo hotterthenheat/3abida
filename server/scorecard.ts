@@ -46,7 +46,7 @@ import type { createFieldBackfill, PastDay } from './fieldBackfill';
 import type { FieldStore, StoreRow } from './fieldStore';
 import type { PricedMove } from './pricedMove';
 import type { ScaleRefs } from './scaleRef';
-import { sigmaOf, stickyWalls, wallObsOfRow } from '../src/data/feed/trailModel';
+import { MODEL_BEFORE_INDEX_ROOTS, sigmaOf, staleBeforeIndexRoots, stickyWalls, TRAIL_MODEL, wallObsOfRow } from '../src/data/feed/trailModel';
 import type { CalibrationDay } from '../src/data/feed/pricedMove';
 
 type FieldBackfill = ReturnType<typeof createFieldBackfill>;
@@ -65,7 +65,7 @@ export interface Scorecard {
   /** The sessions before the hold-out */
   main: TrackRecord;
   /** The most recent months, evaluated once per config version */
-  holdout: { from: string; to: string; evaluatedAt: number; configVersion: string; record: TrackRecord } | null;
+  holdout: { from: string; to: string; evaluatedAt: number; configVersion: string; record: TrackRecord; /** the field's model the rows stood on (none: before .6, MODEL_BEFORE_INDEX_ROOTS) */ model?: string } | null;
   /** How the hold-out stands: kept from an earlier run, evaluated now, or evaluated again under a new version */
   holdoutNote: string;
   /** One line a level type, as How sure prints it: the main record's, the hold-out's after it */
@@ -104,7 +104,10 @@ export async function loadSession(backfill: FieldBackfill, store: FieldStore, ro
      4:15 pm, the curb and the overnight session (core/sessions.ts, 2026-10-15) are the field's, not the pre-registered
      scorecard's; a variant that reads them is Section D's to register */
   const regular = (r: StoreRow) => (r.session ?? 'r') === 'r' && nyMinuteOf(r.m) >= 9 * 60 + 30 && nyMinuteOf(r.m) < 16 * 60;
-  const final = store.readRows(name, day, 'final').filter(regular);
+  /* rows .6 knows to be wrong (trailModel staleBeforeIndexRoots — an index's before it held no weekly root) are not
+     read: the session is rebuilt from its kept inputs below */
+  const stored = store.readRows(name, day, 'final');
+  const final = stored.some(r => staleBeforeIndexRoots(r.model, name, day)) ? [] : stored.filter(regular);
   let rows: StoreRow[] = final;
   let source: 'final' | 'rebuilt' = 'final';
   let dir: [number, number][] | undefined;
@@ -197,14 +200,17 @@ export function createScorecard(backfill: FieldBackfill, store: FieldStore, opts
     let holdout: Scorecard['holdout'] = null;
     let holdoutNote = 'No hold-out yet: fewer sessions than the hold-out window.';
     if (mainSessions.length && holdSessions.length) {
-      if (before?.holdout && before.holdout.configVersion === cfg.version) {
+      const rowsStand = !!before?.holdout && !staleBeforeIndexRoots(before.holdout.model ?? MODEL_BEFORE_INDEX_ROOTS, t, before.holdout.from);
+      if (before?.holdout && before.holdout.configVersion === cfg.version && rowsStand) {
         holdout = before.holdout;
         holdoutNote = `The hold-out (${dayLabel(holdout.from)} to ${dayLabel(holdout.to)}) was evaluated once, on ${dayLabel(new Date(holdout.evaluatedAt).toISOString().slice(0, 10))}, under ${holdout.configVersion}; kept unchanged.`;
       } else {
-        holdout = { from: holdSessions[0].day, to: holdSessions[holdSessions.length - 1].day, evaluatedAt: clock(), configVersion: cfg.version, record: trackRecord(holdSessions, cfg) };
-        holdoutNote = before?.holdout
-          ? `The parameters changed (${before.holdout.configVersion} to ${cfg.version}), so the hold-out was evaluated again — a second look, said as one.`
-          : `The hold-out (${dayLabel(holdout.from)} to ${dayLabel(holdout.to)}) evaluated once, now, under ${cfg.version}.`;
+        holdout = { from: holdSessions[0].day, to: holdSessions[holdSessions.length - 1].day, evaluatedAt: clock(), configVersion: cfg.version, record: trackRecord(holdSessions, cfg), model: TRAIL_MODEL.version };
+        holdoutNote = !before?.holdout
+          ? `The hold-out (${dayLabel(holdout.from)} to ${dayLabel(holdout.to)}) evaluated once, now, under ${cfg.version}.`
+          : before.holdout.configVersion !== cfg.version
+            ? `The parameters changed (${before.holdout.configVersion} to ${cfg.version}), so the hold-out was evaluated again — a second look, said as one.`
+            : `The rows were rebuilt under ${TRAIL_MODEL.version} (an index's weekly root in its field, an AM-settled contract ending at its settlement), so the hold-out was evaluated again on them — a second look, said as one.`;
       }
     }
     const lines = {} as Record<LevelKind, string>;

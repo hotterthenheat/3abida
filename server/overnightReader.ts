@@ -23,7 +23,7 @@
 */
 import { forwardOf, solveQuote, type Forward, type QuoteLeg } from '../src/data/feed/forward';
 import { nyStampMs } from '../src/data/feed/theta';
-import { lastTradeOf, uwYears, UW_VOL_CONVENTION } from '../src/data/feed/trailModel';
+import { endOf, lastTradeOf, uwYears, UW_VOL_CONVENTION } from '../src/data/feed/trailModel';
 import type { FeedClient } from './feed';
 import type { ChainRow } from './fieldRecorder';
 
@@ -119,7 +119,8 @@ export async function readQuoteChain(client: FeedClient, day: string, spot: numb
     for (const q of got) {
       if (q.expiry < day || Math.abs(q.strike - spot) > spot * BAND) continue;
       asked++;
-      const t = uwYears(now, lastTradeOf(q.expiry), q.expiry, day);
+      /* an AM monthly (root SPX) counts to its settlement at the open, a PM weekly to its close (trailModel endOf) */
+      const t = uwYears(now, endOf(q.root, q.expiry), q.expiry, day);
       if (!(t > 0)) continue;
       const s = solveQuote(q, spot, t, UW_VOL_CONVENTION.r);
       if (!s) continue;

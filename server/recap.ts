@@ -40,7 +40,7 @@ import { join } from 'node:path';
 import { nyIsoDate, nyWallTime } from '../src/core/nyTime';
 import { nyMinuteOf, type TrackConfig } from '../src/data/feed/trackRecord';
 import { buildRecap, RECAP_FORMAT, type SessionRecap } from '../src/data/feed/sessionRecap';
-import { regimeBucketsFor, regimeReachFor, type RegimeReference } from '../src/data/feed/trailModel';
+import { MODEL_BEFORE_INDEX_ROOTS, regimeBucketsFor, staleBeforeIndexRoots, regimeReachFor, TRAIL_MODEL, type RegimeReference } from '../src/data/feed/trailModel';
 import { isLoaded, loadConfig, loadSession } from './scorecard';
 import type { createFieldBackfill } from './fieldBackfill';
 import type { FieldStore } from './fieldStore';
@@ -60,6 +60,8 @@ const INPUTS = ['final.jsonl', 'final.jsonl.gz', 'past.json.gz', 'bars.json.gz',
 export interface KeptRecap extends SessionRecap {
   quantiles: (number[] | null)[] | null;
   checkedAt: number;
+  /** The field's model the recap's rows stood on (none: before .6 — trailModel MODEL_BEFORE_INDEX_ROOTS) */
+  model?: string;
 }
 
 const isoAdd = (iso: string, days: number) => {
@@ -104,6 +106,7 @@ export function createRecap(backfill: FieldBackfill, store: FieldStore, move: Pr
   };
   /** Something the kept recap read has changed since it was checked */
   const stale = (name: string, day: string, kept: KeptRecap): boolean =>
+    staleBeforeIndexRoots(kept.model ?? MODEL_BEFORE_INDEX_ROOTS, name, day) ||
     INPUTS.some(f => mtime(join(root, name, day, f)) > kept.checkedAt) || mtime(opts.config ? '' : CONFIG) > kept.checkedAt || (!kept.quantiles && mtime(join(root, name, 'regime.json')) > kept.checkedAt);
 
   /** THE RECAP for a session: built, kept, and the kept one handed back while nothing it read has changed */
@@ -142,7 +145,7 @@ export function createRecap(backfill: FieldBackfill, store: FieldStore, move: Pr
       minuteOf: nyMinuteOf,
     });
     /* the same figures keep the moment they first stood: a check that changed nothing is not a new version */
-    const kept: KeptRecap = had && had.version === recap.version ? { ...had, checkedAt: now } : { ...recap, quantiles: quantiles ? quantiles.map(q => (q ? [...q] : null)) : null, checkedAt: now };
+    const kept: KeptRecap = had && had.version === recap.version ? { ...had, checkedAt: now, model: TRAIL_MODEL.version } : { ...recap, quantiles: quantiles ? quantiles.map(q => (q ? [...q] : null)) : null, checkedAt: now, model: TRAIL_MODEL.version };
     mkdirSync(join(root, name, day), { recursive: true });
     writeFileSync(fileOf(name, day), JSON.stringify(kept));
     if (kept.version !== had?.version)

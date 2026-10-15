@@ -1435,6 +1435,46 @@ house's estimate on the name's real price (≈) and nothing fills. In full: `doc
 The Desk's half sessions are left out (`EARLY_CLOSES`, and a day whose record stops before 15:30).
 
 
+## An index's roots (2026-10-15)
+
+The owner: "SPXW was being dropped. Check whether anything stored used that filter: store columns, backfill, tiles,
+residual vs UW, scorecard, alerts. Rebuild whatever did, and tell me what changed."
+
+**What was wrong.** The field's universe (`trailModel universeOf`) kept a contract only when its root was the name's own,
+so SPX's field held its AM monthlies and no SPXW contract (the weeklies, 0DTE among them). Fixed in 0b9877e; the model's
+version was not bumped with it. Two more errors stood in the same universe: every contract was taken to settle at 4:00 pm,
+so on a third Friday SPX's AM monthly (settled at the open) stayed in the field all day; and a straddle at an expiry both
+roots list took whichever contract came last. The Theta rebuild keyed SPXW's contracts under SPX's symbol (to pass the
+filter), which on a third Friday made SPX's AM monthly and SPXW's PM contract of one strike a single contract.
+
+**The model now (.6, `trail-2026-10-15.6`)**: the weekly root under its index (WEEKLY_UNDER); AM_ROOTS (SPX, NDX, RUT,
+VIX, VIXW) end at the expiry date's 9:30 am (`endOf`) — τ to it, out of every column after it; a straddle reads the PM root
+where both list the expiry; a Saturday-dated expiry is its Friday (`tradingExpiry`, in `parseOcc`). The Theta rebuild
+(.2, `theta-rebuild-2026-10-15.2`) keeps each contract under its own root, prices an AM one to its settlement, reads the
+overnight forward and the ATM extras off the PM root. A name with neither root (SPY, QQQ, a stock) models exactly as .5
+did from 2017-01-22.
+
+**What an older model wrote.** `staleBeforeIndexRoots(stamp, name, day)`: rows a field model before .6 wrote for an
+index, or for any name on a day to 2017-01-21, are wrong; the scorecard's loader, the scale's bins, the recap and
+`finalRowsOf` rebuild such a session from its kept inputs (past.json.gz), and the hold-out is evaluated again, said as a
+second look. Caches (tiles, bins, scale.json) stand on their own version or on .5 where .6 changed nothing (`modelStands`)
+— so SPY's and QQQ's tiles are not built again. `npm run field:reindex` lists what an older model wrote wrong on a machine;
+`-- --rebuild` rewrites the final rows, the old file kept beside as final.<model>.jsonl.gz. Shown rows (what Terrain drew)
+are never rewritten.
+
+**What was stored with the filter.** Before 0b9877e the page never asked the server for an index's field
+(`!isCashIndex`), so SPX rows were stored only where a machine set it up by hand: RECORD_NAMES or BACKFILL_NAMES with SPX
+(neither has it by default), or `npm run theta:rebuild -- SPX` (folded, not dropped — the third-Friday merge). The
+residual against UW, the level alerts and the regime chip are computed live, so nothing of theirs was stored. On this
+workspace: SPX's scale.json alone (no sessions in it). UW's per-minute series (series.json) is UW's own and was never
+filtered.
+
+**What changed, on real data** (SPX's chain as the recorder read it at 11:11 pm on Oct 14, the prior count, a column at
+UW's book price 7,715): the old universe held 1,240 contracts (the AM monthlies), the new 8,728 (7,488 SPXW). At 10:00 am
+Oct 15 the flip moves from 7,724.56 to 7,776.34, the net from 7.58B to 47.68B, the heaviest strike 7,700 from 3.30B to
+7.72B; the walls stay 7,800 and 7,700. On a third Friday (the same chain as Oct 16): at 2:00 pm the 638 settled AM
+contracts would have put 11.06B at 7,700 against 4.94B without them, and the put wall at 7,700 instead of 7,725.
+
 ## The sessions and SPX overnight (2026-10-15)
 
 The owner, "SPX OVERNIGHT FIELD": "'regular hours only' applies to SPY and QQQ. SPX/SPXW options trade nearly 24 hours

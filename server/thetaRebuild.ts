@@ -60,7 +60,7 @@ import { createFieldStore, type Bar, type StoreRow } from './fieldStore';
 
 import { blackScholesPrice } from '../src/core/greeks';
 import { nyIsoDate, nyWallTime } from '../src/core/nyTime';
-import { lastTradeOf, straddleExpiries, uwYears, UW_VOL_CONVENTION } from '../src/data/feed/trailModel';
+import { AM_ROOTS, endOf, modelStands, MODEL_BEFORE_INDEX_ROOTS, staleBeforeIndexRoots, straddleExpiries, tradingExpiry, uwYears, UW_VOL_CONVENTION } from '../src/data/feed/trailModel';
 import { fieldSessionAt, fieldSpansOf, indexPrintsAt, tradesAllSessions } from '../src/core/sessions';
 import { WIDE_VOL, forwardOf, volWidth, type QuoteLeg } from '../src/data/feed/forward';
 
@@ -93,7 +93,22 @@ export interface ThetaRebuildConfig {
   moneyness: number;
 }
 /** The defaults, pending the probe's report (docs/theta-probe): set them when it lands */
-export const THETA_REBUILD: ThetaRebuildConfig = { version: 'theta-rebuild-2026-10-14.1', quoteClock: 'last-in-interval', spxSource: 'theta', rate: 'dtb3', moneyness: 0.15 };
+/* .2 (2026-10-15): each contract under its own root (SPXW's were keyed under SPX, so a third Friday's AM monthly and PM
+   weekly of one strike became one contract), an AM-settled contract priced to its settlement, the overnight forward off
+   the PM root alone, a Saturday-dated expiry read as its Friday */
+export const THETA_REBUILD: ThetaRebuildConfig = { version: 'theta-rebuild-2026-10-15.2', quoteClock: 'last-in-interval', spxSource: 'theta', rate: 'dtb3', moneyness: 0.15 };
+const THETA_BEFORE_INDEX_ROOTS = 'theta-rebuild-2026-10-14.1';
+/** A day built under `built` still stands under `cfgVersion` (a CLI override's `+…` kept): its own version, or .1 for a
+    name .2 changed nothing of — every name but the indices, on a day past any Saturday-dated expiry (trailModel
+    modelStands) */
+export function thetaBuildStands(built: string | null, name: string, day: string | null, cfgVersion = THETA_REBUILD.version): boolean {
+  if (built == null) return false;
+  if (built === cfgVersion) return true;
+  return cfgVersion.startsWith(THETA_REBUILD.version) && built === THETA_BEFORE_INDEX_ROOTS + cfgVersion.slice(THETA_REBUILD.version.length) && modelStands(MODEL_BEFORE_INDEX_ROOTS, name, day);
+}
+/** A day built before .2 that .2 changed (an index's, or a day a Saturday-dated expiry could stand in) — its rows are
+    not the day's (finalRowsOf) until `npm run theta:rebuild` builds it again */
+export const thetaStaleBeforeIndexRoots = (built: string | null, name: string, day: string): boolean => !!built?.startsWith(THETA_BEFORE_INDEX_ROOTS) && staleBeforeIndexRoots(MODEL_BEFORE_INDEX_ROOTS, name, day);
 
 /** r from a discount yield d (DTB3 ÷ 100): the owner's formula */
 export const rateFromDtb3 = (d: number): number => (-Math.log(1 - (d * 91) / 360) * 365) / 91;
@@ -293,8 +308,8 @@ interface QuoteMinute {
   ask: number;
 }
 /** A chain's quote rows for a day, folded per contract to a mid a minute on the quote clock (4b) */
-function quotesOf(histRoot: string, name: string, day: string, cfg: ThetaRebuildConfig): { byOcc: Map<string, { expiry: string; strike: number; right: 'C' | 'P'; minutes: QuoteMinute[] }>; files: number } {
-  const byOcc = new Map<string, { expiry: string; strike: number; right: 'C' | 'P'; minutes: QuoteMinute[] }>();
+function quotesOf(histRoot: string, name: string, day: string, cfg: ThetaRebuildConfig): { byOcc: Map<string, { root: string; expiry: string; strike: number; right: 'C' | 'P'; minutes: QuoteMinute[] }>; files: number } {
+  const byOcc = new Map<string, { root: string; expiry: string; strike: number; right: 'C' | 'P'; minutes: QuoteMinute[] }>();
   let files = 0;
   for (const root of rootsOf(name)) {
     const dir = join(histRoot, root, day);
@@ -316,9 +331,12 @@ function quotesOf(histRoot: string, name: string, day: string, cfg: ThetaRebuild
         const stamp = Math.floor(nyStampMs(r.timestamp) / 60_000) * 60_000;
         /* the quote clock (4b): the interval's last quote stands for its own minute; a quote at the stamp for the minute before */
         const m = cfg.quoteClock === 'last-in-interval' ? stamp : stamp - 60_000;
-        const occ = occUnder(name, e, right, k);
+        /* EACH CONTRACT UNDER ITS OWN ROOT (2026-10-15): SPXW's were keyed under SPX so the model's root filter would keep
+           them, and on a third Friday SPX's AM monthly and SPXW's PM contract of the same strike became one contract —
+           the model reads the weekly root as the index's now (trailModel WEEKLY_UNDER) */
+        const occ = occUnder(root, e, right, k);
         let c = byOcc.get(occ);
-        if (!c) byOcc.set(occ, (c = { expiry: e, strike: k, right, minutes: [] }));
+        if (!c) byOcc.set(occ, (c = { root, expiry: tradingExpiry(e), strike: k, right, minutes: [] }));
         c.minutes.push({ m, mid: (bid + ask) / 2, bid, ask });
       }
     }
@@ -345,7 +363,7 @@ function oiOf(histRoot: string, name: string, day: string): [string, number][] {
       const right = rightOf(r);
       const oi = num(r.open_interest ?? r.oi);
       if (!e || k == null || !right || oi == null) continue;
-      out.set(occUnder(name, e, right, k), oi);
+      out.set(occUnder(root, e, right, k), oi);
     }
   }
   return [...out.entries()];
@@ -363,8 +381,9 @@ export function historyDays(histRoot: string, name: string): string[] {
 }
 
 /** τ for a contract at a minute, the model's own clock: today's expiry on the calendar time from the minute's middle to
-    its last-trading instant; a later one on whole days */
-export const tauAt = (m: number, expiry: string, day: string): number => (expiry === day ? Math.max(0, (lastTradeOf(expiry) - (m + 30_000)) / YEAR_MS) : uwYears(m + 30_000, lastTradeOf(expiry), expiry, day));
+    its end — its last-trading instant, or an AM-settled root's settlement at the open (trailModel endOf); a later one on
+    whole days */
+export const tauAt = (m: number, expiry: string, day: string, root = ''): number => (expiry === day ? Math.max(0, (endOf(root, expiry) - (m + 30_000)) / YEAR_MS) : uwYears(m + 30_000, endOf(root, expiry), expiry, day));
 
 export interface ThetaDay {
   past: PastDay;
@@ -416,7 +435,8 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
     const legsAt = new Map<number, Map<string, QuoteLeg[]>>();
     for (const c of q.byOcc.values())
       for (const x of c.minutes) {
-        if (!inSpans(x.m) || indexPrintsAt(x.m)) continue;
+        /* the PM root's quotes alone, as the live reader asks SPXW's front expiry: an AM monthly beside it settles at the open */
+        if (AM_ROOTS.has(c.root) || !inSpans(x.m) || indexPrintsAt(x.m)) continue;
         const byExp = legsAt.get(x.m) ?? new Map<string, QuoteLeg[]>();
         const legs = byExp.get(c.expiry) ?? [];
         legs.push({ strike: c.strike, right: c.right, bid: x.bid, ask: x.ask });
@@ -455,12 +475,12 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
       if (!inSpans(m)) continue;
       const S = closeOf.get(m);
       if (S == null) continue;
-      const tau = tauAt(m, c.expiry, day);
+      const tau = tauAt(m, c.expiry, day, c.root);
       const iv = solveVol(mid, S, c.strike, tau, c.right, r);
       if (!Number.isFinite(iv)) continue;
       rows.push({ start_time: new Date(m).toISOString(), iv_low: String(iv), iv_high: String(iv) });
       if (volWidth({ strike: c.strike, right: c.right, bid, ask }, S, tau, iv, r) > WIDE_VOL) wideAt.add(m);
-      if (exps.today && c.expiry === exps.today) {
+      if (exps.today && c.expiry === exps.today && !AM_ROOTS.has(c.root)) {
         const d = Math.abs(c.strike - S);
         const a = atmByMinute.get(m) ?? {};
         const had = c.right === 'C' ? a.call : a.put;
@@ -498,7 +518,7 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
     const rows: [string, number | null, number | null, number][] = [];
     for (const [occ, c] of pq.byOcc) {
       const last = [...c.minutes].reverse().find(x => x.m <= pEnd);
-      const iv = last && pClose != null ? solveVol(last.mid, pClose, c.strike, tauAt(pEnd, c.expiry, prev), c.right, pr) : NaN;
+      const iv = last && pClose != null ? solveVol(last.mid, pClose, c.strike, tauAt(pEnd, c.expiry, prev, c.root), c.right, pr) : NaN;
       rows.push([occ, Number.isFinite(iv) ? iv : null, last ? last.m : null, poi.get(occ) ?? 0]);
     }
     if (rows.length) seed = { date: prev, receivedAt: now(), rows };
@@ -591,7 +611,7 @@ export async function rebuildTheta(opts: RebuildOptions): Promise<Record<string,
     if (existsSync(trustFile)) {
       try {
         const had = JSON.parse(readFileSync(trustFile, 'utf8')) as TrustFile;
-        if (had.version === cfg.version) trust = had;
+        if (thetaBuildStands(had.version, name, null, cfg.version)) trust = { ...had, version: cfg.version };
       } catch {
         /* begun again */
       }
@@ -604,7 +624,7 @@ export async function rebuildTheta(opts: RebuildOptions): Promise<Record<string,
       const dir = join(fieldRoot, name, day);
       const rowsFile = join(dir, 'theta-final.jsonl');
       /* a day built on THIS version stands (a run resumes); a changed version or `again` builds it afresh */
-      if (existsSync(rowsFile) && !opts.again && builtVersion(join(dir, 'theta-build.json')) === cfg.version) {
+      if (existsSync(rowsFile) && !opts.again && thetaBuildStands(builtVersion(join(dir, 'theta-build.json')), name, day, cfg.version)) {
         trust.reached = day;
         continue;
       }
@@ -654,10 +674,11 @@ export async function rebuildTheta(opts: RebuildOptions): Promise<Record<string,
 /** The rows a day stands on: UW's final rows where the backfill built them, else the Theta rebuild's (the proof engine reads this) */
 export function finalRowsOf(fieldRoot: string, name: string, day: string): { rows: StoreRow[]; source: 'uw' | 'theta' | null } {
   const store = createFieldStore({ root: fieldRoot });
+  /* rows .6 knows to be wrong (trailModel staleBeforeIndexRoots — an index's before it held no weekly root) are not the day's */
   const uw = store.readRows(name, day, 'final');
-  if (uw.length) return { rows: uw, source: 'uw' };
+  if (uw.length && !uw.some(r => staleBeforeIndexRoots(r.model, name, day))) return { rows: uw, source: 'uw' };
   const file = join(fieldRoot, name, day, 'theta-final.jsonl');
-  if (!existsSync(file)) return { rows: [], source: null };
+  if (!existsSync(file) || thetaStaleBeforeIndexRoots(builtVersion(join(fieldRoot, name, day, 'theta-build.json')), name, day)) return { rows: [], source: null };
   const rows: StoreRow[] = [];
   for (const line of readFileSync(file, 'utf8').split('\n')) {
     if (!line) continue;

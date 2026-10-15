@@ -5,8 +5,9 @@
     1. the vols it inverts are the vols the quotes were priced at (the clock, the rate and the pricer agree);
     2. the extras a minute — spread, top-of-book size, volume, VIX and the ATM vol — are the history's own;
     3. the rate is the day's DTB3-derived r from the newest observation at or before the day (FRED, or Theta's);
-    4. the quote clock (4b) moves a row's minute, the SPX source (4a) chooses the underlying, a weekly root folds
-       under its index;
+    4. the quote clock (4b) moves a row's minute, the SPX source (4a) chooses the underlying, each root's contracts
+       stand under their own root (SPXW beside SPX's AM monthly of the same strike and date — two contracts, the AM one
+       priced to its settlement at the open);
     5. the walk is newest first, resumable, and THE TRUST GATE: a recorder day equal to the rebuild passes, one that
        differs FAILS and stops the walk before an older day is built; finalRowsOf prefers UW's final rows.
 */
@@ -113,7 +114,7 @@ if (!('why' in b13)) {
 /* ---- 4: the clock, the source, the root ---------------------------------------------------------------------- */
 const atStamp = buildThetaDay(hist, field, 'SPY', '2026-10-13', { ...cfg, quoteClock: 'at-stamp' }, () => 1);
 check('the quote clock (4b): at-stamp reads a row for the minute before its stamp (389 minutes from 390 rows)', !('why' in atStamp) && (atStamp.past.ticks['SPY261016C00100000']?.length ?? 0) === 778 && !('why' in b13) && atStamp.past.ticks['SPY261016C00100000'][0] === b13.past.ticks['SPY261016C00100000'][0]);
-/* SPX: its weekly root's chain under the index, its price series as the underlying, or the tape's */
+/* SPX: its weekly root's chain beside the index's own, its price series as the underlying, or the tape's */
 for (const day of ['2026-10-13']) {
   const mins = minutesOf(day);
   gz(join(hist, 'SPX', day, 'index-price-1m.ndjson.gz'), mins.filter((_, i) => i % 2 === 0).map(x => ({ timestamp: stamp(day, x.h, x.mi), price: 5000 })));
@@ -124,9 +125,17 @@ for (const day of ['2026-10-13']) {
     const mid = blackScholesPrice(5000, 5000, tauAt(x.m, '2026-10-16', day), volAt(right, i), right, r, UW_VOL_CONVENTION.q);
     return { timestamp: stamp(day, x.h, x.mi), expiration: '20261016', strike: 5000, right, bid: mid - 0.05, ask: mid + 0.05 };
   })));
+  /* SPX's AM monthly of the same strike and date (a third Friday): its own count, its own vol (0.1 above the weekly's),
+     priced to its settlement at the open */
+  gz(join(hist, 'SPX', day, 'chain-contracts.ndjson.gz'), [{ symbol: 'SPX', expiration: '20261016', strike: 5000, right: 'C' }]);
+  gz(join(hist, 'SPX', day, 'chain-oi.ndjson.gz'), [{ expiration: '20261016', strike: 5000, right: 'C', open_interest: 9000 }, { expiration: '20261016', strike: 5000, right: 'P', open_interest: 8000 }]);
+  gz(join(hist, 'SPX', day, 'chain-quotes-2026-10-16.ndjson.gz'), mins.flatMap((x, i) => (['C', 'P'] as const).map(right => {
+    const mid = blackScholesPrice(5000, 5000, tauAt(x.m, '2026-10-16', day, 'SPX'), volAt(right, i) + 0.1, right, r, UW_VOL_CONVENTION.q);
+    return { timestamp: stamp(day, x.h, x.mi), expiration: '20261016', strike: 5000, right, bid: mid - 0.05, ask: mid + 0.05 };
+  })));
 }
 const spx = buildThetaDay(hist, field, 'SPX', '2026-10-13', cfg, () => 1);
-check('an index: the weekly root\'s chain folds under the index, its price series carried a minute is the underlying', !('why' in spx) && spx.past.oi.every(o => o[0].startsWith('SPX26')) && spx.past.oi.length === 2 && spx.bars.length === 390 && spx.bars.every(b => b.close === 5000) && near(spx.past.ticks['SPX261016C05000000']?.[1] ?? null, volAt('C', 0), 2e-4), 'why' in spx ? spx.why : `${spx.past.oi.length} contracts, ${spx.bars.length} bars`);
+check('an index: each root\'s contracts under their own root — SPXW and SPX\'s AM monthly of one strike and date are two contracts with their own counts and vols; its price series carried a minute is the underlying', !('why' in spx) && spx.past.oi.length === 4 && spx.past.oi.find(o => o[0] === 'SPXW261016C05000000')?.[1] === 700 && spx.past.oi.find(o => o[0] === 'SPX261016C05000000')?.[1] === 9000 && spx.bars.length === 390 && spx.bars.every(b => b.close === 5000) && near(spx.past.ticks['SPXW261016C05000000']?.[1] ?? null, volAt('C', 0), 2e-4) && near(spx.past.ticks['SPX261016C05000000']?.[1] ?? null, volAt('C', 0) + 0.1, 2e-4), 'why' in spx ? spx.why : `${spx.past.oi.map(o => o.join(' ')).join(', ')}; SPXW vol ${spx.past.ticks['SPXW261016C05000000']?.[1]}, SPX AM vol ${spx.past.ticks['SPX261016C05000000']?.[1]}`);
 mkdirSync(join(field, 'SPX', '2026-10-13'), { recursive: true });
 writeFileSync(join(field, 'SPX', '2026-10-13', 'tape-price.json'), JSON.stringify({ bars: minutesOf('2026-10-13').map(x => [x.m, 5001, 5001, 5001, 5001, 0]) }));
 const spxTape = buildThetaDay(hist, field, 'SPX', '2026-10-13', { ...cfg, spxSource: 'tape' }, () => 1);

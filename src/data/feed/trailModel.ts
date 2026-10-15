@@ -87,18 +87,54 @@ function tradeTimeOf(tape: number | null, fallback: number): { trade: number; bo
 
 /** The field's model — its version is kept with every column (trailMeta) */
 export const TRAIL_MODEL = {
-  version: 'trail-2026-10-13.5',
+  /* .6 (2026-10-15): an index's weekly root is in its universe (SPXW under SPX, NDXP under NDX, RUTW under RUT, VIXW
+     under VIX — the root filter had kept the index's own root alone); an AM-settled contract ends at its settlement, the
+     expiry date's 9:30 am, not at 4:00 pm (AM_ROOTS, endOf); a straddle reads the PM root where both list the expiry;
+     a monthly dated a Saturday (OCC's dating before February 2015) is its Friday. A name with no weekly or AM root
+     (SPY, QQQ, a stock) models exactly as under .5 */
+  version: 'trail-2026-10-15.6',
   what: 'estimated dealer gamma (assumed sign)',
   openInterest: "the day's published count — UW's count dated today, the positions at the session before's close — for every column from its publication (07:00 New York, a conservative time until the recorder's days from 04:00 measure it; UW's lands about 06:45), WHATEVER THE HOUR the recorder received it, so a live day and a rebuilt one stand on the same positions; before the publication, the prior count (the seed's, dated the session before, or a chain read before it); never a count published after the minute",
   vol: "as of each minute: today, the newest chain read received at or before the minute's end; a past session, each contract's own minute vols as it traded (UW's per-contract minutes, the middle of the minute's range, knowable at the minute's end, kept when it moved a tenth of a vol point); before either, the session before's close (carried, fixed-strike); a vol read in its expiry's last hour is not used; no observation, no contract",
   price: "the minute bar's close; a column is knowable at its bar's end",
-  pricer: "core/greeks.ts blackScholesGreeks on UW's convention (measured): European, r 4.15%, q 0; today's expiry on calendar time from the bar middle to its last-trading instant (16:00 New York, 13:00 on a half day), a later one on whole calendar days / 365",
-  universe: `contracts listed within ${CHAIN_MAX_DTE} days with open interest, 30 strikes each side of the price`,
+  pricer: "core/greeks.ts blackScholesGreeks on UW's convention (measured): European, r 4.15%, q 0; today's expiry on calendar time from the bar middle to its last-trading instant (16:00 New York, 13:00 on a half day; an AM-settled contract's settlement, its expiry date's 9:30 am), a later one on whole calendar days / 365",
+  universe: `contracts listed within ${CHAIN_MAX_DTE} days with open interest, 30 strikes each side of the price; an index's weekly root with the index's own`,
   units: 'open interest × greek × price² (dollars per 1%, UW /spot-exposures/strike units)',
   sign: "assumed: the house's — the calls' gamma negative, the puts' positive, delta turned over",
   calibration: 'none — the captured books are a reference, their residual said in How sure',
   scale: "each column against the session's largest node at or before it",
 } as const;
+
+/** The version before .6, still standing where .6 changed nothing (modelStands) */
+export const MODEL_BEFORE_INDEX_ROOTS = 'trail-2026-10-13.5';
+/** The names .6 changed: the indices, whose weekly roots join them and whose own root settles on the open */
+const INDEX_NAMES: ReadonlySet<string> = new Set(['SPX', 'NDX', 'RUT', 'VIX']);
+/** The last day a Saturday-dated expiry can stand in a day's 60-day window: OCC dated standard expiries on the Saturday
+    until February 2015, and a LEAPS listed under that dating ran to January 2017 — taken as the bound whether or not
+    OCC re-dated the series it had already listed */
+const SATURDAY_DATED_UNTIL = '2017-01-21';
+/** A stamp the field's model wrote before .6 — every one of them kept an index's own root alone */
+const fieldModelBefore6 = (stamp: string | null | undefined): boolean => {
+  const n = /^trail-\d{4}-\d{2}-\d{2}\.(\d+)$/.exec(stamp ?? '')?.[1];
+  return n != null && Number(n) < 6;
+};
+/**
+ * WHAT .6 MADE WRONG: work a field model before .6 wrote for an index (its weekly root left out, its AM monthly ended
+ * at 4:00 pm) or for a day a Saturday-dated expiry could stand in. Stored final rows are read whatever model wrote them
+ * (as before) unless this says they are wrong — then the session is rebuilt from its kept inputs, and
+ * scripts/field-reindex.ts lists them.
+ */
+export function staleBeforeIndexRoots(stamp: string | null | undefined, name: string, day?: string | null): boolean {
+  return fieldModelBefore6(stamp) && (INDEX_NAMES.has(name.toUpperCase()) || (day != null && day <= SATURDAY_DATED_UNTIL));
+}
+/**
+ * A CACHE'S STAMP STILL STANDS (tiles, the scale's bins and references — rebuilt on any change of model, as before)
+ * when this model would write the same thing: its own version, or .5 where .6 changed nothing (staleBeforeIndexRoots).
+ */
+export function modelStands(stamp: string | null | undefined, name: string, day?: string | null): boolean {
+  if (stamp === TRAIL_MODEL.version) return true;
+  return stamp === MODEL_BEFORE_INDEX_ROOTS && !staleBeforeIndexRoots(stamp, name, day);
+}
 
 /* ---- the recorded inputs, as the server hands them ---------------------------------------------------------------- */
 
@@ -149,7 +185,32 @@ export interface ServerInputs {
 export function parseOcc(sym: string): { root: string; expiry: string; right: 'C' | 'P'; strike: number } | null {
   const m = /^(.*?)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(sym);
   if (!m) return null;
-  return { root: m[1], expiry: `20${m[2]}-${m[3]}-${m[4]}`, right: m[5] as 'C' | 'P', strike: Number(m[6]) / 1000 };
+  return { root: m[1], expiry: tradingExpiry(`20${m[2]}-${m[3]}-${m[4]}`), right: m[5] as 'C' | 'P', strike: Number(m[6]) / 1000 };
+}
+/** The trading day an expiry date names: a monthly dated a Saturday — OCC's dating until February 2015, the day after
+    its last trading Friday — is that Friday; every other date is itself */
+export function tradingExpiry(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (new Date(Date.UTC(y, m - 1, d)).getUTCDay() !== 6) return iso;
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+}
+
+/** THE ROOTS THAT SETTLE ON THE OPEN (special opening quotation): an index's standard monthly (SPX, NDX, RUT) and every
+    VIX listing (VIX, VIXW). Each last trades the session before its expiry date and counts until it settles at that
+    date's open; the weekly roots SPXW, NDXP and RUTW settle at the close as a stock's option does */
+export const AM_ROOTS: ReadonlySet<string> = new Set(['SPX', 'NDX', 'RUT', 'VIX', 'VIXW']);
+const settleAt = new Map<string, number>();
+/** THE INSTANT A CONTRACT'S EXPOSURE ENDS: a PM-settled contract's last trade (lastTradeOf); an AM-settled one's
+    settlement, its expiry date's 9:30 am New York */
+export function endOf(root: string, iso: string): number {
+  if (!AM_ROOTS.has(root)) return lastTradeOf(iso);
+  let t = settleAt.get(iso);
+  if (t === undefined) {
+    const [y, m, d] = iso.split('-').map(Number);
+    t = nyWallTime(y, m, d, 9, 30);
+    settleAt.set(iso, t);
+  }
+  return t;
 }
 
 const lastTrade = new Map<string, number>();
@@ -188,7 +249,10 @@ export interface Universe {
   oiObs: OiObs[][];
   /** The receipt of the first chain read carrying the day's published count, 0 while none has come */
   oiTodayFrom: number;
+  /** Each contract's end — its last trade, or an AM-settled contract's settlement (endOf) */
   expires: Float64Array;
+  /** 1 for an AM-settled contract (AM_ROOTS) — a straddle reads the PM root where both list its expiry */
+  am: Uint8Array;
   /** UW's whole-day clock for a later expiry, in years; 0 for today's (priced on the minutes left) */
   years: Float64Array;
   expiry: string[];
@@ -274,7 +338,7 @@ export const PART_STRIDE = 5 * PARTS;
 const WEEKLY_UNDER: Record<string, string> = { SPXW: 'SPX', NDXP: 'NDX', RUTW: 'RUT', VIXW: 'VIX' };
 export function universeOf(ticker: string, day: string, inputs: ServerInputs, cut: string | null = null): Universe {
   const t = ticker.toUpperCase();
-  type C = { strike: number; expiry: string; call: boolean; oiObs: OiObs[]; obs: Obs[] };
+  type C = { strike: number; expiry: string; call: boolean; am: boolean; end: number; oiObs: OiObs[]; obs: Obs[] };
   const bySym = new Map<string, C>();
   const reads = [...inputs.chains].sort((a, b) => a.receivedAt - b.receivedAt);
   const publish = oiPublishedAt(day);
@@ -291,11 +355,11 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
       const p = parseOcc(sym);
       if (!p || (p.root !== t && WEEKLY_UNDER[p.root] !== t) || p.expiry < day || (cut && p.expiry !== cut) || !(p.strike > 0)) continue;
       let c = bySym.get(sym);
-      if (!c) bySym.set(sym, (c = { strike: p.strike, expiry: p.expiry, call: p.right === 'C', oiObs: [], obs: [] }));
+      if (!c) bySym.set(sym, (c = { strike: p.strike, expiry: p.expiry, call: p.right === 'C', am: AM_ROOTS.has(p.root), end: endOf(p.root, p.expiry), oiObs: [], obs: [] }));
       /* a count is noted when it changes — the same count read again is the same knowledge; the newest read of a kind
          (prior or published) is the count of that kind */
       if (!c.oiObs.length || c.oiObs[c.oiObs.length - 1].oi !== oi) c.oiObs.push({ at, oi });
-      if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) {
+      if (iv != null && iv > 0 && c.end - read.receivedAt >= LAST_HOUR_MS) {
         c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false, ...(width != null && width > WIDE_VOL ? { wide: true } : {}) });
         volReads.add(read.receivedAt);
       }
@@ -306,7 +370,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
   for (const [sym, arr] of Object.entries(inputs.ticks ?? {})) {
     const c = bySym.get(sym);
     if (!c) continue;
-    const last = lastTradeOf(c.expiry);
+    const last = c.end;
     const wide = inputs.wide?.[sym] ? new Set(inputs.wide[sym]) : null;
     for (let i = 0; i + 1 < arr.length; i += 2) {
       const at = arr[i] + 60_000;
@@ -328,7 +392,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
       /* the seed's count — dated the session before, public through it — stands before the day's publication, unless a
          read before the publication already carried the prior count */
       if (oi != null && Number.isFinite(oi) && (!c.oiObs.length || c.oiObs[0].at > knowable)) c.oiObs.unshift({ at: knowable, oi });
-      if (iv == null || !(iv > 0) || lastTradeOf(c.expiry) - knowable < LAST_HOUR_MS) continue;
+      if (iv == null || !(iv > 0) || c.end - knowable < LAST_HOUR_MS) continue;
       c.obs.unshift({ at: knowable, iv, ...tradeTimeOf(trade, knowable), carried: true });
     }
   }
@@ -349,7 +413,8 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     call: Uint8Array.from(kept.map(c => (c.call ? 1 : 0))),
     oiObs: kept.map(c => c.oiObs),
     oiTodayFrom,
-    expires: Float64Array.from(kept.map(c => lastTradeOf(c.expiry))),
+    expires: Float64Array.from(kept.map(c => c.end)),
+    am: Uint8Array.from(kept.map(c => (c.am ? 1 : 0))),
     years: Float64Array.from(kept.map(c => (c.expiry > day ? uwYears(0, 0, c.expiry, day) : 0))),
     expiry: kept.map(c => c.expiry),
     part: (ends => Uint8Array.from(kept.map(c => partOf(c.expiry, day, ends))))(windowEnds(day)),
@@ -1115,6 +1180,9 @@ export function straddleAt(u: Universe, bar: { time: number; close: number }, ex
   const spot = bar.close;
   const knowBy = (bar.time + 60) * 1000;
   const clock = bar.time * 1000 + 30_000;
+  /* the PM root where both list the expiry (SPXW beside SPX's AM monthly on a third Friday): the move to the close */
+  let pmListed = false;
+  for (let j = 0; j < u.expiry.length && !pmListed; j++) pmListed = u.expiry[j] === expiry && !u.am?.[j] && u.expires[j] > clock;
   const order = u.strikes.map((_, i) => i).sort((a, b) => Math.abs(u.strikes[a] - spot) - Math.abs(u.strikes[b] - spot));
   for (const i of order) {
     if (Math.abs(u.strikes[i] - spot) > spot * ATM_BAND) break;
@@ -1124,7 +1192,7 @@ export function straddleAt(u: Universe, bar: { time: number; close: number }, ex
     let piv = 0;
     let tau = 0;
     for (let j = u.start[i]; j < u.start[i + 1]; j++) {
-      if (u.expiry[j] !== expiry || u.expires[j] <= clock) continue;
+      if (u.expiry[j] !== expiry || u.expires[j] <= clock || (pmListed && u.am?.[j])) continue;
       const o = obsAt(u.obs[j], knowBy);
       if (!o || !(o.iv > 0)) continue;
       const t = u.years[j] > 0 ? u.years[j] : (u.expires[j] - clock) / YEAR_MS;
@@ -1162,12 +1230,17 @@ export function straddleOfMinute(u: Universe, chains: readonly { receivedAt: num
     the expiry's last trade at the read on UW's clock — solves its vol */
 export function straddleFromChain(rows: readonly ChainRow[], expiry: string, spot: number, tau?: number): StraddleRead | null {
   const by = new Map<number, { c?: number; p?: number }>();
+  /* the PM root where both list the expiry, as straddleAt reads it */
+  const pmListed = rows.some(r => {
+    const o = parseOcc(r[0]);
+    return !!o && o.expiry === expiry && !AM_ROOTS.has(o.root);
+  });
   for (const r of rows) {
     const bid = r[4];
     const ask = r[5];
     if (bid == null || ask == null || !(bid > 0) || !(ask > 0) || ask < bid) continue;
     const o = parseOcc(r[0]);
-    if (!o || o.expiry !== expiry || Math.abs(o.strike - spot) > spot * ATM_BAND) continue;
+    if (!o || o.expiry !== expiry || Math.abs(o.strike - spot) > spot * ATM_BAND || (pmListed && AM_ROOTS.has(o.root))) continue;
     const cur = by.get(o.strike) ?? {};
     if (o.right === 'C') cur.c = (bid + ask) / 2;
     else cur.p = (bid + ask) / 2;

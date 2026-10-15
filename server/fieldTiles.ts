@@ -24,7 +24,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync,
 import { join } from 'node:path';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { buildDayTiles, TILE_TFS, TILE_WINDOWS, TILES_FORMAT, type TileMinuteBar, type TileTf } from '../src/data/feed/tiles';
-import { TRAIL_MODEL, type ExpiryWindow, type PastInputsLike } from '../src/data/feed/trailModel';
+import { modelStands, TRAIL_MODEL, type ExpiryWindow, type PastInputsLike } from '../src/data/feed/trailModel';
 import type { createFieldBackfill } from './fieldBackfill';
 
 type FieldBackfill = ReturnType<typeof createFieldBackfill>;
@@ -56,7 +56,7 @@ export function createFieldTiles(backfill: Pick<FieldBackfill, 'minutes'> | null
   function has(name: string, day: string): boolean {
     try {
       const m = JSON.parse(readFileSync(metaOf(name, day), 'utf8')) as TilesMeta;
-      return m.f === TILES_FORMAT && m.model === TRAIL_MODEL.version;
+      return m.f === TILES_FORMAT && modelStands(m.model, name, day);
     } catch {
       return false;
     }

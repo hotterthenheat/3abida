@@ -32,7 +32,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { FIXED_SESSIONS, binsOf, refOfBins, type ScaleRef } from '../src/data/feed/beadScale';
-import { TRAIL_MODEL } from '../src/data/feed/trailModel';
+import { modelStands, staleBeforeIndexRoots, TRAIL_MODEL } from '../src/data/feed/trailModel';
 import { nyIsoDate } from '../src/core/nyTime';
 import type { createFieldBackfill, PastDay } from './fieldBackfill';
 import type { FieldStore, StoreRow } from './fieldStore';
@@ -74,13 +74,15 @@ export function createScaleRef(backfill: FieldBackfill, store: FieldStore, opts:
     const file = join(root, name, day, BINS);
     try {
       const had = JSON.parse(readFileSync(file, 'utf8')) as SessionBins;
-      if (had.model === TRAIL_MODEL.version) return had;
+      if (modelStands(had.model, name, day)) return had;
     } catch {
       /* not kept yet */
     }
     const bars = await backfill.minutes(name, day);
     const regular = bars?.filter(b => b.session === 'r').length ?? 0;
-    let rows: StoreRow[] = store.readRows(name, day, 'final');
+    /* final rows .6 knows to be wrong (an index's before it — trailModel staleBeforeIndexRoots) are rebuilt below */
+    const kept = store.readRows(name, day, 'final');
+    let rows: StoreRow[] = kept.some(r => staleBeforeIndexRoots(r.model, name, day)) ? [] : kept;
     if (rows.length < regular * 0.9 || rows.some(r => r.maxD == null)) {
       const past = join(root, name, day, 'past.json.gz');
       if (existsSync(past) && bars?.length) rows = store.rowsOf(JSON.parse(gunzipSync(readFileSync(past)).toString('utf8')) as PastDay, bars);
@@ -152,7 +154,7 @@ export function createScaleRef(backfill: FieldBackfill, store: FieldStore, opts:
       file = null;
     }
     const today = nyIsoDate(clock());
-    if (!file || !file.days[today] || file.model !== TRAIL_MODEL.version) {
+    if (!file || !file.days[today] || !modelStands(file.model, name)) {
       let job = building.get(name);
       if (!job) {
         job = build(name).finally(() => building.delete(name));

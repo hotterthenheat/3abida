@@ -1162,6 +1162,17 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   index, a recorder on older code: the old path). The series is reloaded whenever its bar count moves by anything
   but the one new bar at the end, the view kept on the bar times it showed. ~1 MB a session on disk (all windows and
   timeframes), ~0.9 s to tile one; scripts/tiles-proof.ts in `npm test`.
+- AN INDEX'S ROOTS (2026-10-15 — the owner: "SPXW was being dropped. Check whether anything stored used that filter …
+  Rebuild whatever did, and tell me what changed"; docs/data-feed.md "An index's roots"). The field's model .6 (TRAIL_MODEL)
+  reads an index's weekly root as the index's (WEEKLY_UNDER: SPXW, NDXP, RUTW, VIXW) and ends an AM-settled contract
+  (AM_ROOTS: SPX, NDX, RUT, VIX, VIXW) at its settlement, the expiry date's 9:30 am New York (endOf) — never at 4:00 pm;
+  a straddle reads the PM root where both list the expiry; a Saturday-dated expiry (OCC's dating before February 2015) is
+  its Friday (tradingExpiry). The Theta rebuild .2 keys each contract under ITS OWN root, never the name's. WHAT AN OLDER
+  MODEL WROTE is wrong for an index and for any name on a day to 2017-01-21 (staleBeforeIndexRoots): the scorecard's
+  loader, the scale's bins, the recap and finalRowsOf rebuild such a session from its kept inputs; every other name's
+  rows stand as they did; a cache (tiles, bins, scale.json) stands on its own version or on .5 where .6 changed nothing
+  (modelStands). `npm run field:reindex` lists on a machine what an older model wrote wrong, `-- --rebuild` rewrites the
+  final rows (the old file kept beside); shown rows are never rewritten. scripts/index-roots-proof.ts in `npm test`.
 - THE SESSIONS AND SPX OVERNIGHT (2026-10-15 — the owner, "SPX OVERNIGHT FIELD": "'regular hours only' applies to SPY
   and QQQ. SPX/SPXW options trade nearly 24 hours on Cboe"; docs/data-feed.md "The sessions and SPX overnight"). ONE
   SCHEDULE, core/sessions.ts: an equity's field is its regular hours (9:30 am–4:00 pm, 1:00 pm on a half day) — SPY and
