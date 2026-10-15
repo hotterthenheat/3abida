@@ -442,3 +442,24 @@ named.
 **Outside Terrain, found on the way, not changed:** Pinpoint's Compare (CompareAxis) and the exposure field on Pinpoint's
 Map and Pulse (ExposureField) still keep a capture-phase Escape of their own — the pattern 646b2ff took off Terrain; they
 belong to those rooms' audits.
+
+## 6k · The approvals, applied (2026-10-15, from your answers)
+
+Each approval is built with a browser or unit check that fails on the code before it, then reviewed by a separate agent
+that tries to break it; what the review finds is fixed and reviewed again.
+
+| # | your answer | state | commits |
+|---|---|---|---|
+| 3 | approved for dead code and exact duplicates; then "keep all five items, as you advised. All four resets must land on the identical view" | **done**: the dead rows of 6i deleted (each proven unread), the window and pace lists merged into one each; the five visible items kept. The four resets: queued next | 40b297e |
+| 4 | indicator colours off gold/violet: approved | **done** (scripts/indicator-inks-proof.ts): every indicator and shipped-script line 0.15 or more (OKLab) from the ovals' gold and violet on dark and paper (0.08 from the pair under blue–orange), no two sharing an ink, 0.08 from the compare lines, 30° of hue or more from the up/down pair, 3:1 or better on every tape; on a light tape a script's inks are read off the tape's own tokens; the reader's colour vision reaches the chart's chrome. Your colour rule (below) supersedes part of it and is queued next | 03ca5ad, dbbdfab, 59d97da |
+| 5 | drop the six Pine scripts that duplicate built-ins: approved | **done**: retired from the shelf; a placed copy is kept as the reader's own | 03ca5ad |
+| 11 | "The flip" script's red wash: removed | **done** | 03ca5ad |
+| 13 | barcolor(): implement it | **done**: `barcolor()` colours the candles it names, in replay only the bars up to the cursor; Pulse's own chart replay draws none (it runs scripts on the whole tape, so it could only colour from bars past the cursor) | 98bdc58 |
+
+**Queued, in this order** (the owner's order of 2026-10-15): your colour rule under every Colours option (only the ovals
+wear their two colours; up/down in the candles' up and down colours; everything else the indicator palette clear of the
+ovals; Ichimoku's cloud a faint fill in the candles' colours; compare lines and uncoloured Pine plots off the violet;
+shipped scripts' up/down follow every Colours option, a reader's own script keeps its colours; the distinctness check
+under every option and colour-vision simulation — a clash of the candles' blue with the ovals' blue under blue–orange is
+brought to you with a proposal, not changed); the four resets on one view; then 15 and 17; 6 and 8; 1; 7; 9, 10 and 14;
+12 and the Trace/Compass autoscale; 16; 2 (the DOM, then the canvas).
