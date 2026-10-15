@@ -2022,11 +2022,20 @@ const StrikeChart = ({
      timeframe stand — a span runs from the last bar back (today: from New York's 09:30 of the last bar's day), a little
      room ahead as the opening view keeps; a day is centred at the zoom the chart has. Nothing the host did not ask. */
   const jumpAppliedRef = useRef(0);
-  useEffect(() => {
+  /* APPLIED ONCE THE SERIES HOLDS THIS TIMEFRAME (2026-10-15, found by the speed budget): a 1Y or Max changes the
+     timeframe with the jump, and this ran before the data effect had loaded the new bars — the view was set on the old
+     series and the load that followed put it on the first fourteen bars of the year. The data effect calls this again
+     once it has loaded the world, so a jump lands on the bars it asked for. */
+  const tryJump = () => {
     if (!jumpTo || jumpTo.nonce === jumpAppliedRef.current) return;
     const chart = chartRef.current;
     if (!chart) return;
+    if (loadedRef.current.ticker !== ticker || loadedRef.current.timeframe !== timeframe) return;
     const mins = tfMinutes(timeframe);
+    /* A DAILY JUMP WAITS FOR THE DAY BARS (2026-10-15, found by the speed budget): a 1Y or Max picks 1D, whose day bars
+       are asked only once the pane is on it — until they land 1D draws the minutes folded by day, five sessions, and
+       the jump applied to those ran from the first of them, a twelve-day view, never applied again */
+    if (mins >= 1440 && tapeRef.current && !tapeRef.current.daily?.length) return;
     const bars = barsFor(mins);
     if (!bars.length) return;
     jumpAppliedRef.current = jumpTo.nonce;
@@ -2046,10 +2055,14 @@ const StrikeChart = ({
       if (jumpTo.span === 'today') from = last - Math.max(0, nyMinuteOf(last * 1000) - (9 * 60 + 30)) * 60;
       else if (!Number.isFinite(spans[jumpTo.span])) from = first;
       else from = Math.max(first, last - spans[jumpTo.span]);
-      /* a few bars of room ahead of the last one, as the opening view keeps */
-      const to = last + barSec * 6;
+      /* a few bars of room ahead of the last one, as the opening view keeps — set by BAR INDEX (2026-10-15): a time range
+         whose right edge stood past every bar the series holds (the runway is not laid out yet on a fresh load) was
+         placed by the library on the first fourteen bars of the year */
+      const start = Math.min(from, last - barSec);
+      let fromIdx = bars.findIndex(b => b.time >= start);
+      if (fromIdx < 0) fromIdx = Math.max(0, bars.length - 2);
       chart.priceScale('right').applyOptions({ autoScale: true });
-      ts.setVisibleRange({ from: Math.min(from, last - barSec) as UTCTimestamp, to: to as UTCTimestamp });
+      ts.setVisibleLogicalRange({ from: fromIdx, to: bars.length - 1 + 6 });
       return;
     }
     /* a day: the bar nearest its middle, the current zoom kept round it; the host hears whether the day is on the tape */
@@ -2062,7 +2075,11 @@ const StrikeChart = ({
     const span = range ? Math.max(20, range.to - range.from) : 120;
     chart.priceScale('right').applyOptions({ autoScale: true });
     ts.setVisibleLogicalRange({ from: idx - span / 2, to: idx + span / 2 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  };
+  const tryJumpRef = useRef(tryJump);
+  tryJumpRef.current = tryJump;
+  useEffect(() => {
+    tryJumpRef.current();
   }, [jumpTo, timeframe, mainNonce, revision]);
 
   /* The horizontal arm goes off while this chart is following another pane —
@@ -2526,6 +2543,11 @@ const StrikeChart = ({
        installed once with the chart and never re-subscribed. */
     const onRange = () => {
       ensureRunway(lastBarTimeRef.current, bucketSecRef.current);
+      /* THE VIEW, SAID ON THE ROOT for the speed budgets (scripts/speed-budget.mjs, Section I): the visible time range */
+      {
+        const vr = chart.timeScale().getVisibleRange();
+        if (vr) containerRef.current?.setAttribute('data-chart-view', `${Math.round(vr.from as number)}-${Math.round(vr.to as number)}`);
+      }
       /* THE LIVE EDGE: the view's right edge within two bars of the last one — said to the host on change alone */
       {
         const r = chart.timeScale().getVisibleLogicalRange();
@@ -3840,6 +3862,8 @@ const StrikeChart = ({
       }
       rewoundLoadRef.current = asOfRef.current != null;
       loadedRef.current = { ticker, timeframe, theme: themeTag, clock: barClock, full };
+      /* a jump asked with this world lands now, on its bars */
+      tryJumpRef.current();
       /* ARMED A FRAME LATER: the library reports a range on the setData
          itself, before it has laid the view out (−83..6 was measured on a
          mount), and that would have asked for the whole store at once. */
@@ -3873,11 +3897,18 @@ const StrikeChart = ({
        Gated, and the menu row says why. */
     const showTrails = overlays.trails && mins <= INTRADAY_MAX_MINUTES && !altSpec;
     trails.labelPx = compact ? 8.5 : 9.5;
+    /* WHAT THE CHART HOLDS, SAID ON THE ROOT for the speed budgets (scripts/speed-budget.mjs, Section I): the name, the
+       timeframe, the bars (count, first and last) and the field's columns once handed — a switch is done when this reads
+       the new world and its frame has painted */
+    const markState = (fieldCols: number | null) =>
+      containerRef.current?.setAttribute('data-chart-state', `${ticker}|${timeframe}|${bars.length}|${bars[0]?.time ?? 0}|${bars[bars.length - 1]?.time ?? 0}|${fieldCols == null ? 'f-' : `f${fieldCols}`}|r${revision}`);
+    markState(null);
     const handTrails = () => {
       const snaps = aggregateSnapshots(baseGex ?? [], trailMins);
       /* the per-minute store rides beside the folded columns: the reference counts minutes whatever the texture */
       trails.setData(snaps, snapshotsMaxAbs(snaps), showTrails, mins * 60, trailsGreek, baseGex ?? undefined);
       publishBeadLegend();
+      markState(snaps.length);
     };
     /* A COLD FOLD LEAVES THE MOUNT FRAME (2026-09-06, the perf sweep): the
        first time a store is folded to the field's texture it is the single
