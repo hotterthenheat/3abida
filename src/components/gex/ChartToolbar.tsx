@@ -171,6 +171,9 @@ interface ChartToolbarProps {
       the Candles menu, not a trigger of its own. */
   barClock?: string;
   onBarClock?: (key: string) => void;
+  /** What the rule bars fold, where a host's tape is not the house's seconds (Terrain on the feed folds its minute bars,
+      history included — the note said "no history before connect" there: the audit's A-127) */
+  ruleNote?: string;
   /* PER-PANE CANDLE THEME (Noah, 2026-08-25: "if i change the theme for 1
      chart it should NOT change for all the others"). Ours, kept through the
      port — unwired callers keep following the app-wide store. */
@@ -309,7 +312,7 @@ const STYLE_GLYPHS: Record<ChartStyle, ReactNode> = {
 /* The rows themselves live in indicatorItems.ts, shared with the script library. */
 
 const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[] = [
-  { key: 'trails', label: 'Exposure trails', hint: 'LED strike bands — strength & fade' },
+  { key: 'trails', label: 'Exposure trails', hint: 'An oval a strike a candle — size the gamma, colour the side that wins' },
   { key: 'levels', label: 'Key levels', hint: 'Call & put walls, flip and supreme, marked on the field' },
   { key: 'darkpool', label: 'Dark pool', hint: 'Off-exchange print lines' },
   { key: 'volume', label: 'Volume', hint: 'Session bars along the floor' },
@@ -476,6 +479,7 @@ const ChartToolbar = ({
   priceScale = 'normal',
   onPriceScale,
   barClock,
+  ruleNote,
   onBarClock,
   themeKey: themeKeyProp,
   onThemeKey,
@@ -810,7 +814,7 @@ const ChartToolbar = ({
                           on ? 'bg-silverFill border-silverFill' : 'border-borderMuted'
                         }`}
                       >
-                        {on && <Check className="w-2.5 h-2.5 text-[#0a0a0a]" />}
+                        {on && <Check className="w-2.5 h-2.5 text-onSilver" />}
                       </span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-1.5">
@@ -1018,7 +1022,7 @@ const ChartToolbar = ({
                 )}
                 {onBarClock && dense && (barClock ?? 'time') !== 'time' && (
                   <p className="px-2.5 pt-1 font-mono text-[11px] leading-relaxed text-textMuted">
-                    Rule bars fold the live seconds tape — no history before connect, and the interval-based overlays sit out.
+                    {ruleNote ?? 'Rule bars fold the live seconds tape — no history before connect, and the interval-based overlays sit out.'}
                   </p>
                 )}
                 {onBarClock && !dense && (
@@ -1051,8 +1055,7 @@ const ChartToolbar = ({
                     })}
                     {(barClock ?? 'time') !== 'time' && (
                       <p className="px-2.5 pt-1 font-mono text-[11px] leading-relaxed text-textMuted">
-                        Rule bars fold the live seconds tape — no history before
-                        connect, and the interval-based overlays sit out.
+                        {ruleNote ?? 'Rule bars fold the live seconds tape — no history before connect, and the interval-based overlays sit out.'}
                       </p>
                     )}
                   </>
@@ -1126,7 +1129,7 @@ const ChartToolbar = ({
                     on && !heldByClock ? 'bg-silverFill border-silverFill' : 'border-borderMuted'
                   }`}
                 >
-                  {on && !heldByClock && <Check className="w-2.5 h-2.5 text-[#0a0a0a]" />}
+                  {on && !heldByClock && <Check className="w-2.5 h-2.5 text-onSilver" />}
                 </span>
                 <span className="min-w-0">
                   <span className={`block font-mono text-[11px] font-semibold ${on && !heldByClock ? 'text-textPrimary' : 'text-textSecondary'}`}>
@@ -1189,7 +1192,7 @@ const ChartToolbar = ({
            STYLE picker beside the timeframes (Noah, 2026-08-23) */
         label={vertical || compact ? '' : minimal ? 'Theme' : `Theme · ${activeCandleLabel}`}
         title={`Candle theme · ${activeCandleLabel}`}
-        icon={<Palette className="w-3 h-3 text-[#BBB2E8]" />}
+        icon={<Palette className="w-3 h-3 text-moon" />}
         open={openMenu === 'candles'}
         onToggle={() => setOpenMenu(m => (m === 'candles' ? null : 'candles'))}
         menuSide={menuSide} bounds={menuBounds}

@@ -41,8 +41,6 @@ const CALL_RGB: readonly [number, number, number] = [232, 185, 74]; // --absorb 
 const NEUTRAL_RGB: readonly [number, number, number] = [125, 125, 125]; // --text-muted on black: a balanced strike
 /* THE WALLS WEAR THE GAMMA PAIR (the orbs message: "Call wall chip gold, put wall chip violet"): the chips, the ticks,
    the wall lines and the axis labels — one meaning with the nodes. */
-const CW_RGB = CALL_RGB;
-const PW_RGB = PUT_RGB;
 const FLIP_RGBA = 'rgba(156,163,175,0.8)'; // indecision gray — the regime border (mirrors palette FLIP); alpha raised with the 2026-08-29 weight pass
 
 /* THE OVALS' MEASURES (the orbs message, SHAPE 1–5 and HOW MANY 6) */
@@ -117,6 +115,15 @@ export interface MarkInks {
   neutral: RGB3;
 }
 export const DARK_MARK_INKS: MarkInks = { put: PUT_RGB, call: CALL_RGB, neutral: NEUTRAL_RGB };
+/** The dark ground's pair as it stands now — the reader's colour vision moves it (heatmap.ts, the ramp's pole on the
+    tokens); the standard choice is DARK_MARK_INKS exactly */
+export function darkMarkInks(): MarkInks {
+  const put = heatRampColorFor(1, 1, HEAT_MODE, false);
+  const call = heatRampColorFor(-1, 1, HEAT_MODE, false);
+  return put[0] === PUT_RGB[0] && put[1] === PUT_RGB[1] && put[2] === PUT_RGB[2] && call[0] === CALL_RGB[0] && call[1] === CALL_RGB[1] && call[2] === CALL_RGB[2]
+    ? DARK_MARK_INKS
+    : { put, call, neutral: NEUTRAL_RGB };
+}
 export const markInk = (side: 1 | -1, strength: number, inks: MarkInks): RGB3 => (strength >= BALANCED_BELOW - 1e-9 ? (side > 0 ? inks.put : inks.call) : inks.neutral);
 
 /** One node: a strike's size against the size reference, and how one-sided its book is */
@@ -516,7 +523,7 @@ class TrailsPaneRenderer {
     const focus = src.focusStrike;
     const hover = src.hover;
     const paper = src.paper;
-    const inks: MarkInks = paper ? { put: paper.put, call: paper.call, neutral: paper.neutral } : DARK_MARK_INKS;
+    const inks: MarkInks = paper ? { put: paper.put, call: paper.call, neutral: paper.neutral } : darkMarkInks();
     const ground = this.groundOf(chart, paper);
     const ringInk: RGB3 = paper ? paper.ink : [255, 255, 255];
 
@@ -547,7 +554,7 @@ class TrailsPaneRenderer {
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? col0.spot) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? col0.spot) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}`;
+      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
       const yCache = new Map<number, number | null>();
@@ -721,12 +728,12 @@ class TrailsPaneRenderer {
           paint(outlines, 'outline');
           bctx.lineWidth = Math.max(px, pxV);
           if (cwDrawn) {
-            const c = paper ? paper.cw : CW_RGB;
+            const c = paper ? paper.cw : inks.call;
             bctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(WALL_LINE_ALPHA * src.globalDim).toFixed(3)})`;
             bctx.fill(cwLine);
           }
           if (pwDrawn) {
-            const c = paper ? paper.pw : PW_RGB;
+            const c = paper ? paper.pw : inks.put;
             bctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(WALL_LINE_ALPHA * src.globalDim).toFixed(3)})`;
             bctx.fill(pwLine);
           }
@@ -924,7 +931,7 @@ class TrailsPaneRenderer {
           const xBar = ts.timeToCoordinate(bucket as Time);
           const y = series.priceToCoordinate(m.to);
           if (xBar === null || y === null || y < chipFloorCss || y > paneHCss) continue;
-          const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
+          const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? darkMarkInks().call : darkMarkInks().put;
           ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.95 * src.globalDim).toFixed(3)})`;
           ctx.fillRect(Math.round(xBar * hr - tw / 2), Math.round(y * vr - th / 2), tw, th);
         }
@@ -957,7 +964,7 @@ class TrailsPaneRenderer {
           const top = settle(l, l + w + padX * 2, want, full);
           if (top === null) continue;
           boxes.push({ l, r: l + w + padX * 2, t: top, b: top + full });
-          const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? CW_RGB : PW_RGB;
+          const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? darkMarkInks().call : darkMarkInks().put;
           ctx.fillStyle = padInk;
           ctx.fillRect(l, top, w + padX * 2, full);
           ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.95)`;
@@ -1463,7 +1470,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
        on a tape that keeps the net alone (store rows before 2026-10-14) it stands on |net|, and the legend says so */
     const sizeBy: 'gross' | 'net' = this.greek === 'gex' && last.levels.some(l => l.gross != null) ? 'gross' : 'net';
     /* the inks the nodes wear on this tape — the legend's swatches are drawn in them */
-    const inks: MarkInks = this.paper ? { put: this.paper.put, call: this.paper.call, neutral: this.paper.neutral } : DARK_MARK_INKS;
+    const inks: MarkInks = this.paper ? { put: this.paper.put, call: this.paper.call, neutral: this.paper.neutral } : darkMarkInks();
     return r.ref > 0 ? { ...r, greek: this.greek, sizeBy, inks, nodes: this.density ? TOP_NODES : 0 } : null;
   }
 

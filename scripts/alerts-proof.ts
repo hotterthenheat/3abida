@@ -15,8 +15,10 @@
   10. ALERTS WATCH THE REAL PRICE (2026-10-12): while the alerts watch the feed, an alert is armed from the market's own
       price (not the page's house figure), judged on it, and its firing is logged with the price and the market it was
       read off; with the feed down the house's price arms and judges as before; a stale real price is no price
+  11. TWO DRAWING SETS OF ONE NAME (the round-3 audit, B-68: the line alert came back on the feed): a line alert on the
+      feed's set (`feed:SPY`) and one on the house's set are each moved and taken off by their own set's saves only
 */
-import { armPrice, condHolds, evaluateAlert, evaluateAll, evaluateLine, getAlerts, getFiredLog, lineAt, markFired, removeAlert, type AlertContext, type AllAlert, type AllContext, type LineAlert, type LineBar } from '../src/components/gex/alertStore';
+import { armLine, armPrice, condHolds, evaluateAlert, evaluateAll, evaluateLine, getAlerts, getFiredLog, lineAt, markFired, removeAlert, syncLineAlerts, type AlertContext, type AllAlert, type AllContext, type LineAlert, type LineBar } from '../src/components/gex/alertStore';
 import { noteRealPrice, realPrice, REAL_PRICE_STALE_MS, resetAlertMarket, setAlertMarket } from '../src/components/gex/alertMarket';
 
 let pass = 0, fail = 0;
@@ -175,6 +177,22 @@ const line = (over: Partial<LineAlert> = {}): LineAlert => ({
   check('…and the page’s price arms again', back?.kind === 'price' && back.above === true);
   for (const a of getAlerts('PRF')) removeAlert('PRF', a.id);
   for (const a of getAlerts('PRG')) removeAlert('PRG', a.id);
+}
+
+// 11. two drawing sets of one name
+{
+  const P = { time: 1_000_000, price: 100 };
+  const feed = armLine('LNS', { drawingId: 'f1', shape: 'flat', p1: P, mode: 'touch', tf: '1m', armedBar: 0, drawSet: 'feed:LNS' });
+  const house = armLine('LNS', { drawingId: 'h1', shape: 'flat', p1: P, mode: 'touch', tf: '1m', armedBar: 0 });
+  check('a line alert on each set arms', !!feed && !!house && getAlerts('LNS').length === 2);
+  syncLineAlerts('LNS', [], 'LNS');
+  const left = getAlerts('LNS');
+  check('the house set saved empty takes off its own line alone — the feed set keeps its alert', left.length === 1 && left[0].kind === 'line' && left[0].drawingId === 'f1');
+  syncLineAlerts('LNS', [{ id: 'f1', p1: { time: 1_000_000, price: 101 } }], 'feed:LNS');
+  const moved = getAlerts('LNS')[0];
+  check('the feed set moving its line moves its alert', moved?.kind === 'line' && moved.p1.price === 101 && moved.side === 0);
+  syncLineAlerts('LNS', [], 'feed:LNS');
+  check('the feed set saved empty takes its alert off', getAlerts('LNS').length === 0);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -202,6 +202,32 @@ export const useResolvedTheme = (): Theme => useSyncExternalStore(subscribeTheme
     optional alpha — for canvas fills and chart options that cannot read var().
     Read from the document's computed style, so a scoped theme on an element
     is NOT seen here; pass the element whose scope should answer. */
+/** A token's rgb triple as it stands on a GROUND — a dark or a light island — whatever the page's theme: for a canvas that
+    draws on its own ground (Terrain's dark pane on a light page). Read off a hidden probe that wears data-theme, so the
+    reader's colour vision (`:root[data-cvd] [data-theme]`, tokens.css) applies. Null off the DOM. Cached with the other
+    tokens and dropped with them on a theme or colour-vision change. */
+const groundProbes: Partial<Record<'dark' | 'light', HTMLElement>> = {};
+export function groundRgb(name: string, ground: 'dark' | 'light'): [number, number, number] | null {
+  if (typeof document === 'undefined' || !document.body) return null;
+  const key = `ground|${ground}|${name}`;
+  let v = tokenCache.get(key);
+  if (v === undefined) {
+    let probe = groundProbes[ground];
+    if (!probe || !probe.isConnected) {
+      probe = document.createElement('span');
+      probe.setAttribute('data-theme', ground);
+      probe.setAttribute('aria-hidden', 'true');
+      probe.style.display = 'none';
+      document.body.appendChild(probe);
+      groundProbes[ground] = probe;
+    }
+    v = getComputedStyle(probe).getPropertyValue(name).trim();
+    if (v) tokenCache.set(key, v);
+  }
+  const n = v.split(/[\s,]+/).map(Number);
+  return n.length >= 3 && n.slice(0, 3).every(Number.isFinite) ? [n[0], n[1], n[2]] : null;
+}
+
 export function readToken(name: string, alpha?: number, from?: Element | null): string {
   const key = `${name}|${alpha ?? ''}|${from ? 'el' : ''}`;
   if (!from) {

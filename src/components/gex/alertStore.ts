@@ -225,6 +225,9 @@ export interface LineAlert extends AlertBase {
   armedBar: number;
   /** The bar it last fired on — never twice on one bar */
   lastBar: number;
+  /** The drawing set the line is kept in, where it is not the name's own (Terrain on the feed keeps its drawings under
+      `feed:SPY` — drawingsPrimitive saveDrawings): a save of one set never touches another set's alerts */
+  drawSet?: string;
 }
 
 /** ONE CONDITION OF AN AND (2026-10-10). Each is a state that holds or not right now, never an event */
@@ -345,7 +348,7 @@ const readAlert = (a: unknown): Alert | null => {
       const p2 = c.p2 === undefined ? undefined : pt(c.p2);
       if (typeof c.drawingId !== 'string' || (c.shape !== 'flat' && c.shape !== 'sloped') || !p1 || p2 === null || (c.shape === 'sloped' && !p2)) return null;
       if (!LINE_MODES.includes(c.mode as LineMode) || typeof c.tf !== 'string' || !isSide(c.side)) return null;
-      return { ...base, kind: 'line', drawingId: c.drawingId, shape: c.shape, p1, ...(p2 ? { p2 } : {}), mode: c.mode as LineMode, tf: c.tf, side: c.side, armedBar: isFin(c.armedBar) ? (c.armedBar as number) : 0, lastBar: isFin(c.lastBar) ? (c.lastBar as number) : 0 };
+      return { ...base, kind: 'line', drawingId: c.drawingId, shape: c.shape, p1, ...(p2 ? { p2 } : {}), mode: c.mode as LineMode, tf: c.tf, side: c.side, armedBar: isFin(c.armedBar) ? (c.armedBar as number) : 0, lastBar: isFin(c.lastBar) ? (c.lastBar as number) : 0, ...(typeof c.drawSet === 'string' ? { drawSet: c.drawSet } : {}) };
     }
     case 'all': {
       if (!Array.isArray(c.conds) || !isSide(c.met)) return null;
@@ -521,7 +524,7 @@ export function armScript(
 /** A DRAWN LINE (2026-10-10): set from the drawing's own bar on a chart — the same line in another mode is a second alert */
 export function armLine(
   ticker: string,
-  spec: Pick<LineAlert, 'drawingId' | 'shape' | 'p1' | 'p2' | 'mode' | 'tf' | 'armedBar'>
+  spec: Pick<LineAlert, 'drawingId' | 'shape' | 'p1' | 'p2' | 'mode' | 'tf' | 'armedBar' | 'drawSet'>
 ): Alert | null {
   if (!isFin(spec.p1.price) || (spec.shape === 'sloped' && !spec.p2)) return null;
   return arm(
@@ -544,13 +547,14 @@ export function armAll(ticker: string, conds: AllCond[]): Alert | null {
 
 /** THE LINE MOVED (its drawing was dragged, reshaped or taken off): every alert on it follows, or goes with it. Called with
     the chart's drawings each time they are saved (drawingsPrimitive.ts saveDrawings). */
-export function syncLineAlerts(ticker: string, lines: { id?: string; p1: LinePoint; p2?: LinePoint }[]): void {
+export function syncLineAlerts(ticker: string, lines: { id?: string; p1: LinePoint; p2?: LinePoint }[], drawSet: string = ticker): void {
   const list = read(ticker);
   if (!list.some(a => a.kind === 'line')) return;
   let changed = false;
   const next: Alert[] = [];
   for (const a of list) {
-    if (a.kind !== 'line') {
+    /* another set's line (the house's drawings of the name, or the feed's) is not this save's to move or take off */
+    if (a.kind !== 'line' || (a.drawSet ?? ticker) !== drawSet) {
       next.push(a);
       continue;
     }

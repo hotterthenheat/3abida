@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { getColourVision, groundRgb } from '../../theme/theme';
 
 /*
   Heatmap cell coloring for the GEX matrix + ladders.
@@ -506,6 +507,31 @@ export function heatRampColor(sign: 1 | -1, t: number): RGB {
      · a CAPSULE, which carries its own figure, goes from a faint TINT of the pole on the page's inset grey to the
        pole itself, and the figure's ink is chosen by measured contrast as it always was.
    The dark ramps are untouched — a light-theme change never moves the dark theme. */
+/* THE GAMMA PAIR FOLLOWS THE READER'S COLOUR VISION (the round-3 audit, 2026-10-15): under Settings' blue–orange pair the
+   tokens move the gold paler and the violet redder so they stand off the blue and orange candles (tokens.css), but these
+   ramps were numbers — the ovals, the ladder and every heat surface kept the standard pair (measured: the ovals drew
+   232 185 74 and 128 100 247 while the tokens read 250 222 110 and 150 78 230). A colour-vision choice now builds the
+   gold-violet ramp on the tokens as they stand on a dark ground — the same straight journey from the dark zero to each
+   pole — and the paper poles on a light one; the standard choice keeps the numbers exactly. */
+let cvdGv: { vision: string; pal: RampPalette; paper: { pos: RGB; neg: RGB } } | null = null;
+function cvdGoldViolet(): { pal: RampPalette; paper: { pos: RGB; neg: RGB } } | null {
+  const vision = getColourVision();
+  if (vision === 'standard') return null;
+  if (cvdGv?.vision === vision) return cvdGv;
+  const ap = groundRgb('--amplify', 'dark');
+  const ab = groundRgb('--absorb', 'dark');
+  const lp = groundRgb('--amplify', 'light');
+  const lb = groundRgb('--absorb', 'light');
+  if (!ap || !ab || !lp || !lb) return null;
+  const stops = (pole: RGB): Stops => Array.from({ length: 9 }, (_, i): [number, RGB] => [i / 8, mixRgb(NEUTRAL, pole, i / 8)]);
+  cvdGv = { vision, pal: { ...RAMPS['gold-violet'], pos: stops(ap), neg: stops(ab) }, paper: { pos: lp, neg: lb } };
+  return cvdGv;
+}
+/** A mode's ramp — the gold-violet one on the reader's colour vision */
+function palOf(mode: HeatMode): RampPalette | undefined {
+  if (mode === 'gold-violet') return cvdGoldViolet()?.pal ?? RAMPS['gold-violet'];
+  return RAMPS[mode as keyof typeof RAMPS];
+}
 const PAPER_MUTED: RGB = [75, 78, 86]; /* --text-muted on paper */
 const PAPER_INSET: RGB = [245, 244, 240]; /* --inset on paper, the island's ground */
 const PAPER_POLES: Record<'gold-violet' | 'ember-glacier' | 'thermal-yellow', { pos: RGB; neg: RGB }> = {
@@ -515,7 +541,7 @@ const PAPER_POLES: Record<'gold-violet' | 'ember-glacier' | 'thermal-yellow', { 
   'thermal-yellow': { pos: [165, 0, 38], neg: [49, 54, 149] },
 };
 const paperPole = (sign: 1 | -1, mode: HeatMode): RGB => {
-  const p = PAPER_POLES[mode as keyof typeof PAPER_POLES] ?? PAPER_POLES['gold-violet'];
+  const p = (mode === 'gold-violet' ? cvdGoldViolet()?.paper : null) ?? PAPER_POLES[mode as keyof typeof PAPER_POLES] ?? PAPER_POLES['gold-violet'];
   return sign >= 0 ? p.pos : p.neg;
 };
 const mixRgb = (a: RGB, b: RGB, u: number): RGB => [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
@@ -527,7 +553,7 @@ const paperTint = (sign: 1 | -1, t: number, mode: HeatMode): RGB => mixRgb(PAPER
 /** The same journey on any ramp — the ladder's Colours card picks the mode (2026-09-08); `paper` reads the paper ink ramp */
 export function heatRampColorFor(sign: 1 | -1, t: number, mode: HeatMode, paper = false): RGB {
   if (paper) return paperInk(sign, t, mode);
-  const r = RAMPS[mode as keyof typeof RAMPS];
+  const r = palOf(mode);
   const tt = Math.max(0, Math.min(1, t));
   if (!r) {
     const c = Math.round((0.3 + 0.6 * tt) * 255);
@@ -541,12 +567,11 @@ const ROSE: RGB = [255, 59, 48];
 const TINT_START = 0.78;
 const TINT_MAX = 0.5;
 
-const ramp = RAMPS[HEAT_MODE as keyof typeof RAMPS];
 
 /** One cell's fill and ink. `mode` lets ONE surface read another ramp (the
     Ledger's thermal try) without moving the terminal-wide HEAT_MODE. */
 export function heatCellStyle(value: number, maxAbs: number, mode: HeatMode = HEAT_MODE, paper = false): CSSProperties {
-  const pal = mode === HEAT_MODE ? ramp : RAMPS[mode as keyof typeof RAMPS];
+  const pal = palOf(mode);
   const t = heatT(value, maxAbs, pal?.gamma);
 
   if (paper) {
@@ -597,7 +622,7 @@ export function heatCellStyle(value: number, maxAbs: number, mode: HeatMode = HE
 export function heatLaneInks(mode: HeatMode = HEAT_MODE, t = 0.7, paper = false): { pos: string; neg: string } {
   const hex = (c: RGB) => `rgb(${c[0]},${c[1]},${c[2]})`;
   if (paper) return { pos: hex(paperInk(1, 1, mode)), neg: hex(paperInk(-1, 1, mode)) };
-  const pal = RAMPS[mode as keyof typeof RAMPS];
+  const pal = palOf(mode);
   if (!pal) return { pos: '#ededed', neg: '#8f8f8f' };
   return { pos: hex(rampColor(pal.pos, t)), neg: hex(rampColor(pal.neg, t)) };
 }
@@ -608,7 +633,7 @@ export function heatLaneInks(mode: HeatMode = HEAT_MODE, t = 0.7, paper = false)
     thermal?"). `floor` keeps a small lane visible: the house zero is the
     panel's own dark, so a lane at t=0 would vanish. */
 export function heatLaneColor(value: number, maxAbs: number, mode: HeatMode = HEAT_MODE, floor = 0.3, paper = false): string {
-  const pal = RAMPS[mode as keyof typeof RAMPS];
+  const pal = palOf(mode);
   if (paper) {
     /* on paper the floor is the muted ink itself — every figure reads — so the journey starts a little up the ramp
        only to keep a small bar from being pure grey */
@@ -655,7 +680,7 @@ export function ladderRampT(sign: 1 | -1, t: number, mode: HeatMode, paper = fal
 }
 /** A ladder bar's or figure's ink: the amount against the CUT, through the window, on the page's ramp */
 export function heatLadderColor(value: number, cut: number, mode: HeatMode, paper = false): string {
-  const pal = RAMPS[mode as keyof typeof RAMPS];
+  const pal = palOf(mode);
   const sign: 1 | -1 = value >= 0 ? 1 : -1;
   const u = ladderRampT(sign, heatT(value, cut, pal?.gamma), mode, paper);
   const c = paper ? paperInk(sign, u, mode) : pal ? rampColor(sign >= 0 ? pal.pos : pal.neg, u) : ([128, 128, 128] as RGB);

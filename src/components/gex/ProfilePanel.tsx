@@ -73,7 +73,7 @@ import type { PriceProjection } from './StrikeChart';
 import type { Candle, GexLevel } from '../../types/market';
 import type { KeyLevels } from '../../types/gex';
 import { FONT_SANS } from '../../theme/fonts';
-import { readToken, useResolvedTheme } from '../../theme/theme';
+import { dirOf, groundRgb, readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
 
 export type ProfileLane = 'both' | 'size' | 'flow';
 export const LANE_OPTIONS: DropdownOption<ProfileLane>[] = [
@@ -201,6 +201,9 @@ const SANS = FONT_SANS;
 const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? num(v, 0) : num(v, 2));
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 const rgba = (hex: string, a: number) => {
+  /* an ink resolved off a token is rgb(r,g,b) (the colour-vision set, darkInksFor) */
+  const m = /^rgba?\((\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(hex);
+  if (m) return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${a})`;
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 };
@@ -220,6 +223,9 @@ interface PanelInks {
   silverSoft: string;
   callWall: string;
   putWall: string;
+  /** the direction pair — the Δ from spot (a canvas cannot read `rgb(var(--bull))`, so the ink is resolved here) */
+  bull: string;
+  bear: string;
   supreme: string;
   supremeWash: string;
   flipRule: string;
@@ -257,6 +263,8 @@ const DARK_INKS: PanelInks = {
   silverSoft: rgba(SILVER, 0.6),
   callWall: CALL_WALL,
   putWall: PUT_WALL,
+  bull: 'rgb(48,209,88)',
+  bear: 'rgb(255,59,48)',
   supreme: SUPREME,
   supremeWash: rgba(SUPREME, 0.13),
   flipRule: rgba(FLIP, 0.7),
@@ -281,6 +289,16 @@ const DARK_INKS: PanelInks = {
   markFill: '#0e0e0f',
   alpha: rgba,
 };
+/** The dark set under a colour-vision choice (Settings › Appearance): the walls and the direction pair as the tokens
+    stand on a dark ground (theme.ts groundRgb) — the standard choice keeps DARK_INKS exactly */
+const darkInksFor = (vision: string): PanelInks => {
+  if (vision === 'standard') return DARK_INKS;
+  const rgb = (name: string, fallback: string) => {
+    const v = groundRgb(name, 'dark');
+    return v ? `rgb(${v[0]},${v[1]},${v[2]})` : fallback;
+  };
+  return { ...DARK_INKS, callWall: rgb('--absorb', CALL_WALL), putWall: rgb('--amplify', PUT_WALL), bull: rgb('--bull', DARK_INKS.bull), bear: rgb('--bear', DARK_INKS.bear) };
+};
 /** The light set, read off the panel's box — resolved when the ground or the page's theme changes, never per frame */
 const lightInks = (el: Element): PanelInks => {
   const t = (name: string, a?: number) => readToken(name, a, el);
@@ -294,6 +312,8 @@ const lightInks = (el: Element): PanelInks => {
        violet (amplify) */
     callWall: t('--absorb'),
     putWall: t('--amplify'),
+    bull: t('--bull'),
+    bear: t('--bear'),
     supreme: t('--supreme'),
     /* 0.09: the supreme's own magenta label on its row stays 4.5:1 on the light page's panel */
     supremeWash: t('--supreme', 0.09),
@@ -423,10 +443,11 @@ const ProfilePanel = ({
   /* the canvas's inks, re-read off the box when the ground or the page's theme changes (the light page lifts the
      light set — index.css) */
   const pageTheme = useResolvedTheme();
+  const vision = useColourVision();
   const inksRef = useRef<PanelInks>(DARK_INKS);
   useEffect(() => {
-    inksRef.current = paper && rootRef.current ? lightInks(rootRef.current) : DARK_INKS;
-  }, [paper, pageTheme]);
+    inksRef.current = paper && rootRef.current ? lightInks(rootRef.current) : darkInksFor(vision);
+  }, [paper, pageTheme, vision]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const placedRef = useRef<Placed[]>([]);
   const [hover, setHover] = useState<Hover | null>(null);
@@ -575,7 +596,7 @@ const ProfilePanel = ({
   }, [mode]);
   useEffect(() => {
     dataRev.current++;
-  }, [rows, maxAbs, legs, openRatio, lagged, mode, step, levels, flow, lane, focusPrice, vp, view, paper, pageTheme]);
+  }, [rows, maxAbs, legs, openRatio, lagged, mode, step, levels, flow, lane, focusPrice, vp, view, paper, pageTheme, vision, sigmaRem]);
 
   const showSize = lane !== 'flow';
   const showFlow = lane !== 'size';
@@ -801,7 +822,10 @@ const ProfilePanel = ({
       /* THE KEY under the head (the full and mid tiers, the ladder view): the ramp's two poles
          with their words, the spine, the ghost at the open — ONLY WHILE ONE IS DRAWN (the audit of 2026-10-13: the
          key named "at the open" before today's first 9:30 column, with no ghost on the panel) — the supreme's magenta */
-      const hasGhost = !!openRatio && placed.some(r => openRatio.has(r.strike));
+      /* the spine and the ghost at the open are the ladder view's (Sides) alone: in the Net view the key names neither
+         (the audit's C-15 — it named "the spine now" and "at the open" over bars that drew neither) */
+      const hasGhost = !!openRatio && view !== 'net' && placed.some(r => openRatio.has(r.strike));
+      const hasSupreme = placed.some(r => near(r.strike, levels.supreme));
       /* the ghost dots stand on the ladder view's spine alone */
       const hasLagged = !!lagged && showSize && view !== 'net' && placed.some(r => lagged.get(r.strike)?.some(v => v != null));
       /** A ghost dot: 10 minutes before a filled dot, 30 a smaller fainter one, 60 a ring */
@@ -817,16 +841,25 @@ const ProfilePanel = ({
           ctx.fill();
         }
       };
+      /* the key's words as drawn, on the canvas's data-key (its words for a check and for a reader; the canvas is aria-hidden) */
+      const keyWords: string[] = [];
       if (keyOn) {
         const ky = headTop + KEY_BAND / 2 + 0.5;
         let kx = 8;
         const swatch = (sign: 1 | -1, w: number) => {
-          const g = ctx.createLinearGradient(kx, 0, kx + w, 0);
-          const [r0, g0, b0] = legRamp(sign, 0.15);
-          const [r1, g1, b1] = legRamp(sign, 0.9);
-          g.addColorStop(0, `rgb(${r0},${g0},${b0})`);
-          g.addColorStop(1, `rgb(${r1},${g1},${b1})`);
-          ctx.fillStyle = g;
+          /* the Net view's bars are one flat ink a side (sideInk), the ladder view's legs a journey along the ramp */
+          if (view === 'net') {
+            const [rr, gg, bb] = ramp(sign, pal.to === 'gold-violet' ? 1 : 0.8);
+            ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+          }
+          else {
+            const g = ctx.createLinearGradient(kx, 0, kx + w, 0);
+            const [r0, g0, b0] = legRamp(sign, 0.15);
+            const [r1, g1, b1] = legRamp(sign, 0.9);
+            g.addColorStop(0, `rgb(${r0},${g0},${b0})`);
+            g.addColorStop(1, `rgb(${r1},${g1},${b1})`);
+            ctx.fillStyle = g;
+          }
           ctx.beginPath();
           ctx.roundRect(kx, ky - 3, w, 6, 2);
           ctx.fill();
@@ -840,20 +873,23 @@ const ProfilePanel = ({
           ctx.textBaseline = 'middle';
           ctx.fillText(t, kx, ky);
           kx += ctx.measureText(t).width + 8;
+          keyWords.push(t);
         };
         const full = tierNow === 'full';
         swatch(1, 14);
         word(full ? 'puts amplify' : 'puts');
         swatch(-1, 14);
         word(full ? 'calls absorb' : 'calls');
-        ctx.strokeStyle = ink.spine;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(kx, ky);
-        ctx.lineTo(kx + 12, ky);
-        ctx.stroke();
-        kx += 16;
-        word(full ? 'the spine now' : 'now');
+        if (view !== 'net') {
+          ctx.strokeStyle = ink.spine;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(kx, ky);
+          ctx.lineTo(kx + 12, ky);
+          ctx.stroke();
+          kx += 16;
+          word(full ? 'the spine now' : 'now');
+        }
         if (hasGhost) {
           ctx.save();
           ctx.setLineDash([3, 3]);
@@ -876,11 +912,15 @@ const ProfilePanel = ({
           kx += 2;
           word(full ? '10 · 30 · 60 min before' : '10·30·60m');
         }
-        ctx.fillStyle = ink.supreme;
-        ctx.fillRect(kx, ky - 3, 6, 6);
-        kx += 10;
-        word('supreme', ink.supreme);
+        if (hasSupreme) {
+          ctx.fillStyle = ink.supreme;
+          ctx.fillRect(kx, ky - 3, 6, 6);
+          kx += 10;
+          word('supreme', ink.supreme);
+        }
       }
+      const keyText = keyWords.join(' · ');
+      if (canvas.dataset.key !== keyText) canvas.dataset.key = keyText;
       /* THE COLUMN HEADS over the rows — the partner's header row in the house's letters: the
          lane's name centred over it (◂ PUTS · CALLS ▸, or NET on the net view), STRIKE over the
          column with Δ SPOT at its right when the column is wide, the flow lane's name over it */
@@ -1431,7 +1471,7 @@ const ProfilePanel = ({
           const sr = sigmaRemRef.current;
           const sg = sr && sr > 0 && Number.isFinite(levels.spot) ? Math.abs(k - levels.spot) / sr : null;
           ctx.font = `9px ${FIG}`;
-          ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : ink.ink3;
+          ctx.fillStyle = d > 0 ? ink.bull : d < 0 ? ink.bear : ink.ink3;
           ctx.textAlign = 'right';
           const dWords = pctSigned(d);
           if (sg != null) {
@@ -1439,7 +1479,7 @@ const ProfilePanel = ({
             const sw = ctx.measureText(sWords).width;
             ctx.fillStyle = ink.ink3;
             ctx.fillText(sWords, colR - 6, r.y);
-            ctx.fillStyle = d > 0 ? 'rgb(var(--bull))' : d < 0 ? 'rgb(var(--bear))' : ink.ink3;
+            ctx.fillStyle = d > 0 ? ink.bull : d < 0 ? ink.bear : ink.ink3;
             ctx.fillText(dWords, colR - 6 - sw, r.y);
           } else ctx.fillText(dWords, colR - 6, r.y);
         }
@@ -1636,8 +1676,8 @@ const ProfilePanel = ({
           {ticker ? `${ticker} ` : ''}
           {fmtStrike(cardRow.strike)}
         </span>
-        <span className={`font-mono text-[11px] tnum ${cardRow.strike > levels.spot ? 'text-bull' : cardRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`}>
-          {cardRow.strike > levels.spot ? '+' : ''}
+        {/* pctSigned carries the sign (the audit's C-32: a '+' of its own before it printed "++0.52%") */}
+        <span className={`font-mono text-[11px] tnum ${cardRow.strike > levels.spot ? 'text-bull' : cardRow.strike < levels.spot ? 'text-bear' : 'text-textMuted'}`} data-dir={dirOf(cardRow.strike - levels.spot)}>
           {pctSigned(((cardRow.strike - levels.spot) / levels.spot) * 100)} from spot
         </span>
         {readRole && (
@@ -1675,12 +1715,12 @@ const ProfilePanel = ({
         </div>
         <div>
           <div className="font-mono text-[11px] uppercase tracking-wider text-textMuted">Open int</div>
-          <div className="mt-0.5 font-mono text-[11px] tnum text-textPrimary">{cardLevel && (cardLevel.callOI != null || cardLevel.putOI != null) ? ((cardLevel.callOI ?? 0) + (cardLevel.putOI ?? 0)).toLocaleString('en-US') : '—'}</div>
+          <div className="mt-0.5 font-mono text-[11px] tnum text-textPrimary">{cardLevel && (cardLevel.callOI != null || cardLevel.putOI != null) ? num((cardLevel.callOI ?? 0) + (cardLevel.putOI ?? 0), 0) : '—'}</div>
         </div>
         <div>
           <div className="font-mono text-[11px] uppercase tracking-wider text-textMuted">Since open</div>
           {/* the figure in the direction's ink; with no figure the short words take its line */}
-          <div className={`mt-0.5 font-mono text-[11px] tnum ${sinceOpen == null ? 'text-textMuted' : sinceOpen.dir < 0 ? 'text-bear' : sinceOpen.dir > 0 ? 'text-bull' : 'text-textPrimary'}`} data-card-since>
+          <div className={`mt-0.5 font-mono text-[11px] tnum ${sinceOpen == null ? 'text-textMuted' : sinceOpen.dir < 0 ? 'text-bear' : sinceOpen.dir > 0 ? 'text-bull' : 'text-textPrimary'}`} data-card-since data-dir={sinceOpen?.figure ? dirOf(sinceOpen.dir) : undefined}>
             {sinceOpen == null ? '—' : sinceOpen.figure ?? sinceOpen.short}
           </div>
           {sinceOpen?.figure && <div className="text-[11px] text-textMuted">{sinceOpen.short}</div>}

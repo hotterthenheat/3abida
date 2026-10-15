@@ -48,7 +48,9 @@ interface PaneHeadProps {
   timeframes: ReactNode | null;
   tf: { value: Timeframe; onChange: (tf: Timeframe) => void; held?: Partial<Record<Timeframe, string>> };
   /** The expiry window on the feed, at the form the host's budget affords; null off the feed or without the room */
-  window: { value: WindowValue; onChange: (v: WindowValue) => void; form: 'full' | 'trigger' } | null;
+  /** `date`: a listed date the rail's Expiry card picked ("Oct 17") — then no window is the one in hand, and the control
+      says the date (the audit's A-39: it showed "60d" pressed while the field read one date) */
+  window: { value: WindowValue; onChange: (v: WindowValue) => void; form: 'full' | 'trigger'; date?: string | null } | null;
   /** The jumps at the form the host's budget affords, and the calendar's bounds (ISO dates); null without the room */
   jump: { onSpan: (s: JumpSpan) => void; onDate: (iso: string) => void; minDate?: string; maxDate?: string; form: 'full' | 'trigger' } | null;
   /** Replay · Alerts · Layers — the toolbar's three doors (ChartToolbar `parts`); null when the host's budget sent them
@@ -121,15 +123,22 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
   );
   const windowForm: 'full' | 'trigger' | 'none' = window?.form ?? 'none';
   const jumpForm: 'full' | 'trigger' | 'none' = jump?.form ?? 'none';
-  const current = window ? WINDOW_OPTS.find(o => o.value === window.value) ?? WINDOW_OPTS[3] : null;
+  const dated = window?.date ?? null;
+  const current = window ? (dated ? { value: window.value, short: dated, label: dated, hint: 'One listed date, picked in the Expiry card — a window here reads a window instead' } : WINDOW_OPTS.find(o => o.value === window.value) ?? WINDOW_OPTS[3]) : null;
+  const inHand = (v: WindowValue) => !dated && v === window?.value;
   const chip = 'hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] transition-colors';
   const on = 'bg-ink/[0.14] text-textPrimary font-semibold';
   const off = 'text-textMuted hover:text-textPrimary';
   const windowControl =
     windowForm === 'none' || !window || !current ? null : windowForm === 'full' ? (
-      <span role="group" aria-label="Expiry window" className="shrink-0 pointer-events-auto inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-pane-window={window.value}>
+      <span role="group" aria-label="Expiry window" className="shrink-0 pointer-events-auto inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" data-pane-window={dated ? 'date' : window.value}>
+        {dated && (
+          <span className={`${chip} ${on} inline-flex items-center`} title={current.hint} data-window-date>
+            {dated}
+          </span>
+        )}
         {WINDOW_OPTS.map(o => (
-          <button key={o.value} type="button" aria-pressed={o.value === window.value} title={`${o.label} — ${o.hint}`} onClick={() => window.onChange(o.value)} className={`${chip} ${o.value === window.value ? on : off}`} data-window-pick={o.value}>
+          <button key={o.value} type="button" aria-pressed={inHand(o.value)} title={`${o.label} — ${o.hint}`} onClick={() => window.onChange(o.value)} className={`${chip} ${inHand(o.value) ? on : off}`} data-window-pick={o.value}>
             {o.short}
           </button>
         ))}
@@ -142,7 +151,7 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
         open={winOpen}
         onOpenChange={setWinOpen}
         trigger={
-          <button type="button" title={`Expiry window — ${current.label}: ${current.hint}`} aria-label={`Expiry window — ${current.label}`} className={`hit shrink-0 pointer-events-auto inline-flex items-center gap-0.5 h-[18px] px-1.5 rounded-[3px] border border-ink/[0.10] font-mono text-[11px] text-textPrimary`} data-pane-window={window.value} data-window-trigger>
+          <button type="button" title={`Expiry window — ${current.label}: ${current.hint}`} aria-label={`Expiry window — ${current.label}`} className={`hit shrink-0 pointer-events-auto inline-flex items-center gap-0.5 h-[18px] px-1.5 rounded-[3px] border border-ink/[0.10] font-mono text-[11px] text-textPrimary`} data-pane-window={dated ? 'date' : window.value} data-window-trigger>
             {current.short}
             <ChevronDown className="w-3 h-3 text-textMuted" aria-hidden />
           </button>
@@ -150,7 +159,7 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
       >
         <div role="group" aria-label="Expiry window" className="p-1.5 flex flex-col gap-0.5">
           {WINDOW_OPTS.map(o => (
-            <button key={o.value} type="button" aria-pressed={o.value === window.value} onClick={() => { window.onChange(o.value); setWinOpen(false); }} className={`flex items-start gap-2 px-2 py-1.5 rounded text-left transition-colors hover:bg-ink/[0.03] ${o.value === window.value ? 'text-textPrimary' : 'text-textSecondary'}`} data-window-pick={o.value}>
+            <button key={o.value} type="button" aria-pressed={inHand(o.value)} onClick={() => { window.onChange(o.value); setWinOpen(false); }} className={`flex items-start gap-2 px-2 py-1.5 rounded text-left transition-colors hover:bg-ink/[0.03] ${inHand(o.value) ? 'text-textPrimary' : 'text-textSecondary'}`} data-window-pick={o.value}>
               <span className="font-mono text-[11px] font-semibold w-10 shrink-0">{o.short}</span>
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold">{o.label}</span>
@@ -233,12 +242,14 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
   return (
     <div className={`pointer-events-none select-none flex items-center gap-2 whitespace-nowrap min-w-0 ${className}`} data-pane-head data-window-form={windowForm} data-jump-form={jumpForm}>
       <span className="shrink-0 flex items-center gap-2 pointer-events-auto">{identity}</span>
-      <span className="shrink-0 flex items-center gap-1.5">{facts}</span>
+      {/* pointer-events-auto: the price's "as old as the data" title and the age chip's words (its only words in the dot
+          form) stood in a row that takes no pointer, so neither could be hovered (the audit's A-18, A-23) */}
+      <span className="shrink-0 flex items-center gap-1.5 pointer-events-auto">{facts}</span>
       {age && (
         /* THE AGE CHIP: live wears the signature's silver dot; old, the warn ink and its age — the data-age state (pass 3)
            reads the same words; as a dot alone the words are its title */
         <span
-          className={`shrink-0 inline-flex items-center gap-1 h-[18px] ${ageForm === 'dot' ? 'px-0.5' : 'px-1.5'} rounded-[3px] font-mono text-[11px] tnum ${age.kind === 'live' ? 'text-textSecondary' : age.kind === 'old' ? 'text-warn bg-warn/[0.10]' : 'text-textMuted'}`}
+          className={`pointer-events-auto shrink-0 inline-flex items-center gap-1 h-[18px] ${ageForm === 'dot' ? 'px-0.5' : 'px-1.5'} rounded-[3px] font-mono text-[11px] tnum ${age.kind === 'live' ? 'text-textSecondary' : age.kind === 'old' ? 'text-warn bg-warn/[0.10]' : 'text-textMuted'}`}
           title={`${ageForm === 'dot' ? `${age.words} — ` : ''}${age.kind === 'live' ? 'Live — the newest bar, quote or column is within a bar of now' : age.kind === 'old' ? `The newest data is ${age.words} — the feed has not answered since` : age.kind === 'closed' ? 'The market is closed — the newest moment the pane holds' : 'Nothing dated yet'}`}
           aria-label={age.words}
           data-pane-age={age.kind}

@@ -79,6 +79,7 @@ import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { CANDLE_THEMES, chartGround, pageDefaultCandleKey, usePageDefaultCandleKey, type CandleThemeKey } from '../../components/gex/candleTheme';
 import { TIMEFRAMES, tfMinutes, type Timeframe } from '../../data/timeframe';
+import { fmtSession } from '../../components/gex/chartTime';
 import { TREND_GLYPH, buildConfluence, trendWords, type ConfluenceRow } from '../../data/confluence';
 import { OPENING_RANGES, type OpeningRange } from '../../data/sessionLevels';
 import { isBarClock } from '../../data/altBars';
@@ -1565,7 +1566,8 @@ const Pane = ({
     /* the age chip as a dot first — the least a column can hold beyond the floor */
     const ageDot = take(10 + GAPX);
     const tabsTight = take(72);
-    const windowTrigger = onFeed && !isCashIndex(ticker) ? take(49 + GAPX) : false;
+    /* every name whose field the window cuts — SPX's too, modeled since 2026-10-15 (the audit's A-39 found it hidden) */
+    const windowTrigger = onFeed && fieldName ? take(49 + GAPX) : false;
     const jumpTrigger = !noBars ? take(83 + GAPX) : false;
     const tools = take(132 + 1 + 2 * GAPX);
     const change = take(44 + GAPX);
@@ -1744,6 +1746,10 @@ const Pane = ({
     },
     [timeframe, onCfg]
   );
+  /* A DAY OLDER THAN THE SESSIONS IN HAND (the audit's B-73): the server's tiles reach further back than the minutes the
+     page holds, so a day jump first asks the tiles back to that day and jumps once they are in — it was refused by the
+     calendar (its earliest day was the minutes') or landed on "no data" before the block came */
+  const [dayWanted, setDayWanted] = useState<string | null>(null);
   const jumpDate = useCallback(
     (day: string, wanted?: Timeframe) => {
       /* a day the minutes reach keeps an intraday pane; an older one takes the day bars — unless the host names one */
@@ -1752,10 +1758,34 @@ const Pane = ({
       const next: Timeframe = wanted ?? (ageDays > 30 ? '1D' : m >= 1 && m <= 60 ? timeframe : '15m');
       if (next !== timeframe) onCfg({ timeframe: next });
       setNoDay(null);
+      if (tilesOn && tfMinutes(next) < 1440 && tiledBefore.length && day >= tiledBefore[0] && day < (tileDays[0] ?? tilesToday)) {
+        setDayWanted(day);
+        return;
+      }
+      setDayWanted(null);
       setJumpTo({ nonce: ++jumpNonce.current, kind: 'day', day });
     },
-    [timeframe, onCfg]
+    [timeframe, onCfg, tilesOn, tiledBefore, tileDays, tilesToday]
   );
+  useEffect(() => {
+    if (!dayWanted) return;
+    if (!tilesOn || !tileTf) {
+      setJumpTo({ nonce: ++jumpNonce.current, kind: 'day', day: dayWanted });
+      setDayWanted(null);
+      return;
+    }
+    const i = tiledBefore.findIndex(d => d >= dayWanted);
+    const need = i < 0 ? 0 : tiledBefore.length - i;
+    if (tileSpan + tileExtra < need) {
+      setTileExtra(need - tileSpan);
+      return;
+    }
+    const key = i < 0 ? null : tiledBefore[i];
+    if (key && !tileDay(ticker, tileTf, win, key) && !tileSaid(ticker, tileTf, win, key)?.failed) return;
+    setJumpTo({ nonce: ++jumpNonce.current, kind: 'day', day: dayWanted });
+    setDayWanted(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayWanted, tilesOn, tileTf, tiledBefore, tileSpan, tileExtra, ticker, win, tiles.version]);
   /* the sessions either side of a day the tape lacks (weekends skipped; a holiday is found by the tape's own answer) */
   const nextSession = (iso: string): string => {
     const d = new Date(`${iso}T12:00:00Z`);
@@ -1765,9 +1795,12 @@ const Pane = ({
   };
   const jumpMin = useMemo(() => {
     const first = (fDaily && fDaily.length ? fDaily[0] : null) ?? (fBars.bars && fBars.bars.length ? fBars.bars[0] : null) ?? (!offHouse ? (Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? [])[0] : null);
-    return first ? nyIsoDate(first.time * 1000) : undefined;
+    const fromBars = first ? nyIsoDate(first.time * 1000) : undefined;
+    /* the oldest session the server has tiles for reaches further back than the minutes in hand */
+    const fromTiles = tilesOn && tiledBefore.length ? tiledBefore[0] : undefined;
+    return fromBars && fromTiles ? (fromTiles < fromBars ? fromTiles : fromBars) : (fromBars ?? fromTiles);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fDaily, fBars.bars, offHouse, ticker]);
+  }, [fDaily, fBars.bars, offHouse, ticker, tilesOn, tiledBefore]);
   /* HOW OLD WHAT THE PANE SHOWS IS — the header's Live / data-age chip (paneAge.ts): the newest of the last bar's end,
      the quote's moment and the field's newest column against the clock; a closed market is not stale data */
   const age = useMemo<PaneAge | null>(() => {
@@ -2151,6 +2184,10 @@ const Pane = ({
      Strikes door on the pane lays the ladder over the chart's right side, on the chart's own price rows — the rail
      beside the chart needs a desk's width, the overlay does not. Off until pressed; a slot's business, never stored. */
   const [narrowLadder, setNarrowLadder] = useState(false);
+  /* Esc closes the day panel and the ladder laid over the chart, as their titles and the keys sheet say (the audit's C-55
+     and C-35) — modes, not dialogs: the desk's keys keep working while they stand */
+  useEscapeLayer(!!dayPanel, () => setDayPanel(null), { mode: true });
+  useEscapeLayer(belowLg && narrowLadder, () => setNarrowLadder(false), { mode: true });
 
   /* THE GAPS' REASONS (the owner's B1, 2026-10-14: "Never a blank chart without a reason"): a run of bars with no column
      of the field says why, from the store's state — the session's hours (the book is read 9:30 to 4:00 New York, said on
@@ -2271,6 +2308,31 @@ const Pane = ({
     tape. Same reason `focus` resets.
   */
   const [readout, setReadout] = useState<CrosshairBar | null>(null);
+  /* the hovered bar's moment: a day or a week bar names its New York session, an intraday bar its time on the reader's
+     clock (the readout had no time — its `when` was never handed) */
+  /* THE FOOT ROW's parts (the JSX below): the field filling, the way back to live, the phone's peek, the stale banner */
+  const buildingOn = onFeed && overlays.trails && !noBars && (!fTrail.full || (tilesOn ? (preTape?.days.length ?? 0) < tileDays.length : !!fPast && fPast.ready < fPast.asked));
+  /* before the recorder's first read of the day (it reads from 4:00 am New York) nothing is being read: the words say when
+     it starts, not that it is under way (the round-3 shots, 11:49 pm: "the chain is being read" at night) */
+  const firstReadMin = 4 * 60;
+  const beforeFirstRead = nyMinutes(Date.now()) < firstReadMin && isTradingIso(nyIsoDate());
+  const caught = tilesOn ? `${preTape?.days.length ?? 0} of ${tileDays.length}` : `${fPast?.ready ?? 0} of ${fPast?.asked ?? 0}`;
+  const buildingLong = !buildingOn ? null : !fTrail.full ? (beforeFirstRead ? `Today's field starts with the first chain read, ${marketClock(4, 0)}` : 'Building · the chain is being read') : `Catching up · earlier sessions ${caught} in`;
+  const buildingShort = !buildingOn ? null : !fTrail.full ? (beforeFirstRead ? `Field from ${marketClock(4, 0)}` : 'Building') : `Catching up ${caught}`;
+  const backLive = !atLive && !rp.active && !noBars;
+  /* the long words where the foot row holds them (about 6 px a letter at 11 px), else the short — never cut mid-word; where
+     the words and "Back to live" do not fit one line, "Back to live" takes the line above (footWrap) */
+  const footRoom = stripW - (belowLg ? 12 : 56) - PRICE_GUTTER_PX - 8;
+  const wordsW = (w: string | null) => (w ? w.length * 6 + 16 : 0);
+  const fitsBeside = (w: string | null) => !backLive || wordsW(w) + 108 <= footRoom;
+  const buildingWords = buildingLong && wordsW(buildingLong) <= footRoom && fitsBeside(buildingLong) ? buildingLong : buildingShort && !fitsBeside(buildingShort) && wordsW(buildingLong) <= footRoom ? buildingLong : buildingShort;
+  const footWrap = backLive && !!buildingWords && !fitsBeside(buildingWords);
+  const footBusy = !!buildingWords || backLive || (stale && !!age) || (belowLg && !narrowLadder && peek.length > 0);
+  /* the Reset pill a row above the foot row's tallest stack (each row about 1.75rem) */
+  const leftRows = (buildingWords ? 1 : 0) + (stale && age ? 1 : 0) + (belowLg && !narrowLadder && peek.length > 0 ? 1 : 0);
+  const footRows = Math.min(4, footWrap ? leftRows + 1 : Math.max(backLive ? 1 : 0, leftRows));
+  const resetPillClass = footRows === 0 ? undefined : (['', 'left-1/2 -translate-x-1/2 bottom-[4.5rem]', 'left-1/2 -translate-x-1/2 bottom-[6.5rem]', 'left-1/2 -translate-x-1/2 bottom-[8.5rem]', 'left-1/2 -translate-x-1/2 bottom-[10.5rem]'] as const)[footRows];
+  const readoutWhen = readout ? (tfMinutes(tf) >= 1440 ? fmtSession(readout.time) : printClock(readout.time * 1000)) : undefined;
   useEffect(() => setReadout(null), [ticker, timeframe]);
 
 
@@ -2365,7 +2427,7 @@ const Pane = ({
         <span
           aria-hidden
           className={`shrink-0 w-4 h-4 rounded-[3px] font-mono text-[11px] font-bold tnum inline-flex items-center justify-center ${
-            isActive ? 'holo-bg text-[#0a0a0a]' : 'bg-ink/[0.08] text-textPrimary'
+            isActive ? 'holo-bg text-onSilver' : 'bg-ink/[0.08] text-textPrimary'
           }`}
         >
           {index + 1}
@@ -2381,7 +2443,7 @@ const Pane = ({
       {replayable && (
         <span
           title="This pane is replaying history — it is not live"
-          className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold"
+          className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-onSilver font-mono text-[11px] font-bold"
           data-replay-badge
         >
           <span className="uppercase tracking-wider">Replay</span>
@@ -2544,6 +2606,7 @@ const Pane = ({
       /* range and volume bars: the house's live seconds, or on the feed the minutes, folded by rule */
       barClock={clock}
       onBarClock={k => onCfg({ clock: k })}
+      ruleNote={chartTape ? 'Rule bars fold the one-minute bars, their history included — the interval-based overlays sit out.' : undefined}
       priceScale={priceScale}
       onPriceScale={ps => onCfg({ priceScale: ps })}
       priceScaleLock={scaleLock}
@@ -2792,6 +2855,7 @@ const Pane = ({
               beadRefs={fScale?.gex ?? null}
               onBeadLegend={onBeadLegend}
               fieldGapCause={gapCause}
+              resetPillClass={resetPillClass}
               axisLevels
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
@@ -2859,19 +2923,43 @@ const Pane = ({
             */}
             {/* WHILE THE FIELD IS EMPTY on the feed (2026-10-13): the server has not read the chain yet, or there is no bar of
                 today — the line goes as the first modeled minute lands (the house's pane has no such line) */}
-            {/* BUILDING / CATCHING UP (the UI pass): a hatched chip while the field fills or the earlier sessions come in */}
-            {onFeed && overlays.trails && !noBars && (!fTrail.full || (tilesOn ? (preTape?.days.length ?? 0) < tileDays.length : fPast && fPast.ready < fPast.asked)) && (
-              <div className={`stripes absolute left-14 ${stale ? 'bottom-[3.75rem]' : 'bottom-8'} z-20 pointer-events-none select-none rounded border border-ink/[0.10] bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textSecondary tnum`} data-trail-since data-building={!fTrail.full ? 'field' : 'past'}>
-                {!fTrail.full ? 'Building · the chain is being read' : tilesOn ? `Catching up · earlier sessions ${preTape?.days.length ?? 0} of ${tileDays.length} in` : `Catching up · earlier sessions ${fPast!.ready} of ${fPast!.asked} in`}
-              </div>
-            )}
-            {/* THE STALE BANNER: the newest data is old — when it was last repriced, and a way to ask again */}
-            {stale && age && (
-              <div className="absolute left-14 bottom-8 z-20 flex items-center gap-2 rounded-md border border-warn/40 bg-warn/[0.10] backdrop-blur-[3px] px-2 py-1 text-[11px] text-warn tnum" role="status" data-stale-banner>
-                <span>Data {age.words} · last repriced {lastRepriced ? printClock(lastRepriced) : '—'}</span>
-                <button type="button" onClick={retryFeed} className="hit h-5 px-1.5 rounded-[3px] border border-warn/50 font-semibold text-warn hover:bg-warn/[0.12]" data-stale-retry>
-                  Retry
-                </button>
+            {/* THE FOOT ROW (the round-3 audit: the Building chip, the stale banner, "Back to live", the phone's ladder peek and
+                the Reset pill stood on one line by their own absolute places, and overlapped in every narrow pane — 2 to 4
+                panes at 1280 and 1440, and the phone): one row between the drawing rail and the price axis, the reasons on
+                the left (stacked, each cut to its width with its whole words as its title), the way back on the right; the
+                Reset pill steps up a row while it is in use (StrikeChart resetPillClass) */}
+            {footBusy && (
+              <div className={`absolute bottom-8 z-20 flex ${footWrap ? 'flex-col-reverse items-stretch' : 'items-end'} gap-2 pointer-events-none`} style={{ left: (belowLg ? 12 : 56) + railInset, right: PRICE_GUTTER_PX + 8 }} data-foot-row>
+                <div className="min-w-0 flex flex-col items-start gap-1">
+                  {stale && age && (
+                    <div className="pointer-events-auto max-w-full flex items-center gap-2 rounded-md border border-warn/40 bg-warn/[0.10] backdrop-blur-[3px] px-2 py-1 text-[11px] text-warn tnum" role="status" data-stale-banner>
+                      <span className="truncate" title={`Data ${age.words} · last repriced ${lastRepriced ? printClock(lastRepriced) : '—'}`}>Data {age.words} · last repriced {lastRepriced ? printClock(lastRepriced) : '—'}</span>
+                      <button type="button" onClick={retryFeed} className="hit shrink-0 h-5 px-1.5 rounded-[3px] border border-warn/50 font-semibold text-warn hover:bg-warn/[0.12]" data-stale-retry>
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                  {buildingWords && (
+                    <div className="stripes max-w-full truncate select-none rounded border border-ink/[0.10] bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textSecondary tnum pointer-events-auto" title={buildingLong ?? undefined} data-trail-since data-building={!fTrail.full ? 'field' : 'past'}>
+                      {buildingWords}
+                    </div>
+                  )}
+                  {belowLg && !narrowLadder && peek.length > 0 && (
+                    <button type="button" onClick={() => setNarrowLadder(true)} className="hit pointer-events-auto max-w-full flex items-center gap-1.5 rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 font-mono text-[11px] tnum text-textSecondary" title="The three strikes nearest the price — open the ladder" data-ladder-peek>
+                      {peek.map(r => (
+                        <span key={r.strike} className="whitespace-nowrap">
+                          <span className="text-textPrimary">{num(r.strike, r.strike % 1 ? 2 : 0)}</span> <span className={r.value >= 0 ? 'text-[rgb(var(--amplify))]' : 'text-[rgb(var(--absorb))]'}>{usdCompactSigned(r.value)}</span>
+                        </span>
+                      ))}
+                      <span className="text-textMuted">Strikes ›</span>
+                    </button>
+                  )}
+                </div>
+                {backLive && (
+                  <button type="button" onClick={backToLive} className="hit pointer-events-auto ml-auto shrink-0 self-end h-6 px-2 rounded-[3px] bg-ink/[0.14] font-mono text-[11px] font-semibold text-textPrimary backdrop-blur-[3px]" data-back-to-live>
+                    Back to live ›
+                  </button>
+                )}
               </div>
             )}
             {/* NO DATA for a day the tape does not hold: the reason, and the sessions either side */}
@@ -2893,12 +2981,6 @@ const Pane = ({
                   </div>
                 </div>
               </div>
-            )}
-            {/* BACK TO LIVE: the view has left the last bar */}
-            {!atLive && !rp.active && !noBars && (
-              <button type="button" onClick={backToLive} className="hit absolute bottom-8 z-20 h-6 px-2 rounded-[3px] bg-ink/[0.14] font-mono text-[11px] font-semibold text-textPrimary backdrop-blur-[3px]" style={{ right: PRICE_GUTTER_PX + 8 }} data-back-to-live>
-                Back to live ›
-              </button>
             )}
             {/* THE DAY PANEL on a daily chart */}
             {dayRead && (
@@ -2938,17 +3020,6 @@ const Pane = ({
                   )}
                 </div>
               </div>
-            )}
-            {/* THE LADDER'S PEEK on a phone: the three strikes nearest the price, a tap opening the ladder */}
-            {belowLg && !narrowLadder && peek.length > 0 && (
-              <button type="button" onClick={() => setNarrowLadder(true)} className="hit absolute left-3 bottom-8 z-20 flex items-center gap-1.5 rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 font-mono text-[11px] tnum text-textSecondary" title="The three strikes nearest the price — open the ladder" data-ladder-peek>
-                {peek.map(r => (
-                  <span key={r.strike} className="whitespace-nowrap">
-                    <span className="text-textPrimary">{num(r.strike, r.strike % 1 ? 2 : 0)}</span> <span className={r.value >= 0 ? 'text-[rgb(var(--amplify))]' : 'text-[rgb(var(--absorb))]'}>{usdCompactSigned(r.value)}</span>
-                  </span>
-                ))}
-                <span className="text-textMuted">Strikes ›</span>
-              </button>
             )}
             {expanded && (
               /* ── THE FULLSCREEN TOP STRIP (Noah, 2026-08-28) ──
@@ -3056,7 +3127,7 @@ const Pane = ({
                     )}
                   </div>
                   <DecisionStrip boxes={boxes} sures={railSure} room={stripInner} className="relative z-20" />
-                  {readout && <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} className="relative z-10" />}
+                  {readout && <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} when={readoutWhen} className="relative z-10" />}
                 </>
               ) : (
               /* THE ONE HEADER ROW (the Terrain UI pass, 2026-10-14; components/terrain/PaneHead.tsx): the identity and
@@ -3070,7 +3141,7 @@ const Pane = ({
                   ageForm={headPlan.ageWords ? 'words' : 'dot'}
                   timeframes={headTimeframes}
                   tf={{ value: tf, onChange: next => onCfg({ timeframe: next }), held: offHouse ? FEED_HELD : undefined }}
-                  window={headPlan.windowForm !== 'none' ? { value: isWindowCut(railCut) ? railCut : 'book', onChange: (v: WindowValue) => onRailCut(v), form: headPlan.windowForm } : null}
+                  window={headPlan.windowForm !== 'none' ? { value: isWindowCut(railCut) ? railCut : 'book', onChange: (v: WindowValue) => onRailCut(v), form: headPlan.windowForm, date: typeof railCut === 'number' ? (feedCutChoices(fListed).find(c => c.value === railCut)?.label ?? null) : null } : null}
                   jump={headPlan.jumpForm !== 'none' ? { onSpan: jumpSpan, onDate: jumpDate, minDate: jumpMin, maxDate: nyIsoDate(), form: headPlan.jumpForm } : null}
                   tools={headPlan.tools ? paneToolbar(false, HEAD_PARTS, true) : null}
                   keys={headPlan.keys}
@@ -3177,8 +3248,9 @@ const Pane = ({
             {/* THE CROSSHAIR READOUT (the UI pass): the hovered bar's figures at the plot's top-left, under the chrome —
                 only while a pointer is on the plot or a moment arrives from another pane */}
             {readout && !expanded && (
-              <div className="pointer-events-none absolute left-3 z-10" style={{ top: stripH + 4, left: ownScale ? PRICE_GUTTER_PX : undefined }} data-chart-chrome>
-                <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} />
+              /* past the drawing rail where it is docked left and open, as the legend and the candles stand (the audit's B-23) */
+              <div className="pointer-events-none absolute z-10" style={{ top: stripH + 4, left: (ownScale ? PRICE_GUTTER_PX : 12) + railInset }} data-chart-chrome>
+                <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} when={readoutWhen} />
               </div>
             )}
             {compares.length > 0 && (
@@ -3250,8 +3322,10 @@ const Pane = ({
                  audit's TE-2) — the value says it, the tooltip names it */
               headCard={<ExpiryCard label="Expiry" size="sm" bare={!expanded && paneCount > 1} value={offHouse && cutDate === null && !isWindowCut(railCut) ? 'book' : railCut} choices={offHouse ? feedCutChoices(fListed) : railCutChoices()} onChange={onRailCut} title="Expiry — which contracts the rails read" testId="terrain-expiry" />}
               /* THE CHART KEEPS ITS SHARE (the audit's TE-5: in three and four panes the ladder took ~60% and the chart
-                 shrank to ~175 px): beside other panes the rail stops at 40% of the pane */
-              maxShare={belowLg ? 0.82 : !expanded && paneCount >= 3 ? 0.4 : 0.6}
+                 shrank to ~175 px; round 3: two panes kept the 60% and the ladder took 58% of a 590 px pane, the chart
+                 ~250 px): ONE RULE at every desk layout — the chart keeps at least 60% of the pane, the ladder resting at
+                 520 / 340 / 240 and never past 40% (its full tier, 440 px, still fits one pane at 1440) */
+              maxShare={belowLg ? 0.82 : 0.4}
               /* the Vol switch: the session's traded volume by price — the house's tape, or on the feed the minutes */
               ticker={ticker}
               volBars={rp.active && rp.cut ? rp.cut.bars : offHouse ? fBars.bars : undefined}
@@ -3907,7 +3981,12 @@ const Terrain = () => {
           setAnnounce('Jump to a date');
           return;
         case 'w': {
-          if (!deskOnFeedRef.current) return;
+          /* off the feed the house's field has no expiry windows: said, not silent (the audit's A-233) */
+          if (!deskOnFeedRef.current) {
+            e.preventDefault();
+            setAnnounce("No expiry windows here — the house's field reads every expiry");
+            return;
+          }
           e.preventDefault();
           const ring: RailCut[] = ['book', 'w:0dte', 'w:fri', 'w:opex'];
           const at = ring.indexOf(cur.railCut);

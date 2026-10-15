@@ -79,7 +79,7 @@ import {
   type CandleTheme,
   type CandleThemeKey,
 } from './candleTheme';
-import { readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
+import { groundRgb, readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
 import { barClockSpec, buildAltBars, type AltBarSpec } from '../../data/altBars';
 import type { Candle, GexSnapshot } from '../../types/market';
 import type { DarkPoolPrint, KeyLevels } from '../../types/gex';
@@ -322,6 +322,23 @@ export const INDICATOR_INKS: Record<keyof ChartIndicators, string> = {
   rsi: '#A9C77F',
   macd: '#8FB8D8',
   atrPane: '#C0C7CF',
+};
+
+/* THE SAME INKS ON A LIGHT TAPE (the round-3 audit, D(d)): the dark set read 1.0 to 1.5:1 on the Stone tape — invisible.
+   Each is its own hue darkened until it reads 3:1 or better on the darkest light ground (Stone on a dark page, #BEBDB8;
+   5:1 on the paper panel). Keyed by the dark ink, so every part of an indicator follows. */
+const INDICATOR_INKS_LIGHT: Record<string, string> = {
+  '#5B9CF6': '#3C67A2',
+  '#BBB2E8': '#676280',
+  '#EDE4CD': '#6B675C',
+  '#6BD3C7': '#397069',
+  '#C7A9CF': '#716076',
+  '#D8BC8F': '#72644C',
+  '#A9C77F': '#5B6B45',
+  '#8FB8D8': '#52697B',
+  '#C0C7CF': '#64676C',
+  '#D8A6A6': '#7A5656',
+  'rgba(226,234,244,0.30)': 'rgba(60,64,72,0.30)',
 };
 
 /*
@@ -810,6 +827,8 @@ interface StrikeChartProps {
   /** THE GAPS' REASONS (the owner's B1, 2026-10-14): the host's words for a run of bars with no column of the field,
       [from, to) in epoch seconds, drawn on the plot over the run — null for a run with nothing to say */
   fieldGapCause?: ((fromSec: number, toSec: number, empty: boolean) => string | null) | null;
+  /** Where the Reset pill stands (ResetViewControl `pillClass`) — a host whose own foot row takes the plot's foot lifts it */
+  resetPillClass?: string;
   /** The call wall, the put wall and the flip, and two more, pinned on the price axis as their prices (item 5 (h)) */
   axisLevels?: boolean;
   /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
@@ -927,6 +946,7 @@ export type CrosshairReadout = (bar: CrosshairBar | null) => void;
 
 // Wall / flip / supreme overlay colors (independent of candle theme)
 import { defaultStop } from './drawingKinds';
+import { undoable } from '../ui/undo';
 import { BULL, BEAR, CALL_WALL, PUT_WALL, FLIP, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
 import { FONT_SANS } from '../../theme/fonts';
 
@@ -1200,7 +1220,7 @@ const StrikeChart = ({
   barCountdown = 'measured',
   asOf = null,
   futureBars = null,
-  footBar = null, onRegime, onTopNode, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null,
+  footBar = null, onRegime, onTopNode, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null, resetPillClass,
   onJumpResult, onViewEdge, onViewFrom, onBarClick, stale = false,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
@@ -1606,6 +1626,10 @@ const StrikeChart = ({
   /** The selected mark's index in shapesRef — mirrored into the primitive
       for its handles. */
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const selectedIdxRef = useRef<number | null>(null);
+  /** Where the last press on the chart came down — a click after a drag is a pan, not a pick */
+  const downAtRef = useRef<{ x: number; y: number } | null>(null);
+  selectedIdxRef.current = selectedIdx;
   /** A drag in progress on the SELECTED mark: one anchor, or the whole body. */
   const editRef = useRef<{
     index: number;
@@ -2085,11 +2109,25 @@ const StrikeChart = ({
     if (mins >= 1440 && tapeRef.current && !tapeRef.current.daily?.length) return;
     const bars = barsFor(mins);
     if (!bars.length) return;
-    jumpAppliedRef.current = jumpTo.nonce;
+    /* THE SERIES HOLDS THE RECENT WINDOW until the reader reaches its left edge (windowOf): a jump is placed by the
+       series' own index, so a bar's place in the whole tape is moved by what the window leaves out — and a jump further
+       back than the window first asks for the whole store, and lands once it is in (the audit's B-73: five weeks of
+       one-minute bars are ~9,750, the window 1,000, so "Today" and a day set a range far past the series) */
+    const full = fullWorldRef.current === worldKeyRef.current;
+    const held = windowOf(bars, full);
+    const offset = bars.length - held.length;
+    const wantWhole = (idx: number): boolean => {
+      if (idx >= offset || full) return false;
+      recentHeldRef.current = false;
+      fullWorldRef.current = worldKeyRef.current;
+      setFullNonce(n => n + 1);
+      return true;
+    };
     const ts = chart.timeScale();
     const last = bars[bars.length - 1].time;
     const first = bars[0].time;
     const barSec = Math.max(60, mins * 60);
+    if (jumpTo.kind === 'live') jumpAppliedRef.current = jumpTo.nonce;
     if (jumpTo.kind === 'live') {
       chart.priceScale('right').applyOptions({ autoScale: true });
       showRecent();
@@ -2108,8 +2146,10 @@ const StrikeChart = ({
       const start = Math.min(from, last - barSec);
       let fromIdx = bars.findIndex(b => b.time >= start);
       if (fromIdx < 0) fromIdx = Math.max(0, bars.length - 2);
+      if (wantWhole(fromIdx)) return;
+      jumpAppliedRef.current = jumpTo.nonce;
       chart.priceScale('right').applyOptions({ autoScale: true });
-      ts.setVisibleLogicalRange({ from: fromIdx, to: bars.length - 1 + 6 });
+      ts.setVisibleLogicalRange({ from: fromIdx - offset, to: held.length - 1 + 6 });
       return;
     }
     /* a day: the bar nearest its middle, the current zoom kept round it; the host hears whether the day is on the tape */
@@ -2117,11 +2157,13 @@ const StrikeChart = ({
     if (idx < 0) idx = bars.length - 1;
     const sameDay = bars.map((b, i) => (nyIsoDateOf(b.time * 1000) === jumpTo.day ? i : -1)).filter(i => i >= 0);
     if (sameDay.length) idx = sameDay[Math.floor(sameDay.length / 2)];
+    if (wantWhole(idx)) return;
+    jumpAppliedRef.current = jumpTo.nonce;
     onJumpResultRef.current?.({ day: jumpTo.day, found: sameDay.length > 0, first: nyIsoDateOf(first * 1000), last: nyIsoDateOf(last * 1000) });
     const range = ts.getVisibleLogicalRange();
     const span = range ? Math.max(20, range.to - range.from) : 120;
     chart.priceScale('right').applyOptions({ autoScale: true });
-    ts.setVisibleLogicalRange({ from: idx - span / 2, to: idx + span / 2 });
+    ts.setVisibleLogicalRange({ from: idx - offset - span / 2, to: idx - offset + span / 2 });
   };
   const tryJumpRef = useRef(tryJump);
   tryJumpRef.current = tryJump;
@@ -2729,23 +2771,31 @@ const StrikeChart = ({
         out.height = shot.height + pad;
         const g = out.getContext('2d');
         if (!g) return;
-        g.fillStyle = '#0a0a0a';
+        /* THE FRAME WEARS THE CHART'S OWN GROUND, its words the ground's ink (the audit's B-74: a paper tape got a black
+           header), and the moment on the reader's clock, 12-hour with the zone — never a 24-hour UTC stamp */
+        const bg = (c.options().layout.background as { color?: string }).color ?? '';
+        const rgbBg = /(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(bg) ?? (/^#([0-9a-f]{6})$/i.test(bg) ? [bg, String(parseInt(bg.slice(1, 3), 16)), String(parseInt(bg.slice(3, 5), 16)), String(parseInt(bg.slice(5, 7), 16))] : null);
+        const light = !!rgbBg && 0.2126 * Number(rgbBg[1]) + 0.7152 * Number(rgbBg[2]) + 0.0722 * Number(rgbBg[3]) > 140;
+        const groundInk = groundRgb('--text-primary', light ? 'light' : 'dark') ?? (light ? [20, 20, 22] : [237, 237, 237]);
+        const inkA = (a: number) => `rgba(${groundInk[0]},${groundInk[1]},${groundInk[2]},${a})`;
+        g.fillStyle = bg || readToken('--canvas');
         g.fillRect(0, 0, out.width, out.height);
-        const stampIso = new Date().toISOString();
-        const stamp = `${stampIso.slice(0, 10)} ${stampIso.slice(11, 16)}Z`;
+        const now = Date.now();
+        const stamp = `${viewerDay(now)} · ${readerClock(now, { zone: true })}`;
         g.font = `600 ${11 * scale}px ${FONT_SANS}`;
         g.textBaseline = 'middle';
-        g.fillStyle = 'rgba(255,255,255,0.85)';
+        g.fillStyle = inkA(0.85);
         g.fillText(`${ticker} · ${timeframeRef.current}`, 10 * scale, pad / 2);
-        const right = `${stamp} · SLAYER TERMINAL`;
-        g.fillStyle = 'rgba(255,255,255,0.4)';
+        const right = `${stamp} · Slayer terminal`;
+        g.fillStyle = inkA(0.55);
         g.fillText(right, out.width - g.measureText(right).width - 10 * scale, pad / 2);
         g.drawImage(shot, 0, pad);
         /* The in-plot watermark — faint, corner, the free distribution the
-           directive wants from every shared screenshot. */
-        g.font = `600 ${10 * scale}px ${FONT_SANS}`;
-        g.fillStyle = 'rgba(255,255,255,0.28)';
+           directive wants from every shared screenshot (11 px, the type floor). */
+        g.font = `600 ${11 * scale}px ${FONT_SANS}`;
+        g.fillStyle = inkA(0.3);
         g.fillText('slayer_terminal', 10 * scale, out.height - 12 * scale);
+        const stampIso = new Date(now).toISOString();
         out.toBlob(blob => {
           if (!blob) return;
           const a = document.createElement('a');
@@ -3426,7 +3476,8 @@ const StrikeChart = ({
     const paneCompareOn = compares.some(c => c.mode === 'pane');
     const subBase = paneCompareOn ? 2 : 1;
     const full = fullWorldRef.current === `${ticker}|${timeframe}|${barClock}`;
-    const sig = `${ticker}|${timeframe}|${barClock}|${active.join(',')}|${subBase}|${mainNonce}|${full ? 'full' : 'recent'}`;
+    const lightTape = chartGround(themeKey) === 'light';
+    const sig = `${ticker}|${timeframe}|${barClock}|${active.join(',')}|${subBase}|${mainNonce}|${full ? 'full' : 'recent'}|${lightTape ? 'light' : 'dark'}|${fitCandles ? 'fit' : ''}`;
     const rebuild = indicatorLoadedRef.current !== sig;
     if (rebuild) {
       for (const s of indicatorSeriesRef.current.values()) {
@@ -3437,21 +3488,29 @@ const StrikeChart = ({
         }
       }
       indicatorSeriesRef.current.clear();
+      /* THE SUB-PANES ARE APPENDED after every pane another feature holds (the round-3 audit, D(h)): a fixed index from 1
+         put RSI, MACD or ATR inside the regime strip's, the flow band's or a drift's pane on its scale. Our own series are
+         gone by now and the library drops a pane with none, so the panes left are the others' */
+      const subFrom = chart.panes().length;
+      const inkOf = (ink: string) => (lightTape ? INDICATOR_INKS_LIGHT[ink] ?? ink : ink);
       for (const key of active) {
         const spec = INDICATOR_PARTS[key];
-        const paneIndex = spec.pane === 'overlay' ? 0 : subBase + subsActive.indexOf(key);
+        const paneIndex = spec.pane === 'overlay' ? 0 : subFrom + subsActive.indexOf(key);
         for (const part of spec.parts) {
           const series =
             part.kind === 'hist'
-              ? chart.addSeries(HistogramSeries, { color: part.ink, priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } }, paneIndex)
+              ? chart.addSeries(HistogramSeries, { color: inkOf(part.ink), priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } }, paneIndex)
               : chart.addSeries(
                   LineSeries,
                   {
-                    color: part.ink,
+                    color: inkOf(part.ink),
                     lineWidth: 1,
                     lineStyle: part.dashed ? 2 : 0,
-                    ...(part.faint ? { color: part.ink + '99' } : {}),
+                    ...(part.faint ? { color: inkOf(part.ink) + '99' } : {}),
                     ...(spec.pane === 'overlay' ? { priceScaleId: 'right' } : {}),
+                    /* AN OVERLAY NEVER WIDENS A FITTED AXIS (the round-3 audit, D(a): SMA 200, Bollinger and the VWAP's ±2σ
+                       stretched the axis Terrain fits to the candles — "no wall, supreme, spot or layer widens it") */
+                    ...(spec.pane === 'overlay' && fitCandles ? { autoscaleInfoProvider: () => null } : {}),
                     priceLineVisible: false,
                     lastValueVisible: spec.pane === 'sub' && part.part !== 'signal',
                     crosshairMarkerVisible: false,
@@ -3466,7 +3525,7 @@ const StrikeChart = ({
             for (const lvl of [30, 70]) {
               (series as ISeriesApi<'Line'>).createPriceLine({
                 price: lvl,
-                color: 'rgba(226,234,244,0.25)',
+                color: lightTape ? 'rgba(60,64,72,0.35)' : 'rgba(226,234,244,0.25)',
                 lineWidth: 1,
                 lineStyle: 3,
                 axisLabelVisible: false,
@@ -3476,10 +3535,13 @@ const StrikeChart = ({
           }
         }
       }
-      /* Two thirds to the tape, the rest split — only while subs exist. */
+      /* Two thirds to the tape, the rest split — set on OUR panes alone, against the tape's own factor (PRICE_STRETCH): it
+         rewrote every pane's, the regime strip's and the price pane's included (the round-3 audit, D(h)) */
       if (subsActive.length > 0) {
         const panes = chart.panes();
-        panes.forEach((p, i) => p.setStretchFactor(i === 0 ? 64 : Math.max(10, 36 / (panes.length - 1))));
+        const each = (PRICE_STRETCH * 36) / 64 / subsActive.length;
+        panes[0]?.setStretchFactor(PRICE_STRETCH);
+        for (let i = subFrom; i < panes.length && i < subFrom + subsActive.length; i++) panes[i].setStretchFactor(each);
       }
       indicatorLoadedRef.current = sig;
     }
@@ -3548,7 +3610,7 @@ const StrikeChart = ({
     indAltCountRef.current = bars.length;
     indWindowRef.current = { first: bars[0].time, last: bars[bars.length - 1].time, count: bars.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce]);
+  }, [indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, themeKey, fitCandles]);
 
   /*
     THE SCRIPTS ON THIS PANE — the Pine runtime (2026-09-10). Every script the
@@ -3592,6 +3654,7 @@ const StrikeChart = ({
     if (rebuild) tearDown();
     const slayer = { callWall: levels.callWall, putWall: levels.putWall, flip: levels.flip, supreme: levels.supreme };
     let ownPanes = 0;
+    const ownPaneOf: number[] = [];
     for (const ps of live) {
       const own = ps.script.meta?.pane === 'own';
       if (own && subsActive.length + ownPanes >= MAX_SUB_PANES) continue;
@@ -3620,12 +3683,20 @@ const StrikeChart = ({
         have.destroy();
         handles.delete(ps.chart.id);
       }
-      const paneIndex = own ? subBase + subsActive.length + ownPanes++ : 0;
-      handles.set(ps.chart.id, drawRun(chart, result, bars, paneIndex));
+      /* an own-pane script is APPENDED after every pane held (the round-3 audit, D(h): a fixed index put it inside the
+         regime strip's or the flow band's pane) */
+      const paneIndex = own ? chart.panes().length : 0;
+      if (own) ownPanes++;
+      const made = drawRun(chart, result, bars, paneIndex);
+      handles.set(ps.chart.id, made);
+      if (own) ownPaneOf.push(paneIndex);
     }
-    if (rebuild && subsActive.length + ownPanes > 0) {
+    /* its own panes' share against the tape's (PRICE_STRETCH), never another feature's pane rewritten */
+    if (rebuild && ownPaneOf.length > 0) {
       const panes = chart.panes();
-      panes.forEach((p, i) => p.setStretchFactor(i === 0 ? 64 : Math.max(10, 36 / (panes.length - 1))));
+      panes[0]?.setStretchFactor(PRICE_STRETCH);
+      const each = (PRICE_STRETCH * 36) / 64 / Math.max(1, subsActive.length + ownPaneOf.length);
+      for (const i of ownPaneOf) panes[i]?.setStretchFactor(each);
     }
     scriptSigRef.current = sig;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4457,6 +4528,11 @@ const StrikeChart = ({
   }, [priceTag, timeframe, replay, rewound, mainNonce, altSpec]);
 
   // Dark-pool whisper lines — same grammar as the flow board minis
+  /** A cross's "10/14" as the house says a day, "Oct 14" */
+  const dpDay = (d: string): string => {
+    const m = /^(\d{1,2})\/(\d{1,2})$/.exec(d);
+    return m ? `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m[1]) - 1] ?? m[1]} ${Number(m[2])}` : d;
+  };
   useEffect(() => {
     const candleSeries = candleSeriesRef.current;
     if (!candleSeries) return;
@@ -4469,7 +4545,8 @@ const StrikeChart = ({
       candleSeries.createPriceLine({
         price: print.price,
         color: DARK_POOL,
-        title: `DP $${print.notional.toFixed(2)}B · ${print.date}`,
+        /* the house's formatter and its date (the audit's B-37: a $3M cross printed "DP $0.00B · 10/14") */
+        title: `DP ${usdCompact(print.notional * 1e9)} · ${dpDay(print.date)}`,
         lineStyle: LineStyle.Dashed,
         lineWidth: 1,
         axisLabelVisible: true,
@@ -5124,7 +5201,10 @@ const StrikeChart = ({
 
   /* THE LINES BEING WATCHED wear a ring (2026-10-10, drawingsPrimitive.ts setAlerted) — only on the name's own time bars,
      where the alert reads the same bars the line is drawn on */
-  const lineAlertIds = useMemo(() => new Set(tape ? [] : alerts.flatMap(a => (a.kind === 'line' && !a.firedAt ? [a.drawingId] : []))), [alerts, tape]);
+  const lineAlertIds = useMemo(
+    () => new Set(tape && !tape.key.startsWith('feed:') ? [] : alerts.flatMap(a => (a.kind === 'line' && !a.firedAt && (a.drawSet ?? ticker) === drawKey ? [a.drawingId] : []))),
+    [alerts, tape, drawKey, ticker]
+  );
   useEffect(() => {
     drawingsRef.current?.setAlerted(lineAlertIds);
   }, [lineAlertIds]);
@@ -5136,7 +5216,7 @@ const StrikeChart = ({
     if (i === null) return;
     let d = shapesRef.current[i];
     if (!d || !ALERTABLE_KINDS.includes(d.kind)) return;
-    const on = alerts.find(a => a.kind === 'line' && a.drawingId === d.id && a.mode === mode && !a.firedAt);
+    const on = alerts.find(a => a.kind === 'line' && a.drawingId === d.id && a.mode === mode && !a.firedAt && (a.drawSet ?? ticker) === drawKey);
     if (on) {
       removeAlert(ticker, on.id);
       return;
@@ -5147,7 +5227,7 @@ const StrikeChart = ({
       drawingsRef.current?.setDrawings(shapesRef.current);
       saveDrawings(drawKey, shapesRef.current);
     }
-    const armed = armLine(ticker, { drawingId: d.id!, shape: isFlatLine(d.kind) || !d.p2 ? 'flat' : 'sloped', p1: d.p1, ...(d.p2 && !isFlatLine(d.kind) ? { p2: d.p2 } : {}), mode, tf: timeframe, armedBar: 0 });
+    const armed = armLine(ticker, { drawingId: d.id!, shape: isFlatLine(d.kind) || !d.p2 ? 'flat' : 'sloped', p1: d.p1, ...(d.p2 && !isFlatLine(d.kind) ? { p2: d.p2 } : {}), mode, tf: timeframe, armedBar: 0, ...(drawKey !== ticker ? { drawSet: drawKey } : {}) });
     setLineNote(armed ? '' : `${ticker} has its ${MAX_ALERTS} alerts already`);
   };
 
@@ -5160,7 +5240,7 @@ const StrikeChart = ({
       saveDrawings(drawKey, shapesRef.current);
       forceMark();
     },
-    [selectedIdx, ticker]
+    [selectedIdx, drawKey]
   );
 
   const onBarGripDown = (e: ReactPointerEvent<HTMLElement>) => {
@@ -5201,12 +5281,29 @@ const StrikeChart = ({
   const canDraw = !!onEnterDraw;
   useEffect(() => (canDraw ? registerDrawChart(chartId, kind => pickToolRef.current(kind)) : undefined), [canDraw, chartId]);
 
+  /* THE KEY THE DRAWINGS ARE KEPT UNDER, read at the act: the tape's key (`feed:SPY`) can change without the ticker, and a
+     callback keyed on the ticker alone cleared the old key's drawings (the audit's B-65) */
+  const drawKeyRef = useRef(drawKey);
+  drawKeyRef.current = drawKey;
+  /** Put a set of drawings back under the key they were taken from — on this chart only while it still shows that key */
+  const restoreDrawings = (key: string, shapes: Drawing[]) => {
+    saveDrawings(key, shapes);
+    if (drawKeyRef.current !== key) return;
+    shapesRef.current = shapes;
+    drawingsRef.current?.setDrawings(shapes);
+    forceMark();
+  };
+  /* A DESTRUCTIVE HAND ACTS AT ONCE WITH AN UNDO CHIP (the house rule, ui/undo.tsx): clearing the drawings and deleting one */
   const clearDrawings = useCallback(() => {
+    const key = drawKey;
+    const gone = shapesRef.current;
     shapesRef.current = [];
     drawingsRef.current?.setDrawings([]);
-    saveDrawings(drawKey, []);
+    saveDrawings(key, []);
     deselect();
-  }, [ticker, deselect]);
+    if (gone.length) undoable({ label: `Cleared ${gone.length} drawing${gone.length === 1 ? '' : 's'}`, undo: () => restoreDrawings(key, gone) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawKey, deselect]);
 
   const pointFromClient = (clientX: number, clientY: number): { time: number; price: number } | null => {
     const container = containerRef.current;
@@ -5274,17 +5371,20 @@ const StrikeChart = ({
   };
 
   const deleteSelected = useCallback(() => {
-    setSelectedIdx(idx => {
-      if (idx !== null && shapesRef.current[idx]) {
-        shapesRef.current = shapesRef.current.filter((_, i) => i !== idx);
-        drawingsRef.current?.setDrawings(shapesRef.current);
-        saveDrawings(drawKey, shapesRef.current);
-      }
-      drawingsRef.current?.setSelected(null);
-      return null;
-    });
+    const key = drawKey;
+    const idx = selectedIdxRef.current;
+    if (idx !== null && shapesRef.current[idx]) {
+      const before = shapesRef.current;
+      shapesRef.current = before.filter((_, i) => i !== idx);
+      drawingsRef.current?.setDrawings(shapesRef.current);
+      saveDrawings(key, shapesRef.current);
+      undoable({ label: 'Deleted the drawing', undo: () => restoreDrawings(key, before) });
+    }
+    drawingsRef.current?.setSelected(null);
+    setSelectedIdx(null);
     editRef.current = null;
-  }, [ticker]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawKey]);
 
   /* DELETE AND BACKSPACE REMOVE THE SELECTED MARK (2026-09-06, Noah on the
      Map: "i see some random fib chart but cant remove it") — the key every
@@ -5642,6 +5742,9 @@ const StrikeChart = ({
         data-chart-ink
         data-chart-ground={chartGround(themeKey)}
         onDoubleClick={resetView}
+        onPointerDownCapture={e => {
+          downAtRef.current = { x: e.clientX, y: e.clientY };
+        }}
         onMouseMove={e => {
           /* The event lane's hover — resolved here because canvas glyphs
              cannot be hovered and the card wants real type. Cheap: one hit
@@ -5681,6 +5784,11 @@ const StrikeChart = ({
              Not while picking a replay bar or drawing — those own the click. */
           if (picking || drawing) return;
           if ((e.target as HTMLElement).closest('[data-bead-card], [data-axis-chips], [data-chart-chrome]')) return;
+          /* A PAN IS NOT A CLICK (the round-3 audit: a drag across the chart ended on a node and pinned it, its card up) —
+             a press that moved more than a few pixels before it let go pins nothing */
+          const down = downAtRef.current;
+          downAtRef.current = null;
+          if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
           const tr = trailsRef.current;
           /* the chart's own box, as the hover's (the rail's inset) */
           const rect = containerRef.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
@@ -5707,7 +5815,7 @@ const StrikeChart = ({
         {/* THE HOST'S LAYER (Review's position, target and stop) — over the plot, under the chrome */}
         {layer?.({ chart: () => chartRef.current, series: () => candleSeriesRef.current as ISeriesApi<SeriesType> | null, host: () => containerRef.current, room: layerRoom, reset: resetView })}
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
-        <ResetViewControl onReset={resetView} />
+        <ResetViewControl onReset={resetView} {...(resetPillClass ? { pillClass: resetPillClass } : {})} />
         {/* The scripts on this pane, named at the top left with hide and remove (2026-09-10) */}
         {paneId && paneScripts.length > 0 && !replay && <ScriptLegend paneId={paneId} scripts={paneScripts} />}
         {/* Every band says its own name, the way the reference does. An
@@ -6155,7 +6263,10 @@ const StrikeChart = ({
               )}
 
               {/* AN ALERT ON THIS LINE (2026-10-10): touch, a close beyond it, or a bounce — set from the mark's own bar */}
-              {ALERTABLE_KINDS.includes(m.kind) && !tape && (
+              {/* on a host's tape too where it is the market's own (Terrain's `feed:` set — the watcher judges a line on the
+                  feed's bars, AlertWatcher): the feed changes the figures, never the page (the audit's B-68); a backtest's
+                  past day keeps no alert */}
+              {ALERTABLE_KINDS.includes(m.kind) && (!tape || tape.key.startsWith('feed:')) && (
                 <span className="relative">
                   <button
                     onClick={() => setBarMenu(mn => (mn === 'alert' ? null : 'alert'))}
@@ -6439,8 +6550,10 @@ const StrikeChart = ({
                       </button>
                     )}
                     {onPinStrike && (
-                      <button type="button" onClick={() => onPinStrike(card.strike)} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-bead-pin-strike>
-                        Pin strike
+                      /* the click that opened this card pinned the strike already: the button says what it will do now (the
+                         audit's B-10 — "Pin strike" let the pin go) */
+                      <button type="button" onClick={() => onPinStrike(card.strike)} aria-pressed={focusPrice != null && Math.abs(focusPrice - card.strike) < 1e-9} className="hit h-6 px-2 rounded-[3px] border border-ink/[0.14] font-mono text-[11px] text-textSecondary hover:text-textPrimary" data-bead-pin-strike>
+                        {focusPrice != null && Math.abs(focusPrice - card.strike) < 1e-9 ? 'Let the strike go' : 'Pin strike'}
                       </button>
                     )}
                     <button type="button" onClick={() => setPinnedBead(null)} aria-label="Let the card go" title="Let the card go — Esc" className="hit ml-auto h-6 w-6 inline-flex items-center justify-center rounded text-textMuted hover:text-textPrimary">

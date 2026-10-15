@@ -17,6 +17,7 @@
 import { bookMarket } from './bookMarket';
 import { SESSION_CLOSE_MIN, SESSION_OPEN_MIN, nyClock, nyMinutes, nySession } from '../core/nyTime';
 import type { Candle } from '../types/market';
+import { num, pctSigned } from '../core/format';
 
 /** NONE: no book was kept at the open or now (the feed's book read only from a later minute) — nothing to compare */
 export type GexTrend = 'BUILDING' | 'BLEEDING' | 'FLAT' | 'NEW' | 'NONE';
@@ -140,12 +141,13 @@ export function sinceOpenRead(ratio: number | null | undefined): SinceOpenRead |
   if (ratio < 0) return { figure: null, dir: 0, text: 'flipped sides since the open', short: 'flipped sides' };
   if (ratio < 0.05) return { figure: null, dir: 1, text: 'new since the open', short: 'new today' };
   const times = 1 / ratio;
-  if (times > 3) return { figure: `${times.toFixed(1)}×`, dir: 1, text: 'gamma building', short: 'building' };
+  if (times > 3) return { figure: `${num(times, 1)}×`, dir: 1, text: 'gamma building', short: 'building' };
   const pct = Math.max(-99, (times - 1) * 100);
   const dir: 1 | -1 | 0 = pct >= TREND_THRESHOLD ? 1 : pct <= -TREND_THRESHOLD ? -1 : 0;
   const whole = Math.round(pct) || 0;
   return {
-    figure: `${whole > 0 ? '+' : ''}${whole.toLocaleString('en-US')}%`,
+    /* through core/format: the true minus and the sign on a change (it printed a hyphen-minus, "-35%") */
+    figure: pctSigned(whole, 0),
     dir,
     text: dir === 1 ? 'gamma building' : dir === -1 ? 'gamma bleeding' : 'about where it opened',
     short: dir === 1 ? 'building' : dir === -1 ? 'bleeding' : 'about flat',

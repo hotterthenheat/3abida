@@ -3,7 +3,6 @@
   { "file": "src/components/compass/CampaignAnalysis.tsx", "rule": "sell-the", "text": "dealers must sell the stock", "reason": "Describes how dealers hedge (the mechanism), not an instruction to the reader." },
   { "file": "src/data/positions.ts", "text": "dealers", "reason": "Describes dealer hedging against the reader's own position (dealers sell into rallies / buy the dips), not an instruction." },
   { "file": "src/data/room.ts", "rule": "sell-the", "text": "dealers sell the last hour", "reason": "Describes dealer charm flows into the close, not an instruction." },
-  { "file": "src/components/gex/ChartToolbar.tsx", "rule": "fade", "text": "strength & fade", "reason": "A drawing style: how the LED strike bands fade visually." },
   { "file": "src/components/gex/TraderClock.tsx", "rule": "fade", "text": "then starts to fade", "reason": "Gamma decaying through the day, not a trade instruction." },
   { "file": "src/data/news.ts", "rule": "fade", "text": "China orders fade", "reason": "A headline's verb (orders declining), not an instruction." },
   { "file": "src/components/gex/indicatorItems.ts", "rule": "signal", "text": "9-EMA signal", "reason": "The MACD's signal line, the indicator's own part name." },

@@ -121,6 +121,9 @@
      (Noah, 2026-09-12: "the holographic silver was fine with this section");
      only the silver as an INK is cut per theme (--silver) */
   --silver-fill: 199 211 232;
+  /* THE WORD ON A SILVER SURFACE (the round-3 audit, 2026-10-15): the near-black ink a silver fill or the foil carries
+     — the same on either ground, as the surface is; it was written by hand as #0a0a0a on every such chip */
+  --on-silver: 10 10 10;
   /* THE THERMAL RAMP'S TWO POLES AS WORDS — "breaks / pushes along" warm,
      "a shelf / pushes back" cool: the exact inks heatLaneInks('thermal-yellow',
      0.72) computes for the capsules, so a word and its bar agree on the dark
@@ -318,6 +321,7 @@
   /* …and the steel whole on paper, where 55% of it fell under 3:1 */
   --ring-a: 1;
   --silver-fill: 199 211 232;
+  --on-silver: 10 10 10;
 
   /* THE BRAND ON PAPER: the tile #FBFAF7 with its #CDCBC5 edge, the brackets #8C8A84, the ">" #6B6E75, the wordmark's lit
      half and the cursor the page's black, and the foil as GRAPHITE: slate with a violet breath and a dark sheen where the

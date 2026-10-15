@@ -1349,6 +1349,8 @@ export function saveDrawings(ticker: string, drawings: Drawing[]): void {
   } catch {
     /* storage full/blocked — drawings just won't persist */
   }
-  /* an alert on a line follows the line when it moves, and goes when it is taken off (gex/alertStore.ts) */
-  syncLineAlerts(ticker, drawings.filter(d => d.id && ALERTABLE_KINDS.includes(d.kind)));
+  /* an alert on a line follows the line when it moves, and goes when it is taken off (gex/alertStore.ts) — a set kept
+     under a tape's key (`feed:SPY`) holds the name's alerts on that set's lines */
+  const name = ticker.startsWith('feed:') ? ticker.slice(5) : ticker;
+  syncLineAlerts(name, drawings.filter(d => d.id && ALERTABLE_KINDS.includes(d.kind)), ticker);
 }

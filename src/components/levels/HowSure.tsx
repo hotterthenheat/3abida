@@ -111,7 +111,10 @@ export const HowSureBook = ({ sures, align = 'end', compact = false, className =
     const id = requestAnimationFrame(() => focusRef.current?.scrollIntoView({ block: 'nearest' }));
     return () => cancelAnimationFrame(id);
   }, [open, focus]);
-  if (!first) return null;
+  /* NO BOOK YET (the feed before its first read, a replay minute with no column): a host's own door still stands — the
+     decision strip's Regime, Move, Record and Fresh need no book, and the whole strip vanished with it (the audit's C-49) —
+     and says the card opens once there is one */
+  if (!first) return trigger ? <span className="contents" title="The read opens once the first book is in" data-how-sure-pending>{trigger}</span> : null;
   const mark = (s: HowSureSection) => (focus === s ? { ref: focusRef, 'data-how-sure-focus': '' } : {});
   const door = trigger ?? (
     <button

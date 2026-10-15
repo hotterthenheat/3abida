@@ -279,7 +279,7 @@ const ReplayStrip = ({ phase, pos, length, day, startMin, playing, onPlay, pace,
       title={playing ? 'Pause' : 'Play'}
       aria-pressed={playing}
       /* running = silver, the house's "on"; held = an outlined ring */
-      className={`shrink-0 inline-flex items-center justify-center rounded-full border transition-colors ${size === 'md' ? 'w-8 h-8' : 'w-6 h-6'} ${playing ? 'border-transparent text-[#0a0a0a]' : 'border-borderMuted text-textPrimary hover:border-textSecondary hover:bg-ink/[0.05]'}`}
+      className={`shrink-0 inline-flex items-center justify-center rounded-full border transition-colors ${size === 'md' ? 'w-8 h-8' : 'w-6 h-6'} ${playing ? 'border-transparent text-onSilver' : 'border-borderMuted text-textPrimary hover:border-textSecondary hover:bg-ink/[0.05]'}`}
       style={playing ? { background: SILVER_FILL } : undefined}
       data-replay-play
     >

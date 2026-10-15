@@ -6,6 +6,11 @@
 */
 import { num, numCompact } from '../../core/format';
 import type { CrosshairBar } from '../gex/StrikeChart';
+import { INDICATOR_ITEMS } from '../gex/indicatorItems';
+
+/* an indicator's own name, as the library and the menu say it (the audit's B-23: the readout printed the code's keys,
+   "ema9", "vwap") */
+const LABEL = new Map(INDICATOR_ITEMS.map(i => [i.key, i.label] as const));
 
 interface Props {
   readout: CrosshairBar;
@@ -38,7 +43,7 @@ const CrosshairReadout = ({ readout, showOhl, showVol, showInds, when, className
     )}
     <Cell k="C" v={num(readout.close, 2)} />
     {showVol && readout.volume != null && <Cell k="V" v={numCompact(readout.volume)} />}
-    {showInds && readout.indicators.map(ind => <Cell key={ind.key} k={ind.key} v={num(ind.value, 2)} ink={ind.ink} />)}
+    {showInds && readout.indicators.map(ind => <Cell key={ind.key} k={LABEL.get(ind.key) ?? ind.key} v={num(ind.value, 2)} ink={ind.ink} />)}
   </div>
 );
 

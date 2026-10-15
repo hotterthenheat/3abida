@@ -22,9 +22,15 @@ const browser = await chromium.launch(exe ? { executablePath: exe } : {});
 const results = [];
 
 /** A page on Terrain with the panes asked, the desk put back by `done`; `at` holds the page's clock from that instant */
-async function terrain(panes, { width = 1440, height = 900, layout = 1, at = null, railCut = undefined } = {}) {
+async function terrain(panes, { width = 1440, height = 900, layout = 1, at = null, railCut = undefined, cvd = null, theme = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Los_Angeles' });
   const page = await ctx.newPage();
+  /* the reader's colour vision and theme, set before the first paint as Settings leaves them (index.html reads them) */
+  if (cvd || theme)
+    await page.addInitScript(([cvd, theme]) => {
+      if (cvd) localStorage.setItem('slayer_cvd', cvd);
+      if (theme) localStorage.setItem('slayer_theme', theme);
+    }, [cvd, theme]);
   if (at) await page.clock.install({ time: new Date(at) });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
@@ -43,6 +49,8 @@ async function terrain(panes, { width = 1440, height = 900, layout = 1, at = nul
   await page.waitForFunction(() => [...document.querySelectorAll('[data-chart-state]')].some(e => Number((e.getAttribute('data-chart-state') ?? '').split('|')[2]) > 0), null, { timeout: 60_000 });
   await page.waitForTimeout(4000);
   const done = async () => {
+    if (cvd) await page.evaluate(() => localStorage.removeItem('slayer_cvd'));
+    if (theme) await page.evaluate(() => localStorage.removeItem('slayer_theme'));
     await page.evaluate(v => (v == null ? localStorage.removeItem('slayer_terrain_v1') : localStorage.setItem('slayer_terrain_v1', v)), had);
     await page.evaluate(v => (v == null ? localStorage.removeItem('slayer_name') : localStorage.setItem('slayer_name', v)), hadName);
     await ctx.close();
@@ -176,7 +184,9 @@ check('hover: the node under the pointer is the one hovered, the rail docked lef
       const h = e.chart.paneSize(0).height;
       for (const fx of [0.55, 0.65, 0.75, 0.45]) {
         const x = Math.round(w * fx);
-        for (let y = 40; y < h - 40; y += 2) {
+        /* below the chrome band (the header strip, the legend and the hover row, which stands over the plot's top under a
+           pointer) — a node there is behind the row by design */
+        for (let y = Math.round(h * 0.3); y < h - 40; y += 2) {
           const b = e.trails.beadAt(x, y);
           if (b) return { x, y, px: box.left + x, py: box.top + y, strike: b.strike, time: b.time, inset: box.left - e.box().parentElement.getBoundingClientRect().left };
         }
@@ -473,6 +483,225 @@ check('keys: the sheet holds the keys, ? in a replay, Caps Lock, Shift before a 
         pass = false;
         notes.push(`page errors: ${errors.join(' | ')}`);
       }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── COLOUR VISION: THE OVALS AND THE LADDER WEAR THE PAIR THE READER CHOSE (the audit's CVD pass) ────────────────────
+   Before: under Settings' blue–orange pair the tokens moved (gold 250 222 110, violet 150 78 230 on a dark ground) but
+   the renderer and the ladder drew numbers — the standard 232 185 74 and 128 100 247 — beside blue and orange candles;
+   and the ladder's Δ-from-spot ink was `rgb(var(--bull))`, which a canvas cannot read, so it never drew in its colour. */
+check('colour vision: the ovals and the ladder follow the blue-orange pair, on black and on paper', async () => {
+  const notes = [];
+  let pass = true;
+  const t0 = Date.now();
+  for (const theme of ['dark', 'light']) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true, view: 'net' }], { cvd: 'blue-orange', theme });
+    try {
+      await page.waitForFunction(() => [...(window.__charts ?? [])].some(e => e.host.isConnected && e.trails?.snapshots?.length), null, { timeout: 30000 });
+      await page.waitForTimeout(2500);
+      const got = await page.evaluate(() => {
+        const e = [...window.__charts].find(x => x.host.isConnected && x.trails?.snapshots?.length);
+        const paper = !!e.trails.paper;
+        /* the tokens on the tape's own ground, read the way the page reads them */
+        const probe = document.createElement('span');
+        probe.setAttribute('data-theme', paper ? 'light' : 'dark');
+        document.body.appendChild(probe);
+        const tok = n => getComputedStyle(probe).getPropertyValue(n).trim().split(/\s+/).map(Number);
+        const want = { put: tok('--amplify'), call: tok('--absorb') };
+        probe.remove();
+        const inks = e.trails.legend()?.inks ?? null;
+        /* the ladder's canvas: pixels of the chosen pair, and of the standard pair */
+        const cv = document.querySelector('[data-profile-panel] canvas');
+        let chosen = 0;
+        let standard = 0;
+        if (cv) {
+          const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+          const std = paper ? [[91, 60, 230], [158, 114, 0]] : [[128, 100, 247], [232, 185, 74]];
+          const near = (i, c) => Math.abs(d[i] - c[0]) <= 2 && Math.abs(d[i + 1] - c[1]) <= 2 && Math.abs(d[i + 2] - c[2]) <= 2;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i + 3] < 250) continue;
+            if (near(i, want.put) || near(i, want.call)) chosen++;
+            else if (near(i, std[0]) || near(i, std[1])) standard++;
+          }
+        }
+        return { paper, want, inks, chosen, standard };
+      });
+      const same = (a, b) => !!a && !!b && a.every((v, i) => Math.abs(v - b[i]) <= 1);
+      const ok = same(got.inks?.put, got.want.put) && same(got.inks?.call, got.want.call) && got.chosen > 0 && got.standard === 0;
+      notes.push(`${theme} page, ${got.paper ? 'paper' : 'dark'} tape: ovals put ${got.inks?.put?.join(' ')} call ${got.inks?.call?.join(' ')} — tokens ${got.want.put.join(' ')} / ${got.want.call.join(' ')}; ladder ${got.chosen} px of the chosen pair, ${got.standard} of the standard`);
+      if (!ok || errors.length) pass = false;
+      if (errors.length) notes.push(`page errors: ${errors.join(' | ')}`);
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── THE LADDER (the audit's C-15, C-23, C-32) ───────────────────────────────────────────────────────────────────────
+   Before: the key named "the spine now" and "at the open" in the Net view, which draws neither; the Δ from spot was
+   given `rgb(var(--bull))`, which a canvas cannot read, so it never drew green or red; the hover card printed
+   "++0.52% from spot". */
+check('ladder: the key names what is drawn, the Δ wears its direction, the card prints one sign', async () => {
+  const notes = [];
+  let pass = true;
+  const t0 = Date.now();
+  {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+    try {
+      await page.waitForSelector('[data-profile-panel] canvas[data-key]', { timeout: 20000 });
+      await page.locator('[data-profile-view="net"]').first().click();
+      await page.waitForTimeout(800);
+      const netKey = await page.locator('[data-profile-panel] canvas').first().getAttribute('data-key');
+      await page.locator('[data-profile-view="ladder"]').first().click();
+      await page.waitForTimeout(800);
+      const sidesKey = await page.locator('[data-profile-panel] canvas').first().getAttribute('data-key');
+      notes.push(`Net key: "${netKey}"`, `Sides key: "${sidesKey}"`);
+      if (/spine|open/.test(netKey ?? '') || !/spine/.test(sidesKey ?? '')) pass = false;
+      /* the Δ from spot: the direction pair's pixels in the strike column (no other ink on the ladder is green or red) */
+      const dir = await page.evaluate(() => {
+        const cv = document.querySelector('[data-profile-panel] canvas');
+        const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+        let green = 0;
+        let red = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 200) continue;
+          if (d[i + 1] > 150 && d[i] < 110 && d[i + 2] < 140) green++;
+          if (d[i] > 200 && d[i + 1] < 110 && d[i + 2] < 100) red++;
+        }
+        return { green, red };
+      });
+      notes.push(`Δ from spot: ${dir.green} green and ${dir.red} red pixels on the ladder`);
+      /* the rows in view may all stand on one side of the price: the direction inks drawn at all is the check */
+      if (dir.green + dir.red < 10) pass = false;
+      if (errors.length) {
+        pass = false;
+        notes.push(`page errors: ${errors.join(' | ')}`);
+      }
+    } finally {
+      await done();
+    }
+  }
+  {
+    /* three panes, Sides: the ladder too narrow for figures, so a hover opens the card */
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], { layout: 3 });
+    try {
+      await page.locator('[data-profile-view="ladder"]').first().click();
+      await page.waitForTimeout(600);
+      const panel = page.locator('[data-profile-panel]').first();
+      const b = await panel.boundingBox();
+      let text = '';
+      for (let y = b.y + b.height * 0.35; y < b.y + b.height * 0.75 && !text; y += 14) {
+        await page.mouse.move(b.x + b.width * 0.5, y);
+        await page.waitForTimeout(150);
+        text = (await page.locator('[data-profile-card]').first().textContent({ timeout: 300 }).catch(() => '')) ?? '';
+      }
+      notes.push(`hover card: "${text.slice(0, 80)}"`);
+      if (!text || /\+\+/.test(text)) pass = false;
+      if (errors.length) {
+        pass = false;
+        notes.push(`page errors: ${errors.join(' | ')}`);
+      }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── A JUMP ON A LONG ONE-MINUTE TAPE (the audit's B-73) ─────────────────────────────────────────────────────────────
+   Before: the jump counted bars over the whole tape (five weeks of minutes, thousands of bars) while the series held
+   only the recent 1,000, so a day a week back set a range far past the series and the view showed no bar of that day. */
+check('jump: a day a week back on one-minute bars lands on that day', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '1m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    await page.mouse.click(b.x + b.width * 0.3, b.y + 20);
+    /* the day a week back: the sessions the tape holds, read off the chart */
+    const day = await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.host.isConnected && x.candles.data().length);
+      const ny = t => new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const all = [...new Set(e.candles.data().filter(d => 'close' in d).map(d => ny(d.time)))];
+      return { want: null, seen: all };
+    });
+    const sessions = [];
+    await page.keyboard.press('t');
+    await page.waitForSelector('[data-jump-date-input]', { timeout: 4000 });
+    /* five sessions back on the calendar's own weekdays */
+    const target = await page.evaluate(() => {
+      const d = new Date();
+      let n = 0;
+      while (n < 6) {
+        d.setDate(d.getDate() - 1);
+        if (d.getDay() !== 0 && d.getDay() !== 6) n++;
+      }
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    });
+    await page.fill('[data-jump-date-input]', target);
+    await page.click('form button[type="submit"]');
+    await page.waitForTimeout(3500);
+    const got = await page.evaluate(want => {
+      const e = [...window.__charts].find(x => x.host.isConnected && x.candles.data().length);
+      const tr = e.chart.timeScale().getVisibleRange();
+      const ny = t => new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const inView = e.candles.data().filter(d => 'close' in d && d.time >= tr.from && d.time <= tr.to);
+      return { tf: (e.host.getAttribute('data-chart-state') ?? '').split('|')[1], held: e.candles.data().length, inView: inView.length, onDay: inView.filter(d => ny(d.time) === want).length, from: ny(tr.from), to: ny(tr.to) };
+    }, target);
+    sessions.push(...day.seen);
+    return { pass: got.onDay > 0 && !errors.length, ms: Date.now() - t0, notes: [`jumped to ${target} at ${got.tf}: view ${got.from} to ${got.to}, ${got.onDay} of ${got.inView} bars in view on that day; the series holds ${got.held} bars`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── INDICATORS: THEIR OWN PANES, A FITTED AXIS, A LIGHT TAPE (the audit's D(a), D(d), D(h)) ─────────────────────────
+   Before: RSI took pane 1 by a fixed index and landed inside the regime strip's pane on its scale; SMA 200 and Bollinger
+   widened the axis fitted to the candles; on a light tape the lines read 1.0 to 1.5:1. */
+check('indicators: a pane of their own beside the regime strip, the fitted axis kept, readable on a light tape', async () => {
+  const notes = [];
+  let pass = true;
+  const t0 = Date.now();
+  for (const theme of ['dark', 'light']) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true, regime: true }, ladder: true, indicators: { rsi: true, sma: true, bb: true } }], { theme });
+    try {
+      await page.waitForTimeout(3000);
+      const got = await page.evaluate(() => {
+        const e = [...window.__charts].find(x => x.host.isConnected && x.candles.data().length);
+        const panes = e.chart.panes();
+        const perPane = panes.map(p => p.getSeries().length);
+        /* the fitted axis against the candles in view */
+        const tr = e.chart.timeScale().getVisibleRange();
+        const bars = e.candles.data().filter(b => 'close' in b && b.time >= tr.from && b.time <= tr.to);
+        let lo = Infinity, hi = -Infinity;
+        for (const b of bars) { lo = Math.min(lo, b.low); hi = Math.max(hi, b.high); }
+        const pr = e.chart.priceScale('right').getVisibleRange();
+        /* the overlay lines' inks on this tape */
+        /* the indicators' lines: drawn lines on the price pane (a helper series with no points is not a line) */
+        const inks = panes[0].getSeries().filter(s => s.seriesType() === 'Line' && s.data().length > 0).map(s => s.options().color);
+        const ground = (e.host.closest('[data-chart-ground]') ?? document.querySelector('[data-chart-ground]'))?.getAttribute('data-chart-ground');
+        return { panes: panes.length, perPane, axis: pr ? [pr.from, pr.to] : null, lo, hi, inks, ground };
+      });
+      const span = got.axis ? got.axis[1] - got.axis[0] : 0;
+      const candleSpan = got.hi - got.lo;
+      const lum = c => {
+        const m = /#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(c);
+        if (!m) return null;
+        const f = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * f(parseInt(m[1], 16)) + 0.7152 * f(parseInt(m[2], 16)) + 0.0722 * f(parseInt(m[3], 16));
+      };
+      const darkest = got.inks.map(lum).filter(v => v != null);
+      const worstLight = got.ground === 'light' && darkest.length ? Math.min(...darkest.map(l => (0.5 + 0.05) / (l + 0.05))) : null;
+      notes.push(`${theme} page (${got.ground} tape): ${got.panes} panes, series a pane ${got.perPane.join('/')}; candles ${got.lo.toFixed(2)}–${got.hi.toFixed(2)} (${candleSpan.toFixed(2)}), axis ${got.axis?.map(v => v.toFixed(2)).join('–')} (${span.toFixed(2)})${worstLight != null ? `; worst overlay ink on the light tape ${worstLight.toFixed(2)}:1` : ''}`);
+      /* price + regime + RSI = 3 panes; the axis no wider than the eight-strike floor or twice the candles' span */
+      if (got.panes < 3 || errors.length) pass = false;
+      if (span > Math.max(8 * 1, candleSpan * 2.2) + 0.5) pass = false;
+      if (worstLight != null && worstLight < 2.9) pass = false;
+      if (errors.length) notes.push(`page errors: ${errors.join(' | ')}`);
     } finally {
       await done();
     }

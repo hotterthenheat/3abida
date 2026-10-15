@@ -70,6 +70,8 @@ export default {
         // form); only the accent as an INK is cut per theme (select, silver).
         selectFill: token('select-fill'),
         silverFill: token('silver-fill'),
+        // the near-black word on a silver fill or the foil (the same on either ground)
+        onSilver: token('on-silver'),
 
         // GEX structural levels
         // Flip = INDECISION GRAY (Noah, 2026-08-29): "when something is
