@@ -16,7 +16,7 @@ export type GlossaryWord = 'wall' | 'shelf' | 'trapdoor' | 'pocket' | 'flip' | '
 
 /** The room's words — read by the guides' foot and by the glossary page (data/glossary.ts) */
 export const ROOM_WORDS: Record<GlossaryWord, [string, string]> = {
-  wall: ['Wall', 'A strike whose dealer hedging pushes back on price. The call wall is the heaviest such strike above spot, the put wall the heaviest below.'],
+  wall: ['Wall', 'A strike holding the most of one side\'s hedging in the book. The call wall is the heaviest strike where the calls\' hedging wins, the put wall the heaviest where the puts\' wins, wherever the price stands. A price that goes through a wall leaves it broken until it comes back.'],
   shelf: ['Shelf', 'A strike that pushes back with at least a third of the heaviest strike’s hedging, but is not one of the named walls.'],
   trapdoor: ['Trapdoor', 'A strike whose hedging pushes a move along rather than back — price tends to travel through it, not stop at it.'],
   pocket: ['Empty stretch', 'Strikes with almost no hedging between two shelves; a break into one has little in its way until the next shelf.'],

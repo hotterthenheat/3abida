@@ -13,14 +13,23 @@
   session — by open interest, by volume and
   directionalized (UW's _oi, _vol, _dir), its price,
   and the other greeks' series. This job walks back
-  from the session before today, newest first, for
+  from the session before today — today's own once it
+  is 5:00 pm New York on a weekday, UW's rows for the
+  date standing whole by then (its last row 4:00 pm) —
+  newest first, for
   SERIES_DAYS calendar days (730) and writes each
   session's rows AS ANSWERED (every field, never one
   dropped) to .feed-cache/field/<NAME>/<D>/series.json.
-  A day already held — a series.json, the recorder's
-  own total.json for that day, or a rebuilt day whose
-  past.json.gz carries the series — is skipped, so a
-  run resumes where it stopped. A day UW answers
+  A day already held — this job's own series.json,
+  and nothing else — is skipped, so a run resumes
+  where it stopped. The recorder's total.json and a
+  rebuilt day's past.json.gz never count: they keep
+  only the figures the trail reads, and on the days
+  before 2026-10-13 only the open-interest series
+  (three figures a row — measured 2026-10-15: SPY's
+  Oct 12, QQQ's Oct 12 and 13, every rebuilt day of
+  Sep 29 to Oct 9), so they would have stood in for
+  UW's _vol and _dir that were never kept. A day UW answers
   empty (a holiday, a day beyond its window) is
   written with `empty: true` so it is not asked again;
   a refused call (429, a 5xx, the network) is not
@@ -32,11 +41,10 @@
   in the browser.
 ==================================================
 */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { gunzipSync } from 'node:zlib';
 import type { FeedClient } from './feed';
-import { nyIsoDate } from '../src/core/nyTime';
+import { nyIsoDate, nyMinutes, nyParts } from '../src/core/nyTime';
 
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 export const SERIES_FILE = 'series.json';
@@ -71,6 +79,61 @@ export interface SeriesStatus {
   finishedAt: number | null;
 }
 
+/** Where a walk starts: today's session once its rows stand whole (5:00 pm New York on a weekday), else the one before */
+export const SERIES_TODAY_FROM_MIN = 17 * 60;
+export function firstDayOf(at: number): string {
+  const today = nyIsoDate(at);
+  const wd = nyParts(at).weekday;
+  return wd !== 0 && wd !== 6 && nyMinutes(at) >= SERIES_TODAY_FROM_MIN ? today : weekdayBefore(today);
+}
+
+export interface SeriesStored {
+  /** sessions held with rows */
+  days: number;
+  /** dates UW answered empty (a holiday, beyond its window) */
+  empty: number;
+  oldest: string | null;
+  newest: string | null;
+}
+
+/** An empty day's file ends `"rows":[],"empty":true}` (the writer's own order) — its last bytes say so, nothing parsed */
+function emptyFile(path: string): boolean {
+  const tail = '"rows":[],"empty":true}';
+  const size = statSync(path).size;
+  const buf = Buffer.alloc(Math.min(size, tail.length));
+  const fd = openSync(path, 'r');
+  try {
+    readSync(fd, buf, 0, buf.length, size - buf.length);
+  } finally {
+    closeSync(fd);
+  }
+  return buf.toString('utf8') === tail;
+}
+
+/** What is held on this machine, a name at a time — read off the files' ends */
+export function storedOf(names: string[], root = ROOT): Record<string, SeriesStored> {
+  const out: Record<string, SeriesStored> = {};
+  for (const name of names) {
+    const s: SeriesStored = { days: 0, empty: 0, oldest: null, newest: null };
+    const dir = join(root, name);
+    if (existsSync(dir))
+      for (const d of readdirSync(dir).sort()) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+        const f = join(dir, d, SERIES_FILE);
+        if (!existsSync(f)) continue;
+        if (emptyFile(f)) {
+          s.empty++;
+          continue;
+        }
+        s.days++;
+        s.oldest ??= d;
+        s.newest = d;
+      }
+    out[name] = s;
+  }
+  return out;
+}
+
 /** The session before a New York date: the weekday before (holidays answer empty and are kept as such) */
 export function weekdayBefore(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
@@ -89,27 +152,9 @@ export function createSeriesBackfill(client: FeedClient, opts: { root?: string; 
   const pauseMs = opts.pauseMs ?? 1500;
   const log = opts.log ?? (() => undefined);
   const status: SeriesStatus = { running: false, names: [], days: 0, current: null, written: 0, empty: 0, skipped: 0, refused: 0, failed: {}, oldest: {}, startedAt: 0, finishedAt: null };
-  const pastHasTotal = new Map<string, boolean>();
-
-  /** The day is held already: this job's file, the recorder's total.json, or a rebuilt day carrying the series */
+  /** The day is held already: this job's own file, written whole as UW answered it — never another file's subset */
   function held(name: string, day: string): boolean {
-    const dir = join(root, name, day);
-    if (existsSync(join(dir, SERIES_FILE))) return true;
-    if (existsSync(join(dir, 'total.json')) || existsSync(join(dir, 'total.json.gz'))) return true;
-    const past = join(dir, 'past.json.gz');
-    if (!existsSync(past)) return false;
-    const key = `${name}|${day}`;
-    let has = pastHasTotal.get(key);
-    if (has === undefined) {
-      try {
-        const p = JSON.parse(gunzipSync(readFileSync(past)).toString('utf8')) as { total?: { rows?: unknown[] } | null };
-        has = !!p.total && Array.isArray(p.total.rows) && p.total.rows.length > 0;
-      } catch {
-        has = false;
-      }
-      pastHasTotal.set(key, has);
-    }
-    return has;
+    return existsSync(join(root, name, day, SERIES_FILE));
   }
 
   const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -147,7 +192,7 @@ export function createSeriesBackfill(client: FeedClient, opts: { root?: string; 
     return 'refused';
   }
 
-  /** Every name, newest session first, back `days` calendar days from the session before today */
+  /** Every name, newest session first, back `days` calendar days from the session before today (today's after 5:00 pm) */
   async function run(names: string[], days: number): Promise<SeriesStatus> {
     if (status.running) return status;
     Object.assign(status, { running: true, names, days, current: null, written: 0, empty: 0, skipped: 0, refused: 0, failed: {}, oldest: {}, startedAt: clock(), finishedAt: null });
@@ -155,7 +200,7 @@ export function createSeriesBackfill(client: FeedClient, opts: { root?: string; 
     const floor = new Date(Date.UTC(...(today.split('-').map(Number) as [number, number, number]).map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number], 12) - days * 86_400_000).toISOString().slice(0, 10);
     try {
       for (const name of names) {
-        let d = weekdayBefore(today);
+        let d = firstDayOf(clock());
         let n = 0;
         while (d >= floor) {
           status.current = `${name} ${d}`;
@@ -181,5 +226,5 @@ export function createSeriesBackfill(client: FeedClient, opts: { root?: string; 
     return status;
   }
 
-  return { run, status: () => status, held };
+  return { run, status: () => status, held, stored: (names: string[]) => storedOf(names, root) };
 }

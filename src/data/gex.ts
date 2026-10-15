@@ -125,13 +125,20 @@ export function readHeatPattern(levels: KeyLevels): HeatPatternRead {
   const { spot, flip, callWall, putWall } = levels;
   const px = (v: number) => v.toFixed(2);
   const aboveFlip = spot >= flip;
+  /* THE WALLS ARE THE BOOK'S, EITHER SIDE OF THE PRICE (2026-10-15 — the owner: "Choose walls from the book, not from
+     price's side"): a call wall under the price or a put wall over it is a wall the price has gone through, so it boxes
+     nothing in and the words say where the price stands against it */
+  const cwOver = callWall >= spot;
+  const pwUnder = putWall <= spot;
   const cwPct = ((callWall - spot) / Math.max(spot, 1)) * 100;
   const pwPct = ((spot - putWall) / Math.max(spot, 1)) * 100;
   /** Walls this close (%) box price in; a floor past GONE might as well not exist. */
   const TIGHT = 1.2;
   const GONE = 2.6;
+  const lid = cwOver ? `${px(callWall)} overhead is the lid to beat` : `price stands over the ${px(callWall)} call wall`;
+  const under = pwUnder ? `dips into ${px(putWall)} get absorbed and the bounce carries` : `price stands under the ${px(putWall)} put wall`;
 
-  if (aboveFlip && cwPct <= TIGHT && pwPct <= TIGHT) {
+  if (aboveFlip && cwOver && pwUnder && cwPct <= TIGHT && pwPct <= TIGHT) {
     return {
       key: 'PINNED',
       direction: 'RANGE',
@@ -142,10 +149,10 @@ export function readHeatPattern(levels: KeyLevels): HeatPatternRead {
     return {
       key: 'SPRINGBOARD',
       direction: 'BULLISH',
-      read: `Supportive field above the ${px(flip)} flip — dips into ${px(putWall)} get absorbed and the bounce carries; ${px(callWall)} overhead is the lid to beat.`,
+      read: `Supportive field above the ${px(flip)} flip — ${under}; ${lid}.`,
     };
   }
-  if (pwPct >= GONE) {
+  if (pwUnder && pwPct >= GONE) {
     return {
       key: 'WHIPSAW',
       direction: 'VOLATILE',
@@ -155,7 +162,7 @@ export function readHeatPattern(levels: KeyLevels): HeatPatternRead {
   return {
     key: 'TRAPDOOR',
     direction: 'BEARISH',
-    read: `Below the ${px(flip)} flip the hedging amplifies moves — rallies get sold back under the ${px(callWall)} lid, and ${px(putWall)} is the only structure holding under price.`,
+    read: `Below the ${px(flip)} flip the hedging amplifies moves — ${cwOver ? `rallies get sold back under the ${px(callWall)} lid` : `price stands over the ${px(callWall)} call wall`}, and ${pwUnder ? `${px(putWall)} is the only structure holding under price` : `price stands under the ${px(putWall)} put wall`}.`,
   };
 }
 

@@ -22,7 +22,7 @@ import { nyWallTime } from '../src/core/nyTime';
 import { calibrate, dayVerdict, type CalibrationDay } from '../src/data/feed/pricedMove';
 import { buildRecap, flipCrossesOf, recapTouchesOf, recapWallsOf, regimePathOf, stripRegime, type RecapInput } from '../src/data/feed/sessionRecap';
 import { LEVEL_KINDS, nyMinuteOf, rng, sessionTouches, type TrackBar, type TrackConfig, type TrackRow, type TrackSession } from '../src/data/feed/trackRecord';
-import { buildRegimeReference, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeQuantiles, regimeReachFor, stickyWallMoves, stickyWalls } from '../src/data/feed/trailModel';
+import { buildRegimeReference, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeQuantiles, regimeReachFor, stickyWallMoves, stickyWalls, wallObsOfRow } from '../src/data/feed/trailModel';
 import { createFieldBackfill } from '../server/fieldBackfill';
 import { createFieldStore } from '../server/fieldStore';
 import { createPricedMove } from '../server/pricedMove';
@@ -109,23 +109,20 @@ for (let i = 0; i < 30; i++) {
    it has been the raw pick for three closed minutes AND beats the held wall's |gamma| by 10%; a moment's swap is no move,
    and a near-equal neighbour never takes the wall while the held one stands */
 {
+  /* the walls are picked off each row's own cells (the book's rule): 785's size against 780's decides the pick */
   const day0 = Date.UTC(2026, 9, 14, 14, 0); // 10:00 am New York, one day
-  const row = (i: number, cw: number, big = 1.25) => ({ m: day0 + i * 60_000, spot: 775, cw, pw: 770, cells: [[770, 1], [779, -1], [780, -1], [781, -1], [785, -big]] as [number, number][] });
-  const rows = [...Array.from({ length: 10 }, (_, i) => row(i, 780)), row(10, 785), row(11, 785), row(12, 780), row(13, 785), row(14, 785), row(15, 785), row(16, 785)];
+  const row = (i: number, k785: number) => ({ m: day0 + i * 60_000, spot: 775, cw: null, pw: null, cells: [[770, 1], [779, -0.5], [780, -1], [781, -0.5], [785, -k785]] as [number, number][] });
+  const rows = [...Array.from({ length: 10 }, (_, i) => row(i, 0.5)), row(10, 1.25), row(11, 1.25), row(12, 0.5), row(13, 1.25), row(14, 1.25), row(15, 1.25), row(16, 1.25)];
   const w = recapWallsOf(rows);
-  check(`a wall that went to 785 for two minutes did not move; the raw pick from 13, it moved 780 → 785 at 15 (three closed minutes, 785 at 1.25× 780), five strikes on the column's $1 grid: ${JSON.stringify(w)}`, w.length === 1 && w[0].kind === 'call' && w[0].from === 780 && w[0].to === 785 && w[0].m === day0 + 15 * 60_000 && w[0].strikes === 5);
-  const near = recapWallsOf([...Array.from({ length: 10 }, (_, i) => row(i, 780, 1.05)), ...Array.from({ length: 10 }, (_, i) => row(10 + i, 785, 1.05))]);
+  check(`a wall that went to 785 for two minutes did not move; the book's pick from 13 at 1.25× 780, it moved 780 → 785 at 15 (three closed minutes), five strikes on the column's $1 grid: ${JSON.stringify(w)}`, w.length === 1 && w[0].kind === 'call' && w[0].from === 780 && w[0].to === 785 && w[0].m === day0 + 15 * 60_000 && w[0].strikes === 5);
+  const near = recapWallsOf([...Array.from({ length: 10 }, (_, i) => row(i, 0.5)), ...Array.from({ length: 10 }, (_, i) => row(10 + i, 1.05))]);
   check(`a strike only 5% heavier never takes a wall that still stands (no move in twenty minutes): ${JSON.stringify(near)}`, near.length === 0);
+  const crossed = recapWallsOf(Array.from({ length: 20 }, (_, i) => ({ ...row(i, 0.5), spot: i < 8 ? 778 : 782 })));
+  check(`a price crossing the wall never moves it (780 stands with the price over it for twelve minutes): ${JSON.stringify(crossed)}`, crossed.length === 0);
   let same = true;
   for (const s of sessions) {
     const mine = recapWallsOf(s.rows);
-    const shown = stickyWalls(
-      s.rows.map(r => {
-        const at = new Map<number, number>();
-        for (const c of r.cells) at.set(c[0], c[1]);
-        return { time: r.m / 1000, spot: r.spot, cw: r.cw, pw: r.pw, valueOf: (k: number) => at.get(k) ?? NaN };
-      })
-    );
+    const shown = stickyWalls(s.rows.map(wallObsOfRow));
     const chips = stickyWallMoves(s.rows.length, i => ({ cw: shown.cw[i], pw: shown.pw[i], time: s.rows[i].m }));
     if (mine.length !== chips.length || !chips.every(c => mine.some(x => x.m === c.time && x.from === c.from && x.to === c.to && (c.kind === 'CW') === (x.kind === 'call')))) same = false;
   }

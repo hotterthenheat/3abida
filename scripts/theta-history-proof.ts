@@ -110,6 +110,18 @@ await runHistory(opts2);
 const log2 = readFileSync(join(root, 'log.ndjson'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l) as { kind: string; url?: string; status?: number | string });
 check('a denied feed (471) is logged with its URL', log2.some(l => l.kind === 'denied' && l.status === 471 && String(l.url).includes('/interest_rate/history/eod')));
 
+/* THE GATE BY THE CLOCK (the owner, 2026-10-14): 3 in the recorder's hours (06:00–16:30 New York, weekdays), 7 outside
+   them — never Theta's whole 8 — and 0 in Theta's gap; an env asking for more is held to the caps */
+{
+  const { limitByClock } = await import('./theta-history/stream');
+  const at = (h: number, m: number, weekday = 3) => () => ({ minute: h * 60 + m, weekday });
+  const lim = (h: number, m: number, wd?: number) => limitByClock(3, 7, at(h, m, wd))();
+  const rows = [lim(5, 59), lim(6, 0), lim(6, 55), lim(7, 0), lim(9, 30), lim(16, 29), lim(16, 30), lim(22, 0), lim(1, 0), lim(10, 0, 6)];
+  check(`the gate: 5:59 am ${rows[0]}, 6:00 am ${rows[1]}, 6:55 ${rows[2]}, 7:00 ${rows[3]}, 9:30 ${rows[4]}, 4:29 pm ${rows[5]}, 4:30 pm ${rows[6]}, 10 pm ${rows[7]}, 1 am (Theta's gap) ${rows[8]}, a Saturday 10 am ${rows[9]}`, JSON.stringify(rows) === JSON.stringify([7, 3, 3, 3, 3, 3, 7, 7, 0, 7]));
+  const capped = optionsFromEnv({ HISTORY_CONCURRENCY: '8', HISTORY_IN_SESSION_CONCURRENCY: '6' }, () => {});
+  check(`an env asking for 8 and 6 is held to 7 and 3 (${capped.fullLimit}, ${capped.sessionLimit})`, capped.fullLimit === 7 && capped.sessionLimit === 3);
+}
+
 function findPart(dir: string): boolean {
   for (const f of readdirSync(dir)) {
     const p = join(dir, f);

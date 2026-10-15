@@ -690,8 +690,8 @@ the bare rate the owner ruled out.
 
 **The owner's second rule (2026-10-14):** "strikes in the same distance band from price at the open whose |gamma| is
 below the median |gamma| of that band (not the session median), held for the session, excluding the real level." Built
-the same day (trackRecord `bandOf`, `strikeMatchedAtOpen`; config `record-2026-10-14.2`, so the hold-out is evaluated
-again and says so): a level's band is the listed strikes within a step of the level's distance from the open's price,
+the same day (trackRecord `bandOf`, `strikeMatchedAtOpen`; config `record-2026-10-14.2` — `.3` since 2026-10-15, the
+walls from the book — so the hold-out is evaluated again and says so): a level's band is the listed strikes within a step of the level's distance from the open's price,
 either side, the open's real levels left out; the band's own median |gamma| is taken over those strikes, and the ones
 under it are the baseline, standing all session (a minute in which one is a real level of that minute is not counted).
 A band of one strike has nothing under its median. **The counts after it, this machine's 13 sessions** (the recount
@@ -1244,14 +1244,57 @@ track record, the recap, the agree check, the replay); rows of format 1 read as 
 
 **The series job** (server/seriesBackfill.ts, on the always-on recorder — SERIES_NAMES=SPY,QQQ,SPX, SERIES_DAYS=730,
 `off` to stop it): thirty seconds after the recorder starts, and at 5:15 pm New York for the session just over, it
-walks back from the session before today over weekdays, newest first, and writes each day's
+walks back over weekdays, newest first — from today's session once it is 5:00 pm New York (UW's rows for the date end
+at 4:00 pm), else from the session before — and writes each day's
 `/api/stock/{T}/spot-exposures?date=D` rows as answered — every field, the `_oi`, `_vol` and `_dir` gamma series, the
-price, the other greeks' series — to `.feed-cache/field/<NAME>/<D>/series.json`. A day already held (this file, the
-recorder's `total.json`, a rebuilt day's `past.json.gz` carrying the series) is skipped; a day UW answers empty is
+price, the other greeks' series — to `.feed-cache/field/<NAME>/<D>/series.json`. A day is held ONLY by this file
+(2026-10-15: the recorder's `total.json` and a rebuilt day's `past.json.gz` keep the figures the trail reads, and
+before 2026-10-13 only the `_oi` series — three figures a row on SPY's Oct 12, QQQ's Oct 12 and 13 and every rebuilt
+day — so counting them as held skipped exactly the `_vol` and `_dir` the job is for); a day UW answers empty is
 written empty and never asked again; a 429 waits a minute and asks again; a 5xx or the network is left for the next
 pass; one call at a time with a pause, behind the recorder's reads. The recorder's log reports each name's walk
-("series SPY: done to <date> — written N, empty N, skipped N, refused N, oldest with rows <date>").
+("series SPY: done to <date> — written N, empty N, skipped N, refused N, oldest with rows <date>"), and
+`curl http://127.0.0.1:5190/feed/series` on that machine answers the job's standing and what is stored a name (sessions
+with rows, empty dates, oldest, newest). A live walk from the workspace on 2026-10-15 (SPY and QQQ ten calendar days,
+SPX six): 18 sessions written in 9.5 s, 14 fields a row, 493–557 rows a session from about 6:35 am to 4:00 pm New York.
 scripts/series-backfill-proof.ts runs the rules against a stand-in client in `npm test`.
+
+## The walls from the book (2026-10-15 — the owner: "no hold time fixes it, because the flip comes from the definition (the put wall must be below price). Choose walls from the book, not from price's side")
+
+**The rule** (core/walls.ts `pickWalls`, everywhere a wall is named — Terrain, Pinpoint, Pulse, the Weigher, Compass's
+drivers, the scorecard, the level alerts, the recap, the replay): the call wall is the heaviest calls-absorb strike in
+the book's window (the heaviest negative net in the house's sign), the put wall the heaviest puts-amplify strike
+(the heaviest positive net), wherever the price stands. A price crossing a wall no longer moves it: the wall stays and
+its STATE says where the price is — `broken` once three closed minutes stand beyond it (a call wall closed over, a put
+wall closed under), `reclaimed` once three stand back (trailModel `WallStick`, `wallStateOn`). The 10% / three-minute
+rule stays for real size changes: a new strike becomes the wall only when it has been the raw pick AND beaten the held
+wall's |gamma| by 10% in every observation of three closed minutes; a held wall whose strike leaves the window or turns
+side is replaced by the raw pick once that has stood its three minutes (no 10% asked of it then). The stick starts afresh each New York day. The chip on Terrain's chart says a
+state as it does a move ("PW 772 broken · 10:54 am", "PW 772 reclaimed · 10:57 am"); the axis chip carries the state
+under its figures; the wall's card says "the heaviest … in the book's window, wherever the price stands".
+
+**The owner's 358-minute count again** (SPY 2026-10-14, the final rows 9:30 am to 3:27 pm New York, 60 strikes a row):
+
+| | put wall changes | call wall changes |
+|---|---|---|
+| the store's per-minute picks (the old rule, price's side) | 13 | 0 |
+| the book's raw pick each minute, no hold | 15 | 0 |
+| the book's pick held (10% in three closed minutes) | **0** | **0** |
+
+The walls stood at 780 / 772 all session. The raw book pick still changes 15 times — 772 and 765 within 2–5% of each
+other from 1:56 pm, a near-equal size swap the 10% rule holds back. The states: put wall 772 broken 10:54 am (price
+771.98), reclaimed 10:57 (772.46), broken 11:06 (771.75), reclaimed 11:19 (772.08), broken 11:26 (771.73) and broken
+from there to the last row. Five state chips in 32 minutes where the price chopped within 30 cents of the strike — the
+rule as written; a wider band or a longer confirmation is section D's to register, not a change made here.
+
+**On every session on this machine** (14 a name, 2025-04-02 to 2026-10-14, 5,414 minute steps): wall changes, call and
+put together, 489 → 61 on SPY and 630 → 115 on QQQ (the old rule raw per minute against the new rule held). Touches at
+the 15-minute horizon, real (B2, B3): SPY call wall 36 → 41 (5 → 5, 44 → 26), put wall 52 → 21 (0 → 0, 46 → 15); QQQ
+call wall 41 → 52 (28 → 63, 63 → 46), put wall 74 → 64 (2 → 10, 58 → 73); the flip and the heaviest strikes are
+unchanged. Every cell is under 500 touches and 12 months: insufficient data, no rate. The scorecard's config is
+`record-2026-10-14.3`, so its hold-out was evaluated again and says so; the level alerts' wall touches and moves, the
+recap's walls and the replay's frame all read the held book walls (scripts/orbs-proof.ts section 1, level-alerts-,
+session-recap- and replay-cursor-proof).
 
 ## The Theta probe, Phase 0 (2026-10-14 — the owner's TASK: "Terrain history backfill for Slayer Terminal. Phase 0 = probes only. Report results, then STOP and wait for my 'go'")
 
@@ -1299,8 +1342,10 @@ the always-on machine, neither run against Theta from the workspace (no terminal
 
 - **`npm run theta:history`** (scripts/theta-history; `scripts/theta-history.cmd` keeps it running under Task
   Scheduler). 127.0.0.1 only; it stops unless /terminal/mdds/status answers CONNECTED and never starts or signs into a
-  terminal. A clock gate keeps 3 requests in flight in market hours (09:25–16:15 New York, weekdays — the recorder's
-  share of Theta's eight kept), 8 outside, none in Theta's gap (00:00–01:45). Resumable per ticker per day
+  terminal. A clock gate keeps 3 requests in flight in the recorder's hours (06:00–16:30 New York, weekdays — the
+  7:00 am open-interest switch and the session's reads), 7 outside (Theta's eight is the whole account; one is left
+  for the recorder's pre-market reads — the owner, 2026-10-15), none in Theta's gap (00:00–01:45); the environment's
+  HISTORY_IN_SESSION_CONCURRENCY and HISTORY_CONCURRENCY can lower these, never raise them. Resumable per ticker per day
   (`<root>/<T>/manifest.json`; a file written to `.part` and renamed whole; a day held never asked again). Newest
   first, back to the first date each feed serves (the terminal's date lists). Raw rows only, gzipped NDJSON. Scope:
   daily and minute candles with volume for every ticker in the app (eod a year a call, ohlc a month a call split a file

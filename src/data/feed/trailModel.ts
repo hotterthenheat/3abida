@@ -791,85 +791,142 @@ export function wallMovesOf(end: number, columnAt: (i: number) => { cw: number |
   return moves;
 }
 
-/* A WALL WITH HYSTERESIS (the owner, 2026-10-14, item 13 of the orbs message: SPY's put wall flipped 770 → 765 → 770 →
-   765 at 9:50, 9:58 and 10:04 am — "find the cause … add hysteresis: a new wall must beat the current one by 10% and hold
-   3 closed minutes"). THE CAUSE, read off this machine's rows of 2026-10-14 (358 minutes): every move DOWN came the
-   minute the price fell through the wall's own strike (pickWalls keeps a put wall BELOW the price, so a wall the price
-   crosses is no candidate the next minute), and every move back came when the price rose back over it — the lower
-   strike held 0.65–0.85 of the old wall's gamma, so it was never a near-equal swap. THE RULE: the wall shown is held;
-   another strike becomes the wall only when it has been the raw pick (pickWalls) for `hold` closed minutes in a row and
-   its |gamma| beats the held wall's by `ratio` at that minute — or the held wall is no candidate any more (the price
-   crossed it, its side flipped, the window lost it) and the newcomer has stood its minutes. The stick starts over on a
-   new New York day. One rule for the field's columns (gexNodesPrimitive), the rail's levels (Terrain) and the recap. */
+/* THE WALLS FROM THE BOOK, HELD, AND SAID BROKEN OR RECLAIMED (the owner, 2026-10-14 — item 13 of the orbs message:
+   "a new wall must beat the current one by 10% and hold 3 closed minutes"; then, of the first build: "no hold time fixes
+   it, because the flip comes from the definition (the put wall must be below price). Choose walls from the book, not
+   from price's side … Price crossing a wall no longer moves it; the chip shows 'broken', and 'reclaimed' when price comes
+   back. Keep the 10% / 3-minute rule for real size changes").
+   THE RAW PICK is core/walls.ts pickWalls — the heaviest call-dominant and put-dominant strikes in the column, either
+   side of the price. THE HOLD: the wall shown stays until another strike has been the raw pick AND beaten the held
+   wall's |gamma| by `ratio` in EVERY closed minute of `hold` in a row (on SPY 2026-10-14 the put strikes 765 and 772
+   stood within 2–5% of each other from 1:56 to 3:18 pm and the raw pick changed twelve times there; a beat checked at
+   the third minute alone let three moves through, checked in every minute none), or the held wall is no wall any more
+   (its strike left the window or its side turned) and the newcomer has stood its minutes. THE STATE: a call wall is
+   BROKEN once `hold` closed minutes in a row close above it, a put wall once they close below it, and RECLAIMED once as
+   many close back on its side; a close on the strike moves neither way; a wall that takes a strike the price already
+   stands beyond starts broken. THE MINUTES ARE CONSECUTIVE (2026-10-15): an observation more than WALL_GAP_S after the
+   one before (the recorder was down, the tab was hidden) starts every count again — a candidate seen once either side
+   of a ten-minute hole had "held" its two minutes and moved the wall. Everything resets on a new New York day. One rule for the field's columns
+   (gexNodesPrimitive), the rail's levels and axis chips (Terrain), the alerts (data/levelAlerts.ts), the scorecard's
+   rows (server/scorecard.ts) and the recap (sessionRecap.ts). */
 export const WALL_STICK = { ratio: 1.1, hold: 3 } as const;
+/** Observations further apart than this are not consecutive: the counts start again (a minute and a half — the field's
+    columns are a minute apart, the rail's reads closer) */
+export const WALL_GAP_S = 90;
+export type WallState = 'holding' | 'broken' | 'reclaimed';
 export interface WallObs {
-  /** the moment, epoch seconds */
+  /** the moment, epoch seconds (a closed minute's start on the field; the read's time on the rail) */
   time: number;
+  /** the moment's price — the minute's close */
   spot: number;
   /** the raw picks (core/walls.ts pickWalls) at this moment */
   cw: number | null;
   pw: number | null;
-  /** the signed value (the house's sign) at a strike of this moment's column; 0 or NaN where the column has none */
+  /** the signed value (the house's sign) at a strike of this moment's column; NaN where the column has none */
   valueOf: (strike: number) => number;
+}
+export interface WallShown {
+  cw: number | null;
+  pw: number | null;
+  cwState: WallState | null;
+  pwState: WallState | null;
+  /** when the wall shown took its strike, and when its state last changed (epoch seconds) */
+  cwSince: number;
+  pwSince: number;
+  cwStateAt: number;
+  pwStateAt: number;
 }
 interface StickSide {
   held: number | null;
+  since: number;
   cand: number | null;
   candSince: number;
+  state: WallState | null;
+  stateAt: number;
+  /** consecutive observations pressing the state the other way, and the first one's time */
+  run: number;
+  runSince: number;
 }
+const freshSide = (): StickSide => ({ held: null, since: 0, cand: null, candSince: 0, state: null, stateAt: 0, run: 0, runSince: 0 });
 export class WallStick {
-  private side: Record<'cw' | 'pw', StickSide> = { cw: { held: null, cand: null, candSince: 0 }, pw: { held: null, cand: null, candSince: 0 } };
+  private side: Record<'cw' | 'pw', StickSide> = { cw: freshSide(), pw: freshSide() };
   private day = '';
+  private last = -Infinity;
   constructor(
     private ratio: number = WALL_STICK.ratio,
     private hold: number = WALL_STICK.hold
   ) {}
-  /** The walls to show after this observation */
-  next(o: WallObs): { cw: number | null; pw: number | null } {
+  /** The walls shown, and their states, after this observation */
+  next(o: WallObs): WallShown {
     const day = nyIsoDate(o.time * 1000);
     if (day !== this.day) {
       this.day = day;
-      this.side = { cw: { held: null, cand: null, candSince: 0 }, pw: { held: null, cand: null, candSince: 0 } };
-    }
+      this.side = { cw: freshSide(), pw: freshSide() };
+    } else if (o.time - this.last > WALL_GAP_S)
+      for (const st of [this.side.cw, this.side.pw]) {
+        st.cand = null;
+        st.run = 0;
+      }
+    this.last = o.time;
+    const span = (this.hold - 1) * 60;
     for (const kind of ['cw', 'pw'] as const) {
       const st = this.side[kind];
       const raw = o[kind];
+      const isWall = (k: number) => {
+        const v = o.valueOf(k);
+        return Number.isFinite(v) && (kind === 'cw' ? v < 0 : v > 0);
+      };
+      const beyondOf = (k: number) => (Number.isFinite(o.spot) ? (kind === 'cw' ? o.spot > k : o.spot < k) : false);
+      const backOf = (k: number) => (Number.isFinite(o.spot) ? (kind === 'cw' ? o.spot < k : o.spot > k) : false);
+      const take = (k: number) => {
+        st.held = k;
+        st.since = o.time;
+        st.cand = null;
+        st.state = beyondOf(k) ? 'broken' : 'holding';
+        st.stateAt = o.time;
+        st.run = 0;
+      };
+      /* THE STRIKE */
       if (st.held == null) {
-        if (raw != null) st.held = raw;
-        st.cand = null;
-        continue;
+        if (raw != null) take(raw);
+      } else if (raw == null || raw === st.held) st.cand = null;
+      else {
+        const alive = isWall(st.held);
+        const beats = !alive || Math.abs(o.valueOf(raw)) >= this.ratio * Math.abs(o.valueOf(st.held));
+        if (!beats) st.cand = null;
+        else {
+          if (st.cand !== raw) {
+            st.cand = raw;
+            st.candSince = o.time;
+          }
+          if (o.time - st.candSince >= span) take(raw);
+        }
       }
-      if (raw == null || raw === st.held) {
-        st.cand = null;
-        continue;
-      }
-      if (st.cand !== raw) {
-        st.cand = raw;
-        st.candSince = o.time;
-      }
-      const v = o.valueOf(st.held);
-      const alive = Number.isFinite(v) && v !== 0 && Number.isFinite(o.spot) && (kind === 'cw' ? st.held > o.spot && v < 0 : st.held < o.spot && v > 0);
-      const beats = !alive || Math.abs(o.valueOf(raw)) >= this.ratio * Math.abs(v);
-      const stood = o.time - st.candSince >= (this.hold - 1) * 60;
-      if (beats && stood) {
-        st.held = raw;
-        st.cand = null;
+      /* THE STATE, on the wall shown — closes beyond it, or back on its side, `hold` in a row */
+      if (st.held != null && st.since !== o.time) {
+        const k = st.held;
+        const pressing = st.state === 'broken' ? backOf(k) : beyondOf(k);
+        if (!pressing) st.run = 0;
+        else {
+          if (st.run === 0) st.runSince = o.time;
+          st.run++;
+          if (o.time - st.runSince >= span) {
+            st.state = st.state === 'broken' ? 'reclaimed' : 'broken';
+            st.stateAt = o.time;
+            st.run = 0;
+          }
+        }
       }
     }
-    return { cw: this.side.cw.held, pw: this.side.pw.held };
+    const { cw, pw } = this.side;
+    return { cw: cw.held, pw: pw.held, cwState: cw.state, pwState: pw.state, cwSince: cw.since, pwSince: pw.since, cwStateAt: cw.stateAt, pwStateAt: pw.stateAt };
   }
 }
 /** The walls shown at each of `obs` (in time order), through one stick */
-export function stickyWalls(obs: readonly WallObs[], ratio = WALL_STICK.ratio, hold = WALL_STICK.hold): { cw: (number | null)[]; pw: (number | null)[] } {
+export function stickyWalls(obs: readonly WallObs[], ratio = WALL_STICK.ratio, hold = WALL_STICK.hold): { cw: (number | null)[]; pw: (number | null)[]; shown: WallShown[] } {
   const stick = new WallStick(ratio, hold);
-  const cw: (number | null)[] = [];
-  const pw: (number | null)[] = [];
-  for (const o of obs) {
-    const w = stick.next(o);
-    cw.push(w.cw);
-    pw.push(w.pw);
-  }
-  return { cw, pw };
+  const shown = obs.map(o => stick.next(o));
+  return { cw: shown.map(x => x.cw), pw: shown.map(x => x.pw), shown };
 }
 /** A wall observation off a column's levels (the field's snapshots, the store's cells): the raw picks and the values */
 export function wallObsOf(time: number, spot: number, levels: readonly { strike: number; value: number }[]): WallObs {
@@ -878,10 +935,76 @@ export function wallObsOf(time: number, spot: number, levels: readonly { strike:
   for (const l of levels) at.set(l.strike, l.value);
   return { time, spot, cw: raw.callWall, pw: raw.putWall, valueOf: k => at.get(k) ?? NaN };
 }
-/** THE MOVES OF A STICKY WALL: a change of the wall shown between two columns IS a move (the stick has done the holding),
-    stamped at the column it changed on — the chips', the ticks' and the recap's one rule since 2026-10-14 */
+/** A store row's observation: its cells (strike, net[, gross]) and its price, the walls picked afresh by today's rule —
+    a row written before 2026-10-14's rule carries the old pick, so its own cw/pw are never read */
+export const wallObsOfRow = (r: { m: number; spot: number; cells: readonly (readonly [number, number, number?])[] }): WallObs =>
+  wallObsOf(r.m / 1000, r.spot, r.cells.map(c => ({ strike: c[0], value: c[1] })));
+/** THE MOVES OF A HELD WALL: a change of the wall shown between two columns IS a move (the stick has done the holding),
+    stamped at the column it changed on — the chips', the ticks' and the recap's one rule */
 export function stickyWallMoves(end: number, columnAt: (i: number) => { cw: number | null; pw: number | null; time: number }, start = 0): WallMove[] {
   return wallMovesOf(end, columnAt, 1, start);
+}
+/** A WALL'S STATE ON CLOSED MINUTES: the stick's own machine on one strike from `since` (epoch s) — the first close sets
+    it (beyond the wall: broken), then `hold` closes in a row beyond it break it and as many back on its side reclaim it.
+    The rail's axis chips read it off the pane's minute bars (the field's columns carry their own). null with no close. */
+export function wallStateOn(kind: 'cw' | 'pw', strike: number | null, closes: readonly { time: number; close: number }[], since: number, hold: number = WALL_STICK.hold): { state: WallState; at: number } | null {
+  if (strike == null || !Number.isFinite(strike)) return null;
+  const beyond = (c: number) => (kind === 'cw' ? c > strike : c < strike);
+  const back = (c: number) => (kind === 'cw' ? c < strike : c > strike);
+  let state: WallState | null = null;
+  let at = 0;
+  let run = 0;
+  let runSince = 0;
+  let last = -Infinity;
+  for (const b of closes) {
+    if (b.time < since || !Number.isFinite(b.close)) continue;
+    /* closes further apart than a minute and a half are not consecutive: the run starts again */
+    if (b.time - last > WALL_GAP_S) run = 0;
+    last = b.time;
+    if (state == null) {
+      state = beyond(b.close) ? 'broken' : 'holding';
+      at = b.time;
+      continue;
+    }
+    const pressing = state === 'broken' ? back(b.close) : beyond(b.close);
+    if (!pressing) {
+      run = 0;
+      continue;
+    }
+    if (run === 0) runSince = b.time;
+    run++;
+    if (b.time - runSince >= (hold - 1) * 60) {
+      state = state === 'broken' ? 'reclaimed' : 'broken';
+      at = b.time;
+      run = 0;
+    }
+  }
+  return state ? { state, at } : null;
+}
+/** A wall broken or reclaimed (the chips' "PW 772 broken · 10:54 am") — a state change of the wall shown that was not a
+    new strike */
+export interface WallStateEvent {
+  kind: 'CW' | 'PW';
+  strike: number;
+  state: 'broken' | 'reclaimed';
+  time: number;
+  i: number;
+}
+export function wallStateEventsOf(end: number, shownAt: (i: number) => WallShown & { time: number }, start = 0): WallStateEvent[] {
+  const out: WallStateEvent[] = [];
+  for (let i = Math.max(1, start); i < end; i++) {
+    const a = shownAt(i - 1);
+    const b = shownAt(i);
+    for (const kind of ['CW', 'PW'] as const) {
+      const ka = kind === 'CW' ? a.cw : a.pw;
+      const kb = kind === 'CW' ? b.cw : b.pw;
+      const sa = kind === 'CW' ? a.cwState : a.pwState;
+      const sb = kind === 'CW' ? b.cwState : b.pwState;
+      if (kb == null || ka !== kb || sa === sb || sb == null || sb === 'holding') continue;
+      out.push({ kind, strike: kb, state: sb, time: b.time, i });
+    }
+  }
+  return out;
 }
 
 /** The expiries the store's straddles stand on: the one settling today (null when none is listed) and the weekly — the

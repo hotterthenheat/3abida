@@ -56,7 +56,7 @@ export type Value = number | boolean | string | PineColor | PlotRef | Tuple | Us
 
 /** The terminal's own numbers a script may read through `slayer.*` — the one namespace beyond Pine */
 export interface SlayerFeed {
-  /** The nearest call wall above the spot, the put wall below, the flip, the supreme strike — the pane's latest levels */
+  /** The book's call wall and put wall (either side of the spot), the flip, the supreme strike — the pane's latest levels */
   callWall?: number;
   putWall?: number;
   flip?: number;

@@ -862,7 +862,7 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   (within a step of the level's distance from the open's price, either side, the real levels left out), |gamma| under
   THE BAND'S OWN median (the owner's second rule, 2026-10-14: "below the median |gamma| of that band (not the session
   median)" — under the column's median a band near the money was empty, gamma peaking there; config
-  record-2026-10-14.2), held for the session, never counted in a minute it is one of that minute's real levels
+  record-2026-10-14.2; .3 since 2026-10-15, the walls from the book), held for the session, never counted in a minute it is one of that minute's real levels
   (trackRecord `bandOf`, `strikeMatchedOf`); a cell with NO strike-matched touch still says "insufficient data (…, no
   strike-matched touch)" and prints no rate (this machine's 13 sessions after the rule: SPY 120 B2 touches — flip 68,
   heaviest strikes 52, either wall 0 — against 343 real; QQQ 187 against 367) — B3 the mirror — a level counting only once it has stood a minute, a touch once an
@@ -1073,8 +1073,11 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   live lag · N min); a run never crosses the open, the close or a day; the wall chips keep clear of the labels.
   THE SERIES JOB (B5, server/seriesBackfill.ts on the always-on recorder; SERIES_NAMES=SPY,QQQ,SPX, SERIES_DAYS=730,
   `off`): UW's per-minute spot exposures (_oi, _vol, _dir and the rest, AS ANSWERED) for every session back through
-  its window, newest first, to .feed-cache/field/<NAME>/<D>/series.json — a day held is skipped, an empty day written
-  empty, a refused call asked again next pass; scripts/series-backfill-proof.ts in `npm test`.
+  its window, newest first (today's from 5:00 pm New York), to .feed-cache/field/<NAME>/<D>/series.json — A DAY IS HELD
+  ONLY BY ITS OWN series.json (2026-10-15: the recorder's total.json and a rebuilt past.json.gz keep a subset — only
+  `_oi` before 2026-10-13 — and counting them skipped the very `_vol`/`_dir` asked for), an empty day written empty, a
+  refused call asked again next pass; GET /feed/series on the recorder says where it stands and what is stored;
+  scripts/series-backfill-proof.ts in `npm test`.
 - THE ORBS (2026-10-14 — the owner's message "NODES: SKYLIT-STYLE ORBS, DONE BETTER", replacing A1, B2 and B3's hue and
   legend lines; the report docs/terrain-build-2026-10-14/README.md "The orbs"). THE NODE IS AN OVAL (gexNodesPrimitive):
   one solid oval per node per candle, centred on the candle and the strike, the cell the bar's peak minute; d = 3 px +
@@ -1101,21 +1104,28 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the plot (gap labels, pills, wall chips) settles clear of the others and of the library's mark at the bottom-left
   (`settle`). THE LEGEND: "size = total gamma at the strike · ● gold = absorb · ● violet = amplify · ● grey = balanced ·
   soft edge = stale" (Terrain LegendSwatch, the renderer's own inks through legend().inks), then the scale's statement.
-  THE WALL WITH HYSTERESIS (item 13; trailModel WallStick, WALL_STICK ratio 1.1 and hold 3): the cause of the put wall's
-  770 → 765 → 770 flip-flop was the PRICE CROSSING THE WALL'S OWN STRIKE (every move down on this machine's 2026-10-14
-  rows came the minute the price fell through it; the lower strike held 0.65–0.85 of its gamma, never a near-equal swap);
-  now a new strike is the wall only once it has been the raw pick for three closed minutes and beats the held wall's
-  |gamma| by 10% — or the held wall is no candidate any more (the price crossed it, its side flipped) and the newcomer has
-  stood its minutes; the stick starts over on a new New York day. One rule for the field's columns (the primitive's
-  setData), the rail's levels (Terrain `liveRail` — the ladder's wall rows, the axis chips, the decision strip, the level
-  alerts), the wall-move chips and ticks (`stickyWallMoves`) and the recap (`recapWallsOf`); the store's rows keep the raw
-  per-minute picks (the scorecard's definition — a sticky-wall variant is section D's to register). Measured on this
-  machine's day: 13 raw put-wall changes → 10 moves — the rule slows a flip-flop, it does not forbid a heavier strike that
-  re-qualifies after three minutes; said so in the report. ITEMS 14–17: wall-move ticks are 2 × 7 px at the new strike;
+  THE WALLS FROM THE BOOK (2026-10-15 — the owner: "no hold time fixes it, because the flip comes from the definition
+  (the put wall must be below price). Choose walls from the book, not from price's side"; docs/data-feed.md "The walls
+  from the book"): core/walls.ts `pickWalls` is the heaviest calls-absorb strike (the call wall) and the heaviest
+  puts-amplify strike (the put wall) in the book's window, WHEREVER THE PRICE STANDS — one definition for every room
+  (Terrain, Pinpoint, Pulse, the Weigher, Compass's drivers), the scorecard (config record-2026-10-14.3), the level
+  alerts, the recap and the replay. A PRICE CROSSING A WALL NEVER MOVES IT: the wall's STATE says it — `broken` after
+  three closed minutes beyond it (a call wall closed over, a put wall closed under), `reclaimed` after three back
+  (trailModel WallStick, wallStateOn; the plot's chips "PW 772 broken · 10:54 am", the axis chip's third line, the
+  card). THE 10% / THREE-MINUTE RULE STAYS for real size changes (WALL_STICK ratio 1.1, hold 3): a new strike is the
+  wall only once it has been the raw pick and beaten the held wall's |gamma| by 10% in every one of three closed minutes;
+  a held wall that left the window or turned side gives way to the raw pick after its three minutes; the stick starts
+  over each New York day. The store's rows keep their raw picks; every reader picks afresh off the cells (`wallObsOfRow`)
+  and holds through the one stick. Words that place a wall by the price's side (the heat read, the turned-over lines of
+  How sure) say where the price stands against a broken wall instead. The 358-minute count (SPY 2026-10-14): put wall
+  13 changes under the old rule, 15 raw under the book's, 0 held; 772 broken 10:54 am, reclaimed 10:57, broken 11:06,
+  reclaimed 11:19, broken 11:26. ITEMS 14–17: wall-move ticks are 2 × 7 px at the new strike;
   the pinned axis chips measure the chrome over their own column every tenth frame and stand under it (item 15, not
   reproduced here); the session strip counts to THE CLOSE (4:00 pm New York) through the cash session and the 3:50
-  phase is "Closing auction" (item 16); the Fresh chip's times carry their words in every form ("OI dated Oct 14 · book
-  read 12:02 pm · vols read 12:17 pm") (item 17).
+  phase is "Closing auction" (item 16); the Fresh chip says what each time is in every form ("OI dated Oct 14 · book
+  figured 12:02 pm · vols traded to 12:17 pm", short "OI Oct 14 · vols to 12:17 pm"): open interest carries its DATE
+  alone (counted once a day after the close, published before the open); "book figured" is when UW figured the book by
+  strike; "vols traded to" is the newest option trade behind the field's vols, moving with each chain read (item 17).
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own
@@ -1129,7 +1139,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   14 years at Theta. Build it."; docs/data-feed.md "The Theta history"; the report docs/terrain-build-2026-10-14/README.md
   section C). `npm run theta:history` (scripts/theta-history/, scripts/theta-history.cmd its loop) runs ON THE OWNER'S
   MACHINE against the terminal already CONNECTED there — 127.0.0.1 only, never starting or signing into one; 3
-  requests in flight in market hours, 8 outside, none in Theta's gap; resumable per ticker per day (manifest.json, a
+  requests in flight in the RECORDER'S HOURS (6:00 am–4:30 pm New York, weekdays — the 7:00 am open-interest switch
+  and the session's reads), 7 outside (Theta's 8 is the account's whole limit; one is the recorder's — the owner,
+  2026-10-15), none in Theta's gap; the environment may lower these, never raise them; resumable per ticker per day (manifest.json, a
   .part renamed whole); newest first to each feed's first served date; RAW ROWS ONLY (gzipped NDJSON under
   .feed-cache/history/<T>/<day>/ — the 4a/4b choices are the rebuild's); every empty or denied answer logged with its
   URL; report.md after five sessions, PAUSED (exit 3) when the projection exceeds the free disk. `npm run theta:rebuild`

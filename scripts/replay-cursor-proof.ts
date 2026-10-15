@@ -42,7 +42,7 @@ import {
   stepCursor,
   type PitGuard,
 } from '../src/data/replayFrame';
-import { columnSummary, modelColumn, pastInputs, setPitProbe, straddleExpiries, straddleOfMinute, universeOf, type ChainRow, type SeedRow, type ServerInputs, type Universe } from '../src/data/feed/trailModel';
+import { columnSummary, modelColumn, pastInputs, setPitProbe, stickyWalls, straddleExpiries, straddleOfMinute, universeOf, wallObsOfRow, type ChainRow, type SeedRow, type ServerInputs, type Universe } from '../src/data/feed/trailModel';
 import { columnMax, stepOf, strengthOf, minuteRefs } from '../src/data/feed/beadScale';
 import { rng } from '../src/data/feed/trackRecord';
 import { nyIsoDate, nyWallTime } from '../src/core/nyTime';
@@ -294,6 +294,7 @@ function auditFrame(g: PitGuard, day: string, inp: ServerInputs, u: Universe, ta
         if (b) replayCols.push(modelColumn(u, b));
       }
       const refs = minuteRefs(replayCols.map(c => c.time), replayCols.map(c => columnMax(c.levels)), t => nyIsoDate(t * 1000)).ref;
+      const heldAt = stickyWalls(rows.map(r => wallObsOfRow({ m: r.m, spot: r.spot, cells: r.cells })));
       for (const i of chosen) {
         const r = rows[i];
         const cursor = r.m / 1000;
@@ -310,7 +311,10 @@ function auditFrame(g: PitGuard, day: string, inp: ServerInputs, u: Universe, ta
           off.cells++;
           perSession.set(`${name} ${day}`, (perSession.get(`${name} ${day}`) ?? 0) + 1);
         }
-        if (!close(f.cw, r.cw) || !close(f.pw, r.pw)) off.walls++;
+        /* the walls live: the field's stick over the minutes shown to this one, picked off each row's own cells by
+           today's rule (a row written before 2026-10-14 stored the pick of its day) */
+        const liveWalls = heldAt.shown[i];
+        if (!close(f.cw, liveWalls.cw) || !close(f.pw, liveWalls.pw) || f.cwState !== liveWalls.cwState || f.pwState !== liveWalls.pwState) off.walls++;
         if (!close(f.flip, r.flip)) off.flip++;
         if (r.top.some(([k, v], j) => f.top[j]?.[0] !== k || !close(f.top[j]?.[1] ?? null, v))) off.top++;
         if (!close(f.net, r.net)) off.net++;

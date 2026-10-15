@@ -19,6 +19,12 @@
   plan), prints them as one block, and keeps them at
   window.__slayerDepth for a copy. Nothing of it runs
   in production.
+  2026-10-15: fourteen runs on four phone sizes, the
+  CPU slowed four times, without a hit. A phone has no
+  console, so a hit is also posted to the dev server
+  (vite.config.ts depthLog: .feed-cache/
+  depth-trap.ndjson on the machine serving the page)
+  and a small banner says so at the foot of the page.
 ==================================================
 */
 
@@ -38,6 +44,24 @@ export interface DepthHit {
   message: string;
   componentStack: string;
   states: Record<string, unknown>;
+}
+
+/** A plain DOM line at the page's foot — React is the thing looping, so none of it is used */
+function showBanner(count: number): void {
+  try {
+    let el = document.getElementById('slayer-depth-banner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'slayer-depth-banner';
+      el.setAttribute('role', 'status');
+      el.style.cssText =
+        'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;padding:8px 10px;border-radius:6px;font:12px/1.4 var(--font-sans, Helvetica, Arial, sans-serif);background:rgb(var(--panel));color:rgb(var(--text-primary));border:1px solid rgb(var(--warn));pointer-events:none';
+      document.body.appendChild(el);
+    }
+    el.textContent = `Update loop caught (${count}) — kept in .feed-cache/depth-trap.ndjson on the machine serving this page`;
+  } catch {
+    /* no body yet */
+  }
 }
 
 export function installDepthTrap(): void {
@@ -70,6 +94,8 @@ export function installDepthTrap(): void {
           states,
         };
         hits.push(hit);
+        void fetch('/__slayer/depth', { method: 'POST', body: JSON.stringify(hit), keepalive: true }).catch(() => undefined);
+        showBanner(hits.length);
         orig.call(console, `[slayer depth trap] ${hit.at}\n${hit.message}\n--- component stack ---\n${hit.componentStack}\n--- registered states ---\n${JSON.stringify(states, null, 1)}`);
       }
     } catch {

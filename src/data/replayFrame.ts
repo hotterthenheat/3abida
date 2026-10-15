@@ -37,7 +37,7 @@
 import type { Candle, GexSnapshot } from '../types/market';
 import { nyIsoDate, nyWallTime } from '../core/nyTime';
 import { EARLY_CLOSES } from './marketState';
-import { columnSummary } from './feed/trailModel';
+import { columnSummary, wallObsOf, WallStick, type WallObs, type WallShown, type WallState } from './feed/trailModel';
 import { minuteRefs, columnMax } from './feed/beadScale';
 
 /** The speeds, as multiples of the market's own time: 1× a minute of tape a minute, 60× a minute a second */
@@ -181,8 +181,12 @@ export interface ReplayFrame {
   column: GexSnapshot | null;
   spot: number;
   flip: number | null;
+  /** THE WALLS SHOWN AT THE CURSOR — from the book, held (trailModel WallStick over the session's columns to the cursor,
+      the live field's one rule), and their states (broken / reclaimed) */
   cw: number | null;
   pw: number | null;
+  cwState: WallState | null;
+  pwState: WallState | null;
   /** The heaviest strikes, [strike, net], heaviest first */
   top: [number, number][];
   net: number;
@@ -212,23 +216,34 @@ export function frameAt(bars: readonly Candle[], cols: readonly GexSnapshot[], c
   if (column) pitRead(guard, 'column', (column.time + 60) * 1000);
   const spot = bar?.close ?? NaN;
   const sum = column ? columnSummary(column, spot) : null;
-  /* the reference: the session's minutes so far, the one count the beads draw by */
+  /* the reference: the session's minutes so far, the one count the beads draw by — and the walls held over the same
+     minutes (nothing after the cursor is read) */
   let ref = 0;
+  let held: WallShown | null = null;
   if (column) {
     const from = countAtOrBefore(cols, sessionDayStart(day) - 1, c => c.time);
     const to = countAtOrBefore(cols, cursor, c => c.time);
     const times: number[] = [];
     const maxima: number[] = [];
+    const stick = new WallStick();
     for (let i = from; i < to; i++) {
       pitRead(guard, 'column (reference)', (cols[i].time + 60) * 1000);
       times.push(cols[i].time);
       maxima.push(columnMax(cols[i].levels));
+      held = stick.next(obsOf(cols[i]));
     }
     const r = minuteRefs(times, maxima, t => nyIsoDate(t * 1000)).ref;
     ref = r.length ? r[r.length - 1] : 0;
   }
-  return { cursor, day, bar, column, spot, flip: sum?.flip ?? null, cw: sum?.cw ?? null, pw: sum?.pw ?? null, top: sum?.top ?? [], net: sum?.net ?? 0, ref };
+  return { cursor, day, bar, column, spot, flip: sum?.flip ?? null, cw: held ? held.cw : sum?.cw ?? null, pw: held ? held.pw : sum?.pw ?? null, cwState: held?.cwState ?? null, pwState: held?.pwState ?? null, top: sum?.top ?? [], net: sum?.net ?? 0, ref };
 }
+/** A column's wall observation, kept by the column's identity (a replay asks the same columns again every frame) */
+const obsCache = new WeakMap<GexSnapshot, WallObs>();
+const obsOf = (c: GexSnapshot): WallObs => {
+  let o = obsCache.get(c);
+  if (!o) obsCache.set(c, (o = wallObsOf(c.time, c.spot ?? c.levels[Math.floor(c.levels.length / 2)]?.strike ?? NaN, c.levels)));
+  return o;
+};
 /** New York's midnight of a date, epoch s */
 const sessionDayStart = (day: string): number => {
   const [y, m, d] = day.split('-').map(Number);

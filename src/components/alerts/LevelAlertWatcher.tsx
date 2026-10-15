@@ -126,6 +126,10 @@ const LevelAlertWatcher = () => {
           top: [...b.rows].sort((a, z) => Math.abs(z.gex.net) - Math.abs(a.gex.net)).slice(0, 3).map(r => r.strike),
           step: b.step,
           sigma: extras.get(t)?.sigma ?? null,
+          valueAt: (() => {
+            const m = new Map(b.rows.map(r => [r.strike, r.gex.net] as [number, number]));
+            return (k: number) => m.get(k) ?? NaN;
+          })(),
         };
         closed = m.bars.filter(x => x.time + 60 <= now / 1000).map(x => ({ time: x.time, high: x.high, low: x.low, close: x.close, closed: true }));
       } else {
@@ -145,6 +149,10 @@ const LevelAlertWatcher = () => {
           top: latest ? [...latest.levels].sort((a, z) => Math.abs(z.value) - Math.abs(a.value)).slice(0, 3).map(l => l.strike) : [],
           step: ex.step,
           sigma: null,
+          valueAt: (() => {
+            const m = new Map((latest?.levels ?? []).map(l => [l.strike, l.value] as [number, number]));
+            return (k: number) => m.get(k) ?? NaN;
+          })(),
         };
         closed = (Simulator.getCandles(sym) ?? []).filter(x => x.time + 60 <= now / 1000).slice(-30).map(x => ({ time: x.time, high: x.high, low: x.low, close: x.close, closed: true }));
       }

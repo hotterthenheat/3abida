@@ -39,6 +39,12 @@ const stamp = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 /* Massive off since 2026-10-14 (the owner: "you can disable the massive ones and use this one") — Theta Data in its place */
 const handle = feedMiddleware({ keys: { uw: env.UW_API_TOKEN || undefined, theta: env.THETADATA_API_KEY || undefined }, allowLan: lan, recordNames: names });
 const server = createServer((req, res) => {
+  /* the series job's standing, for a look from this machine: curl http://127.0.0.1:5190/feed/series */
+  if (req.method === 'GET' && (req.url ?? '').split('?')[0] === '/feed/series') {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ names: seriesNames, days: seriesDays, job: series.status(), stored: series.stored(seriesNames) }));
+    return;
+  }
   void handle(req, res, () => {
     res.statusCode = 404;
     res.setHeader('Content-Type', 'application/json');
@@ -70,7 +76,9 @@ if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
 /* THE PER-MINUTE SPOT-EXPOSURE SERIES, BACK THROUGH UW'S WINDOW (the owner's B5, 2026-10-14 — "Its ~730-day window
    loses a day each session"): SERIES_NAMES (SPY,QQQ,SPX) for SERIES_DAYS (730) calendar days back, newest first, one
    call at a time behind the recorder's reads, resumable (a day held is skipped — server/seriesBackfill.ts); walked
-   again once a day after the close for the session just over. SERIES_NAMES=off turns it off. */
+   again once a day after the close for the session just over (from 5:00 pm New York the walk starts at today's).
+   A day is held only by this job's own series.json — the recorder's total.json and a rebuilt day keep a subset of the
+   fields. GET /feed/series says where it stands and what is stored. SERIES_NAMES=off turns it off. */
 const seriesNames = (env.SERIES_NAMES ?? 'SPY,QQQ,SPX')
   .split(',')
   .map(s => s.trim().toUpperCase())

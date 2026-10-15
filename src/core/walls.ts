@@ -20,57 +20,53 @@ export interface Struck {
 }
 
 /**
- * The heaviest CALL-dominant shelf above spot, and the heaviest PUT-dominant
- * shelf below it.
+ * The heaviest CALL-dominant strike in the window, and the heaviest PUT-dominant strike in the window — WHEREVER they
+ * stand against the price (the owner, 2026-10-14: "Choose walls from the book, not from price's side: Call wall =
+ * heaviest calls-absorb strike in the window. Put wall = heaviest puts-amplify strike in the window. Price crossing a
+ * wall no longer moves it").
  *
  * ---------------------------------------------------------------------------
- * WHY THE SIGN IS CHECKED, AND WHY THIS FILE EXISTS AT ALL
+ * WHY THE SIDE OF THE PRICE WENT (2026-10-14)
  * ---------------------------------------------------------------------------
- * The original rule was |value| plus SIDE OF SPOT. Side of spot is only a
- * PROXY for option side. It holds for a fresh OI profile (simulator.ts seeds
- * calls above spot, puts below) and deliberately does NOT hold for the live
- * book, which is sticky by design (BOOK_BLEND, ~1h half-life: "walls persist,
- * get tested, and fade for real instead of shadowing price"). So a shelf keeps
- * its option side while price walks past it and its side of spot flips.
+ * Until that day the call wall had to stand ABOVE the price and the put wall BELOW it. So a wall the price walked
+ * through stopped being a candidate the next minute and the name jumped to the next strike, then back when the price
+ * returned: SPY's put wall went 772 → 770 → 772 seven times between 10:52 and 11:24 am on 2026-10-14, and 770 → 765 →
+ * 770 five times after noon, each time the minute the price crossed the wall's own strike (the strike it jumped to
+ * held 0.65–0.87 of the wall's gamma — never a near-equal swap). No hold time fixes that: it is the definition. A
+ * wall is now named by the book alone, and a price on the far side of it is said as the wall BROKEN (and RECLAIMED
+ * when the price comes back — data/feed/trailModel.ts WallStick), never as a new wall.
  *
- * Measured on SPY at spot 505.17: strike 505 carried -$436.8M — CALL-dominant
- * — and was named the PUT wall, so the strike rail printed a red PW tag on a
- * row sitting ABOVE its own flip rule at 504.50. A put wall on the call side
- * of the flip is not a thing that can exist.
- *
+ * ---------------------------------------------------------------------------
+ * WHY THE SIGN IS CHECKED (2026-08, kept)
+ * ---------------------------------------------------------------------------
  * The sign IS the measured option side. `netGex = callGex + putGex` with
  * `dealerCallDirection = -0.55` and `dealerPutDirection = -0.53 * -1`
  * (simulator.ts), so NEGATIVE is call-dominant and POSITIVE is put-dominant.
- * Every other surface already reads it that way: the heat ramps, the strike
- * field's `put: l.value >= 0`, and the rail's own bar colour.
+ * Every other surface reads it that way: the heat ramps, the strike field's
+ * `put: l.value >= 0`, and the rail's own bar colour. A put-dominant shelf is
+ * never the call wall, whatever side of the price it stands on (SPY 505.17,
+ * 2026-08: strike 505 carried −$436.8M, CALL-dominant, and was named the put
+ * wall under the first rule — the sign check ended that).
  *
  * ---------------------------------------------------------------------------
  * AND WHY IT IS SHARED RATHER THAN FIXED TWICE
  * ---------------------------------------------------------------------------
  * This rule existed in two places — `buildLevelsFor` (data/gex.ts) and
- * `generateTradePlan` (core/simulator.ts) — over the same numbers. Only the
- * first was fixed. The second kept feeding `plan.resistanceWall` /
- * `plan.supportWall` into three more surfaces: the GEX matrix's highlighted
- * wall rows, `readHeatPattern`'s prose, and the Pulse board. Terrain read the
- * corrected rule while the GEX page read the broken one, off one book.
+ * `generateTradePlan` (core/simulator.ts) — over the same numbers, and the two
+ * disagreed off one book. So it lives here, and every surface — Terrain's field
+ * and rail, Pinpoint, Pulse, the scorecard, the alerts, the recap — reads it.
  *
- * The FLIP had already been noticed and hand-synced across the same two
- * functions ("Matches data/gex.ts buildLevelsFor", simulator.ts) — a comment
- * asking the next reader to keep two copies in step. The walls are the case
- * where that did not survive. So the rule moved here instead.
- *
- * @param points  strikes to consider; order does not matter
- * @param spot    the price the sides are measured from
- * @param valueOf net dealer exposure at a strike — negative call-dominant,
- *                positive put-dominant
- * @returns each wall, or `null` where NOTHING on that side qualifies —
- *          "no call wall overhead" is a real state of the book, and callers
- *          disagree about how to render it, so the choice of fallback stays
- *          with them rather than being invented here.
+ * @param points  strikes to consider (THE WINDOW: the book's 30 strikes each side, the field's column); order does
+ *                not matter
+ * @param _spot   the price — kept in the signature for the callers, no longer read: a wall is the book's, not the
+ *                price's side's
+ * @param valueOf net dealer exposure at a strike — negative call-dominant, positive put-dominant
+ * @returns each wall, or `null` where NOTHING in the window is call- (or put-) dominant — callers choose how to render
+ *          that
  */
 export function pickWalls<T extends Struck>(
   points: readonly T[],
-  spot: number,
+  _spot: number,
   valueOf: (p: T) => number
 ): { callWall: number | null; putWall: number | null } {
   let callWall: number | null = null;
@@ -80,14 +76,13 @@ export function pickWalls<T extends Struck>(
 
   for (const p of points) {
     const v = valueOf(p);
+    if (!Number.isFinite(v)) continue;
     const a = Math.abs(v);
-    // Same magnitude comparison as before, restricted to the half of the book
-    // the name actually claims. No new arithmetic.
-    if (p.strike > spot && v < 0 && a > cwAbs) {
+    if (v < 0 && a > cwAbs) {
       cwAbs = a;
       callWall = p.strike;
     }
-    if (p.strike < spot && v > 0 && a > pwAbs) {
+    if (v > 0 && a > pwAbs) {
       pwAbs = a;
       putWall = p.strike;
     }

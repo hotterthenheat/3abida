@@ -858,6 +858,10 @@ interface StrikeChartProps {
       the level's moves today, how long it has stood, its touches today and the track record's line. In place of the
       library's one-line axis labels and the in-plot strength chips. */
   axisChips?: boolean;
+  /** THE WALLS' STATES (the owner, 2026-10-14: "Price crossing a wall no longer moves it; the chip shows 'broken', and
+      'reclaimed' when price comes back") — the host's, read on its closed minutes (trailModel wallStateOn); the axis
+      chips of the call and put walls carry the word */
+  wallStates?: { cw: 'holding' | 'broken' | 'reclaimed' | null; pw: 'holding' | 'broken' | 'reclaimed' | null } | null;
   /** The one σ_remaining in dollars (pricedMove sigmaRemOf) — the chips' and the cards' σ distances; null without one */
   sigmaRem?: number | null;
   /** THE BEAD CARD'S LIVE LEGS: the newest book's put and call hedging per strike — the card prints them for a bead on
@@ -1093,6 +1097,8 @@ interface AxisChipRow {
   price: number;
   line1: string;
   line2: string;
+  /** A wall's state when it is not plain holding: "broken" / "reclaimed" (the owner, 2026-10-14) */
+  line3?: string;
   bg: string;
   fg: string;
   title: string;
@@ -1170,7 +1176,7 @@ const StrikeChart = ({
   barCountdown = 'measured',
   asOf = null,
   futureBars = null,
-  footBar = null, onRegime, jumpTo = null, axisChips = false, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null,
+  footBar = null, onRegime, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null,
   onJumpResult, onViewEdge, onBarClick, stale = false,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
@@ -1831,11 +1837,13 @@ const StrikeChart = ({
     const css = (rgb: readonly [number, number, number]) => `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
     const taken = new Set<number>();
     if (fin(levels.callWall)) {
-      rows.push({ key: 'cw', price: levels.callWall, line1: `CW ${k(levels.callWall)}`, line2: dist(levels.callWall), bg: css(inks.cw), fg: inkFor(inks.cw), title: 'The call wall — the heaviest call-dominant strike above the price' });
+      const st = wallStates?.cw;
+      rows.push({ key: 'cw', price: levels.callWall, line1: `CW ${k(levels.callWall)}`, line2: dist(levels.callWall), line3: st === 'broken' || st === 'reclaimed' ? st : undefined, bg: css(inks.cw), fg: inkFor(inks.cw), title: `The call wall — the heaviest call-dominant strike in the book's window, wherever the price stands${st === 'broken' ? ' · broken: three closed minutes in a row above it' : st === 'reclaimed' ? ' · reclaimed: three closed minutes back under it after a break' : ''}` });
       taken.add(levels.callWall);
     }
     if (fin(levels.putWall) && !taken.has(levels.putWall)) {
-      rows.push({ key: 'pw', price: levels.putWall, line1: `PW ${k(levels.putWall)}`, line2: dist(levels.putWall), bg: css(inks.pw), fg: inkFor(inks.pw), title: 'The put wall — the heaviest put-dominant strike below the price' });
+      const st = wallStates?.pw;
+      rows.push({ key: 'pw', price: levels.putWall, line1: `PW ${k(levels.putWall)}`, line2: dist(levels.putWall), line3: st === 'broken' || st === 'reclaimed' ? st : undefined, bg: css(inks.pw), fg: inkFor(inks.pw), title: `The put wall — the heaviest put-dominant strike in the book's window, wherever the price stands${st === 'broken' ? ' · broken: three closed minutes in a row below it' : st === 'reclaimed' ? ' · reclaimed: three closed minutes back over it after a break' : ''}` });
       taken.add(levels.putWall);
     }
     if (fin(levels.flip)) {
@@ -1857,7 +1865,7 @@ const StrikeChart = ({
     }
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [axisChips, levels.callWall, levels.putWall, levels.flip, levels.supreme, levels.spot, quote, sigmaRem, revision, mainNonce, themeKey, appTheme]);
+  }, [axisChips, levels.callWall, levels.putWall, levels.flip, levels.supreme, levels.spot, quote, sigmaRem, revision, mainNonce, themeKey, appTheme, wallStates?.cw, wallStates?.pw]);
   /* THE CHIPS RIDE THE AXIS: each frame the chip of each level is set at its price's y — pinned at the clear area's
      edges with ▲/▼ when it is off the plot — and the chips are pushed apart where they would overlap, the price tag's
      band kept clear; nothing is written that has not changed */
@@ -5614,6 +5622,11 @@ const StrikeChart = ({
                   {c.line1}
                 </div>
                 <div className="font-mono text-[11px] tnum whitespace-nowrap opacity-90">{c.line2}</div>
+                {c.line3 && (
+                  <div className="font-mono text-[11px] font-semibold whitespace-nowrap" data-wall-state={c.line3}>
+                    {c.line3}
+                  </div>
+                )}
               </div>
             ))}
           </div>

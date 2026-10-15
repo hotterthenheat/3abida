@@ -115,7 +115,7 @@ import {
   type FeedOi,
   type FeedStrike, useBeadScaleRefs, measuredBooks60, measuredBooks, pastSessionsOf, useReplaySessions, type PricedMoveFeed
 } from '../../data/feed/levels';
-import { book60Window, driftEndOf, driftOf, netOf, ordinal, regimeForWindow, regimeReadOf, regimeSide, regimeWordsOf, sigmaOf, WallStick, type ExpiryWindow, type RegimeRead } from '../../data/feed/trailModel';
+import { book60Window, driftEndOf, driftOf, netOf, ordinal, regimeForWindow, regimeReadOf, regimeSide, regimeWordsOf, sigmaOf, wallStateOn, WallStick, type ExpiryWindow, type RegimeRead, type WallShown } from '../../data/feed/trailModel';
 import ReplayStrip from '../../components/gex/ReplayStrip';
 import ReplayTools from '../../components/terrain/ReplayTools';
 import { useTerrainReplay } from '../../components/terrain/useTerrainReplay';
@@ -1284,14 +1284,14 @@ const Pane = ({
     return feedRail(fBook, rows, fOi, !dateRows, fDay?.price ?? null);
   }, [onFeed, fBook, fOi, fByDate, cutDate, fDay, fBook60]);
   const rawLiveRail = houseRail ?? feedRailData ?? emptyRail(fBook?.spot ?? 0);
-  /* THE RAIL'S WALLS WITH HYSTERESIS (the owner's item 13, 2026-10-14 — trailModel WallStick, the field's one rule): the
-     ladder's wall rows, the axis chips, the decision strip and the level alerts all read these levels, so the stick stands
-     here, one per name, fed each time the live rail is read anew (the book's poll, the house's scan); a new strike is the
-     wall once it has been the raw pick for three closed minutes and beats the held wall by 10%, or the held wall is no
-     candidate any more. The replay's rail is the store's own column and is not touched. */
-  const wallStickRef = useRef<{ ticker: string; stick: WallStick }>({ ticker, stick: new WallStick() });
+  /* THE RAIL'S WALLS, FROM THE BOOK AND HELD (the owner, 2026-10-14 — trailModel WallStick, the field's one rule): the
+     ladder's wall rows, the axis chips and the decision strip read these levels, so the stick stands here, one per name,
+     fed each time the live rail is read anew (the book's poll, the house's scan); a new strike is the wall once it has
+     been the raw pick and beaten the held wall by 10% for three minutes, or the held wall is no wall any more. The replay's
+     rail is the store's own column, held the same way (data/replayFrame.ts). */
+  const wallStickRef = useRef<{ ticker: string; stick: WallStick; firstAt: number; shown: WallShown | null }>({ ticker, stick: new WallStick(), firstAt: 0, shown: null });
   const liveRail = useMemo(() => {
-    if (wallStickRef.current.ticker !== ticker) wallStickRef.current = { ticker, stick: new WallStick() };
+    if (wallStickRef.current.ticker !== ticker) wallStickRef.current = { ticker, stick: new WallStick(), firstAt: 0, shown: null };
     const lv = rawLiveRail.levels;
     const fin = (v: number) => (Number.isFinite(v) ? v : null);
     const at = new Map<number, number>();
@@ -1300,7 +1300,10 @@ const Pane = ({
     const cw = fin(lv.callWall) != null && lv.callWall !== lv.spot && at.has(lv.callWall) ? lv.callWall : null;
     const pw = fin(lv.putWall) != null && lv.putWall !== lv.spot && at.has(lv.putWall) ? lv.putWall : null;
     if (!at.size) return rawLiveRail;
-    const w = wallStickRef.current.stick.next({ time: Date.now() / 1000, spot: lv.spot, cw, pw, valueOf: k => at.get(k) ?? NaN });
+    const now = Date.now() / 1000;
+    if (!wallStickRef.current.firstAt) wallStickRef.current.firstAt = now;
+    const w = wallStickRef.current.stick.next({ time: now, spot: lv.spot, cw, pw, valueOf: k => at.get(k) ?? NaN });
+    wallStickRef.current.shown = w;
     if (w.cw === cw && w.pw === pw) return rawLiveRail;
     return { ...rawLiveRail, levels: { ...lv, callWall: w.cw ?? (Number.isFinite(lv.callWall) ? NaN : lv.callWall), putWall: w.pw ?? (Number.isFinite(lv.putWall) ? NaN : lv.putWall) } };
   }, [rawLiveRail, ticker]);
@@ -1348,6 +1351,28 @@ const Pane = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker]);
   const railData = rp.active && rpRail ? rpRail : liveRail;
+  /* BROKEN OR RECLAIMED (the owner, 2026-10-14: "Price crossing a wall no longer moves it; the chip shows 'broken', and
+     'reclaimed' when price comes back"): each rail wall's state on today's closed minutes since it took its strike — the
+     session's open for a wall standing since the page first read the book (trailModel wallStateOn, the stick's machine) */
+  const railWallState = useMemo(() => {
+    if (rp.active) return null;
+    const bars = onFeed ? fBars.bars : offHouse ? null : Simulator.getCandles(Simulator.ensureTicker(ticker));
+    if (!bars || !bars.length) return null;
+    const nowS = Date.now() / 1000;
+    const today = nyIsoDate();
+    const [y, mo, d] = today.split('-').map(Number);
+    const open = nyWallTime(y, mo, d, 9, 30) / 1000;
+    const closed = bars.filter(b => b.time >= open && b.time + 60 <= nowS);
+    const st = wallStickRef.current;
+    const sinceOf = (t: number | undefined) => (t == null || t <= st.firstAt ? open : Math.floor(t / 60) * 60);
+    const lv = liveRail.levels;
+    const fin = (v: number) => (Number.isFinite(v) ? v : null);
+    return {
+      cw: wallStateOn('cw', fin(lv.callWall), closed, sinceOf(st.shown?.cwSince))?.state ?? null,
+      pw: wallStateOn('pw', fin(lv.putWall), closed, sinceOf(st.shown?.pwSince))?.state ?? null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rp.active, onFeed, fBars.bars, offHouse, ticker, liveRail, revision]);
   const levels = railData.levels;
   /* in a replay, the cursor's price against the session before's close: the official close the priced move stands on (the
      feed), the house's last bar of the session before */
@@ -1728,9 +1753,13 @@ const Pane = ({
       /* EVERY TIME SAYS WHAT IT IS (the orbs message, item 17: "The OI chip says 12:02 pm in one screenshot and 12:17 pm in
          the other; OI changes once a day — say what that time is"): the count is dated, the book's and the vols' times
          are their reads — the short form kept the times and dropped their words */
-      const parts = [fOi?.date ? `OI dated ${shortDay(fOi.date)}` : 'OI —', fBook ? `book read ${printClock(fBook.at)}` : 'book —', vols ? `vols read ${printClock(vols)}` : null].filter((x): x is string => !!x);
-      const shortParts = [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', vols ? `vols ${printClock(vols)}` : fBook ? `book ${printClock(fBook.at)}` : null].filter((x): x is string => !!x);
-      out.push({ key: 'freshness', label: 'Fresh', words: parts.join(' · '), short: shortParts.join(' · '), title: `${rail.sure[0]?.freshness ?? 'How fresh the inputs are'} — open interest is counted once a day after the close and published before the open (its date is the session it stands for); the book and the vols are read through the session, and their times are the reads'`, tone: null });
+      /* WHAT EACH TIME IS (the owner, 2026-10-14, item 17 — "OI changes once a day — say what that time is"): open
+         interest carries its DATE alone (counted once a day after the close, published before the open); the book's time
+         is when Unusual Whales figured it (its rows' own stamp); the vols' time is the newest option trade a vol the
+         field priced with came from (the newest column's `freshAt`) — it moves with each chain read, every ten minutes */
+      const parts = [fOi?.date ? `OI dated ${shortDay(fOi.date)}` : 'OI —', fBook ? `book figured ${printClock(fBook.at)}` : 'book —', vols ? `vols traded to ${printClock(vols)}` : null].filter((x): x is string => !!x);
+      const shortParts = [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', vols ? `vols to ${printClock(vols)}` : fBook ? `book ${printClock(fBook.at)}` : null].filter((x): x is string => !!x);
+      out.push({ key: 'freshness', label: 'Fresh', words: parts.join(' · '), short: shortParts.join(' · '), title: `${rail.sure[0]?.freshness ?? 'How fresh the inputs are'} — open interest carries its date alone: it is counted once a day after the close and published before the open. "Book figured" is when Unusual Whales figured the book by strike; "vols traded to" is the newest option trade behind the vols the field priced with, which moves with each chain read (every ten minutes)`, tone: null });
     } else out.push({ key: 'freshness', label: 'Fresh', words: 'OI last close · spot live', short: 'OI last close', title: rail.sure[0]?.freshness ?? 'How fresh the inputs are', tone: null });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2538,6 +2567,7 @@ const Pane = ({
               jumpTo={jumpTo}
               /* THE AXIS CHIPS, the σ, the live legs, the count's date, the density and the card's doors (the UI pass) */
               axisChips
+              wallStates={railWallState}
               sigmaRem={sigmaRem?.sigma ?? null}
               legsNow={legs}
               oiDate={onFeed ? fOi?.date ?? null : null}

@@ -6,7 +6,7 @@ import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
 import { pickFlip, pickWalls, zeroCrossings } from '../../core/walls';
 import { nyClock } from '../../core/nyTime';
-import { stickyWallMoves, wallObsOf, WallStick, type WallObs } from '../../data/feed/trailModel';
+import { stickyWallMoves, wallObsOf, wallStateEventsOf, WallStick, type WallMove, type WallObs, type WallShown, type WallStateEvent } from '../../data/feed/trailModel';
 
 /*
   Exposure nodes — the ORIGINAL trail form, back by request (Noah,
@@ -150,11 +150,14 @@ interface Column {
      core/walls.ts pickFlip (the sign change nearest the price; null where the book never changes sign: a gap, never the
      last one carried) and pickWalls */
   flip: number | null;
-  /** THE WALLS SHOWN — with hysteresis (trailModel WallStick, the owner's item 13 of 2026-10-14): a new strike is the
-      wall once it has been the raw pick for three closed minutes and beats the held wall's |gamma| by 10%, or the held
-      wall is no candidate any more. The raw picks (pickWalls) ride beside them. */
+  /** THE WALLS SHOWN — from the book, held (trailModel WallStick, the owner's rule of 2026-10-14): the heaviest call- and
+      put-dominant strikes, a new one taking over only after beating the held wall by 10% in three closed minutes in a
+      row; walked on the PER-MINUTE store, so every timeframe shows the same walls (a column reads the stick at its last
+      minute). Their states (broken / reclaimed) ride beside them, and the raw picks (pickWalls). */
   cw: number | null;
   pw: number | null;
+  cwState: WallShown['cwState'];
+  pwState: WallShown['pwState'];
   rawCw: number | null;
   rawPw: number | null;
   /** The moment's own price and the strikes' step — the density's distance fade reads them */
@@ -180,7 +183,8 @@ interface Group {
 /** The wall chips keep this far in from the pane's left (the drawing rail) and right (the strength chips), CSS px */
 const CHIP_LEFT = 58;
 const CHIP_RIGHT = 96;
-const WALL_CHIPS = 3;
+/** The newest wall chips on the plot — moves, breaks and reclaims together */
+const WALL_CHIPS = 4;
 
 /** What sits under the pointer on the field — the hover card's words come off it */
 export interface BeadHit {
@@ -282,6 +286,16 @@ interface GapRun {
   t1: number;
   words: string;
 }
+/** AN OVAL ON A SHARED PATH: its own subpath, begun with a moveTo at the arc's start (angle 0). Without it the canvas joins
+    each ellipse to the path's current point — after a closePath that is the FIRST oval's start — so every stroked batch
+    (the outlines, the rings, the ghosts, the pinned chain) fanned straight lines out of one node across the plot (seen
+    2026-10-15 on SPY 15m; the fills hid it, a there-and-back line having no area) */
+export function addOval(p: Path2D, cx: number, cy: number, rw: number, rh: number): void {
+  p.moveTo(cx + rw, cy);
+  p.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2);
+  p.closePath();
+}
+
 /** The bars in the visible range with no column of the field, as runs, each asked its reason of the host (src.gapCause):
     whitespace (no bar) is no gap; a run the host has no words for is left unlabelled */
 function findGaps(src: GexTrailsPrimitive, series: ISeriesApi<'Candlestick'>, ts: ReturnType<IChartApi['timeScale']>, barSec: number): GapRun[] {
@@ -465,8 +479,7 @@ class TrailsPaneRenderer {
       const ellipse = (p: Path2D, b: { left: number; top: number; w: number; h: number }, inset = 0) => {
         const rw = Math.max(0.5, b.w / 2 - inset);
         const rh = Math.max(0.5, b.h / 2 - inset);
-        p.ellipse(b.left + b.w / 2, b.top + b.h / 2, rw, rh, 0, 0, Math.PI * 2);
-        p.closePath();
+        addOval(p, b.left + b.w / 2, b.top + b.h / 2, rw, rh);
       };
       /* the darker shade of a node's own hue, for its outline */
       const shade = (c: RGB3): RGB3 => (paper ? [Math.round(c[0] * 0.7), Math.round(c[1] * 0.7), Math.round(c[2] * 0.7)] : [Math.round(c[0] * 0.6), Math.round(c[1] * 0.6), Math.round(c[2] * 0.6)]);
@@ -559,8 +572,7 @@ class TrailsPaneRenderer {
                pixel outside the node, in its side's ink */
             if (prev && g.topSet.has(bead.strike) && !prev.topSet.has(bead.strike)) {
               const p = pathFor(rings, bead.put ? 'p' : 'c');
-              p.ellipse(box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px + 0.5, box.h / 2 + pxV + 0.5, 0, 0, Math.PI * 2);
-              p.closePath();
+              addOval(p, box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px + 0.5, box.h / 2 + pxV + 0.5);
             }
           }
           /* THE GHOST (B4): a strike that LEFT the three heaviest draws an outline where it stood — the slot wide, the
@@ -571,8 +583,7 @@ class TrailsPaneRenderer {
                 const y = yOf(s);
                 if (y === null || y < floorCss || y > paneHCss) continue;
                 const box = boxOf(cxDev, y, 1, capDev);
-                ghosts.ellipse(box.left + box.w / 2, box.top + box.h / 2, Math.max(0.5, box.w / 2 - 0.5), Math.max(0.5, box.h / 2 - 0.5), 0, 0, Math.PI * 2);
-                ghosts.closePath();
+                addOval(ghosts, box.left + box.w / 2, box.top + box.h / 2, Math.max(0.5, box.w / 2 - 0.5), Math.max(0.5, box.h / 2 - 0.5));
                 ghostDrawn = true;
               }
           /* THE WALL LINES (the orbs message, "wall lines (thin, 40% opacity, in their oval colour)") and THE FLIP
@@ -717,8 +728,7 @@ class TrailsPaneRenderer {
               const b = p.g.all.get(strike);
               if (!b) continue;
               const box = boxOf(p.cxDev, y, b.t, p.capDev);
-              ringPath.ellipse(box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px / 2, box.h / 2 + pxV / 2, 0, 0, Math.PI * 2);
-              ringPath.closePath();
+              addOval(ringPath, box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px / 2, box.h / 2 + pxV / 2);
             }
             ctx.lineWidth = Math.max(px, pxV);
             ctx.strokeStyle = rgba(ringInk, 0.9);
@@ -854,9 +864,13 @@ class TrailsPaneRenderer {
         }
       }
 
-      // the walls' moves: a chip where a wall changed strike (the stick has done the holding), and a short tick
+      // the walls' moves and states: a chip where a wall changed strike (the stick has done the holding) or was broken or
+      // reclaimed, and a short tick at a move
       {
-        const moves = stickyWallMoves(last, ci => src.columnAt(ci), first);
+        const tFrom = snaps[first].time;
+        const tTo = snaps[last - 1].time + Math.max(60, src.stepSec);
+        const moves = src.wallMoves.filter(m => m.time >= tFrom && m.time < tTo);
+        const states = src.wallStates.filter(m => m.time >= tFrom && m.time < tTo);
         const chipFloorCss = floorCss;
         /* every move in view wears a short tick at the NEW strike on the bar it moved: two pixels wide, seven tall (the
            orbs message, item 14 — they drew most of a strike row tall) */
@@ -871,19 +885,24 @@ class TrailsPaneRenderer {
           ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.95 * src.globalDim).toFixed(3)})`;
           ctx.fillRect(Math.round(xBar * hr - tw / 2), Math.round(y * vr - th / 2), tw, th);
         }
-        moves.sort((a, b) => b.time - a.time);
-        const keep = moves.slice(0, WALL_CHIPS);
+        /* the newest few, moves and states together: "PW 772 → 770 · 12:12 pm", "PW 772 broken · 10:54 am" */
+        type Chip = { kind: 'CW' | 'PW'; at: number; time: number; words: (fmt: (k: number) => string) => string };
+        const chips: Chip[] = [
+          ...moves.map(m => ({ kind: m.kind, at: m.to, time: m.time, words: (fmt: (k: number) => string) => `${m.kind} ${fmt(m.from)} → ${fmt(m.to)}` })),
+          ...states.map(m => ({ kind: m.kind, at: m.strike, time: m.time, words: (fmt: (k: number) => string) => `${m.kind} ${fmt(m.strike)} ${m.state}` })),
+        ].sort((a, b) => b.time - a.time);
+        const keep = chips.slice(0, WALL_CHIPS);
         ctx.textAlign = 'left';
         for (const m of keep) {
           const bucket = Math.floor(m.time / barSec) * barSec;
           const xBar = ts.timeToCoordinate(bucket as Time);
-          const yAt = series.priceToCoordinate(m.to);
+          const yAt = series.priceToCoordinate(m.at);
           if (xBar === null || yAt === null) continue;
           /* A WALL BEYOND THE CLEAR AREA IS PINNED AT ITS EDGE AND SAYS SO (the owner's second review, 2026-10-13) */
           const pin = yAt < chipFloorCss ? '▲ ' : yAt > paneHCss ? '▼ ' : '';
           const y = pin === '▲ ' ? chipFloorCss : pin === '▼ ' ? paneHCss : yAt;
           const fmt = (k: number) => (k % 1 === 0 ? num(k, 0) : num(k, 2));
-          const text = `${pin}${m.kind} ${fmt(m.from)} → ${fmt(m.to)} · ${nyClock(m.time * 1000)}`;
+          const text = `${pin}${m.words(fmt)} · ${nyClock(m.time * 1000)}`;
           const w = ctx.measureText(text).width;
           let l = xBar * hr + 3 * hr;
           if (l + w + padX * 2 > rightMost) l = xBar * hr - 3 * hr - w - padX * 2;
@@ -1141,10 +1160,12 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   rev = 0;
   /** Built columns by snapshot identity — see setData's incremental note. */
   private colCache = new WeakMap<GexSnapshot, Column>();
-  /** The walls shown at each snapshot (WallStick), and the raw observations by snapshot identity */
-  private stickCw: (number | null)[] = [];
-  private stickPw: (number | null)[] = [];
+  /** The walls shown at each column (the stick read at the column's last minute), the raw observations by snapshot
+      identity, and the minute-precise moves and states the chips name */
+  private colShown: (WallShown | null)[] = [];
   private rawObs = new WeakMap<GexSnapshot, WallObs>();
+  wallMoves: WallMove[] = [];
+  wallStates: WallStateEvent[] = [];
   /** Groups by their column span, for this revision */
   private groupCache = new Map<string, Group>();
   /** The columns ci0..ci1 (inclusive) as one group: each strike its peak-minute cell, ranked by size */
@@ -1393,23 +1414,33 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     }
     this.stepSec = Number.isFinite(step) ? step : barSec;
     this.groupCache.clear();
-    /* THE WALLS WITH HYSTERESIS (item 13): one stick over the whole tape, in time order, starting over on a new day —
-       the raw picks cached by snapshot identity, the walk itself a few thousand cheap steps */
+    /* THE WALLS FROM THE BOOK, HELD (trailModel WallStick): one stick over the PER-MINUTE store, in time order, starting
+       over on a new day — the raw picks cached by snapshot identity, the walk a few thousand cheap steps — and each
+       column reads it at its last minute, so a 5-minute chart and a 1-minute chart name the same walls at the same time */
     {
+      const minutes = base ?? snapshots;
       const stick = new WallStick();
-      this.stickCw = new Array(snapshots.length);
-      this.stickPw = new Array(snapshots.length);
-      for (let i = 0; i < snapshots.length; i++) {
-        const snap = snapshots[i];
+      const shown: (WallShown & { time: number })[] = new Array(minutes.length);
+      for (let i = 0; i < minutes.length; i++) {
+        const snap = minutes[i];
         let o = this.rawObs.get(snap);
         if (!o) {
           const spot = snap.spot ?? snap.levels[Math.floor(snap.levels.length / 2)]?.strike ?? 0;
           o = wallObsOf(snap.time, spot, snap.levels);
           this.rawObs.set(snap, o);
         }
-        const w = stick.next(o);
-        this.stickCw[i] = w.cw;
-        this.stickPw[i] = w.pw;
+        shown[i] = { ...stick.next(o), time: snap.time };
+      }
+      this.wallMoves = stickyWallMoves(shown.length, i => shown[i]);
+      this.wallStates = wallStateEventsOf(shown.length, i => shown[i]);
+      /* a column's last minute: its time plus its span less a minute */
+      const span = Math.max(60, this.stepSec) - 60;
+      this.colShown = new Array(snapshots.length);
+      let j = 0;
+      for (let i = 0; i < snapshots.length; i++) {
+        const end = snapshots[i].time + span;
+        while (j + 1 < shown.length && shown[j + 1].time <= end) j++;
+        this.colShown[i] = shown.length && shown[j].time <= end ? shown[j] : null;
       }
     }
     /* THE SCALE RUNS FORWARD (2026-10-13, the research's look-ahead rule): strength is ABSOLUTE against a stable
@@ -1431,7 +1462,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     const r = this.refAt(i);
     const ref = r.ref || this.ref || 1;
     const refG = r.refG || ref;
-    const key = `${ref}|${refG}|${this.floor}`;
+    const held0 = this.colShown[i];
+    /* the walls shown ride in the key: the column a live minute replaces reads the stick afresh */
+    const key = `${ref}|${refG}|${this.floor}|${held0?.cw}|${held0?.pw}|${held0?.cwState}|${held0?.pwState}`;
     if (!col || col.key !== key) {
       const all = new Map<number, Bead>();
       const gex = this.greek === 'gex';
@@ -1456,9 +1489,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         const d = Math.abs(snap.levels[i].strike - snap.levels[i - 1].strike);
         if (d > 0 && d < step) step = d;
       }
-      const cw = i < this.stickCw.length ? this.stickCw[i] : walls.callWall;
-      const pw = i < this.stickPw.length ? this.stickPw[i] : walls.putWall;
-      col = { time: snap.time, top, all, ref, refG, key, flip, cw, pw, rawCw: walls.callWall, rawPw: walls.putWall, spot, step: Number.isFinite(step) ? step : 1, topSet: new Set(top.slice(0, 3).map(b => b.strike)) };
+      const held = this.colShown[i];
+      const cw = held ? held.cw : walls.callWall;
+      const pw = held ? held.pw : walls.putWall;
+      col = { time: snap.time, top, all, ref, refG, key, flip, cw, pw, cwState: held?.cwState ?? null, pwState: held?.pwState ?? null, rawCw: walls.callWall, rawPw: walls.putWall, spot, step: Number.isFinite(step) ? step : 1, topSet: new Set(top.slice(0, 3).map(b => b.strike)) };
       this.colCache.set(snap, col);
     }
     return col;

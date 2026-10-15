@@ -116,16 +116,18 @@ export function bookSureness(chain: readonly Node[], spot: number, ticker?: stri
       supremeNet = n.netGex;
       supreme = n.strike;
     }
-  const wallWords = (side: 'above' | 'below', at: number | null, was: number | null) =>
+  /* the walls are the book's, either side of the price (2026-10-15): turned over, the heaviest strike of one side is the
+     heaviest of the other — the call wall would stand where the put wall is now, and the other way round */
+  const wallWords = (kind: 'call' | 'put', at: number | null, was: number | null) =>
     at == null
-      ? `With the side turned over there would be no wall ${side} spot.`
+      ? `With the side turned over there would be no ${kind} wall.`
       : was != null && Math.abs(at - was) < 1e-9
-        ? `With the side turned over the wall ${side} spot would still be ${fmt(at)}.`
-        : `With the side turned over the wall ${side} spot would sit at ${fmt(at)}${was != null ? `, not ${fmt(was)}` : ''}.`;
+        ? `With the side turned over the ${kind} wall would still be ${fmt(at)}.`
+        : `With the side turned over the ${kind} wall would sit at ${fmt(at)}${was != null ? `, not ${fmt(was)}` : ''} — the strike that is the ${kind === 'call' ? 'put' : 'call'} wall now.`;
   const make = (level: SureLevel, strike: number | null, other: number | null, otherWords: string): Sureness => ({ level, strike, assumption: ASSUMPTION_WORDS, freshness, other, otherWords });
   return {
-    'call wall': make('call wall', now.callWall, flipped.callWall, wallWords('above', flipped.callWall, now.callWall)),
-    'put wall': make('put wall', now.putWall, flipped.putWall, wallWords('below', flipped.putWall, now.putWall)),
+    'call wall': make('call wall', now.callWall, flipped.callWall, wallWords('call', flipped.callWall, now.callWall)),
+    'put wall': make('put wall', now.putWall, flipped.putWall, wallWords('put', flipped.putWall, now.putWall)),
     flip: make(
       'flip',
       flip,

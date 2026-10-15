@@ -88,6 +88,10 @@ export interface LevelInputs {
   step: number;
   /** The day's budget priced at the prior close (data/feed/pricedMove.ts): the close it stands on and 1σ in dollars */
   sigma: { prevClose: number; s: number } | null;
+  /** The book's net at a strike (the house's sign; NaN where the book holds none) — the walls' 10% rule reads it (the
+      owner, 2026-10-14: "Keep the 10% / 3-minute rule for real size changes … Move the scorecard and alerts to this
+      definition"). Absent, a new wall needs only its minutes. */
+  valueAt?: (strike: number) => number;
 }
 
 export interface LevelAlertCfg {
@@ -108,8 +112,10 @@ export interface LevelAlertCfg {
   holdMin: number;
   /** A touch: within this share of price */
   touchTol: number;
+  /** A new wall strike must beat the held one's |gamma| by this in every minute it counts (trailModel WALL_STICK) */
+  wallBeat: number;
 }
-export const LEVEL_ALERT_DEFAULTS: LevelAlertCfg = { confirmBars: 3, wallAgeMin: 15, moveStrikes: 2, rearmFrac: 0.5, tier1Cap: 3, capWindowMin: 15, staleMs: 120_000, holdMin: 3, touchTol: 0.0002 };
+export const LEVEL_ALERT_DEFAULTS: LevelAlertCfg = { confirmBars: 3, wallAgeMin: 15, moveStrikes: 2, rearmFrac: 0.5, tier1Cap: 3, capWindowMin: 15, staleMs: 120_000, holdMin: 3, touchTol: 0.0002, wallBeat: 1.1 };
 
 export interface LevelEvent {
   /** Unique: ticker, kind, level and the minute */
@@ -254,15 +260,25 @@ export class LevelAlertEngine {
     }
     if (bar.closed) this.lastClosed = bar.time;
 
-    /* THE WALLS, followed by identity: re-keyed once a new strike has held; touched after standing the wall's age — the
-       one Tier-1 alert (the owner, 2026-10-14: "Tier 1 = wall touches only") */
+    /* THE WALLS, followed by identity: the book's heaviest call- and put-dominant strikes (core/walls.ts, either side of
+       the price — a price crossing a wall is no move); re-keyed once a new strike has been the book's pick AND beaten the
+       held wall's |gamma| by `wallBeat` in `holdMin` closed minutes in a row, or the held wall is no wall any more;
+       touched after standing the wall's age — the one Tier-1 alert (the owner, 2026-10-14: "Tier 1 = wall touches only") */
     for (const id of ['callWall', 'putWall'] as const) {
       const w = this.walls[id];
       const strike = lv[id];
       if (strike == null || !Number.isFinite(strike)) continue;
+      const va = lv.valueAt;
+      const heldV = va && w.strike != null ? va(w.strike) : NaN;
+      const alive = !va || (Number.isFinite(heldV) && (id === 'callWall' ? heldV < 0 : heldV > 0));
+      const beats = !va || !alive || Math.abs(va(strike)) >= this.cfg.wallBeat * Math.abs(heldV);
       if (w.strike == null) {
         w.strike = strike;
         w.since = bar.time;
+      } else if (strike !== w.strike && !beats) {
+        /* not heavier by the margin: the candidate's run starts over */
+        w.cand = null;
+        w.run = 0;
       } else if (strike !== w.strike) {
         if (strike !== w.cand) {
           w.cand = strike;

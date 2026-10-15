@@ -7,9 +7,10 @@
 ==================================================
 */
 
+import { pickWalls } from '../core/walls';
 import { blackScholesGreeks } from '../core/greeks';
 import { expiryFor, isoDate, today } from '../core/calendar';
-import type { MarketSnapshot, StrikeNode } from '../types/market';
+import type { MarketSnapshot } from '../types/market';
 import { SLEEVE_BY_KEY, isScannerEligible } from '../types/compass';
 import type { Grade } from './stockOverview';
 import type {
@@ -653,14 +654,10 @@ export function buildSetupDrivers(
 
   add(pick(target.strike, target.right), 'This contract');
 
-  let callWall: StrikeNode | null = null;
-  let putWall: StrikeNode | null = null;
-  for (const n of chain) {
-    if (n.strike > spot && (!callWall || Math.abs(n.callGex) > Math.abs(callWall.callGex))) callWall = n;
-    if (n.strike < spot && (!putWall || Math.abs(n.putGex) > Math.abs(putWall.putGex))) putWall = n;
-  }
-  if (callWall) add(pick(callWall.strike, 'C'), 'Call wall');
-  if (putWall) add(pick(putWall.strike, 'P'), 'Put wall');
+  /* the book's walls, either side of the price (2026-10-15 — one definition across the terminal) */
+  const { callWall, putWall } = pickWalls(chain, spot, n => n.netGex);
+  if (callWall != null) add(pick(callWall, 'C'), 'Call wall');
+  if (putWall != null) add(pick(putWall, 'P'), 'Put wall');
 
   const supreme = chain.reduce((a, n) => (Math.abs(n.netGex) > Math.abs(a.netGex) ? n : a), chain[0]);
   add(pick(supreme.strike, Math.abs(supreme.callGex) >= Math.abs(supreme.putGex) ? 'C' : 'P'), 'Supreme');

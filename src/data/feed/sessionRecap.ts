@@ -51,7 +51,7 @@
 
 import { LEVEL_KINDS, touchesOf, type LevelKind, type Touch, type TrackBar, type TrackConfig, type TrackSession } from './trackRecord';
 import { dayVerdict, type CalibrationDay, type DayVerdict } from './pricedMove';
-import { regimeBucketOf, regimePercentile, stickyWallMoves, stickyWalls } from './trailModel';
+import { regimeBucketOf, regimePercentile, stickyWallMoves, stickyWalls, wallObsOfRow } from './trailModel';
 
 /** What recap.json holds — a change of what it says is a new number (the server builds it again) */
 export const RECAP_FORMAT = 1;
@@ -166,13 +166,9 @@ function gridStep(cells: readonly (readonly [number, number, number?])[]): numbe
     move in strikes of its column's grid */
 export function recapWallsOf(rows: readonly { m: number; cw: number | null; pw: number | null; cells: readonly (readonly [number, number, number?])[]; spot?: number }[]): RecapWallMove[] {
   const sorted = [...rows].sort((a, b) => a.m - b.m);
-  const shown = stickyWalls(
-    sorted.map(r => {
-      const at = new Map<number, number>();
-      for (const c of r.cells) at.set(c[0], c[1]);
-      return { time: r.m / 1000, spot: r.spot ?? NaN, cw: r.cw, pw: r.pw, valueOf: (k: number) => at.get(k) ?? NaN };
-    })
-  );
+  /* the walls picked afresh off each row's own cells (core/walls.ts, the book's rule since 2026-10-14 — a row's stored
+     cw/pw are the pick of the day it was written) and held by the field's one stick */
+  const shown = stickyWalls(sorted.map(r => wallObsOfRow({ m: r.m, spot: r.spot ?? NaN, cells: r.cells })));
   return stickyWallMoves(sorted.length, i => ({ cw: shown.cw[i], pw: shown.pw[i], time: sorted[i].m }))
     .map(w => ({ kind: w.kind === 'CW' ? ('call' as const) : ('put' as const), from: w.from, to: w.to, m: w.time, strikes: Math.round(Math.abs(w.to - w.from) / gridStep(sorted[w.i].cells)) }))
     .sort((a, b) => a.m - b.m || a.kind.localeCompare(b.kind));

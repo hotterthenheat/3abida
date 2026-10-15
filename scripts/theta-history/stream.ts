@@ -43,15 +43,24 @@ export class ClockGate {
     }
   }
 }
+/* THE RECORDER'S HOURS (the owner, 2026-10-14: "The downloader's 8 in flight outside market hours is Theta's whole
+   account limit, so the recorder's pre-market reads (the 7:00 am ET OI switch) get starved. Cap it at 7 outside market
+   hours, and treat 6:00 am–4:30 pm ET as recorder hours (3 in flight)"): a weekday from 06:00 to 16:30 New York — the
+   recorder's chain reads from before the open's count is published to past the close's last reads. The probe keeps its
+   own heavy-probe window (theta-probe/lib inSession, 09:25–16:15). */
+export const RECORDER_FROM_MIN = 6 * 60;
+export const RECORDER_TO_MIN = 16 * 60 + 30;
+export const inRecorderHours = (minute: number, weekday: number): boolean => weekday >= 1 && weekday <= 5 && minute >= RECORDER_FROM_MIN && minute < RECORDER_TO_MIN;
 export const inSessionNow = (): boolean => {
   const n = nyNow();
-  return inSession(n.minute, n.weekday);
+  return inRecorderHours(n.minute, n.weekday);
 };
-/** The limit by the clock: SESSION_LIMIT in market hours, FULL_LIMIT outside; 0 inside Theta's gap (nothing starts) */
-export const limitByClock = (session: number, full: number) => (): number => {
-  const n = nyNow();
+/** The limit by the clock: SESSION_LIMIT in the recorder's hours, FULL_LIMIT outside (7 — one of Theta's eight always
+    left to the recorder); 0 inside Theta's gap (nothing starts). `at` is the New York clock to read (the proof's) */
+export const limitByClock = (session: number, full: number, at: () => { minute: number; weekday: number } = nyNow) => (): number => {
+  const n = at();
   if (inThetaGap(n.minute)) return 0;
-  return inSession(n.minute, n.weekday) ? session : full;
+  return inRecorderHours(n.minute, n.weekday) ? session : full;
 };
 
 /* ---- the stream --------------------------------------------------------------------------------------------------- */

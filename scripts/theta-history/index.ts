@@ -12,11 +12,12 @@
   · 127.0.0.1 only; it never starts or signs into a
     terminal — the terminal must already be CONNECTED
     (npm run theta:terminal, as ever), else it stops.
-  · In market hours (09:25–16:15 New York, weekdays)
-    it keeps THREE requests in flight, leaving the
-    recorder its share of Theta's eight; outside them
-    EIGHT. Nothing is asked in Theta's own gap
-    (00:00–01:45 New York).
+  · In the recorder's hours (06:00–16:30 New York,
+    weekdays — the 7:00 am open-interest switch and the
+    close's last reads inside them) it keeps THREE
+    requests in flight; outside them SEVEN, so one of
+    Theta's eight is always the recorder's. Nothing is
+    asked in Theta's own gap (00:00–01:45 New York).
   · Resumable, checkpointed PER TICKER PER DAY
     (<root>/<T>/manifest.json): a day held is never
     asked again; a file is written whole and renamed
@@ -57,7 +58,7 @@
   HISTORY_INDICES (SPX,NDX,RUT,VIX), HISTORY_SESSIONS
   (a cap, for a test), HISTORY_FROM (a floor date),
   HISTORY_RETRY_DENIED=1, HISTORY_FORCE=1,
-  HISTORY_CONCURRENCY (8), HISTORY_IN_SESSION_CONCURRENCY
+  HISTORY_CONCURRENCY (7, never more), HISTORY_IN_SESSION_CONCURRENCY
   (3), THETA_PROBE_BASE (the terminal).
 ==================================================
 */
@@ -112,8 +113,9 @@ export function optionsFromEnv(env: Record<string, string | undefined>, log: (li
     from: env.HISTORY_FROM && /^\d{4}-\d{2}-\d{2}$/.test(env.HISTORY_FROM) ? env.HISTORY_FROM : null,
     retryDenied: env.HISTORY_RETRY_DENIED === '1',
     force: env.HISTORY_FORCE === '1',
-    sessionLimit: Number(env.HISTORY_IN_SESSION_CONCURRENCY ?? 3) || 3,
-    fullLimit: Number(env.HISTORY_CONCURRENCY ?? 8) || 8,
+    sessionLimit: Math.min(3, Number(env.HISTORY_IN_SESSION_CONCURRENCY ?? 3) || 3),
+    /* never past 7: one of Theta's eight concurrent requests is always the recorder's (the owner, 2026-10-14) */
+    fullLimit: Math.min(7, Number(env.HISTORY_CONCURRENCY ?? 7) || 7),
     reportAfter: Number(env.HISTORY_REPORT_AFTER ?? 5) || 5,
     rates: env.HISTORY_RATES === 'none' ? 'none' : 'auto',
     log,

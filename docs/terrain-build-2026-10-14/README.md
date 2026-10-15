@@ -460,3 +460,119 @@ mid-session here and recorded the minutes after from what it had received — an
 The session strip at the time of the shots read "After hours · ends in 2h 44m" (the cash session was over; the close
 count shows in it: "Power hour · the close in 41m"); the Fresh chip read "OI Oct 14 · vols 12:29 pm" with its hover
 "Open interest as of Oct 13's close — Unusual Whales' count dated Oct 14; it is counted once a day · …".
+
+## The owner's three points (2026-10-15)
+
+### 1 · the downloader leaves the recorder its call
+
+Theta's 8 is the whole account, so 8 in flight outside market hours left the recorder's pre-market reads (the 7:00 am
+open-interest switch) nothing. The clock gate (scripts/theta-history/stream.ts `limitByClock`, `inRecorderHours`) now
+counts **6:00 am to 4:30 pm New York on a weekday as the recorder's hours: 3 in flight**; **7 outside**; none in
+Theta's gap (00:00–01:45). The environment can lower either, never raise it (`Math.min(3, …)`, `Math.min(7, …)`).
+scripts/theta-history-proof.ts checks the edges — 5:59 am → 7, 6:00 → 3, 4:29 pm → 3, 4:30 → 7, 1:00 am → 0,
+Saturday noon → 7, `HISTORY_CONCURRENCY=8` → 7: 15 of 15.
+
+### 2 · the walls from the book
+
+**The rule** (core/walls.ts `pickWalls`): the call wall is the heaviest calls-absorb strike in the book's window, the
+put wall the heaviest puts-amplify strike — wherever the price stands. A price crossing a wall never moves it; the
+wall's state does: `broken` after three closed minutes in a row beyond it (a call wall closed over, a put wall closed
+under), `reclaimed` after three back (trailModel `WallStick`, `wallStateOn`). The 10% / three-minute rule stays for
+size: a new strike becomes the wall only after it has been the raw pick and beaten the held wall's |gamma| by 10% in
+every one of three closed minutes. **One fix found while checking it**: the three minutes were measured by time, so a
+candidate seen once either side of a hole in the rows (the recorder down for ten minutes) had "held" and moved the
+wall. The minutes are now consecutive — a gap over 90 s starts every count again (`WALL_GAP_S`; two proof checks).
+
+**Where it reads**: Terrain's columns, chips, axis chips, ladder, decision strip; Pinpoint, Pulse, the Weigher and
+Compass's drivers (one definition — the turned-over lines of How sure and the heat read now say where the price stands
+against a broken wall instead of "above"/"below"); the glossary's Wall, Call wall and Put wall; **the scorecard**
+(server/scorecard.ts picks afresh off each row's cells and holds through the stick — the stored rows' own picks were
+the old rule; config `record-2026-10-14.3`, so the hold-out says it was evaluated again); **the level alerts**
+(data/levelAlerts.ts: a wall move needs the 10% beat in each of its minutes, `valueAt` off the book); the recap and
+the replay's frame.
+
+**The 358-minute count again** (SPY 2026-10-14, final rows 9:30 am–3:27 pm New York, 60 strikes a row):
+
+| | put wall changes | call wall changes |
+|---|---|---|
+| the stored per-minute picks (old rule: price's side) | 13 | 0 |
+| the book's raw pick each minute, no hold | 15 | 0 |
+| **the book's pick, held (10% in three closed minutes)** | **0** | **0** |
+
+Walls 780 / 772 all session. The raw book pick changes 15 times because 772 and 765 stood within 2–5% of each other
+from 1:56 pm; the 10% rule holds that back. The states (New York): PW 772 broken 10:54 am (771.98), reclaimed 10:57
+(772.46), broken 11:06 (771.75), reclaimed 11:19 (772.08), broken 11:26 (771.73) and broken to the last row — five
+chips in 32 minutes while the price chopped within 30 cents of the strike. That is the rule as written; a band or a
+longer confirmation for the state is a variant for section D to register, not changed here.
+
+**Every session on this machine** (14 a name, 2025-04-02 to 2026-10-14, 5,414 minute steps; the old rule raw per
+minute against the new rule held, touches at the 15-minute horizon):
+
+| | SPY | QQQ |
+|---|---|---|
+| wall changes, call + put | 489 → 61 | 630 → 115 |
+| call wall touches (B2 / B3) | 36 → 41 (5 → 5 / 44 → 26) | 41 → 52 (28 → 63 / 63 → 46) |
+| put wall touches (B2 / B3) | 52 → 21 (0 → 0 / 46 → 15) | 74 → 64 (2 → 10 / 58 → 73) |
+| flip, heaviest strikes | unchanged | unchanged |
+
+Every cell is under 500 touches and 12 months: insufficient data, no rate. On the live day the chart drew two put-wall
+moves on the recorder's shown rows that the final rows do not have: 3:25 pm (770 beat 772 by 10–13% from 3:23) and
+4:07 pm (at 4:00 the day's expiring contracts left the book and 770's gamma halved, so 772 took it back) — both real
+size changes under the rule.
+
+**A drawing fault found in the same check, and in the orbs shots I sent you** (shots/orbs-spy-15m.png): straight lines
+fanned out of one node across the plot. Every oval was added to a shared canvas path without starting its own subpath,
+so after each `closePath` the canvas joined the next oval back to the first one; the fills hid it, the outlines, rings
+and the pinned chain drew it. Each oval now starts with a `moveTo` at its arc (gexNodesPrimitive `addOval`, a proof
+check on the order of the path's calls). I should have caught it in those shots.
+
+Shots: shots/walls-spy-15m.png (SPY 15m after the fix: no lines; the axis chip "PW 770 +$2.85 broken"; the chips),
+shots/walls-chips-2x.png (the state chips on your clock, Pacific: "PW 772 broken · 8:26 am", "reclaimed · 8:19 am",
+"broken · 8:06 am", "reclaimed · 7:57 am" — 11:26, 11:19, 11:06 and 10:57 New York).
+
+### 3 · the four answers
+
+**A3 — the phone's "Maximum update depth exceeded": still unresolved.** Not reproduced in 14 runs here: the seven of
+2026-10-14, three again today, and four broader runs at 390 × 844, 375 × 667, 430 × 932 and 360 × 780 with the CPU
+slowed 4× — the viewport turned during the load and after it, two panes and back, every decision box, the ladder peek
+and a row, the legend and window keys, six timeframe steps, a replay played and stepped, the ticker changed, Pulse and
+back, a drag on the chart. 0 hits. Because a phone has no console, the development trap now also writes what it
+catches to **.feed-cache/depth-trap.ndjson on the machine serving the page** (vite.config.ts `depthLog`, development
+only) and shows a banner at the page's foot (shots/a3-trap-banner.png — fired by hand to test it). If you see the loop
+again, that file names the component and the pane's state; send it and I fix the cause.
+
+**B1 — the cause of each blank.** I cannot see your machine's store, so here is what each one is by the code, what the
+chart now prints over it, and the one line that settles it on your machine:
+
+| blank | cause | what the chart says over it now | settle it |
+|---|---|---|---|
+| SPY before "14" | Sessions before today are drawn only once the server has rebuilt them (`/feed/field/SPY/past`), one at a time, about 1–3 minutes each, the name asked last first — ten a name, so 30 sessions for three panes | "queued to rebuild" · "rebuilding on the server" · "not rebuilt · <why>" | `curl http://127.0.0.1:5190/feed/field/SPY/coverage` lists the sessions built |
+| QQQ before "14" | the same queue — QQQ's ten waited behind whichever pane asked last | the same | the same, for QQQ |
+| QQQ's latest candles | a column is knowable at its minute's end and the recorder reads once a minute, so the forming bar has none; more than two minutes is the recorder behind (it shares UW's three calls with the rebuilds) | "live lag · N min" | the recorder's log shows each minute's read |
+| AAPL | AAPL is not in RECORD_NAMES (SPY, QQQ, IWM): the recorder watches it from the first time a page asks, so today's minutes before that were never recorded, and its past sessions queue behind SPY's and QQQ's | "chain not read yet · building", then "not recorded · before the first read" | add AAPL to RECORD_NAMES to have it from 4:00 am |
+
+**B5 — the UW per-minute spot-exposure pull: it runs only inside the always-on recorder** (`npm run feed:recorder`,
+since commit 121ecef on 2026-10-14), thirty seconds after it starts and at 5:15 pm New York. This workspace has no
+recorder, so nothing ran here until today's test. **A fault found answering this**: the job counted a day as held if
+the recorder's `total.json` or a rebuilt `past.json.gz` existed — but those keep only the `_oi` series before
+2026-10-13 (three figures a row: SPY's Oct 12, QQQ's Oct 12 and 13, every rebuilt day here), so it would have skipped
+exactly the `_vol` and `_dir` days it exists for — on your machine, every day your backfill rebuilt. Now only its own
+`series.json` counts, and from 5:00 pm it starts at today's session (it began a day late). **A live walk from here**:
+SPY and QQQ ten calendar days, SPX six — 18 sessions written in 9.5 s, 14 fields a row, 493–557 rows a session from
+about 6:35 am to 4:00 pm New York. **How many days your machine holds I cannot see**: once you restart the recorder on
+this commit, `curl http://127.0.0.1:5190/feed/series` answers what it holds a name (sessions with rows, empty dates,
+oldest, newest) and where the walk is; a full pass is about 520 sessions a name, one call at a time with a 1.5 s
+pause, so about an hour for the three.
+
+**Item 17 — the OI chip's time.** It was not the open interest's time. Open interest carries only a DATE (it is
+counted once a day after the close and published before the open). The time beside it was the newest option trade
+behind the field's vols — `freshAt` of the newest column, which moves with each chain read (every ten minutes). The chip
+now says each: "OI dated Oct 14 · book figured 12:02 pm · vols traded to 12:17 pm" (short "OI Oct 14 · vols to
+12:17 pm"), and its hover says what each time is.
+
+### Open from this round
+
+- On a phone's first second the pane head printed the last bar's close ($767.03) before the price poll answered
+  ($767.15 from 4 s on, the same as the axis and the strip).
+- The state chips can be busy when the price chops on a wall (five in 32 minutes above); section D registers any
+  confirmation variant.

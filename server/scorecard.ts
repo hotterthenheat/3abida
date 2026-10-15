@@ -46,7 +46,7 @@ import type { createFieldBackfill, PastDay } from './fieldBackfill';
 import type { FieldStore, StoreRow } from './fieldStore';
 import type { PricedMove } from './pricedMove';
 import type { ScaleRefs } from './scaleRef';
-import { sigmaOf } from '../src/data/feed/trailModel';
+import { sigmaOf, stickyWalls, wallObsOfRow } from '../src/data/feed/trailModel';
 import type { CalibrationDay } from '../src/data/feed/pricedMove';
 
 type FieldBackfill = ReturnType<typeof createFieldBackfill>;
@@ -118,7 +118,13 @@ export async function loadSession(backfill: FieldBackfill, store: FieldStore, ro
   const r10 = rows.find(r => nyMinuteOf(r.m) === 10 * 60);
   const s10 = r10 ? sigmaOf(r10.str0) : null;
   const at10: CalibrationDay['at10'] = r10 && s10 != null && s10 > 0 ? { spot: r10.spot, sigma: s10, src: r10.str0?.src ?? 'model' } : null;
-  return { session: { day, rows: rows.map(r => ({ m: r.m, spot: r.spot, flip: r.flip, cw: r.cw, pw: r.pw, top: r.top, net: r.net, netP: r.netP, cells: r.cells.map(c => [c[0], c[1]] as [number, number]), str0: r.str0 })), bars: trackBars, prevClose, dir }, source, at10 };
+  /* THE WALLS, FROM THE BOOK AND HELD (the owner, 2026-10-14: "Move the scorecard and alerts to this definition"): picked
+     afresh off each row's own cells (core/walls.ts — the heaviest call- and put-dominant strikes, either side of the price)
+     and held by the field's one stick (trailModel WallStick: 10% in three closed minutes in a row) — a row written before
+     that day carries the old pick, so its own cw/pw are never read here */
+  const sorted = [...rows].sort((a, b) => a.m - b.m);
+  const held = stickyWalls(sorted.map(wallObsOfRow));
+  return { session: { day, rows: sorted.map((r, i) => ({ m: r.m, spot: r.spot, flip: r.flip, cw: held.cw[i], pw: held.pw[i], top: r.top, net: r.net, netP: r.netP, cells: r.cells.map(c => [c[0], c[1]] as [number, number]), str0: r.str0 })), bars: trackBars, prevClose, dir }, source, at10 };
 }
 export const isLoaded = (x: LoadedSession | NoSession): x is LoadedSession => 'session' in x;
 

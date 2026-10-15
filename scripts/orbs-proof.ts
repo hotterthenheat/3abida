@@ -1,10 +1,10 @@
 /*
   THE ORBS' PROOF (scripts/orbs-proof.ts, in `npm test`) — the owner's message of 2026-10-14, "NODES: SKYLIT-STYLE ORBS,
   DONE BETTER", held to its numbers:
-    1. THE WALL WITH HYSTERESIS (item 13, trailModel WallStick): the owner's 9:50 / 9:58 / 10:04 flip-flop — a price
-       dipping through the put wall's strike for two minutes and back moves nothing; three closed minutes below moves it;
-       a strike 5% heavier never takes a standing wall, 12% heavier does after three minutes; a new day starts over; and
-       this machine's recorded SPY day (2026-10-14, final rows) counted raw against the rule.
+    1. THE WALLS FROM THE BOOK (core/walls.ts, the owner's rule of 2026-10-14), HELD (trailModel WallStick): a price
+       crossing a wall never moves it — it is BROKEN after three closed minutes beyond and RECLAIMED after three back;
+       a strike must beat the held wall by 10% in every one of three minutes; a new day starts over; and this machine's
+       recorded SPY day (2026-10-14, final rows) counted raw against held.
     2. THE OVAL'S MEASURES: d = 3 px + (85% row − 3 px) × √(min(size ÷ reference, 1)); the width cap; the merge of
        candles under 6 px; opacity 0.55 → 1.
     3. THE COLOURS: gold absorbs, violet amplifies — the paper tokens at 3:1 or better on the paper panel and canvas; the
@@ -13,8 +13,9 @@
     4. THE LEGEND'S WORDS and the hit of the renderer's constants.
 */
 import { existsSync, readFileSync } from 'node:fs';
-import { WallStick, WALL_STICK, stickyWallMoves, stickyWalls, wallObsOf } from '../src/data/feed/trailModel';
-import { HOVER_KEEP, NODE_LABELS, OVAL_ALPHA_MIN, OVAL_MERGE_CSS, OVAL_MIN_CSS, OVAL_OUTLINE_MIN_CSS, OVAL_ROW_SHARE, PIN_KEEP, TOP_NODES, mergeBars, optimalCandlestickWidth, ovalAlpha, ovalDiameter } from '../src/components/gex/gexNodesPrimitive';
+import { WallStick, stickyWallMoves, stickyWalls, wallObsOf, wallObsOfRow, wallStateEventsOf, wallStateOn } from '../src/data/feed/trailModel';
+import { pickWalls } from '../src/core/walls';
+import { HOVER_KEEP, addOval, NODE_LABELS, OVAL_ALPHA_MIN, OVAL_MERGE_CSS, OVAL_MIN_CSS, OVAL_OUTLINE_MIN_CSS, OVAL_ROW_SHARE, PIN_KEEP, TOP_NODES, mergeBars, optimalCandlestickWidth, ovalAlpha, ovalDiameter } from '../src/components/gex/gexNodesPrimitive';
 import { beadLegendLines } from '../src/components/terrain/beadLegend';
 import type { StoreRow } from '../server/fieldStore';
 
@@ -27,82 +28,96 @@ const check = (name: string, ok: boolean, detail = '') => {
 };
 const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
 
-/* ---- 1. the wall with hysteresis ------------------------------------------------------------------------------- */
+/* ---- 1. the walls from the book, held, broken and reclaimed (the owner, 2026-10-14) -------------------------------- */
 {
   /* the owner's scenario: SPY near 770; the put wall 770 (|g| 1.5) with 765 beside it (|g| 1.0); the price dips under
-     770 at 9:50 for two minutes, comes back, dips again at 9:58 for three closed minutes */
+     770 at 9:50 for two minutes, comes back, dips again at 9:58 for six closed minutes */
   const t0 = Date.UTC(2026, 9, 14, 13, 45); // 9:45 am New York
-  const levels = (spot: number) => [
+  const levels = () => [
     { strike: 760, value: 0.4e9 },
     { strike: 765, value: 1.0e9 },
     { strike: 770, value: 1.5e9 },
     { strike: 775, value: -0.8e9 },
     { strike: 780, value: -2.0e9 },
-  ].map(l => ({ ...l, spot }));
+  ];
   const path: number[] = [];
   for (let i = 0; i < 30; i++) {
     const m = 45 + i; // 9:45 .. 10:14
     let spot = 771.2;
     if (m === 50 || m === 51) spot = 769.8; // two minutes under 770
-    if (m >= 58 && m <= 60) spot = 769.7; // three closed minutes under 770
-    if (m >= 61 && m <= 63) spot = 769.9; // and three more
+    if (m >= 58 && m <= 63) spot = 769.7; // six closed minutes under 770
     path.push(spot);
   }
-  const obs = path.map((spot, i) => wallObsOf((t0 + i * 60_000) / 1000, spot, levels(spot)));
-  const raw = obs.map(o => o.pw);
-  const shown = stickyWalls(obs);
-  const rawMoves = raw.filter((w, i) => i > 0 && w !== raw[i - 1]).length;
-  const moves = stickyWallMoves(obs.length, i => ({ cw: shown.cw[i], pw: shown.pw[i], time: obs[i].time }));
-  const nyMin = (t: number) => Math.round((t * 1000 - t0) / 60_000) + 45;
-  const said = moves.map(m => `${m.kind} ${m.from} → ${m.to} at ${Math.floor(nyMin(m.time) / 60) + 9}:${String(nyMin(m.time) % 60).padStart(2, '0')}`).join(', ');
-  /* the two-minute dip moves nothing; the three-closed-minute dip moves the wall to 765 at 10:00; and when the price stands
-     back over 770 — 1.5× the gamma at 765 — the owner's rule returns the wall to 770 three closed minutes later (10:06): the
-     rule as asked slows a flip-flop, it does not forbid a heavier strike that re-qualifies */
-  check(`the raw pick flips with the price (${rawMoves} changes in 30 minutes); the wall shown moves twice — 770 → 765 after three closed minutes under 770, back once 770 has stood three minutes over the price again (${said})`, rawMoves >= 4 && moves.length === 2 && moves[0].kind === 'PW' && moves[0].from === 770 && moves[0].to === 765 && nyMin(moves[0].time) === 60 && moves[1].from === 765 && moves[1].to === 770 && nyMin(moves[1].time) === 66);
-  /* a wall that still stands gives way only to a strike 10% heavier that has stood three minutes */
-  const stick = new WallStick();
-  const t1 = Date.UTC(2026, 9, 14, 15, 0) / 1000;
-  const wobble = (heavy: number, minutes: number): (number | null)[] => {
-    const out: (number | null)[] = [];
-    for (let i = 0; i < minutes; i++) {
-      const lv = [
-        { strike: 770, value: 1.0e9 },
-        { strike: 765, value: i >= 3 ? heavy * 1.0e9 : 0.5e9 },
-        { strike: 780, value: -1.0e9 },
-      ];
-      out.push(stick.next(wallObsOf(t1 + i * 60, 775, lv)).pw);
-    }
-    return out;
+  const obs = path.map((spot, i) => wallObsOf((t0 + i * 60_000) / 1000, spot, levels()));
+  const held = stickyWalls(obs);
+  const moves = stickyWallMoves(obs.length, i => ({ cw: held.cw[i], pw: held.pw[i], time: obs[i].time }));
+  const states = wallStateEventsOf(obs.length, i => ({ ...held.shown[i], time: obs[i].time }));
+  const clk = (t: number) => {
+    const m = Math.round((t * 1000 - t0) / 60_000) + 45;
+    return `${Math.floor(m / 60) + 9}:${String(m % 60).padStart(2, '0')}`;
   };
-  const five = wobble(1.05, 12);
-  check(`a neighbour 5% heavier (under WALL_STICK.ratio ${WALL_STICK.ratio}) never takes a wall that stands: ${five.join(' ')}`, five.every(w => w === 770));
-  const stick2 = new WallStick();
-  const twelve: (number | null)[] = [];
-  for (let i = 0; i < 8; i++) twelve.push(stick2.next(wallObsOf(t1 + i * 60, 775, [{ strike: 770, value: 1.0e9 }, { strike: 765, value: i >= 2 ? 1.12e9 : 0.5e9 }, { strike: 780, value: -1.0e9 }])).pw);
-  check(`one 12% heavier takes it on its third closed minute as the raw pick (from minute 2: shown ${twelve.join(' ')})`, twelve.slice(0, 4).every(w => w === 770) && twelve.slice(4).every(w => w === 765));
-  /* a new New York day starts over: the first raw pick of the day is the wall at once */
+  check(`a price crossing the put wall never moves it (${moves.length} moves); the two-minute dip is no break, the six-minute dip breaks it at its third closed minute and the return reclaims it at its third (${states.map(e => `${e.kind} ${e.strike} ${e.state} ${clk(e.time)}`).join(', ')})`, moves.length === 0 && held.pw.every(w => w === 770) && states.length === 2 && states[0].state === 'broken' && clk(states[0].time) === '10:00' && states[1].state === 'reclaimed' && clk(states[1].time) === '10:06');
+  /* the walls are the book's, either side of the price: a put-dominant strike over the price is the put wall */
+  const over = pickWalls([{ strike: 765, value: 0.4e9 }, { strike: 775, value: 1.2e9 }, { strike: 780, value: -0.9e9 }, { strike: 772, value: -1.4e9 }], 770, l => l.value);
+  check(`the walls are the book's heaviest, whatever side of the price (price 770: put wall ${over.putWall}, call wall ${over.callWall})`, over.putWall === 775 && over.callWall === 772);
+  /* a new wall must beat the held one by 10% in EVERY minute of three — not only at the third */
+  const t1 = Date.UTC(2026, 9, 14, 15, 0) / 1000;
+  const seq = (h: (i: number) => number, n = 10) => {
+    const st = new WallStick();
+    return Array.from({ length: n }, (_, i) => st.next(wallObsOf(t1 + i * 60, 775, [{ strike: 770, value: 1.0e9 }, { strike: 765, value: h(i) * 1.0e9 }, { strike: 780, value: -1.0e9 }])).pw);
+  };
+  const five = seq(i => (i >= 2 ? 1.05 : 0.5));
+  check(`a strike 5% heavier never takes a wall that stands: ${five.join(' ')}`, five.every(w => w === 770));
+  const twelve = seq(i => (i >= 2 ? 1.12 : 0.5));
+  check(`one 12% heavier takes it on its third minute as the pick (from minute 2: ${twelve.join(' ')})`, twelve.slice(0, 4).every(w => w === 770) && twelve.slice(4).every(w => w === 765));
+  const wobble = seq(i => (i >= 2 ? (i === 3 ? 1.06 : 1.12) : 0.5));
+  check(`one 12%, 6%, 12% heavier in three minutes does not (the 6% minute starts the count over): ${wobble.join(' ')}`, wobble.slice(0, 6).every(w => w === 770) && wobble[6] === 765);
+  /* a new New York day starts over: the first pick of the day is the wall at once */
   const stick3 = new WallStick();
-  const d1 = Date.UTC(2026, 9, 13, 19, 59) / 1000; // 3:59 pm Oct 13
-  const d2 = Date.UTC(2026, 9, 14, 13, 30) / 1000; // 9:30 am Oct 14
-  const a = stick3.next(wallObsOf(d1, 775, [{ strike: 770, value: 1e9 }, { strike: 780, value: -1e9 }]));
-  const b = stick3.next(wallObsOf(d2, 775, [{ strike: 765, value: 1e9 }, { strike: 770, value: 0.2e9 }, { strike: 780, value: -1e9 }]));
-  check(`a new day starts the stick over (Oct 13 close PW ${a.pw}; Oct 14 open PW ${b.pw} at once)`, a.pw === 770 && b.pw === 765);
-  /* this machine's day: the recorded final rows, raw against the rule */
+  const d1 = Date.UTC(2026, 9, 13, 19, 59) / 1000;
+  const d2 = Date.UTC(2026, 9, 14, 13, 30) / 1000;
+  const a1 = stick3.next(wallObsOf(d1, 775, [{ strike: 770, value: 1e9 }, { strike: 780, value: -1e9 }]));
+  const b1 = stick3.next(wallObsOf(d2, 775, [{ strike: 765, value: 1e9 }, { strike: 770, value: 0.2e9 }, { strike: 780, value: -1e9 }]));
+  check(`a new day starts the stick over (Oct 13 close PW ${a1.pw}; Oct 14 open PW ${b1.pw} at once)`, a1.pw === 770 && b1.pw === 765);
+  /* THE MINUTES ARE CONSECUTIVE (2026-10-15): a candidate seen either side of a hole (the recorder down) has not held */
+  {
+    const st = new WallStick();
+    const at = (i: number, k: number) => st.next(wallObsOf(t1 + i * 60, 775, [{ strike: 770, value: 1.0e9 }, { strike: 765, value: k * 1.0e9 }, { strike: 780, value: -1.0e9 }])).pw;
+    const seen = [at(0, 0.5), at(1, 1.12), at(12, 1.12), at(13, 1.12), at(14, 1.12)];
+    check(`a candidate seen once before an eleven-minute hole and again after it waits for three minutes in a row (minutes 0, 1, 12, 13, 14: ${seen.join(' ')})`, seen.slice(0, 4).every(w => w === 770) && seen[4] === 765);
+    const closes = [0, 1, 10, 11, 12].map(i => ({ time: t1 + i * 60, close: 769 }));
+    const gapState = wallStateOn('pw', 770, [{ time: t1 - 60, close: 771 }, ...closes], t1 - 60);
+    check(`closes under a put wall either side of a hole break it only on the third in a row (${gapState?.state} at minute ${gapState ? Math.round((gapState.at - t1) / 60) : '—'})`, gapState?.state === 'broken' && gapState.at === t1 + 12 * 60);
+  }
+  /* AN OVAL ON A SHARED PATH begins its own subpath (2026-10-15: without the moveTo every stroked batch fanned lines out
+     of the first node) */
+  {
+    const ops: string[] = [];
+    const rec = { moveTo: (x: number, y: number) => ops.push(`M ${x} ${y}`), ellipse: (x: number, y: number, rx: number, ry: number) => ops.push(`E ${x} ${y} ${rx} ${ry}`), closePath: () => ops.push('Z') } as unknown as Path2D;
+    addOval(rec, 10, 20, 3, 2);
+    addOval(rec, 40, 50, 4, 4);
+    check(`each oval starts its own subpath at its arc's start (${ops.join(', ')})`, ops.join('|') === 'M 13 20|E 10 20 3 2|Z|M 44 50|E 40 50 4 4|Z');
+  }
+  /* this machine's day: the recorded final rows, picked afresh off their cells, raw against held */
   const file = '.feed-cache/field/SPY/2026-10-14/final.jsonl';
   if (existsSync(file)) {
-    const rows = readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l) as StoreRow).sort((x, y) => x.m - y.m);
-    const o = rows.map(r => {
-      const at = new Map<number, number>();
-      for (const c of r.cells) at.set(c[0], c[1]);
-      return { time: r.m / 1000, spot: r.spot, cw: r.cw, pw: r.pw, valueOf: (k: number) => at.get(k) ?? NaN };
-    });
-    const rawPw = rows.filter((r, i) => i > 0 && r.pw !== rows[i - 1].pw).length;
-    const rawCw = rows.filter((r, i) => i > 0 && r.cw !== rows[i - 1].cw).length;
+    const seen = new Set<number>();
+    const rows = readFileSync(file, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map(l => JSON.parse(l) as StoreRow)
+      .sort((x, y) => x.m - y.m)
+      .filter(r => !seen.has(r.m) && (seen.add(r.m), true));
+    const o = rows.map(wallObsOfRow);
+    const rawPw = o.filter((r, i) => i > 0 && r.pw !== o[i - 1].pw).length;
+    const rawCw = o.filter((r, i) => i > 0 && r.cw !== o[i - 1].cw).length;
+    const oldPw = rows.filter((r, i) => i > 0 && r.pw !== rows[i - 1].pw).length;
     const sw = stickyWalls(o);
     const mv = stickyWallMoves(o.length, i => ({ cw: sw.cw[i], pw: sw.pw[i], time: o[i].time }));
+    const ev = wallStateEventsOf(o.length, i => ({ ...sw.shown[i], time: o[i].time }));
     const toNy = (t: number) => new Date(t * 1000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
-    console.log(`      SPY 2026-10-14 on this machine, ${rows.length} final rows ${toNy(o[0].time)}–${toNy(o[o.length - 1].time)}: raw put-wall changes ${rawPw}, call-wall ${rawCw}; with the rule ${mv.length} move${mv.length === 1 ? '' : 's'}: ${mv.map(m => `${m.kind} ${m.from} → ${m.to} ${toNy(m.time)}`).join(', ') || 'none'}`);
-    check(`on this machine's recorded day the rule leaves fewer moves than the raw pick (${mv.length} of ${rawPw + rawCw})`, mv.length < rawPw + rawCw);
+    console.log(`      SPY 2026-10-14 on this machine, ${rows.length} final rows ${toNy(o[0].time)}–${toNy(o[o.length - 1].time)} New York: the old rule's stored put-wall changes ${oldPw}; the book's rule raw put-wall changes ${rawPw}, call-wall ${rawCw}; held, ${mv.length} move${mv.length === 1 ? '' : 's'}${mv.length ? `: ${mv.map(m => `${m.kind} ${m.from} → ${m.to} ${toNy(m.time)}`).join(', ')}` : ''}; states: ${ev.map(e => `${e.kind} ${e.strike} ${e.state} ${toNy(e.time)}`).join(', ') || 'none'}`);
+    check(`on this machine's recorded day the held book walls move less than the raw pick (${mv.length} of ${rawPw + rawCw})`, mv.length < rawPw + rawCw);
   } else console.log('      (no recorded SPY day on this machine to count)');
 }
 

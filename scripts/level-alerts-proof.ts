@@ -66,6 +66,13 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
   check(`the watch follows the wall: 605 → 606 a Tier-3 line, 606 → 608 a Tier-2 notice, each once the strike has held three minutes (${moved.map(x => `${x.from}→${x.to} T${x.tier}`).join(', ')})`, moved.length === 2 && moved[0].tier === 3 && moved[0].kind === 'wall-rekey' && moved[1].tier === 2 && moved[1].kind === 'wall-move' && moved[1].bar === T0 + 10 * 60);
   const flick = run(new LevelAlertEngine('SPY', ['callWall']), Array.from({ length: 10 }, () => 603), i => lv({ callWall: i % 2 ? 608 : 605 }));
   check('a wall trading places for a minute at a time is not a move', flick.length === 0);
+  /* THE 10% RULE (the owner, 2026-10-14: walls from the book, "Keep the 10% / 3-minute rule for real size changes"): with
+     the book's values handed in, a new pick 5% heavier never takes the wall; 12% heavier takes it after three minutes */
+  const book = (h: number) => (k: number) => (k === 605 ? -1e9 : k === 608 ? -h * 1e9 : NaN);
+  const near = run(new LevelAlertEngine('SPY', ['callWall']), Array.from({ length: 10 }, () => 603), i => lv({ callWall: i < 2 ? 605 : 608, valueAt: book(1.05) }));
+  check(`a pick only 5% heavier never moves the watched wall (${near.length} moves in ten minutes)`, near.length === 0);
+  const heavy = run(new LevelAlertEngine('SPY', ['callWall']), Array.from({ length: 10 }, () => 603), i => lv({ callWall: i < 2 ? 605 : 608, valueAt: book(1.12) }));
+  check(`a pick 12% heavier moves it once it has held three minutes (${heavy.map(x => `${x.from}→${x.to} at minute ${(x.bar - T0) / 60}`).join(', ')})`, heavy.length === 1 && heavy[0].from === 605 && heavy[0].to === 608 && (heavy[0].bar - T0) / 60 === 4);
 }
 
 /* the three heaviest and the σ levels */
@@ -149,7 +156,10 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
         const top = r.top.slice(0, 3).map(x => x[0]);
         const strikes = r.cells.map(c => c[0]);
         const step = strikes.length > 1 ? Math.min(...strikes.slice(1).map((k, i) => k - strikes[i]).filter(x => x > 0)) : 1;
-        return { bar: { time: r.m / 1000, high: b?.high ?? r.spot, low: b?.low ?? r.spot, close: r.spot, closed: true } as LevelBar, lv: { flip: r.flip, callWall: r.cw, putWall: r.pw, top, step, sigma: null } as LevelInputs };
+        /* the walls as the watcher hands them: the book's picks (a fresh rebuild's rows carry today's rule) and the book's
+           values, so the engine's 10% rule reads them */
+        const at = new Map(r.cells.map(c => [c[0], c[1]] as [number, number]));
+        return { bar: { time: r.m / 1000, high: b?.high ?? r.spot, low: b?.low ?? r.spot, close: r.spot, closed: true } as LevelBar, lv: { flip: r.flip, callWall: r.cw, putWall: r.pw, top, step, sigma: null, valueAt: (k: number) => at.get(k) ?? NaN } as LevelInputs };
       });
       for (const st of steps) out.push(...e.observe(st.bar, st.lv, (st.bar.time + 60) * 1000, 0));
       events += out.length;
