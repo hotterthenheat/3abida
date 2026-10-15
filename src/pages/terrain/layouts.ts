@@ -15,8 +15,8 @@
   argument instead of holding a second enumeration of the pane's fields —
   the drawings validator was rebuilt around exactly that lesson (T-0: a
   kind-list copied inline dropped every stored measure). Same for the legal
-  layout list. The proof stages its own validator, which is the point: this
-  module's own logic is storage, names and caps, and that is what it proves.
+  layout list. No proof imports this module yet; one would stage its own
+  validator, since this module's own logic is storage, names and caps.
 
   THE CAP REFUSES, IT DOES NOT EVICT. Twelve named desks is a workshop;
   silently dropping the oldest to admit a thirteenth is how a reader loses

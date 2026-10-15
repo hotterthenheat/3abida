@@ -342,7 +342,7 @@ const PaperDesk = () => {
     held: positions.length,
     /* an index's chart is its own candles (made from its fund's) — an index is never asked of the simulator by its own name,
        and has no book of its own to draw walls from */
-    tape: isPaperIndex(name) ? { bars: candlesOf(name), iv: baseIvOf(name), key: `paper:idx:${name}`, precision: { decimals: 2, tick: 0.01 }, clock: 'ny' } : undefined,
+    tape: isPaperIndex(name) ? { bars: candlesOf(name), iv: baseIvOf(name), key: `paper:idx:${name}`, precision: { decimals: 2, tick: 0.01 } } : undefined,
     levels: isPaperIndex(name) ? { spot, callWall: NaN, putWall: NaN, flip: NaN, supreme: NaN } : buildLevelsFor(name),
     layer: {
       fills: [],

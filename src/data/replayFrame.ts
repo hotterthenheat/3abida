@@ -43,6 +43,8 @@ import { minuteRefs, columnMax } from './feed/beadScale';
 /** The speeds, as multiples of the market's own time: 1× a minute of tape a minute, 60× a minute a second */
 export const REPLAY_SPEEDS = [1, 5, 20, 60] as const;
 export type ReplaySpeed = (typeof REPLAY_SPEEDS)[number];
+/** The same speeds as the replay's pace card offers them (ReplayStrip `paces`) — one list, the words "1×" … "60×" */
+export const REPLAY_PACES: { value: ReplaySpeed; label: string }[] = REPLAY_SPEEDS.map(v => ({ value: v, label: `${v}×` }));
 /** Real milliseconds between two minutes of tape at a speed */
 export const msPerMinute = (speed: ReplaySpeed): number => 60_000 / speed;
 /** The ladder's ghost dots: each strike's value this many minutes before the cursor */

@@ -62,10 +62,9 @@ interface PaneHeadProps {
   doors: ReactNode;
   /** Bumped by the host when the T key asks for the calendar (the jump to a date) */
   openDateNonce?: number;
-  className?: string;
 }
 
-const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump, tools, keys, doors, openDateNonce = 0, className = '' }: PaneHeadProps) => {
+const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump, tools, keys, doors, openDateNonce = 0 }: PaneHeadProps) => {
   const [dateOpen, setDateOpen] = useState(false);
   const [draftDate, setDraftDate] = useState('');
   /* the T key: the calendar opens, and the date field takes the keys */
@@ -240,7 +239,7 @@ const PaneHead = ({ identity, facts, age, ageForm, timeframes, tf, window, jump,
       </span>
     );
   return (
-    <div className={`pointer-events-none select-none flex items-center gap-2 whitespace-nowrap min-w-0 ${className}`} data-pane-head data-window-form={windowForm} data-jump-form={jumpForm}>
+    <div className="pointer-events-none select-none flex items-center gap-2 whitespace-nowrap min-w-0" data-pane-head data-window-form={windowForm} data-jump-form={jumpForm}>
       <span className="shrink-0 flex items-center gap-2 pointer-events-auto">{identity}</span>
       {/* pointer-events-auto: the price's "as old as the data" title and the age chip's words (its only words in the dot
           form) stood in a row that takes no pointer, so neither could be hovered (the audit's A-18, A-23) */}

@@ -62,7 +62,7 @@ export interface Ctx {
 }
 
 export interface OutputSink {
-  plot: (nodeId: number, value: number, color: PineColor | null, opts: { title: string; style: string; width: number; offset: number; hidden: boolean; forceOverlay: boolean; ink: PineColor | null }) => PlotRef;
+  plot: (nodeId: number, value: number, color: PineColor | null, opts: { title: string; style: string; width: number; offset: number; hidden: boolean; ink: PineColor | null }) => PlotRef;
   hline: (nodeId: number, price: number, opts: { title: string; ink: PineColor | null; style: string; width: number }) => PlotRef;
   fill: (nodeId: number, a: PlotRef, b: PlotRef, color: PineColor | null, title: string) => void;
   shape: (nodeId: number, on: boolean | number, color: PineColor | null, opts: { title: string; style: string; location: string; size: string; text: string; ink: PineColor | null }) => void;
@@ -529,7 +529,6 @@ export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: St
         width: num(a, 'linewidth', 1),
         offset: num(a, 'offset', 0),
         hidden: str(a, 'display', 'all') === 'none',
-        forceOverlay: asBool(a.force_overlay ?? false),
         ink: color,
       });
     }

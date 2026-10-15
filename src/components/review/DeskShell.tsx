@@ -775,8 +775,6 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                     /* a floor, not a size: four panes share the tape's height */
                     height={many ? 160 : full ? 430 : 400}
                     frameless
-                    /* New York's clock on the axis, Paper's as the backtest's (the audit's X2.4) */
-                    nyClock
                     historyShare={0.88}
                     onTradeMark={p.name.onTradeMark}
                     onCrosshair={grid.crosshair && many ? t => emitCross(p.key, t) : undefined}
@@ -846,8 +844,6 @@ const DeskShell = ({ session, kind, onRename, subline = '', facts = [], strip: o
                   /* a floor, not a size: on the desk the chart takes what the book leaves (see DESK_MIN_PX) */
                   height={full ? 430 : 400}
                   frameless
-                  /* New York's clock on the axis whatever the reader's zone — the head says "Clock: Today · New York" (the audit's X2.4) */
-                  nyClock
                   /* the tape near the right edge, a little room ahead of the last bar (the audit's X11) */
                   historyShare={0.88}
                   onTradeMark={n.onTradeMark}

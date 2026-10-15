@@ -39,8 +39,8 @@ export type ScriptKind = 'indicator' | 'strategy' | 'library';
 /** Who can see it: yours alone, anyone with the link, or in the community library */
 export type ScriptVisibility = 'private' | 'unlisted' | 'public';
 
-/** Where the library found it: shipped with the terminal, written by you, or published by someone */
-export type ScriptShelf = 'built-in' | 'mine' | 'community';
+/** Where the library found it: shipped with the terminal, or written by you */
+export type ScriptShelf = 'built-in' | 'mine';
 
 /** Where it draws: on the tape (overlay = true) or in its own pane under the tape */
 export type ScriptPane = 'overlay' | 'own';
@@ -73,7 +73,7 @@ export interface ScriptPlot {
   /** Its position in the script, stable across edits that do not add or remove plots */
   id: string;
   title: string;
-  /** The ink the script asked for — a hex; the reader may override it per pane (ChartScript.inks) */
+  /** The ink the script asked for — a hex */
   ink: string;
   style: ScriptPlotStyle;
   width: number;
@@ -162,15 +162,11 @@ export interface ChartScript {
   id: string;
   paneId: PaneId;
   scriptId: string;
-  /** 'latest' follows the script as it is edited; a number pins one version */
-  version: number | 'latest';
   /** The reader's values for the script's inputs, by input id — missing ones take the script's defaults */
   inputs: Record<string, ScriptInputValue>;
   visible: boolean;
   /** Draw order on the pane, lowest first */
   order: number;
-  /** The reader's inks per plot id, over the script's own */
-  inks?: Record<string, string>;
 }
 
 export interface ScriptFavourite {
@@ -213,12 +209,11 @@ export interface ScriptStore {
   get(id: string): Promise<Script | null>;
   /** Parses the source, stores the text and what it learned, writes a version */
   save(input: ScriptSave): Promise<Script>;
-  /** A copy of your own — the way to edit a built-in or a community script */
+  /** A copy of your own — the way to edit a built-in */
   fork(id: string, title?: string): Promise<Script>;
   remove(id: string): Promise<void>;
   versions(id: string): Promise<ScriptVersion[]>;
   restore(id: string, version: number): Promise<Script>;
-  setVisibility(id: string, visibility: ScriptVisibility): Promise<Script>;
 
   favourites(): Promise<ScriptFavourite[]>;
   toggleFavourite(id: string): Promise<boolean>;
@@ -227,7 +222,7 @@ export interface ScriptStore {
   onPane(paneId: PaneId): Promise<ChartScript[]>;
   /** Put a script on a pane with the script's defaults, or the inputs given */
   place(paneId: PaneId, scriptId: string, inputs?: Record<string, ScriptInputValue>): Promise<ChartScript>;
-  /** Change a placed script's inputs, inks, order or visibility */
+  /** Change a placed script's inputs, order or whether it shows */
   update(chartScript: ChartScript): Promise<ChartScript>;
   /** Take a script off a pane — the script itself stays saved */
   lift(chartScriptId: string): Promise<void>;

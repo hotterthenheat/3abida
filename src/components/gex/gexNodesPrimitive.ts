@@ -1,7 +1,7 @@
-import { HEAT_MODE, heatRampColorFor, inkFor } from './heatmap';
+import { HEAT_MODE, heatRampColorFor } from './heatmap';
 import { BEAD_STEPS, FIXED_SESSIONS, RunningScale, columnGross, pooledRef, stepOf, stepT, strengthOf, type ScaleBasis, type ScaleRef } from '../../data/feed/beadScale';
 import { num } from '../../core/format';
-import type { ISeriesPrimitive, ISeriesPrimitiveAxisView, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
+import type { ISeriesPrimitive, SeriesAttachedParameter, Time, IChartApi, ISeriesApi } from 'lightweight-charts';
 import type { GexSnapshot } from '../../types/market';
 import { FONT_SANS } from '../../theme/fonts';
 import { pickFlip, pickWalls, zeroCrossings } from '../../core/walls';
@@ -218,10 +218,6 @@ export interface BeadHit {
   x: number;
   y: number;
 }
-
-/** The focused level's ink, kept for the host's calls (the focus line is the chart's): a pinned chain keeps its own
-    gold or violet and wears a ring in the ink since the orbs message (2026-10-14) — never recoloured */
-export type FocusInk = 'focus' | 'supreme';
 
 type RGB3 = readonly [number, number, number];
 
@@ -456,7 +452,7 @@ class TrailsPaneRenderer {
       const vr = scope.verticalPixelRatio;
       const wCss = scope.mediaSize.width;
       const paneHCss = scope.mediaSize.height;
-      const px11 = Math.max(11, src.labelPx);
+      const px11 = 11;
       const full = (px11 + 5) * vr;
       const boxes: { l: number; r: number; t: number; b: number }[] = [{ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr }];
       const cx = (wCss + RESET_SCALE_CSS) / 2;
@@ -840,7 +836,7 @@ class TrailsPaneRenderer {
       // ---- the words: gap labels, the node pills, the wall-move chips and ticks ----------------------------------
       /* every box placed on the plot; nothing written over another (the orbs message, items 11 and 14) */
       const boxes: { l: number; r: number; t: number; b: number }[] = [];
-      const px11 = Math.max(11, src.labelPx);
+      const px11 = 11;
       const full = (px11 + 5) * vr;
       const padX = 4 * hr;
       const floorDev = floorCss * vr;
@@ -1092,34 +1088,6 @@ const levelValue = (l: GexSnapshot['levels'][number], greek: TrailGreek): number
 /** What the legend prints (GexTrailsPrimitive.legend) */
 export type BeadLegend = NonNullable<ReturnType<GexTrailsPrimitive['legend']>>;
 
-/** One pinned label on the price axis */
-class AxisLabel implements ISeriesPrimitiveAxisView {
-  constructor(
-    private y: number,
-    private words: string,
-    private rgb: RGB3,
-    private shown: boolean
-  ) {}
-  coordinate(): number {
-    return this.y;
-  }
-  text(): string {
-    return this.words;
-  }
-  textColor(): string {
-    return inkFor([this.rgb[0], this.rgb[1], this.rgb[2]]);
-  }
-  backColor(): string {
-    return `rgb(${this.rgb[0]},${this.rgb[1]},${this.rgb[2]})`;
-  }
-  visible(): boolean {
-    return this.shown;
-  }
-  tickVisible(): boolean {
-    return false;
-  }
-}
-
 export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   /** The gap runs the last frame labelled (bar times, epoch s, and their words) — read by the development probes
       (StrikeChart's `window.__charts` entry, scripts/terrain-ui-proof.mjs) */
@@ -1128,22 +1096,12 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   series: ISeriesApi<'Candlestick'> | null = null;
   requestUpdate?: () => void;
   snapshots: GexSnapshot[] = [];
-  maxAbs = 1;
   /** Robust strength reference: high percentile of per-moment maxima. Using
       the absolute max instead lets one freak spike crush every other wall. */
   ref = 0;
   enabled = true;
   /** The chart's bar length, seconds — a bead finds its bar by it */
   barSec = 60;
-  /**
-   * The strike chips' type size in CSS px — 9.5 normally, smaller on a phone.
-   *
-   * A field rather than another `setData` argument: it is a presentation
-   * setting that changes with the HOST, while setData carries the data and is
-   * called on every tick. Bundling them would make a size change look like new
-   * data to every reader of this class.
-   */
-  labelPx = 9.5;
   /** The host's floating chrome, CSS px from the pane's top to its lowest edge — the strike
       chips never paint behind it (set by the chart as it measures the strip; 0 = no chrome) */
   chromeInset = 0;
@@ -1198,10 +1156,6 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       for (const l of s[i].levels) if (l.value || l.gross) return 'full';
     return 'empty';
   }
-  /** Its ink: the silver accent, or magenta while the focused strike is the supreme. The
-      focus never follows the supreme — the strike you clicked is the strike
-      you're watching; the ink reports its standing (Noah, 2026-08-22). */
-  focusInk: FocusInk = 'focus';
   /** The book's supreme strike — its band wears magenta (re-read every scan) */
   supremeStrike: number | null = null;
   /** TODAY'S levels — ONE green band, ONE red band, ONE blue flip line, all
@@ -1239,10 +1193,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     this.requestUpdate?.();
   }
 
-  setFocus(strike: number | null, ink: FocusInk = 'focus'): void {
-    if (this.focusStrike === strike && this.focusInk === ink) return;
+  setFocus(strike: number | null): void {
+    if (this.focusStrike === strike) return;
     this.focusStrike = strike;
-    this.focusInk = ink;
     this.requestUpdate?.();
   }
 
@@ -1540,14 +1493,13 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     return levelValue(l, this.greek);
   }
 
-  setData(snapshots: GexSnapshot[], maxAbs: number, enabled: boolean, barSec = 60, greek: TrailGreek = 'gex', base?: GexSnapshot[]): void {
+  setData(snapshots: GexSnapshot[], enabled: boolean, barSec = 60, greek: TrailGreek = 'gex', base?: GexSnapshot[]): void {
     if (greek !== this.colGreek) {
       this.colCache = new WeakMap();
       this.colGreek = greek;
     }
     this.rev++;
     this.snapshots = snapshots;
-    this.maxAbs = maxAbs;
     this.barSec = barSec;
     this.greek = greek;
     // The snapshots' own spacing (the smallest gap between neighbours —
@@ -1649,67 +1601,6 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     return col;
   }
 
-  /* THE KEY LEVELS PINNED ON THE PRICE AXIS (item 5 (h)): the call wall, the put wall and the flip — the ladder's own,
-     the same strikes the field inks — and at most two more, the supreme and the heaviest strike after it, each its
-     PRICE on the level's ink, never a name (the house keeps names off the axis). A level beyond the clear area stands
-     at the edge with an arrow, as the chips do; the library moves labels apart where they would overlap. */
-  private axisViews: AxisLabel[] = [];
-  priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
-    return this.enabled && this.axisLabels ? this.axisViews : [];
-  }
-  axisLabels = true;
-  /** The book's levels for the axis — the ladder's call wall, put wall, flip and supreme, whatever the Key levels
-      overlay says (it only decides whether the field's beads wear the walls' inks) */
-  private axisLv: { cw: number | null; pw: number | null; flip: number | null; supreme: number | null } = { cw: null, pw: null, flip: null, supreme: null };
-  setAxisLevels(lv: { cw: number | null; pw: number | null; flip: number | null; supreme: number | null }): void {
-    const a = this.axisLv;
-    if (a.cw === lv.cw && a.pw === lv.pw && a.flip === lv.flip && a.supreme === lv.supreme) return;
-    this.axisLv = lv;
-    this.requestUpdate?.();
-  }
-  /** The inks the axis labels wear, read off the chart's box by the host (tokens: --bull, --bear, --flip, --supreme,
-      --ember, --glacier, --panel) */
-  axisInks: Record<'cw' | 'pw' | 'flip' | 'supreme' | 'put' | 'call', RGB3> | null = null;
-  updateAllViews(): void {
-    const series = this.series;
-    const latest = this.snapshots[this.snapshots.length - 1];
-    if (!series || !latest || !this.enabled || !this.axisInks) {
-      this.axisViews = [];
-      return;
-    }
-    const inks = this.axisInks;
-    /* in the axis's own format, so a label covers the tick it stands on */
-    const pf = series.priceFormatter();
-    const fmt = (k: number) => pf.format(k);
-    const lv = this.axisLv;
-    const want: { price: number; rgb: RGB3 }[] = [];
-    if (lv.cw != null && Number.isFinite(lv.cw)) want.push({ price: lv.cw, rgb: inks.cw });
-    if (lv.pw != null && Number.isFinite(lv.pw)) want.push({ price: lv.pw, rgb: inks.pw });
-    if (lv.flip != null && Number.isFinite(lv.flip)) want.push({ price: lv.flip, rgb: inks.flip });
-    const taken = new Set(want.map(w => w.price));
-    /* the two more: the supreme, then the field's heaviest strike now (the one its strength chip names) */
-    const more: { price: number; rgb: RGB3 }[] = [];
-    if (lv.supreme != null && Number.isFinite(lv.supreme) && !taken.has(lv.supreme)) more.push({ price: lv.supreme, rgb: inks.supreme });
-    const heavy = [...latest.levels].sort((a, b) => Math.abs(this.valueOf(b)) - Math.abs(this.valueOf(a)));
-    for (const l of heavy) {
-      if (more.length >= 2) break;
-      if (taken.has(l.strike) || more.some(m => m.price === l.strike) || this.valueOf(l) === 0) continue;
-      more.push({ price: l.strike, rgb: this.valueOf(l) >= 0 ? inks.put : inks.call });
-    }
-    const floor = this.chromeInset > 0 ? this.chromeInset + 3 : 0;
-    let paneH = 0;
-    try {
-      paneH = this.chart?.paneSize(0).height ?? 0;
-    } catch {
-      paneH = 0;
-    }
-    this.axisViews = [...want, ...more].slice(0, 5).map(w => {
-      const y = series.priceToCoordinate(w.price);
-      const pin = y == null ? '' : y < floor ? '▲ ' : paneH > 0 && y > paneH ? '▼ ' : '';
-      const at = y == null ? -1000 : pin === '▲ ' ? floor + 8 : pin === '▼ ' ? paneH - 8 : y;
-      return new AxisLabel(at, `${pin}${fmt(w.price)}`, w.rgb, y != null);
-    });
-  }
   /**
    * The node under a point on the pane (CSS px), or null — the group whose span holds x (the same merge the renderer
    * drew this frame), and the drawn strike nearest y within half a row. Read by the chart's hover card, its hover ring and

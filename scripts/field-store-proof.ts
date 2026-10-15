@@ -210,7 +210,7 @@ try {
   /* 4 */
   const snaps: GexSnapshot[] = shown2.map(r => ({ time: r.m / 1000, spot: r.spot, levels: r.cells.map(([strike, value]) => ({ strike, value })) }));
   const prim = new GexTrailsPrimitive();
-  prim.setData(snaps, 1, true, 60, 'gex');
+  prim.setData(snaps, true, 60, 'gex');
   check("a row's reference is the renderer's for that column (beadScale.ts, one count)", shown2.every((r, i) => prim.columnAt(i).ref === r.ref));
   const scale = new RunningScale();
   check('and it runs forward: each row’s reference is the 85th percentile of the maxima up to it', shown2.every(r => scale.push(r.max) === r.ref));

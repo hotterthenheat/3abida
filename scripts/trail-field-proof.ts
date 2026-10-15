@@ -115,10 +115,10 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
     Array.from({ length: n }, (_, i) => ({ time: 1_000_000 + i * 60, levels: [{ strike: 600, value: i >= 10 ? big : 1e6 + i * 1e4 }, { strike: 601, value: -5e5 }] }));
   const a = snaps(10, 0);
   const prim = new GexTrailsPrimitive();
-  prim.setData(a, 1, true, 60, 'gex');
+  prim.setData(a, true, 60, 'gex');
   const refsA = a.map((_, i) => prim.refAt(i).ref);
   const b = [...a, ...snaps(20, 1e9).slice(10)];
-  prim.setData(b, 1, true, 60, 'gex');
+  prim.setData(b, true, 60, 'gex');
   const refsB = b.map((_, i) => prim.refAt(i).ref);
   check('columns added on the right never rescale those on the left', refsA.every((r, i) => r === refsB[i]) && refsB[19] > refsA[9]);
 }
@@ -129,7 +129,7 @@ check('a strike with no vol anywhere is left out (a gap)', !mid.levels.some(l =>
   const loud = Array.from({ length: 10 }, (_, i) => ({ time: mon(i), levels: [{ strike: 600, value: 1e10 }, { strike: 601, value: -1e9 }] }));
   const quiet = Array.from({ length: 10 }, (_, i) => ({ time: tue(i), levels: [{ strike: 600, value: 1e8 }, { strike: 601, value: -2.5e7 }] }));
   const prim = new GexTrailsPrimitive();
-  prim.setData([...loud, ...quiet], 1, true, 60, 'gex');
+  prim.setData([...loud, ...quiet], true, 60, 'gex');
   const refs = [...loud, ...quiet].map((_, i) => prim.refAt(i).ref);
   check("a session's scale is its own — a loud session before it does not dim it", refs[10] < 2e8 && refs[9] > 5e9);
   const col = prim.columnAt(15);

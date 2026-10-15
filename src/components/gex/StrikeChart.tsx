@@ -38,7 +38,7 @@ import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
-import { LOCAL_TIME, NY_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, nyTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
+import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
 
 /* the time scale with its day, month and year ticks on the viewer's calendar (chartTime.ts) — one class for every chart */
 const LocalCalendar = localCalendarBehavior();
@@ -47,7 +47,6 @@ import {
   aggregateSnapshots,
   foldSnapshotsSlice,
   isFolded,
-  snapshotsMaxAbs,
   tfMinutes,
   INTRADAY_MAX_MINUTES,
   type Timeframe,
@@ -58,7 +57,7 @@ import { largestNodeOf } from '../../data/feed/beadScale';
 import { WIDE_VOL } from '../../data/feed/forward';
 import { gapSessionKey, tradesAllSessions } from '../../core/sessions';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
-import { isoDayLabel, num, pct, pctSigned, usd, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
+import { isoDayLabel, num, pct, pctSigned, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
 import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
@@ -598,9 +597,6 @@ export interface ChartTape {
   iv: number;
   /** What this tape's drawings are kept under */
   key: string;
-  /** 'ny': the axis and the crosshair speak New York whatever clock the reader chose in Settings — a tape that IS the
-      market's day (a backtest). Read once, when the chart is made. */
-  clock?: 'ny';
   /** What a price is printed to, where cents are not it (a future: gold in tenths, silver in thousandths) */
   precision?: { decimals: number; tick: number };
   /** THE BOOK THROUGH TIME for the strike field, where the host has one (Terrain on the feed, 2026-10-12: the books read
@@ -808,9 +804,6 @@ interface StrikeChartProps {
    * A reader who cannot reach the controls at all has lost more.
    */
   pageScroll?: boolean;
-  /** NEW YORK'S CLOCK on the axis and the crosshair whatever the reader chose in Settings — a chart of the market's own
-      session (Terrain, the Weigher; the audit's X2, 2026-10-09). Read once, when the chart is made. */
-  nyClock?: boolean;
   /** The track record's line a level type (the owner's item 2): the hover card prints the hovered strike's where it is
       the column's call wall, put wall or one of its heaviest strikes */
   recordLines?: Partial<Record<'call wall' | 'put wall' | 'flip' | 'top strike', string>>;
@@ -835,8 +828,6 @@ interface StrikeChartProps {
   resetPillClass?: string;
   /** The host's foot row's height over the plot's foot, CSS px — the field places none of its words there */
   footReservePx?: number;
-  /** The call wall, the put wall and the flip, and two more, pinned on the price axis as their prices (item 5 (h)) */
-  axisLevels?: boolean;
   /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
   regimeRanges?: { horizon: number; median: number | null; terciles: { tercile: number; n: number; range: number | null; overImplied: number | null }[] }[] | null;
   /** THE SHARE OF THE OPENING VIEW THE BARS TAKE, the rest held open ahead of the last one (HISTORY_SHARE, 0.64, by
@@ -954,10 +945,9 @@ export type CrosshairReadout = (bar: CrosshairBar | null) => void;
 import { defaultStop } from './drawingKinds';
 import { undoable } from '../ui/undo';
 import { useEscapeLayer } from '../ui/layers';
-import { BULL, BEAR, CALL_WALL, PUT_WALL, FLIP, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
+import { BULL, BEAR, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
 import { FONT_SANS } from '../../theme/fonts';
 
-// Level lines are created once per overlay/ticker, then their prices are
 /* ── THE RAIL'S TWO READER PREFERENCES (Noah, 2026-08-29: "the user has a
    toolbar only if they please... being able to move the toolbar up top") ──
    One tiny store, module-wide, persisted — so hiding or re-docking the rail
@@ -1067,44 +1057,12 @@ function useToolbarGap(containerRef: MutableRefObject<HTMLDivElement | null>, on
   return gap;
 }
 
-// TWEENED (rAF + easeOutCubic) so scan-tier level moves glide instead of jumping.
-const LEVEL_SPEC: {
-  key: 'callWall' | 'putWall' | 'flip' | 'supreme';
-  color: string;
-  title: string;
-  style: LineStyle;
-  width: 1 | 2;
-}[] = [
-  { key: 'callWall', color: CALL_WALL, title: 'CALL WALL', style: LineStyle.Solid, width: 1 },
-  { key: 'putWall', color: PUT_WALL, title: 'PUT WALL', style: LineStyle.Solid, width: 1 },
-  /* Width 2 + long dashes (Noah, 2026-08-29: "make the flip line more
-     noticable and im not talking about color wise") — the regime border
-     carries the supreme's weight; the dash rhythm is what says "boundary, not
-     a wall". */
-  { key: 'flip', color: FLIP, title: 'FLIP ZONE', style: LineStyle.LargeDashed, width: 2 },
-  { key: 'supreme', color: SUPREME, title: 'SUPREME', style: LineStyle.Solid, width: 2 },
-];
-/* NO axis chips at all now — the supreme's capsule left the right pane too
-   (Noah, 2026-08-23: "we will have a separate section of the website where
-   we explain everything"). The field alone carries every identity: magenta
-   band = supreme, green/red beads = walls, blue ticks = flip. LEVEL_SPEC stays
-   for the tween plumbing and any future re-enable. */
-const LINE_LEVELS: typeof LEVEL_SPEC = [];
-
 /*
-  NOTHING IS NAMED ON THE PRICE AXIS — not the walls, not the flip, not the
-  supreme (Noah, 2026-08-25: "you can remove the flip zone and supreme node if you
-  have it on the screen with its own UI touch that should be enough").
-
-  That is the argument that took the walls off, carried the rest of the way.
-  Every one of these levels already has a treatment ON the field: a green node
-  band is the call wall, a red one the put wall, a dashed blue rule the flip,
-  a magenta band the supreme. A capsule in the gutter repeats a fact the chart
-  has already made, in the loudest form available, on top of the tape.
-
-  LEVEL_SPEC above stays for the tween plumbing and any future re-enable; the
-  pre-blending helper that went with the capsules is gone with them rather
-  than left behind as scenery.
+  NOTHING IS NAMED ON THE PRICE AXIS by the library — not the walls, not the flip, not the supreme (Noah, 2026-08-25:
+  "you can remove the flip zone and supreme node if you have it on the screen with its own UI touch that should be
+  enough"). Every one of these levels already has a treatment ON the field; a host that names them on the axis does it
+  with its own chips (`axisChips`). The price lines and the tween that once carried them are gone (the round-3 audit's
+  6i, 2026-10-15: their list had been empty since).
 */
 
 const toCandle = (b: Candle) => ({
@@ -1221,7 +1179,7 @@ const StrikeChart = ({
   onReadout,
   projectionRef,
   exportRef,
-  nyClock = false, recordLines, regimeRef = null, regimeDir = null, regimeRanges = null, pricedMove = null, beadBasis = 'session', beadFloor = 0, beadRefs = null, onBeadLegend, axisLevels = false,
+  recordLines, regimeRef = null, regimeDir = null, regimeRanges = null, pricedMove = null, beadBasis = 'session', beadFloor = 0, beadRefs = null, onBeadLegend,
   historyShare,
   fitCandles = false,
   quote = null,
@@ -1459,8 +1417,6 @@ const StrikeChart = ({
      null = not a sub-minute view. */
   const [liveFrom, setLiveFrom] = useState<number | null>(null);
   const printLinesRef = useRef<IPriceLine[]>([]);
-  const levelLinesRef = useRef<Partial<Record<'callWall' | 'putWall' | 'flip' | 'supreme', IPriceLine>>>({});
-  const shownLevelsRef = useRef<KeyLevels | null>(null);
   /** T-6's layer. One primitive for the life of the chart; what it draws is
       swapped, never the primitive itself — see the session effect below. */
   const sessionPrimRef = useRef<SessionLevelsPrimitive | null>(null);
@@ -1501,7 +1457,6 @@ const StrikeChart = ({
   const levelChipsRef = useRef<HTMLDivElement | null>(null);
   const sigmaRemRef = useRef(sigmaRem);
   sigmaRemRef.current = sigmaRem;
-  const levelRafRef = useRef(0);
   /** Time of that bar, and the seconds one bar covers — what the runway is
       built from, kept in refs so the time-scale subscription can read them
       without being torn down and rebuilt on every tick. */
@@ -1514,7 +1469,6 @@ const StrikeChart = ({
      stays blank rather than guessing. */
   const barClockRef = useRef({ stamp: 0, at: 0, realMs: 0 });
   const bucketSecRef = useRef(60);
-  const levelTickerRef = useRef('');
   const focusLineRef = useRef<IPriceLine | null>(null);
   /** One price line per alert, by alert id. */
   const alertLinesRef = useRef<Map<string, IPriceLine>>(new Map());
@@ -1701,7 +1655,7 @@ const StrikeChart = ({
 
   // ---- replay state ----
   const replayRef = useRef(false); // effect-visible mirror of the replay prop
-  const replayDataRef = useRef<{ bars: Candle[]; snaps: ReturnType<typeof aggregateSnapshots>; maxAbs: number } | null>(null);
+  const replayDataRef = useRef<{ bars: Candle[]; snaps: ReturnType<typeof aggregateSnapshots> } | null>(null);
   const replayAppliedRef = useRef(0); // last idx applied to the series (for the fast append path)
   const [replayIdx, setReplayIdx] = useState(0);
   const [replayPlaying, setReplayPlaying] = useState(false);
@@ -2603,7 +2557,7 @@ const StrikeChart = ({
         attributionLogo: true,
       },
       // The reader's clock, not Greenwich's — see chartTime.ts.
-      localization: nyClock || tapeRef.current?.clock === 'ny' ? NY_TIME : LOCAL_TIME,
+      localization: LOCAL_TIME,
       // No grid (Noah, 2026-08-22): the nodes and the levels ARE the
       // structure; a grid behind them competes with the ribbons
       grid: {
@@ -2617,7 +2571,7 @@ const StrikeChart = ({
       // price-line titles, and ate the date off every dark-pool print near spot.
       // 68 + 4 + 2 clear. Charts without the capsule keep the default 0.
       rightPriceScale: { borderColor: s0.line, minimumWidth: axisChips ? AXIS_CHIPS_SCALE_MIN_WIDTH : priceTag ? PRICE_SCALE_MIN_WIDTH : 0 },
-      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: nyClock || tapeRef.current?.clock === 'ny' ? nyTickMarks : localTickMarks },
+      timeScale: { borderColor: s0.line, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: 7, tickMarkFormatter: localTickMarks },
       crosshair: {
         vertLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
         horzLine: { color: s0.crosshair, labelBackgroundColor: s0.label },
@@ -2905,9 +2859,6 @@ const StrikeChart = ({
       indicatorLoadedRef.current = '';
       styleBuiltRef.current = null;
       printLinesRef.current = [];
-      levelLinesRef.current = {};
-      shownLevelsRef.current = null;
-      cancelAnimationFrame(levelRafRef.current);
       loadedRef.current = { ticker: '', timeframe: '1m', theme: '', clock: 'time', full: false };
     };
     // ensureRunway and applySync are stable useCallback([])s — listed so the
@@ -2925,9 +2876,8 @@ const StrikeChart = ({
     if (!chart || !b) return;
     const daily = tfMinutes(timeframe) >= 1440;
     b.sessionDates = daily;
-    const ny = nyClock || tapeRef.current?.clock === 'ny';
-    chart.applyOptions({ localization: daily ? SESSION_TIME : ny ? NY_TIME : LOCAL_TIME, timeScale: { tickMarkFormatter: daily ? sessionTickMarks : ny ? nyTickMarks : localTickMarks } });
-  }, [timeframe, nyClock, mainNonce]);
+    chart.applyOptions({ localization: daily ? SESSION_TIME : LOCAL_TIME, timeScale: { tickMarkFormatter: daily ? sessionTickMarks : localTickMarks } });
+  }, [timeframe, mainNonce]);
 
   /* Style swap (Noah, 2026-08-23): replace ONLY the main series in place —
      price lines and primitives die with the old one, so the nonce tells the
@@ -2943,7 +2893,6 @@ const StrikeChart = ({
     const box = containerRef.current;
     if (!trails) return;
     trails.setPaper(chartGround(themeKey) === 'light' && box ? trailPaperFrom(box) : null);
-    trails.axisInks = box ? axisInksFrom(box) : null;
   }, [themeKey, appTheme, mainNonce]);
 
   /* THE GAPS' REASONS (B1): the host's words for a run of bars with no column, handed to the field's renderer — a new
@@ -2970,12 +2919,10 @@ const StrikeChart = ({
     trails.requestUpdate?.();
   }, [fieldGapCause, mainNonce, ticker, footReservePx]);
 
-  /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) — and the axis labels (item 5 (h)) */
+  /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) */
   useEffect(() => {
     const trails = trailsRef.current;
     if (!trails) return;
-    /* the library's one-line labels and the in-plot strength chips stand down where the host's axis chips name the levels */
-    trails.axisLabels = axisLevels && !axisChips;
     /* THE NODE PILLS (the orbs message, item 11) name the three largest live nodes beside the last candle whatever the axis shows */
     trails.nodeLabels = true;
     trails.density = beadDensity;
@@ -2983,7 +2930,7 @@ const StrikeChart = ({
     trails.requestUpdate?.();
     publishBeadLegend();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [beadBasis, beadFloor, axisLevels, axisChips, beadDensity, mainNonce]);
+  }, [beadBasis, beadFloor, beadDensity, mainNonce]);
   useEffect(() => {
     const trails = trailsRef.current;
     if (!trails) return;
@@ -3014,8 +2961,6 @@ const StrikeChart = ({
     if (eventsPrimRef.current) next.attachPrimitive(eventsPrimRef.current);
     candleSeriesRef.current = next;
     styleBuiltRef.current = chartStyle;
-    levelLinesRef.current = {};
-    shownLevelsRef.current = null;
     focusLineRef.current = null;
     printLinesRef.current = [];
     /* Force the data effect to re-setData() onto the new series, but ONLY by
@@ -4200,7 +4145,6 @@ const StrikeChart = ({
        most beads would find no coordinate and the field would draw torn.
        Gated, and the menu row says why. */
     const showTrails = overlays.trails && mins <= INTRADAY_MAX_MINUTES && !altSpec;
-    trails.labelPx = compact ? 8.5 : 9.5;
     /* WHAT THE CHART HOLDS, SAID ON THE ROOT for the speed budgets (scripts/speed-budget.mjs, Section I): the name, the
        timeframe, the bars (count, first and last) and the field's columns once handed — a switch is done when this reads
        the new world and its frame has painted */
@@ -4216,7 +4160,7 @@ const StrikeChart = ({
       const snaps = preOn ? mergeByTime(pre!.cols, folded) : folded;
       trails.setPre(preOn ? pre!.maxima : NO_PRE_MAXIMA, preOn ? pre!.events : []);
       /* the per-minute store rides beside the folded columns: the reference counts minutes whatever the texture */
-      trails.setData(snaps, snapshotsMaxAbs(snaps), showTrails, mins * 60, trailsGreek, baseGex ?? undefined);
+      trails.setData(snaps, showTrails, mins * 60, trailsGreek, baseGex ?? undefined);
       publishBeadLegend();
       markState(snaps.length);
     };
@@ -4260,39 +4204,6 @@ const StrikeChart = ({
       handleScale: { mouseWheel: !pageScroll },
     });
   }, [pageScroll]);
-
-  // Key-level price lines — create/destroy only when overlay or ticker changes
-  useEffect(() => {
-    const candleSeries = candleSeriesRef.current;
-    if (!candleSeries) return;
-    cancelAnimationFrame(levelRafRef.current);
-    for (const spec of LEVEL_SPEC) {
-      const line = levelLinesRef.current[spec.key];
-      if (line) candleSeries.removePriceLine(line);
-      delete levelLinesRef.current[spec.key];
-    }
-    shownLevelsRef.current = null;
-
-    // Levels are LIVE values — hidden during replay so history isn't lied about
-    if (!overlays.levels || replay) return;
-
-    // Chips, not lines: the level lives as a colored tag on the price axis.
-    // Hovering its legend chip flashes the full line for orientation.
-    const L = levelsRef.current;
-    for (const spec of LINE_LEVELS) {
-      levelLinesRef.current[spec.key] = candleSeries.createPriceLine({
-        price: L[spec.key],
-        color: spec.color,
-        title: spec.title,
-        lineStyle: spec.style,
-        lineWidth: spec.width,
-        lineVisible: false,
-        axisLabelVisible: true,
-      });
-    }
-    shownLevelsRef.current = { ...L };
-    levelTickerRef.current = ticker;
-  }, [ticker, overlays.levels, replay, mainNonce]);
 
   /*
     THE SESSION'S REFERENCE PRICES — T-6.
@@ -4669,42 +4580,6 @@ const StrikeChart = ({
     );
   }, [prints, overlays.darkpool, replay, mainNonce]);
 
-  // Tween level prices to their new scan values — lines glide, never teleport
-  useEffect(() => {
-    const lines = levelLinesRef.current;
-    if (!lines.supreme) return; // levels hidden
-
-    // Ticker switch = new world: snap, don't tween across symbols
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (levelTickerRef.current !== ticker || reduced) {
-      levelTickerRef.current = ticker;
-      for (const spec of LEVEL_SPEC) lines[spec.key]?.applyOptions({ price: levels[spec.key] });
-      shownLevelsRef.current = { ...levels };
-      return;
-    }
-
-    const origin = shownLevelsRef.current ?? { ...levels };
-    if (!LEVEL_SPEC.some(s => origin[s.key] !== levels[s.key])) return;
-
-    cancelAnimationFrame(levelRafRef.current);
-    const target = { ...levels };
-    const start = performance.now();
-    const DUR = 650;
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / DUR);
-      const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      const cur: KeyLevels = { ...target };
-      for (const spec of LEVEL_SPEC) {
-        cur[spec.key] = origin[spec.key] + (target[spec.key] - origin[spec.key]) * e;
-        lines[spec.key]?.applyOptions({ price: cur[spec.key] });
-      }
-      shownLevelsRef.current = cur;
-      if (t < 1) levelRafRef.current = requestAnimationFrame(step);
-    };
-    levelRafRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(levelRafRef.current);
-  }, [levels, ticker]);
-
   /* THE SCALE GLIDES (Noah, 2026-09-11, letting a strike go on the Map: "i get
      a page buffer and it drags me to another pov"): the focus price sits in
      the autoscale's extras so its line is always in frame — taking one
@@ -4920,7 +4795,7 @@ const StrikeChart = ({
      changes, so a light tape's focus is the deep silver. */
   useEffect(() => {
     const isSupreme = focusPrice != null && Math.abs(levels.supreme - focusPrice) < 1e-9;
-    trailsRef.current?.setFocus(focusPrice, isSupreme ? 'supreme' : 'focus');
+    trailsRef.current?.setFocus(focusPrice);
     /*
       ══ "KEY LEVELS" IS A SWITCH THAT NOW SWITCHES SOMETHING ══════════════
 
@@ -4940,8 +4815,6 @@ const StrikeChart = ({
       promises. No primitive change, and `trails` still owns the field itself.
     */
     const showLevels = overlays.levels;
-    const fin = (v: number) => (Number.isFinite(v) ? v : null);
-    trailsRef.current?.setAxisLevels({ cw: fin(levels.callWall), pw: fin(levels.putWall), flip: fin(levels.flip), supreme: fin(levels.supreme) });
     trailsRef.current?.setSupreme(showLevels && Number.isFinite(levels.supreme) ? levels.supreme : null);
     trailsRef.current?.setWalls(
       showLevels && Number.isFinite(levels.callWall) ? levels.callWall : null,
@@ -4967,7 +4840,7 @@ const StrikeChart = ({
       const bars = barsFor(mins);
       const snaps = aggregateSnapshots(bookHistory(), Math.min(mins, TRAIL_TEXTURE_MINUTES));
       if (bars.length < 40) return;
-      replayDataRef.current = { bars, snaps, maxAbs: snapshotsMaxAbs(snaps) };
+      replayDataRef.current = { bars, snaps };
       /* Driven from outside: start where the host's clock points, and never
          play on our own — the host's strip is the transport. On our own: the
          same way in as the Map's (Noah, 2026-09-08) — pick a bar first; the
@@ -5197,7 +5070,6 @@ const StrikeChart = ({
     // The replay's last bar is complete — its sub-bar beads belong to it
     trails.setData(
       data.snaps.filter(s => s.time < cutoff + mins * 60),
-      data.maxAbs,
       overlays.trails && mins <= INTRADAY_MAX_MINUTES,
       mins * 60,
       trailsGreek
@@ -5974,7 +5846,6 @@ const StrikeChart = ({
               aria-hidden
               className="pointer-events-none absolute left-2 z-10 rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold"
               style={{ bottom: l.bottom, background: look.bg, color: look.fg }}
-              title={l.key === 'regime' ? "Estimated dealer gamma (assumed sign) — it describes the next 30 to 60 minutes' range and the last half hour's momentum on negative days; never a level" : undefined}
               data-pane-chip={l.key}
             >
               {l.key === 'regime' && regimeWords ? `${look.text} · ${regimeWords}` : look.text}

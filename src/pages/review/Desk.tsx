@@ -259,7 +259,7 @@ const Desk = () => {
     days.reverse();
     return Object.fromEntries(names.map(n => [n, days.flatMap(d => mk.dayBars(n, d))]));
   }, [names, cursor?.day, mk]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tapeBy = useMemo<Record<string, ChartTape>>(() => (cursor ? Object.fromEntries(names.map(n => [n, { bars: [...(contextBy[n] ?? []), ...mk.dayBars(n, cursor.day).slice(0, cursor.minute + 1)], iv: mk.ivAt(n, cursor.day), key: `review:${n}`, clock: 'ny' as const }])) : {}), [contextBy, names, cursor?.day, cursor?.minute, mk]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tapeBy = useMemo<Record<string, ChartTape>>(() => (cursor ? Object.fromEntries(names.map(n => [n, { bars: [...(contextBy[n] ?? []), ...mk.dayBars(n, cursor.day).slice(0, cursor.minute + 1)], iv: mk.ivAt(n, cursor.day), key: `review:${n}` }])) : {}), [contextBy, names, cursor?.day, cursor?.minute, mk]); // eslint-disable-line react-hooks/exhaustive-deps
   const fillsBy = useMemo(() => Object.fromEntries(names.map(n => [n, session ? session.fills.filter(f => f.contract.ticker === n) : []])), [session?.fills, names]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickedQuote = useMemo(() => (cursor && picked ? mk.quoteAt(picked, cursor.day, cursor.minute) : null), [picked, cursor?.day, cursor?.minute, mk, recV]); // eslint-disable-line react-hooks/exhaustive-deps
   /* a strike's drop-down is that strike's — the bought leg of a spread, not the pair */

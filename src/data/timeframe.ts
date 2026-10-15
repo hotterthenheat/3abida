@@ -107,14 +107,11 @@ export function aggregateCandles(base: Candle[], minutes: number): Candle[] {
 
 interface SnapFold {
   closed: GexSnapshot[];
-  closedMax: number;
   folded: number;
   firstRef: GexSnapshot | undefined;
   lastRef: GexSnapshot | undefined;
 }
 const snapFolds = new WeakMap<GexSnapshot[], Map<number, SnapFold>>();
-/** The largest |value| of an aggregated array, remembered beside it */
-const maxAbsOf = new WeakMap<GexSnapshot[], number>();
 
 /*
   THE PEAK MERGE. A snapshot's levels come off the chain in strike order and
@@ -249,11 +246,6 @@ const peakLevels = (p: Peaks) => {
   }
   return out;
 };
-const peaksMax = (p: Peaks) => {
-  let m = 0;
-  for (const a of p.abs) if (a > m) m = a;
-  return m;
-};
 
 /** True when the store has already been folded to this interval — a cold
     fold is the one cost worth moving off a mount frame. */
@@ -273,7 +265,7 @@ function foldFor(base: GexSnapshot[], minutes: number): SnapFold {
   let fold = byMin.get(minutes);
   const stale = !fold || fold.folded > base.length || fold.firstRef !== base[0] || (fold.folded > 0 && fold.lastRef !== base[fold.folded - 1]);
   if (stale) {
-    fold = { closed: [], closedMax: 0, folded: 0, firstRef: base[0], lastRef: undefined };
+    fold = { closed: [], folded: 0, firstRef: base[0], lastRef: undefined };
     byMin.set(minutes, fold);
   }
   return fold!;
@@ -296,7 +288,6 @@ export function foldSnapshotsSlice(base: GexSnapshot[], minutes: number, maxSnap
     if (bucket !== curBucket) {
       if (curBucket >= 0) {
         f.closed.push(bucketOf(curBucket, peaks));
-        f.closedMax = Math.max(f.closedMax, peaksMax(peaks));
         f.folded = i;
         f.lastRef = base[i - 1];
       }
@@ -331,7 +322,6 @@ export function aggregateSnapshots(base: GexSnapshot[], minutes: number): GexSna
     if (bucket !== curBucket) {
       if (curBucket >= 0) {
         f.closed.push(bucketOf(curBucket, peaks));
-        f.closedMax = Math.max(f.closedMax, peaksMax(peaks));
         f.folded = i;
         f.lastRef = base[i - 1];
       }
@@ -342,27 +332,6 @@ export function aggregateSnapshots(base: GexSnapshot[], minutes: number): GexSna
     markPeaks(peaks, snap);
   }
   const out = f.closed.slice();
-  let max = f.closedMax;
-  if (curBucket >= 0) {
-    out.push(bucketOf(curBucket, peaks));
-    max = Math.max(max, peaksMax(peaks));
-  }
-  maxAbsOf.set(out, Math.max(1, max));
+  if (curBucket >= 0) out.push(bucketOf(curBucket, peaks));
   return out;
-}
-
-/** Largest |value| across all snapshot levels, for normalizing node intensity.
-    Free for an array aggregateSnapshots just built; a scan otherwise. */
-export function snapshotsMaxAbs(snaps: GexSnapshot[]): number {
-  const known = maxAbsOf.get(snaps);
-  if (known !== undefined) return known;
-  let max = 1;
-  for (const s of snaps) {
-    for (const l of s.levels) {
-      const a = Math.abs(l.value);
-      if (a > max) max = a;
-    }
-  }
-  maxAbsOf.set(snaps, max);
-  return max;
 }

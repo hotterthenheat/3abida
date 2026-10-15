@@ -566,9 +566,8 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
                produce is 4% of a desktop chart but 14% of a 390px screen. */
             compact={soleChart}
             frameless
-            /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
-               not a third of the chart (X11) */
-            nyClock
+            /* the tape near the right edge — a little room ahead of the last bar, not a third of the chart (the audit's
+               X11) */
             historyShare={0.88}
           />
         </div>

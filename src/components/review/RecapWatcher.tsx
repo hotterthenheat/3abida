@@ -237,7 +237,6 @@ const RecapShot = ({ shot, onDone }: { shot: Shot; onDone: (blob: Blob | null, w
         pricedMove={pricedMove}
         regimeRef={regimeRef}
         asOf={asOf}
-        nyClock
         historyShare={1}
         layer={a => {
           api.current = a;

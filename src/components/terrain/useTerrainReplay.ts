@@ -35,7 +35,6 @@ import type { Candle, GexSnapshot } from '../../types/market';
 import { clock, nyIsoDate, nyWallTime } from '../../core/nyTime';
 import {
   GrowingCut,
-  REPLAY_SPEEDS,
   countAtOrBefore,
   dailyAt,
   dayMinutes,
@@ -304,7 +303,6 @@ export function useTerrainReplay(a: Args) {
     days,
     readiness,
     minutesOfDay,
-    speeds: REPLAY_SPEEDS,
     pick,
     stepBy,
     seekTo,

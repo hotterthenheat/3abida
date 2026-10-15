@@ -10,7 +10,7 @@
   The desk it sets is put back as it was. Exits 1 on any FAIL.
 */
 import { chromium } from 'playwright';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const flag = name => args.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -1668,6 +1668,87 @@ check('cone readout: in a session (the clock held at 3:30 pm) the words stay ins
     if (!ro.length) return { pass: false, notes: ['no readout drawn (the priced move not in on this machine?)'] };
     const worst = ro.reduce((m, o) => Math.max(m, o.x * o.a + o.w * o.a - o.cw), -Infinity);
     return { pass: worst <= 0 && !errors.length, notes: [`"${ro[ro.length - 1].t}" ends ${worst <= 0 ? `${Math.round(-worst)} px inside` : `${Math.round(worst)} px past`} the plot's edge`] };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── ONE LIST EACH: THE EXPIRY WINDOWS AND THE REPLAY'S PACES (the round-3 audit's 6i, merged on the owner's approval of
+   2026-10-15) ────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Before: the header's windows (PaneHead WINDOW_OPTS) and the Expiry card's (Terrain WINDOW_CHOICES) were two lists of
+   the same words, and the replay's paces were two (Terrain REPLAY_PACES beside replayFrame REPLAY_SPEEDS). The merge
+   changes nothing on screen: the header, the card and the pace card offer what they offered, entry for entry and word for
+   word (each place keeps its own words for the 60-day book: the header's "reads", the card's "keeps") — and Terrain holds
+   no list of its own: the card's windows are read off WINDOW_OPTS and the paces off replayFrame's REPLAY_PACES. */
+const HEAD_WINDOWS = [
+  ['w:0dte', '0DTE', "0DTE — The contracts that settle the session's own day"],
+  ['w:fri', 'Fri', 'To Friday — Every expiry to the Friday of this week'],
+  ['w:opex', 'OPEX', "To monthly OPEX — Every expiry to the month's third Friday (the next month's once it has passed)"],
+  ['book', '60d', "All 60 days — The field: every expiry within 60 days; the ladder reads Unusual Whales' book on every expiry"],
+];
+const CARD_WINDOWS = [
+  ['w:0dte', '0DTE', "The contracts that settle the session's own day"],
+  ['w:fri', 'To Friday', 'Every expiry to the Friday of this week'],
+  ['w:opex', 'To monthly OPEX', "Every expiry to the month's third Friday (the next month's once it has passed)"],
+  ['book', 'All 60 days', "The field: every expiry within 60 days. The ladder keeps Unusual Whales' book on every expiry."],
+];
+const PACES = ['1×', '5×', '20×', '60×'];
+check('lists: the expiry windows and the replay paces offered on screen are the ones they were, from one list each', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const notes = [];
+    let pass = true;
+    const same = (what, got, want) => {
+      if (JSON.stringify(got) === JSON.stringify(want)) notes.push(`${what}: ${got.length}, as they were (${got.map(g => (Array.isArray(g) ? g[1] : g)).join(' · ')})`);
+      else {
+        pass = false;
+        notes.push(`${what}: ${JSON.stringify(got)} — wanted ${JSON.stringify(want)}`);
+      }
+    };
+    /* the header's chips (the feed's windows: Terrain draws them only while the field reads the feed), read in full screen
+       where the header lays them out whole whatever the pane's width (F, then Esc) */
+    const hb = await page.locator('[data-pane-head]').first().boundingBox();
+    await page.mouse.click(hb.x + hb.width * 0.6, hb.y + hb.height / 2);
+    await page.keyboard.press('f');
+    await page.waitForSelector('[data-expanded-extras]', { timeout: 4000 });
+    const head = await page.locator('[data-expanded-extras] [data-window-pick]').evaluateAll(els => els.map(e => [e.getAttribute('data-window-pick'), (e.textContent ?? '').trim(), e.getAttribute('title')]));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
+    same("the header's windows", head, HEAD_WINDOWS);
+    /* the Expiry card's foot: every choice that is not a day */
+    await page.click('[data-dropdown="terrain-expiry"]');
+    await page.waitForSelector('[data-dropdown-card="terrain-expiry"]', { timeout: 4000 });
+    const card = await page.locator('[data-dropdown-card="terrain-expiry"] [data-expiry-choice]').evaluateAll(els => els.map(e => [e.getAttribute('data-expiry-choice'), (e.textContent ?? '').trim(), e.getAttribute('title')]));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    same("the Expiry card's windows", card, CARD_WINDOWS);
+    /* the replay's pace card: the pane takes the keys from its header, P, a bar picked, the card opened */
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    const hb2 = await page.locator('[data-pane-head]').first().boundingBox();
+    await page.mouse.click(hb2.x + hb2.width * 0.6, hb2.y + hb2.height / 2);
+    await page.keyboard.press('p');
+    await page.waitForTimeout(600);
+    await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+    await page.waitForSelector('[data-dropdown="replay-pace"]', { timeout: 8000 });
+    await page.click('[data-dropdown="replay-pace"]');
+    await page.waitForSelector('[data-dropdown-card="replay-pace"] [role="menuitemradio"]', { timeout: 4000 });
+    const paces = await page.locator('[data-dropdown-card="replay-pace"] [role="menuitemradio"]').evaluateAll(els => els.map(e => (e.querySelector('span.font-mono')?.textContent ?? '').trim()));
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    same("the replay's paces", paces, PACES);
+    /* ONE LIST EACH: Terrain holds no window or pace list of its own (the source, as the page was served from it) */
+    const terrainSrc = readFileSync(new URL('../src/pages/terrain/Terrain.tsx', import.meta.url), 'utf8');
+    const frameSrc = readFileSync(new URL('../src/data/replayFrame.ts', import.meta.url), 'utf8');
+    const ownWindows = /const WINDOW_CHOICES[^=]*=\s*\[/.test(terrainSrc) || !/WINDOW_CHOICES[^=]*=\s*WINDOW_OPTS\b/.test(terrainSrc);
+    const ownPaces = /const REPLAY_PACES\s*=\s*\[/.test(terrainSrc) || !/export const REPLAY_PACES\b[^=]*=\s*REPLAY_SPEEDS\.map\(/.test(frameSrc) || !/import \{[^}]*\bREPLAY_PACES\b[^}]*\} from '\.\.\/\.\.\/data\/replayFrame'/.test(terrainSrc);
+    if (ownWindows || ownPaces) pass = false;
+    notes.push(`one list: the card's windows ${ownWindows ? 'are a list of Terrain\'s own' : "are read off PaneHead's WINDOW_OPTS"}; the paces ${ownPaces ? 'are a list of Terrain\'s own' : "are replayFrame's REPLAY_PACES, built off REPLAY_SPEEDS"}`);
+    if (errors.length) {
+      pass = false;
+      notes.push(`page errors: ${errors.join(' | ')}`);
+    }
+    return { pass, ms: Date.now() - t0, notes };
   } finally {
     await done();
   }

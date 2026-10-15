@@ -175,7 +175,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
       const bars = path ? candlesOfPath(path) : [];
       return { bars, iv: 0.2, key: `journal:${row.key}` };
     }
-    if (real) return { bars: realPath ? realPath.flatMap(candlesOfPath) : [], iv: row.s.real?.vol[symbol] ?? 0.2, key: `journal:${row.key}`, clock: 'ny' };
+    if (real) return { bars: realPath ? realPath.flatMap(candlesOfPath) : [], iv: row.s.real?.vol[symbol] ?? 0.2, key: `journal:${row.key}` };
     const days: string[] = [];
     const before = prevDay(row.t.opened.day);
     if (before) days.push(before);
@@ -184,7 +184,7 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
       days.push(d);
       if (d === t.closed.day || dayIndex(d) >= dayIndex(t.closed.day)) break;
     }
-    return { bars: days.flatMap(d => dayBars(symbol, d)), iv: baseIvAt(symbol, t.closed.day), key: `journal:${row.key}`, clock: 'ny' };
+    return { bars: days.flatMap(d => dayBars(symbol, d)), iv: baseIvAt(symbol, t.closed.day), key: `journal:${row.key}` };
   }, [row.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bucket = Math.max(1, tfMinutes(frame)) * 60;
@@ -250,7 +250,6 @@ const TradeTape = ({ row, excursion, height = 380 }: { row: JournalRow; excursio
           onExitDraw={() => setDrawing(false)}
           height={height}
           frameless
-          nyClock
           layer={api => <TradeLayer api={api} marks={marks} levels={levels} from={tIn - pad} to={tOut + pad} tradeKey={row.key} />}
         />
       </div>

@@ -163,7 +163,6 @@ export class Runner {
   private memberKept = new Map<string, { fixed: Value } | { ns: string; key: string }>();
   private readonly budget: number;
   private readonly t0: number;
-  private warnings: string[] = [];
 
   /* the outputs, keyed by the call that makes them */
   private plots: (PlotOut & { colorsArr: (string | null)[]; seen: boolean })[] = [];
@@ -186,7 +185,7 @@ export class Runner {
   constructor(
     private program: Program,
     private bars: Bar[],
-    private opts: RunOptions,
+    opts: RunOptions,
     plan: OutputPlan
   ) {
     this.n = bars.length;
@@ -200,7 +199,7 @@ export class Runner {
 
     plan.plots.forEach((id, i) => {
       this.plotIndex.set(id, i);
-      this.plots.push({ id: `plot${i + 1}`, title: '', style: 'line', ink: '#5B9CF6', width: 1, offset: 0, values: new Float64Array(this.n).fill(NA), colors: null, colorsArr: new Array(this.n).fill(null), hidden: false, forceOverlay: false, seen: false });
+      this.plots.push({ id: `plot${i + 1}`, title: '', style: 'line', ink: '#5B9CF6', width: 1, offset: 0, values: new Float64Array(this.n).fill(NA), colors: null, colorsArr: new Array(this.n).fill(null), hidden: false, seen: false });
     });
     plan.shapes.forEach((id, i) => {
       this.shapeIndex.set(id, i);
@@ -225,9 +224,10 @@ export class Runner {
 
     const self = this;
     const sink: OutputSink = {
+      /* every output call's node is in its index: planOutputs (analyze.ts) walks every statement and expression, a
+         function's body and an if or switch expression's included, and run() hands the Runner its own compile's plan */
       plot(nodeId, value, color, o) {
-        const i = self.plotIndex.get(nodeId);
-        if (i === undefined) throw new PineError('plot() must sit at the top level of the script', 0);
+        const i = self.plotIndex.get(nodeId)!;
         const p = self.plots[i];
         if (!p.seen) {
           p.seen = true;
@@ -236,7 +236,6 @@ export class Runner {
           p.width = o.width;
           p.offset = o.offset;
           p.hidden = o.hidden;
-          p.forceOverlay = o.forceOverlay;
           if (o.ink) p.ink = toCss(o.ink);
         }
         p.values[self.b] = value;
@@ -244,8 +243,7 @@ export class Runner {
         return { ref: 'plot', index: i };
       },
       hline(nodeId, price, o) {
-        const i = self.hlineIndex.get(nodeId);
-        if (i === undefined) throw new PineError('hline() must sit at the top level of the script', 0);
+        const i = self.hlineIndex.get(nodeId)!;
         const h = self.hlines[i];
         if (!h.seen) {
           h.seen = true;
@@ -258,8 +256,7 @@ export class Runner {
         return { ref: 'hline', index: i };
       },
       fill(nodeId, a, b, color, title) {
-        const i = self.fillIndex.get(nodeId);
-        if (i === undefined) throw new PineError('fill() must sit at the top level of the script', 0);
+        const i = self.fillIndex.get(nodeId)!;
         const f = self.fills[i];
         if (!f.seen) {
           f.seen = true;
@@ -271,8 +268,7 @@ export class Runner {
         if (color) f.colorsArr[self.b] = toCss(color);
       },
       shape(nodeId, on, color, o) {
-        const i = self.shapeIndex.get(nodeId);
-        if (i === undefined) throw new PineError('plotshape() must sit at the top level of the script', 0);
+        const i = self.shapeIndex.get(nodeId)!;
         const s = self.shapes[i];
         if (!s.seen) {
           s.seen = true;
@@ -299,8 +295,7 @@ export class Runner {
         self.barcolors[self.b] = color ? toCss(color) : null;
       },
       alertcondition(nodeId, cond, title, message) {
-        const i = self.alertIndex.get(nodeId);
-        if (i === undefined) throw new PineError('alertcondition() must sit at the top level of the script', 0);
+        const i = self.alertIndex.get(nodeId)!;
         const al = self.alerts[i];
         if (!al.title) {
           al.title = title || self.alertNames[i];
@@ -405,7 +400,6 @@ export class Runner {
       bgcolors: this.bgcolors,
       barcolors: this.barcolors,
       alerts: this.alerts,
-      warnings: this.warnings,
       stats: { bars: this.n, ms: now() - this.t0 },
     };
   }
@@ -649,13 +643,8 @@ export class Runner {
         }
         break;
       }
-      case 'slayer': {
-        if (key === 'netGex') {
-          const v = this.opts.slayer?.netGex?.[this.b];
-          return typeof v === 'number' ? v : NA;
-        }
+      case 'slayer':
         return key in this.ctx.slayer ? this.ctx.slayer[key] : NA;
-      }
     }
     throw new PineError(`"${path}" is not something the runtime knows`, line);
   }

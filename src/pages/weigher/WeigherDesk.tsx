@@ -972,8 +972,7 @@ const WeigherDesk = ({ incoming }: { incoming?: WeighRequest | null }) => {
               levels={levels}
               timeframe={timeframe}
               keepView
-              /* the session's own clock, and the tape near its right edge (the audit's X2 and X11) */
-              nyClock
+              /* the tape near its right edge (the audit's X11) */
               historyShare={0.9}
               /* THE WHEEL BELONGS TO THE PAGE over the docked chart (2026-09-14, Noah: "the scroll
                  bar doesn't work at all" — the desk scrolls now, and the chart ate every wheel

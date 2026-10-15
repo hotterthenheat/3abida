@@ -61,8 +61,6 @@ export interface SlayerFeed {
   putWall?: number;
   flip?: number;
   supreme?: number;
-  /** Net dealer gamma by bar, when the pane carries it */
-  netGex?: ArrayLike<number>;
 }
 
 export interface RunOptions {
@@ -96,8 +94,6 @@ export interface PlotOut {
   colors: (string | null)[] | null;
   /** `display = display.none` hides it while `fill()` can still use it */
   hidden: boolean;
-  /** Draws on the tape even from an own-pane script (`force_overlay`) */
-  forceOverlay: boolean;
 }
 
 export interface HLineOut {
@@ -152,8 +148,6 @@ export interface RunResult {
   bgcolors: (string | null)[] | null;
   barcolors: (string | null)[] | null;
   alerts: AlertOut[];
-  /** Plain-worded notes that did not stop the run */
-  warnings: string[];
   stats: {
     bars: number;
     ms: number;

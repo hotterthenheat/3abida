@@ -1,5 +1,5 @@
 import { isoDayLabel, num, numSigned, pctSigned, usd, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
-import PaneHead, { type JumpSpan, type WindowValue } from '../../components/terrain/PaneHead';
+import PaneHead, { WINDOW_OPTS, type JumpSpan, type WindowValue } from '../../components/terrain/PaneHead';
 import DecisionStrip, { type DecisionBox } from '../../components/terrain/DecisionStrip';
 import CrosshairReadout from '../../components/terrain/CrosshairReadout';
 import { liveWithinMs, paneAgeOf, type PaneAge } from '../../components/terrain/paneAge';
@@ -17,12 +17,12 @@ import {
   deleteNamedLayout, loadNamedLayouts, persistNamedLayouts, saveNamedLayout,
   MAX_NAMED_LAYOUTS, type NamedLayoutEntry,
 } from './layouts';
-import { buildLadderFor, buildLevelsFor, buildPrints, fmtUsd, spotChangePct } from '../../data/gex';
+import { buildLadderFor, buildLevelsFor, buildPrints, spotChangePct } from '../../data/gex';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { priceKey, useFeedPrice } from '../../data/feed/price';
 import { refreshFeed } from '../../data/feed/poll';
 import { uwSpotGexByStrike } from '../../data/feed/uw';
-import { nyClock as nyClockAt, clock as printClock, marketClock, nyIsoDate, nyMinutes, nyParts, nySessionPhase, nyWallTime } from '../../core/nyTime';
+import { clock as printClock, marketClock, nyIsoDate, nyMinutes, nySessionPhase, nyWallTime } from '../../core/nyTime';
 import { registerDepthState } from '../../dev/depthTrap';
 import { GTH_END_MIN, GTH_START_MIN, RTH_OPEN_MIN, fieldDayOf, fieldSessionAt, indexPrintsAt, isTradingIso, tradesAllSessions } from '../../core/sessions';
 import { overnightSourceOf } from '../../data/feed/optionsPrice';
@@ -129,7 +129,7 @@ import { book60Window, driftEndOf, driftOf, netOf, ordinal, regimeForWindow, reg
 import ReplayStrip from '../../components/gex/ReplayStrip';
 import ReplayTools from '../../components/terrain/ReplayTools';
 import { useTerrainReplay } from '../../components/terrain/useTerrainReplay';
-import { laggedAt, sessionSpan, type ReplayFrame } from '../../data/replayFrame';
+import { laggedAt, REPLAY_PACES, sessionSpan, type ReplayFrame, type ReplaySpeed } from '../../data/replayFrame';
 import { useFeedNamePrints } from '../../data/feed/trace';
 import type { WallsSource } from '../../components/terrain/wallsHeatPrimitive';
 import type { Candle, GexSnapshot } from '../../types/market';
@@ -312,16 +312,14 @@ export type RailCut = number | 'book' | WindowCut;
    the regime strip and the bead scale follow the window (data/feed/trailModel.ts windowView — every column carries its
    sums by expiry partition, so a switch asks nothing), and the ladder reads Unusual Whales' 60-day book through the
    same window. */
-export type WindowCut = 'w:0dte' | 'w:fri' | 'w:opex';
-const WINDOW_CUTS: readonly WindowCut[] = ['w:0dte', 'w:fri', 'w:opex'];
+export type WindowCut = Exclude<WindowValue, 'book'>;
+/* ONE LIST OF THE WINDOWS (the round-3 audit's 6i, merged on the owner's approval of 2026-10-15): PaneHead's WINDOW_OPTS
+   is the header's chips and, the 60-day book left to the card's own foot pill, the Expiry card's windows below */
+const WINDOW_CUTS: readonly WindowCut[] = WINDOW_OPTS.map(o => o.value).filter((v): v is WindowCut => v !== 'book');
 const isWindowCut = (c: unknown): c is WindowCut => typeof c === 'string' && (WINDOW_CUTS as readonly string[]).includes(c);
 /** The field's window for a cut: a window's own, else every expiry the field holds */
 const windowOfCut = (c: RailCut): ExpiryWindow => (isWindowCut(c) ? (c.slice(2) as ExpiryWindow) : 'all');
-const WINDOW_CHOICES: ExpiryChoice<RailCut>[] = [
-  { value: 'w:0dte', label: '0DTE', hint: "The contracts that settle the session's own day", date: null },
-  { value: 'w:fri', label: 'To Friday', hint: 'Every expiry to the Friday of this week', date: null },
-  { value: 'w:opex', label: 'To monthly OPEX', hint: "Every expiry to the month's third Friday (the next month's once it has passed)", date: null },
-];
+const WINDOW_CHOICES: ExpiryChoice<RailCut>[] = WINDOW_OPTS.filter(o => o.value !== 'book').map(o => ({ value: o.value, label: o.label, hint: o.hint, date: null }));
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** The card's choices: the calendar's expiries as lit days (two horizons on one Friday are one
     day), the book as the foot pill — built at render, since the dates are today's */
@@ -521,16 +519,8 @@ function frameRail(f: ReplayFrame): RailData {
   };
 }
 const EMPTY_COLS: GexSnapshot[] = [];
-/** The replay's paces (the owner's item 8): multiples of the market's own time, on the bar's 'seconds' unit — 60 is a
-    minute of tape a second */
 /** New York's minute of an epoch second */
 const nyMinutesOf = (t: number): number => nyMinutes(t * 1000);
-const REPLAY_PACES = [
-  { value: 1, label: '1×' },
-  { value: 5, label: '5×' },
-  { value: 20, label: '20×' },
-  { value: 60, label: '60×' },
-];
 let feedRev = 0;
 const EMPTY_FLOW: never[] = [];
 
@@ -801,8 +791,6 @@ const PRICE_GUTTER_PX = AXIS_CHIPS_SCALE_MIN_WIDTH + 2;
   gives each toolbar ~577px and still wraps.
 */
 const TOOLBAR_FULL_PX = 994;
-/** The fullscreen door when it rides the identity row: its 24px button and the row's 8px gap */
-const ROW_DOOR_PX = 32;
 
 /*
   THE STRIP'S OWN PADDING, when it is not clearing a price gutter (`p-1.5`).
@@ -1003,7 +991,7 @@ const ConfluenceStrip = ({ rows, form, current, onPick }: { rows: ConfluenceRow[
    alone where the tabs have no room; the hover row carries the rest */
 /* `replay: true` keeps the Replay door in a compact mount (ChartToolbar drops it there otherwise): without it a docked pane
    showed no Replay button at any width (the audit's A-56) */
-const HEAD_PARTS: Partial<Record<ToolbarPart, boolean>> = { timeframes: false, indicators: false, candles: false, theme: false, fullscreen: false, replay: true };
+const HEAD_PARTS: Partial<Record<ToolbarPart, boolean>> = { timeframes: false, indicators: false, candles: false, theme: false, replay: true };
 /* the hover row when the header holds no tools: every part, Replay kept in its compact form */
 const HOVER_ALL_PARTS: Partial<Record<ToolbarPart, boolean>> = { replay: true };
 const HOVER_PARTS: Partial<Record<ToolbarPart, boolean>> = { replay: false, alerts: false, overlays: false };
@@ -1535,7 +1523,6 @@ const Pane = ({
   const feedRevision = useMemo(() => (feedRev += 1), [feedTape]); // eslint-disable-line react-hooks/exhaustive-deps
   /* no plan carries seconds: a pane kept on 15 s draws the minute until the reader picks again */
   const tf = offHouse && timeframe === '15s' ? '1m' : timeframe;
-  const paneOverlays = overlays;
   const paneCompares = compares;
   /* the name's prints on the feed, as the chart's flow tape */
   const paneFlow = offHouse ? fPrints ?? EMPTY_FLOW : flowTape;
@@ -1877,15 +1864,12 @@ const Pane = ({
      book by strike beside it as the measured reference (spot-exposures/strike?date=, the date's END state) */
   const [dayPanel, setDayPanel] = useState<string | null>(null);
   useEffect(() => setDayPanel(null), [ticker, tf]);
-  const onBarClick = useCallback(
-    (t: number) => {
-      if (tfMinutes(tf) < 1440) return;
-      /* a day bar's stamp is its day's start on one clock or another (the fold's UTC midnight, the feed's noon UTC, the
-         house's 09:30 New York): twelve hours on lands inside the session's own New York date on every one of them */
-      setDayPanel(nyIsoDate((t + 12 * 3600) * 1000));
-    },
-    [tf]
-  );
+  /* handed to the chart on a daily timeframe alone (`onBarClick` below) */
+  const onBarClick = useCallback((t: number) => {
+    /* a day bar's stamp is its day's start on one clock or another (the fold's UTC midnight, the feed's noon UTC, the
+       house's 09:30 New York): twelve hours on lands inside the session's own New York date on every one of them */
+    setDayPanel(nyIsoDate((t + 12 * 3600) * 1000));
+  }, []);
   const [dayBook, setDayBook] = useState<{ day: string; book: FeedBook | null; failed: boolean } | null>(null);
   useEffect(() => {
     if (!dayPanel || !onFeed || isCashIndex(ticker)) return;
@@ -2136,7 +2120,9 @@ const Pane = ({
         playing={c.playing}
         onPlay={rp.setPlaying}
         pace={c.speed}
-        onPace={v => rp.setSpeed(v as (typeof rp.speeds)[number])}
+        onPace={v => rp.setSpeed(v as ReplaySpeed)}
+        /* the replay's paces (the owner's item 8): multiples of the market's own time, on the bar's 'seconds' unit — 60
+           is a minute of tape a second; data/replayFrame.ts holds the one list */
         paces={REPLAY_PACES}
         candleMin={Math.max(1, tfMinutes(offHouse && timeframe === '15s' ? '1m' : timeframe))}
         onSeek={pos => rp.seekTo(first + pos)}
@@ -2258,8 +2244,8 @@ const Pane = ({
 
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => setFocus(null), [ticker]);
-  /* THE LADDER UNDER `lg` (the audit's TE-6: the room's defining panel was simply missing on a phone and a tablet): a
-     Strikes door on the pane lays the ladder over the chart's right side, on the chart's own price rows — the rail
+  /* THE LADDER UNDER `lg` (the audit's TE-6: the room's defining panel was simply missing on a phone and a tablet): the
+     peek at the chart's foot lays the ladder over the chart's right side, on the chart's own price rows — the rail
      beside the chart needs a desk's width, the overlay does not. Off until pressed; a slot's business, never stored. */
   const [narrowLadder, setNarrowLadder] = useState(false);
   /* Esc closes the day panel and the ladder laid over the chart, as their titles and the keys sheet say (the audit's C-55
@@ -2267,8 +2253,8 @@ const Pane = ({
   useEscapeLayer(!!dayPanel, () => setDayPanel(null), { mode: true });
   useEscapeLayer(belowLg && narrowLadder, () => setNarrowLadder(false), { mode: true });
   /* THE KEYS GO IN AND COME BACK (the audit's C-35: focus stayed on the page's body on open and close) — the ladder laid
-     over the chart takes them on its first control, and gives them back to the door that opened it (the peek, else the
-     head's Strikes; the peek again where the door has gone) */
+     over the chart takes them on its first control, and gives them back to the door that opened it (the peek, found
+     again where the one that opened it has gone) */
   const ladderOpener = useRef<HTMLElement | null>(null);
   /* the ladder was opened in this pane's life — a close hands the keys back; the first render's "closed" does not */
   const opened = useRef(false);
@@ -2282,14 +2268,14 @@ const Pane = ({
       return () => cancelAnimationFrame(id);
     }
     /* the peek that opened it left the page as the ladder came (the keys fell to the body before this ran): the pane's
-       own door takes them back — the peek, else the head's Strikes */
+       own door takes them back — the peek */
     const back = ladderOpener.current;
     ladderOpener.current = null;
     if (!opened.current) return;
     opened.current = false;
     const id = requestAnimationFrame(() => {
       if (back?.isConnected) back.focus();
-      else box?.querySelector<HTMLElement>('[data-ladder-peek], [data-narrow-ladder]')?.focus();
+      else box?.querySelector<HTMLElement>('[data-ladder-peek]')?.focus();
     });
     return () => cancelAnimationFrame(id);
   }, [narrowLadder, belowLg]);
@@ -2527,20 +2513,9 @@ const Pane = ({
      written. Closing that pixel means shrinking a control that no current
      work touches; it is recorded here rather than quietly rounded away. */
   const toolbarCompact = stripW > 0 && stripW - PRICE_GUTTER_PX < TOOLBAR_FULL_PX;
-  /* THE TOOLBAR RIDES THE IDENTITY ROW WHEN THE ROW HAS THE ROOM (Noah, 2026-09-16: "if I ever
-     have enough space on the top section then this timeframe / replay all the way down to the
-     right row should take its place in the top section like we have on the singular live chart
-     for Pulse"): the identity at its fullest (the change and the confluence strip) plus a gap
-     plus the toolbar as it would draw — full or compact — plus the fullscreen door, which
-     joins the row's end then, against the strip's usable width. It never wraps inside the
-     row; short of the room it keeps its own line below the book. */
-  /* the doors at the row's end: the fullscreen one, the pop-out beside it on the desk, none in a pop-out */
-  const rowDoorPx = bare ? 0 : onPopOut ? ROW_DOOR_PX + 28 : ROW_DOOR_PX;
   /* THE TOOLBAR NEVER RIDES THE HEADER NOW (the Terrain UI pass, 2026-10-14): the header is one row of its own —
      identity, facts, the age chip, the timeframe, the window, the jumps, Replay, Alerts, the layers, ? and the doors —
      and the rest of the toolbar is the hover row under it, on every width */
-  const toolbarInline = false;
-  const toolbarCompactShown = toolbarCompact;
 
   /* ONE TOOLBAR, TWO MOUNTS (Noah, 2026-08-28: "make the row ... sit up top
      like how the fullscreen of the pulse page does"). Docked it is the
@@ -2619,7 +2594,7 @@ const Pane = ({
     </>
   );
 
-  /* THE FACTS beside the identity: the price, an index's print chip, the Strikes door under lg, the change */
+  /* THE FACTS beside the identity: the price, an index's print chip, the change */
   /* SPX'S PRICE FROM ITS OPTIONS (the owner, 2026-10-15: "Label it 'price from options (overnight)'") */
   const optionsChip = fQuote?.source === 'options' && fQuote.at != null && (
     <span className={`shrink-0 font-mono text-[11px] tnum ${fQuote.stale ? 'text-warn' : 'text-textMuted'}`} data-pane-print="options" title={`No S&P 500 index value outside 9:30 am to 4:00 pm New York: the price is the forward SPX's at-the-money options imply by put-call parity (the median of the three strikes nearest parity on the front expiry), ${printClock(fQuote.at)}${fQuote.stale ? ' — older than two minutes' : ''}`}>
@@ -2646,20 +2621,8 @@ const Pane = ({
       {printChip}
       {optionsChip}
       {bookChip}
-      {/* under lg the ladder's door is the peek over the chart's foot (the UI pass); the Strikes button stands only
-          where the peek has nothing to show */}
-      {belowLg && rail.rows.length > 0 && peek.length === 0 && (
-        <button
-          type="button"
-          onClick={() => setNarrowLadder(v => !v)}
-          aria-pressed={narrowLadder}
-          title={narrowLadder ? 'Hide the strike ladder' : 'Show the strike ladder over the chart'}
-          className={`hit shrink-0 pointer-events-auto inline-flex items-center h-5 px-1.5 rounded-[3px] font-mono text-[11px] font-semibold transition-colors ${narrowLadder ? 'bg-ink/[0.16] text-textPrimary' : 'text-textSecondary hover:text-textPrimary hover:bg-ink/[0.06]'}`}
-          data-narrow-ladder
-        >
-          Strikes
-        </button>
-      )}
+      {/* under lg the ladder's door is the peek over the chart's foot (the UI pass): it holds the three strikes nearest the
+          price whenever the ladder has rows (`peek`), so no Strikes button stands in the header */}
       {/* First thing the row gives up when the column is narrow (ID_ROW_FULL_PX) — the price it is a delta of is
           directly to its left, and the chart draws the same move; the house's percent, a signed figure (data-dir) */}
       {showChangePct && Number.isFinite(changePct) && (
@@ -2718,7 +2681,7 @@ const Pane = ({
     <ChartToolbar
       minimal
       candles
-      compact={compact ?? toolbarCompactShown}
+      compact={compact ?? toolbarCompact}
       /* IN A REPLAY NO LIVE ALERT is armed (the round-3 audit, A-60: the Alerts menu stood, its price the cursor's, so an
          alert took its side from history — "never a read past the cursor; no live alerts in a replay") */
       parts={replayable ? { ...(parts ?? {}), alerts: false } : parts}
@@ -2932,7 +2895,7 @@ const Pane = ({
               timeframe={tf}
               flowPrints={rp.active ? EMPTY_FLOW : paneFlow}
               height={tall ? 260 : 200}
-              overlays={paneOverlays}
+              overlays={overlays}
               indicators={indicators}
               chartStyle={chartStyle}
               themeKey={theme}
@@ -2968,9 +2931,6 @@ const Pane = ({
               projectionRef={noBars ? noBarsChartProjection : projectionRef}
               exportRef={exportPngRef}
               pageScroll={belowLg}
-              /* New York's clock (the audit's X2), and the tape near the right edge — a little room ahead of the last bar,
-                 not a third of the chart (X11) */
-              nyClock
               recordLines={rp.active ? undefined : fRecord?.lines}
               /* the window's own reference (item 6); UW's directional series and the scorecard's ranges stand on every
                  expiry, so a window says neither */
@@ -3002,7 +2962,6 @@ const Pane = ({
               fieldGapCause={gapCause}
               resetPillClass={resetPillClass}
               footReservePx={footRows > 0 ? 8 + footRows * 32 : 0}
-              axisLevels
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
                  tape — and never spans less than eight strikes, so the ladder keeps its rows (the audit, row 31) */
@@ -3016,7 +2975,7 @@ const Pane = ({
                  through the chart's own layer, off until the Overlays menu turns them on */
               layer={api => (
                 <>
-                  <TerrainLayers api={api} ticker={ticker} walls={!!paneOverlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} wallsSource={wallsSource} />
+                  <TerrainLayers api={api} ticker={ticker} walls={!!overlays.walls} lens={cfg.wallsLens ?? 'gex'} phases={!!overlays.phases} ground={ground} wallsSource={wallsSource} />
                   {/* a right-click on a level: an alert that follows it (the owner's item 7) — a live watch, so not from a replay */}
                   {!rp.active && <LevelAlertMenu api={api} ticker={ticker} levels={axisLevels} top={top3} sigma={fMove ? { prevClose: fMove.prevClose, s: fMove.sigma } : null} />}
                 </>
@@ -3402,7 +3361,7 @@ const Pane = ({
                   reach. DOCKED ONLY: the expanded pane pins the same toolbar
                   to the top strip instead, where it does not need a hover to
                   exist. */}
-              {!expanded && !toolbarInline && (
+              {!expanded && (
                 /* OUT OF THE FLOW (the UI pass, 2026-10-14): it stands under the strip, over the plot, and only while the
                    pointer or the keys are on the pane — so the chrome band the chart keeps clear of is the header, the
                    strip and the legend alone, and a hover moves nothing (the band's height is what fits the scale) */

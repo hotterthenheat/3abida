@@ -22,7 +22,7 @@
 */
 
 import { compile, explain } from '../core/pine';
-import type { ChartScript, PaneId, Script, ScriptFavourite, ScriptInputValue, ScriptSave, ScriptShelf, ScriptStore, ScriptVersion, ScriptVisibility } from '../types/scripts';
+import type { ChartScript, PaneId, Script, ScriptFavourite, ScriptInputValue, ScriptSave, ScriptShelf, ScriptStore, ScriptVersion } from '../types/scripts';
 import { SCRIPT_CAPS } from '../types/scripts';
 import { builtinScripts, hashSource } from './builtinScripts';
 
@@ -138,7 +138,6 @@ class BrowserScriptStore implements ScriptStore {
 
   async list(shelf?: ScriptShelf): Promise<Script[]> {
     if (shelf === 'built-in') return builtinScripts();
-    if (shelf === 'community') return [];
     if (shelf === 'mine') return this.mine();
     return [...(await this.mine()), ...builtinScripts()];
   }
@@ -230,14 +229,6 @@ class BrowserScriptStore implements ScriptStore {
     return this.save({ id, title: s?.title ?? 'Untitled script', source: v.source, message: `Restored version ${version}` });
   }
 
-  async setVisibility(id: string, visibility: ScriptVisibility): Promise<Script> {
-    const s = await this.db.get<Script>('scripts', id);
-    if (!s) throw new Error('That script is gone');
-    const next = { ...s, visibility, updatedAt: Date.now(), ...(visibility !== 'private' && !s.publishedAt ? { publishedAt: Date.now() } : {}) };
-    await this.db.put('scripts', next);
-    return next;
-  }
-
   async favourites(): Promise<ScriptFavourite[]> {
     return this.db.all<ScriptFavourite>('favourites');
   }
@@ -259,7 +250,7 @@ class BrowserScriptStore implements ScriptStore {
 
   async place(paneId: PaneId, scriptId: string, inputs?: Record<string, ScriptInputValue>): Promise<ChartScript> {
     const on = await this.onPane(paneId);
-    const cs: ChartScript = { id: uid(), paneId, scriptId, version: 'latest', inputs: inputs ?? {}, visible: true, order: on.length ? Math.max(...on.map(c => c.order)) + 1 : 0 };
+    const cs: ChartScript = { id: uid(), paneId, scriptId, inputs: inputs ?? {}, visible: true, order: on.length ? Math.max(...on.map(c => c.order)) + 1 : 0 };
     await this.db.put('chartScripts', cs as unknown as Record<string, unknown>);
     return cs;
   }

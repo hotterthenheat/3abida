@@ -19,7 +19,7 @@
       amplifies a move, glacier where it absorbs
     · the flow as a 1.25px line over a 0.14 fill,
       two or three prices named, the rest quiet
-    · walls, pin and supreme as the cards' chips
+    · walls and supreme as the cards' chips
     · one tabular strike column, spot as a solid
       chip, the flip as a dashed rule across both
     · gridlines at 0.05, dividers at 0.08, the
@@ -40,10 +40,10 @@
   squeezed: the chain is wider than the plot and the
   chart's zoom decides what is on screen.
 
-  TWO HOSTS (2026-09-08, Noah: "put the map panel
-  on terrain"): the Map, where it fills a fixed
-  share beside the chart, and every Terrain pane,
-  where it took the old strike rail's place — its
+  ONE HOST (2026-09-08, Noah: "put the map panel
+  on terrain"; the Map no longer hosts it): every
+  Terrain pane, where it took the old strike rail's
+  place — its
   drag grip (`width`/`onWidth`), its × (`onClose`),
   its Vol underlay (`ticker`: the session's traded
   volume by price under the size lane), and the
@@ -81,8 +81,8 @@ export const LANE_OPTIONS: DropdownOption<ProfileLane>[] = [
   { value: 'size', label: 'Size', hint: 'Only what sits at each strike' },
   { value: 'flow', label: 'Flow', hint: 'Only what a move to each strike costs' },
 ];
-/** The Map hands ExposureLevels (with the pin); a Terrain pane hands KeyLevels (without) */
-export type PanelLevels = KeyLevels & { pin?: number };
+/** The levels a Terrain pane hands in */
+export type PanelLevels = KeyLevels;
 /** The narrowest the panel is drawn — the grip's floor. 180, not 132 (Noah, 2026-09-16, with
     the partner's ladder at three widths: "we should have a cutoff after a certain scaling
     becomes too minimum"): at 132 the ladder was a spine with pill legs and printed nothing. */
@@ -368,8 +368,8 @@ interface ProfilePanelProps {
   flow: FlowLadder | null;
   /** Which lanes to draw — the host's dropdown chooses, or the head's own when `onLane` is given */
   lane: ProfileLane;
-  /** Given, the head carries the Lanes card itself (a Terrain pane has no row above the panel) */
-  onLane?: (lane: ProfileLane) => void;
+  /** The head carries the Lanes card itself (a Terrain pane has no row above the panel) */
+  onLane: (lane: ProfileLane) => void;
   /** The "How to read" door — the host opens the guide over the map box */
   onGuide?: () => void;
   guideOpen?: boolean;
@@ -390,8 +390,8 @@ interface ProfilePanelProps {
       absent, the house's tape for `ticker` */
   volBars?: readonly Candle[] | null;
   /** Drawn at this width, with a drag grip on the left edge reporting the new
-      width on release. Omitted, the panel fills its flex share (the Map). */
-  width?: number;
+      width on release. */
+  width: number;
   onWidth?: (px: number) => void;
   /** The width the host rests this panel at (`profileRestWidth`) — the grip's double-click
       goes back to it, not to the floor */
@@ -485,9 +485,7 @@ const ProfilePanel = ({
   */
   const [dragW, setDragW] = useState<number | null>(null);
   const [hostW, setHostW] = useState(0);
-  const sized = width != null;
   useEffect(() => {
-    if (!sized) return;
     const host = rootRef.current?.parentElement;
     if (!host) return;
     setHostW(host.getBoundingClientRect().width);
@@ -496,9 +494,9 @@ const ProfilePanel = ({
     });
     ro.observe(host);
     return () => ro.disconnect();
-  }, [sized]);
+  }, []);
   const maxW = hostW > 0 ? Math.max(PROFILE_MIN_W, Math.round(hostW * maxShare)) : Number.POSITIVE_INFINITY;
-  const shownW = sized ? Math.min(dragW ?? width, maxW) : undefined;
+  const shownW = Math.min(dragW ?? width, maxW);
   /* A DRAG OF THE GRIP OR THE SASH IS NOT A CLICK (the audit's C-29b): the click that follows a drag lands on the panel
      (the nearest box holding both ends) and kept the strike under the pointer — its end is noted, and a click on its
      heels, or on a separator, keeps nothing */
@@ -670,8 +668,6 @@ const ProfilePanel = ({
         footRef.current = { top: H, h: Htot - H, w: W };
         setFoot(footRef.current);
       }
-      /* The pin is the Map's; a Terrain pane's levels carry none. NaN is never near anything. */
-      const pin = levels.pin ?? Number.NaN;
       /* Is the scale live? Two prices a strike apart must land on different rows */
       const anchor = rows[Math.floor(rows.length / 2)]?.strike ?? levels.spot;
       const y0 = p.yFor(anchor);
@@ -803,7 +799,7 @@ const ProfilePanel = ({
       }
       placedRef.current = placed;
       const stride = Math.max(1, Math.ceil(LABEL_PITCH / pitch));
-      const isLevel = (k: number) => near(k, levels.callWall) || near(k, levels.putWall) || near(k, levels.supreme) || near(k, pin);
+      const isLevel = (k: number) => near(k, levels.callWall) || near(k, levels.putWall) || near(k, levels.supreme);
       const isFocus = (k: number) => focusPrice != null && near(k, focusPrice);
       const isHover = (k: number) => hv != null && near(k, hv.strike);
       const labelled = (i: number, k: number) => i % stride === 0 || isLevel(k) || isFocus(k) || isHover(k);
@@ -1079,14 +1075,9 @@ const ProfilePanel = ({
         ctx.font = `9px ${FIG}`;
         ctx.fillStyle = ink.flipText;
         ctx.textBaseline = 'bottom';
-        if (showFlow) {
-          ctx.textAlign = 'right';
-          ctx.fillText(`flip ${fmtStrike(levels.flip)}`, W - 6, yy - 2);
-        } else {
-          /* the caption at the lane's right end — the figures live at its left */
-          ctx.textAlign = 'right';
-          ctx.fillText(`flip ${fmtStrike(levels.flip)}`, W - 6, yy - 2);
-        }
+        /* the caption at the panel's right end */
+        ctx.textAlign = 'right';
+        ctx.fillText(`flip ${fmtStrike(levels.flip)}`, W - 6, yy - 2);
       }
 
       /* THE SPOT RULE — under the bars; its chip comes last */
@@ -1144,7 +1135,6 @@ const ProfilePanel = ({
       levelOf.set(levels.callWall, { words: 'Call wall', c: ink.callWall });
       levelOf.set(levels.putWall, { words: 'Put wall', c: ink.putWall });
       if (!near(levels.supreme, levels.callWall) && !near(levels.supreme, levels.putWall)) levelOf.set(levels.supreme, { words: 'Supreme', c: ink.supreme });
-      if (Number.isFinite(pin) && !near(pin, levels.callWall) && !near(pin, levels.putWall) && !near(pin, levels.supreme)) levelOf.set(pin, { words: 'Pin', c: ink.ink2 });
       const levelAt = (k: number) => {
         for (const [lk, v] of levelOf) if (near(lk, k)) return v;
         return undefined;
@@ -1375,7 +1365,7 @@ const ProfilePanel = ({
          total, so drawn at every strike it is a smooth wedge — no rhythm, and
          the ramp across it turns into a rainbow. So the whole wedge sits
          behind in one quiet grey, and capsules are drawn ONLY where the number
-         matters: the walls, the supreme, the pin, the kept strike and the one
+         matters: the walls, the supreme, the kept strike and the one
          under the pointer — warm where that flow speeds the move up, cool where
          it slows it, the verb and the figure inside ("sell $118M"), or beside
          the capsule when it is too short to hold them. */
@@ -1454,7 +1444,6 @@ const ProfilePanel = ({
         nameAt(levels.callWall);
         nameAt(levels.putWall);
         nameAt(levels.supreme);
-        nameAt(levels.pin);
         nameAt(focusPrice);
         nameAt(hv?.strike);
       }
@@ -1472,7 +1461,7 @@ const ProfilePanel = ({
         const focus = isFocus(k);
         /* the strike bold in the wide column (the partner's), plain in the thin one */
         ctx.font = `${focus || wide ? '700 ' : ''}10px ${FIG}`;
-        ctx.fillStyle = focus ? ink.silver : near(k, levels.callWall) ? ink.callWall : near(k, levels.putWall) ? ink.putWall : near(k, levels.supreme) ? ink.supreme : near(k, pin) || isHover(k) ? ink.ink : wide ? ink.ink : ink.ink2;
+        ctx.fillStyle = focus ? ink.silver : near(k, levels.callWall) ? ink.callWall : near(k, levels.putWall) ? ink.putWall : near(k, levels.supreme) ? ink.supreme : isHover(k) ? ink.ink : wide ? ink.ink : ink.ink2;
         ctx.textAlign = wide ? 'left' : 'center';
         ctx.fillText(fmtStrike(k), wide ? colL + 6 : cx, r.y);
         if (wide) {
@@ -1536,7 +1525,6 @@ const ProfilePanel = ({
       chip(levels.callWall, 'Call wall', ink.callWall);
       chip(levels.putWall, 'Put wall', ink.putWall);
       if (!near(levels.supreme, levels.callWall) && !near(levels.supreme, levels.putWall)) chip(levels.supreme, 'Supreme', ink.supreme);
-      if (Number.isFinite(pin) && !near(pin, levels.callWall) && !near(pin, levels.putWall) && !near(pin, levels.supreme)) chip(pin, 'Pin', ink.ink2);
 
       /* THE SPOT CHIP — solid, in the column */
       if (spotOn) {
@@ -1640,9 +1628,7 @@ const ProfilePanel = ({
         ? { words: 'Put wall', c: TOKEN.PUT_WALL }
         : near(readRow.strike, levels.supreme)
           ? { words: 'Supreme', c: TOKEN.SUPREME }
-          : levels.pin != null && near(readRow.strike, levels.pin)
-            ? { words: 'Pin', c: 'rgb(var(--text-secondary))' }
-            : null
+          : null
     : null;
   const hoverMax = placedRef.current.reduce((m, r) => Math.max(m, Math.abs(r.value)), 0) || maxAbs || 1;
   /* the partner's footer figures: the picked strike's legs and its share of the net on screen */
@@ -1856,7 +1842,7 @@ const ProfilePanel = ({
   const laneNames = panelW >= 640;
   const laneTools = (
     <>
-      {onLane && (roomForLanes || twoRowHead) && <DropdownSelect label="Lanes" value={lane} options={LANE_OPTIONS} onChange={onLane} title="What the panel draws" testId="lanes" align={twoRowHead ? 'start' : 'end'} size="sm" />}
+      {(roomForLanes || twoRowHead) && <DropdownSelect label="Lanes" value={lane} options={LANE_OPTIONS} onChange={onLane} title="What the panel draws" testId="lanes" align={twoRowHead ? 'start' : 'end'} size="sm" />}
       {ticker && showSize && (
         <button
           type="button"
@@ -1915,8 +1901,8 @@ const ProfilePanel = ({
       ref={rootRef}
       /* a host that lays the panel OVER its chart (Terrain's phone ladder) names its own position — `relative` here beat the
          host's `absolute` and the panel took the row, the chart squeezed to 12 px (the audit's C-35) */
-      className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative'} h-full select-none ${sized ? 'shrink-0' : 'flex-1 min-w-0'} ${className}`}
-      style={sized ? { width: shownW } : undefined}
+      className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative'} h-full select-none shrink-0 ${className}`}
+      style={{ width: shownW }}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
       onClick={onClick}
@@ -1926,7 +1912,7 @@ const ProfilePanel = ({
     >
       {/* The grip: the panel's own left edge, live. Invisible until the
           pointer finds it, like every sash on the desk. */}
-      {sized && onWidth && (
+      {onWidth && (
         <span
           onPointerDown={onGripDown}
           onDoubleClick={() => onWidth(restWidth ?? PROFILE_MIN_W)}

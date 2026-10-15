@@ -78,7 +78,7 @@ const maximaG = base.map(s => columnGross(s.levels));
   for (const texture of [1, 5]) {
     const prim = new GexTrailsPrimitive();
     const cols = aggregateSnapshots(base, texture);
-    prim.setData(cols, 1, true, texture * 60, 'gex', base);
+    prim.setData(cols, true, texture * 60, 'gex', base);
     let worst = 0;
     for (let i = 0; i < cols.length; i++) {
       const end = cols[i].time + texture * 60 - 1;
@@ -110,7 +110,7 @@ const maximaG = base.map(s => columnGross(s.levels));
 /* the bases, the floor, the ring, the staleness */
 {
   const prim = new GexTrailsPrimitive();
-  prim.setData(base, 1, true, 60, 'gex', base);
+  prim.setData(base, true, 60, 'gex', base);
   const lastDay = base.length - 1;
   const day2 = maxima.slice(390, 780);
   prim.setBasis('prior', 0);

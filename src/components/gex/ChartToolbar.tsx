@@ -15,7 +15,7 @@ import { createPortal } from 'react-dom';
 import { useAnchoredMenu } from '../ui/useAnchoredMenu';
 import { useOverlay } from '../ui/layers';
 import { motion } from 'framer-motion';
-import { Activity, CandlestickChart, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Fullscreen, Layers, Maximize2, Minimize2, Palette, Play } from 'lucide-react';
+import { Activity, CandlestickChart, Check, ChevronDown, ChevronUp, Fullscreen, Layers, Maximize2, Minimize2, Palette, Play } from 'lucide-react';
 import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
 import {
   CANDLE_THEMES,
@@ -27,10 +27,7 @@ import {
 } from './candleTheme';
 import {
   CHART_STYLES,
-  INDICATOR_INKS,
-  MAX_SUB_PANES,
   PRICE_SCALES,
-  SUB_PANE_ORDER,
   type ChartIndicators,
   type ChartOverlays,
   type ChartStyle,
@@ -76,8 +73,7 @@ interface ChartToolbarProps {
    * timeframe buttons collapse into one trigger that opens them as a menu:
    * they need 251px laid out, which is most of a 390px screen and the single
    * biggest reason the strip wrapped. And every dropdown drops its word for
-   * its icon, keeping the word as the hover/AT name — the same trade
-   * `vertical` already makes for a side-docked toolbox.
+   * its icon, keeping the word as the hover/AT name.
    *
    * Measured at 390px: a 218px strip before, 75px after. (The phone host then
    * spends some of that back on 40px touch targets, landing at 105px — still
@@ -107,12 +103,8 @@ interface ChartToolbarProps {
    * the menus as before.
    */
   menuBounds?: RefObject<HTMLElement | null>;
-  /** Stack the strip top-to-bottom — the floating toolbox docked to a side
-      edge (Noah, 2026-08-23). Ignores `spread`. */
-  vertical?: boolean;
-  /** Which side the dropdown menus open toward — a side-docked toolbox has
-      no room below itself. */
-  menuSide?: MenuSide;
+  /** Which way the dropdown menus open — up off a strip at the foot of a window. */
+  menuSide?: ToolbarMenuSide;
   fullscreen?: boolean;
   onToggleFullscreen?: () => void;
   replay?: boolean;
@@ -202,13 +194,11 @@ const TIMEFRAME_OPTIONS = TIMEFRAMES.map(t => ({ value: t.value, label: t.label 
 export const TimeframeStrip = ({
   value,
   onChange,
-  vertical = false,
   only,
   held,
 }: {
   value: Timeframe;
   onChange: (tf: Timeframe) => void;
-  vertical?: boolean;
   only?: Timeframe[];
   /** Drawn but disabled, the reason as the title */
   held?: Partial<Record<Timeframe, string>>;
@@ -224,7 +214,7 @@ export const TimeframeStrip = ({
          and a 390px screen gives the rail 213 once Terrain's layout picker is
          beside it. Wrapping changes nothing at any width where they already
          fit. */
-      className={`inline-flex gap-0.5 ${vertical ? 'flex-col items-stretch' : 'flex-wrap items-center'}`}
+      className="inline-flex gap-0.5 flex-wrap items-center"
     >
       {options.map(opt => {
         const active = opt.value === value;
@@ -306,11 +296,8 @@ const STYLE_GLYPHS: Record<ChartStyle, ReactNode> = {
   ),
 };
 
-/* Two sections, because the two families cost the reader differently: an
-   overlay rides the tape, a sub-pane takes height OFF it — which is also why
-   the sub-panes carry T-3's cap (MAX_SUB_PANES, refused in place with the
-   reason printed rather than a row that silently does nothing). */
-/* The rows themselves live in indicatorItems.ts, shared with the script library. */
+/* The indicator rows live in indicatorItems.ts; the Indicators door opens the script library, which lays them out (its
+   two sections and the sub-panes' cap, MAX_SUB_PANES). */
 
 const OVERLAY_ITEMS: { key: keyof ChartOverlays; label: string; hint: string }[] = [
   { key: 'trails', label: 'Exposure trails', hint: 'An oval a strike a candle — size the gamma, colour the side that wins' },
@@ -343,13 +330,14 @@ const CLOCK_HELD_OVERLAYS = new Set<keyof ChartOverlays>([
    toolbar rather than reaching past it into the placement module. */
 export type { MenuSide };
 
+/* The toolbar's menus open below or above it, never sideways: no host docks the strip to a side edge */
+type ToolbarMenuSide = Extract<MenuSide, 'bottom' | 'top'>;
+
 /* The caret points where the menu will pop (Noah, 2026-08-23) — down when it
-   drops below, sideways when a side-docked toolbox throws it left or right. */
+   drops below, up when it opens above (placeMenu flips a menu only to the other side of the same axis) */
 const MENU_SIDE_CARET = {
   bottom: ChevronDown,
   top: ChevronUp,
-  left: ChevronLeft,
-  right: ChevronRight,
 } as const;
 
 const Dropdown = ({
@@ -369,7 +357,7 @@ const Dropdown = ({
   icon?: ReactNode;
   open: boolean;
   onToggle: () => void;
-  menuSide?: MenuSide;
+  menuSide?: ToolbarMenuSide;
   /** Hover name — carries the words when a compact trigger drops its label. */
   title?: string;
   /** The box the menu stays inside — the host's pane (see `menuBounds`). */
@@ -385,7 +373,7 @@ const Dropdown = ({
      open, Tab stays in it, and they come back to the trigger on close; while it is open the desk's keys stand still */
   useOverlay({ open: open && !!placed, ref: menuRef, onClose: onToggle });
 
-  const Caret = MENU_SIDE_CARET[placed?.side ?? menuSide];
+  const Caret = MENU_SIDE_CARET[placed?.side === 'top' || placed?.side === 'bottom' ? placed.side : menuSide];
   return (
   <div className="relative">
     <button
@@ -394,7 +382,7 @@ const Dropdown = ({
       title={title}
       /* A trigger that drops a menu has to say so, and say whether it is
          already open — otherwise the only cue is the caret, which is a
-         rotation nobody can hear. In `compact` and `vertical` the label is
+         rotation nobody can hear. In `compact` the label is
          dropped for the icon, so `title` becomes the accessible name too;
          without this those triggers announce as an empty button. */
       aria-haspopup="menu"
@@ -471,7 +459,6 @@ const ChartToolbar = ({
   keepIntervals = false,
   dense = false,
   menuBounds,
-  vertical = false,
   menuSide = 'bottom',
   fullscreen = false,
   onToggleFullscreen,
@@ -504,7 +491,7 @@ const ChartToolbar = ({
   const storeThemeKey = useCandleThemeKey();
   const themeKey = themeKeyProp ?? storeThemeKey;
   const [openMenu, setOpenMenu] = useState<
-    'overlays' | 'candles' | 'style' | 'indicators' | 'alerts' | 'timeframe' | null
+    'overlays' | 'candles' | 'style' | 'alerts' | 'timeframe' | null
   >(null);
   /* How many are set on this name — the bell jingles when it rises. The
      unseen count and its badge left this bell for the sidebar's (the alerts
@@ -598,16 +585,12 @@ const ChartToolbar = ({
   return (
     <div
       ref={rootRef}
-      className={`flex ${
-        vertical
-          ? 'flex-col items-stretch gap-1'
-          : /* Spread works in compact too now (2026-09-13): the Weigher's
-               docked strip hands this toolbar a row of its own when it wraps,
-               and packed left it left the expand door mid-row. It used to be
-               `spread && !compact`, when compact meant "no room to spread
-               across" — the host's wrapper now grows to the row, so there is. */
-            `items-center gap-2 flex-wrap ${spread ? 'w-full' : ''}`
-      }`}
+      /* Spread works in compact too now (2026-09-13): the Weigher's
+         docked strip hands this toolbar a row of its own when it wraps,
+         and packed left it left the expand door mid-row. It used to be
+         `spread && !compact`, when compact meant "no room to spread
+         across" — the host's wrapper now grows to the row, so there is. */
+      className={`flex items-center gap-2 flex-wrap ${spread ? 'w-full' : ''}`}
     >
       {!has('timeframes') ? null : compact && !keepIntervals ? (
         /* The current interval IS the trigger, the way every mobile charting
@@ -647,9 +630,9 @@ const ChartToolbar = ({
           </div>
         </Dropdown>
       ) : (
-        <TimeframeStrip value={timeframe} onChange={onTimeframe} vertical={vertical} only={timeframes} held={heldTimeframes} />
+        <TimeframeStrip value={timeframe} onChange={onTimeframe} only={timeframes} held={heldTimeframes} />
       )}
-      {afterIntervals && !vertical && (
+      {afterIntervals && (
         <>
           <span className="w-px h-4 shrink-0 bg-borderSubtle" aria-hidden />
           {afterIntervals}
@@ -658,20 +641,17 @@ const ChartToolbar = ({
 
       {/* Spread mode: the divider stops being a line and becomes the spacer
           that shoves every following control to the right edge — the
-          timeframes get the whole left side to breathe (Noah, 2026-08-23).
-          Vertical turns it back into a line, lying flat. */}
+          timeframes get the whole left side to breathe (Noah, 2026-08-23). */}
       <span
         className={
-          vertical
-            ? 'h-px w-4 self-center bg-borderSubtle'
-            : spread
-              ? /* it fills the gap rather than pushing from it (ml-auto), so it
-                   has a width — the chart's top-docked drawing rail centres
-                   itself in this box (StrikeChart useToolbarGap, 2026-09-12) */
-                'flex-1 min-w-0'
-              : 'w-px h-4 shrink-0 bg-borderSubtle'
+          spread
+            ? /* it fills the gap rather than pushing from it (ml-auto), so it
+                 has a width — the chart's top-docked drawing rail centres
+                 itself in this box (StrikeChart useToolbarGap, 2026-09-12) */
+              'flex-1 min-w-0'
+            : 'w-px h-4 shrink-0 bg-borderSubtle'
         }
-        data-toolbar-gap={spread && !vertical ? '' : undefined}
+        data-toolbar-gap={spread ? '' : undefined}
         aria-hidden
       />
 
@@ -681,11 +661,7 @@ const ChartToolbar = ({
           (bars/line/area…), not the color theme; Alerts is live since
           2026-08-28 — armed watches, the fired log, and the bell's count. */}
       {((onToggleReplay && has('replay')) || (onIndicators && has('indicators')) || (alertTicker && has('alerts')) || ((onChartStyle || onPriceScale) && has('candles'))) && (
-        <span
-          className={`flex gap-1 ${
-            vertical ? 'flex-col items-stretch' : 'flex-wrap items-center justify-end'
-          }`}
-        >
+        <span className="flex gap-1 flex-wrap items-center justify-end">
           {/*
             SHED IN COMPACT — the strip could afford one more control, not two.
 
@@ -723,14 +699,14 @@ const ChartToolbar = ({
             >
               <Play className="w-3 h-3" />
               {/* COMPACT DROPS THE WORD, like every other control in this
-                  strip. It read `!vertical` alone, so Replay was the one
+                  strip. Replay was once the one
                   trigger here that kept its label at the size where the strip
                   has none to spare — measured: with Terrain wiring both the
                   pencil and this, the compact strip ran 418px into a 399px
                   column at 1280 with two panes and took a second row over the
                   tape. The `title` carries the word, as it does for
                   Indicators, Alerts and Candles. */}
-              {!vertical && !compact && 'Replay'}
+              {!compact && 'Replay'}
             </button>
           )}
           {onIndicators && indicators && paneId && has('indicators') && (
@@ -740,14 +716,14 @@ const ChartToolbar = ({
                 title="Indicators and scripts"
                 aria-haspopup="dialog"
                 aria-expanded={libraryOpen}
-                aria-label={vertical || compact ? 'Indicators and scripts' : undefined}
+                aria-label={compact ? 'Indicators and scripts' : undefined}
                 className={`inline-flex items-center gap-1.5 px-2 py-1 rounded font-mono text-[11px] uppercase tracking-wider transition-colors ${
                   libraryOpen ? 'bg-ink/[0.07] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.03]'
                 }`}
                 data-scripts-door
               >
                 <Activity className="w-3 h-3 text-bear" />
-                {!(vertical || compact) && 'Indicators'}
+                {!compact && 'Indicators'}
                 {onPaneCount > 0 && (
                   /* how many draw on this pane — silver, a where-you-are count, not a status */
                   <span className="min-w-[14px] h-[14px] px-1 rounded-full bg-silver/[0.15] text-silver font-mono text-[11px] font-bold leading-[14px] text-center" data-scripts-count>
@@ -758,87 +734,9 @@ const ChartToolbar = ({
               <ScriptLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} paneId={paneId} indicators={indicators} onIndicators={onIndicators} fullscreen={fullscreen} />
             </>
           )}
-          {onIndicators && indicators && !paneId && has('indicators') && (
-            <Dropdown
-              label={vertical || compact ? '' : 'Indicators'}
-              /* Signature inks on the tool icons (Noah, 2026-08-23) —
-                 categorical identity, no house meaning: indicators wear the
-                 blue their EMA lines lead with */
-              icon={<Activity className="w-3 h-3 text-bear" />}
-              title="Indicators"
-              open={openMenu === 'indicators'}
-              onToggle={() => setOpenMenu(m => (m === 'indicators' ? null : 'indicators'))}
-              menuSide={menuSide} bounds={menuBounds}
-            >
-              <div className="p-1.5 flex flex-col gap-0.5">
-                {INDICATOR_ITEMS.map((item, idx) => {
-                  const on = indicators[item.key];
-                  const subsOn = SUB_PANE_ORDER.filter(k => indicators[k]).length;
-                  /* The third sub-pane is refused, not shrunk into — the same
-                     budget rule that caps Terrain at four panes. The row says
-                     so instead of silently ignoring the click. */
-                  /* T-15 — session-anchored VWAP has no session cuts to
-                     find on a rule clock; the chart skips it and this row
-                     says why instead of ticking a line that is not there. */
-                  const heldByClock = (barClock ?? 'time') !== 'time' && (item.key === 'vwap' || item.key === 'vwapBands');
-                  const capped = (!!item.sub && !on && subsOn >= MAX_SUB_PANES) || heldByClock;
-                  const firstSub = INDICATOR_ITEMS.findIndex(i => i.sub);
-                  return (
-                    <div key={item.key} className="contents">
-                    {idx === 0 && (
-                      <div className="px-2.5 pt-1 font-mono text-[11px] uppercase tracking-widest text-textMuted">On the tape</div>
-                    )}
-                    {idx === firstSub && (
-                      <div className="px-2.5 pt-2 font-mono text-[11px] uppercase tracking-widest text-textMuted">
-                        Own pane — two at most{capped ? '' : ''}
-                      </div>
-                    )}
-                    <button
-                      role="checkbox"
-                      aria-checked={on}
-                      disabled={capped}
-                      title={
-                        heldByClock
-                          ? 'Needs time bars — the pane is on a rule clock'
-                          : capped
-                            ? 'Two sub-panes are the cap — turn one off first, or the tape shrinks past its floor'
-                            : undefined
-                      }
-                      onClick={() => !capped && onIndicators({ ...indicators, [item.key]: !on })}
-                      className={`flex items-start gap-2.5 px-2.5 py-2 rounded text-left transition-colors ${
-                        capped ? 'opacity-40 cursor-default' : 'hover:bg-ink/[0.03]'
-                      }`}
-                    >
-                      <span
-                        className={`mt-px inline-flex w-3.5 h-3.5 shrink-0 items-center justify-center rounded-[3px] border ${
-                          on ? 'bg-silverFill border-silverFill' : 'border-borderMuted'
-                        }`}
-                      >
-                        {on && <Check className="w-2.5 h-2.5 text-onSilver" />}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-1.5">
-                          <span
-                            className="inline-block w-2 h-[3px] rounded-full"
-                            style={{ background: INDICATOR_INKS[item.key] }}
-                            aria-hidden
-                          />
-                          <span className={`font-mono text-[11px] font-semibold ${on ? 'text-textPrimary' : 'text-textSecondary'}`}>
-                            {item.label}
-                          </span>
-                        </span>
-                        <span className="block text-[11px] text-textSecondary leading-snug">{item.hint}</span>
-                      </span>
-                    </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </Dropdown>
-          )}
           {alertTicker && has('alerts') && (
             <Dropdown
-              label={vertical || compact ? '' : 'Alerts'}
+              label={compact ? '' : 'Alerts'}
               icon={
                 <span className="relative inline-flex">
                   {/* always in the alert ink here (the toolbar's own rule); it jingles when one is set (Noah, 2026-09-10) */}
@@ -855,7 +753,7 @@ const ChartToolbar = ({
           )}
           {(onChartStyle || onPriceScale) && has('candles') && (
             <Dropdown
-              label={vertical || compact ? '' : 'Candles'}
+              label={compact ? '' : 'Candles'}
               icon={<CandlestickChart className="w-3 h-3 text-textPrimary" />}
               title={onPriceScale ? 'Chart style & price scale' : 'Chart style'}
               open={openMenu === 'style'}
@@ -1083,15 +981,13 @@ const ChartToolbar = ({
 
       {/* A hairline between the quartet and the standing controls */}
       {((onToggleReplay && has('replay')) || (onIndicators && has('indicators')) || (alertTicker && has('alerts')) || ((onChartStyle || onPriceScale) && has('candles'))) && has('overlays') && (
-        <span className={vertical ? 'h-px w-4 self-center bg-borderSubtle' : 'w-px h-4 bg-borderSubtle'} aria-hidden />
+        <span className="w-px h-4 bg-borderSubtle" aria-hidden />
       )}
 
-      {/* Vertical compresses the trigger to icon + count — the full word was
-          what set the upright toolbox's width (Noah, 2026-08-23: "too wide");
-          the hover title keeps the name. */}
+      {/* Compact compresses the trigger to icon + count; the hover title keeps the name. */}
       {has('overlays') && (
       <Dropdown
-        label={vertical || compact ? String(activeOverlayCount) : `Overlays ${activeOverlayCount}`}
+        label={compact ? String(activeOverlayCount) : `Overlays ${activeOverlayCount}`}
         icon={<Layers className="w-3 h-3" />}
         title="Overlays"
         open={openMenu === 'overlays'}
@@ -1190,7 +1086,7 @@ const ChartToolbar = ({
            row's right edge; the menu itself still shows the active theme. */
         /* "Theme", no longer "Candles" — that name now belongs to the chart
            STYLE picker beside the timeframes (Noah, 2026-08-23) */
-        label={vertical || compact ? '' : minimal ? 'Theme' : `Theme · ${activeCandleLabel}`}
+        label={compact ? '' : minimal ? 'Theme' : `Theme · ${activeCandleLabel}`}
         title={`Candle theme · ${activeCandleLabel}`}
         icon={<Palette className="w-3 h-3 text-moon" />}
         open={openMenu === 'candles'}
@@ -1258,31 +1154,6 @@ const ChartToolbar = ({
       </Dropdown>
       )}
 
-      {/*
-        GATED ON BEING WIRED, not on `minimal` — and shed in compact.
-
-        It read `!minimal`, and NOTHING in the app passed `onToggleDrawing` —
-        so the button never rendered anywhere, and the drawing layer under it
-        (trendlines, levels, and T-1's measure) had no door at all. A mode flag
-        was standing in for "did the host ask for this", which is what every
-        other optional control here already tests directly.
-
-        SHED IN COMPACT, with Replay. The two of them are the strip's only
-        MODES, they were the only things T-1 and T-13 added to it, and
-        together they took the compact strip from 350px to 420 against columns
-        as narrow as 379 — a second row of chrome over the tape at ordinary
-        laptop widths. Shedding both puts it back at exactly the 350 it was
-        before either feature, so neither cost the narrow desk a pixel.
-
-        BOTH KEEP A DOOR, which is what makes shedding them honest rather than
-        hiding them: `d` toggles draw mode and `p` toggles replay, both on the
-        active pane, both announced. And both modes are VISIBLE once on — draw
-        mode raises its own tool strip, replay wears a badge in the identity
-        row that is never shed.
-
-        Terrain wires both per pane. The desks that pass no handler are
-        unchanged, because the button was not reaching them either way.
-      */}
       {onToggleFullscreen && has('fullscreen') && (
         <button
           onClick={onToggleFullscreen}
