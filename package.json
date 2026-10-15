@@ -23,6 +23,7 @@
     "theta:history": "tsx scripts/theta-history/index.ts",
     "theta:gth": "tsx scripts/theta-probe/gth-first.ts",
     "spx:night": "node scripts/spx-night-shot.mjs",
+    "terrain:check": "node scripts/terrain-ui-proof.mjs",
     "theta:rebuild": "tsx scripts/theta-rebuild.ts",
     "feed:check": "tsx scripts/feed-check.ts",
     "feed:recorder": "tsx server/recorderMain.ts",

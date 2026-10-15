@@ -2750,17 +2750,14 @@ const StrikeChart = ({
       };
     }
 
-    /* THE FRAME BELONGS TO THE USER AFTER FIRST TOUCH (ported from
-       CampaignChart, 2026-08-30 — Noah: dragging/zooming had "this thing
-       thats fighting my cursor... its like its ignoring me completely").
-       The library only suspends price autoscale on an AXIS drag; a wheel
-       zoom or a pan keeps it on, so every 1s tick re-fit the price scale
-       and undid the reader's hand. First wheel/pointer on the chart
-       freezes the scale outright. The way back: resetView (the pill,
-       right-click card, Alt+R, dbl-click) or a new world re-engages. */
-    const freezeScale = () => chart.priceScale('right').applyOptions({ autoScale: false });
-    container.addEventListener('wheel', freezeScale, { passive: true });
-    container.addEventListener('pointerdown', freezeScale);
+    /* THE PRICE AXIS FOLLOWS THE CANDLES IN VIEW, AS TRADINGVIEW'S DOES (the owner, 2026-10-15: "after dragging back a
+       day at 1m, the axis stays on today's range and the candles sit off the chart. The axis must autoscale to the
+       candles in view, like TradingView"). Until then the first wheel or press on the chart switched autoscale off
+       (ported from CampaignChart, 2026-08-30, for "this thing thats fighting my cursor"), so a pan carried today's range
+       back over a day the candles stood above. Now a pan and a wheel move time alone and the scale fits whatever
+       candles they bring into view; the price is the reader's only when the reader takes it — a drag on the price axis
+       (the library turns autoscale off itself, and a drag on the plot then moves the price too), kept through every
+       tick until resetView (the pill, right-click card, Alt+R, dbl-click) or a new world gives it back. */
 
     return () => {
       /* keepView: remember where the reader was before this instance dies —
@@ -2773,8 +2770,6 @@ const StrikeChart = ({
         const ts = chart.timeScale();
         KEPT_VIEWS.set(`${w.ticker}|${w.timeframe}|${w.clock}`, { barSpacing: ts.options().barSpacing, scroll: ts.scrollPosition() });
       }
-      container.removeEventListener('wheel', freezeScale);
-      container.removeEventListener('pointerdown', freezeScale);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
       chart.unsubscribeCrosshairMove(onCross);
       devCharts?.delete(devEntry);

@@ -63,5 +63,5 @@ overnight quotes have not been measured (no terminal here); your first night tel
 - How Theta dates the evening session (under the calendar evening or under the trading day) is asked by `npm run
   theta:gth` — the downloader asks it under the calendar evening; if the probe says otherwise, the two calls change before
   the history is trusted.
-- After a drag back a day at one minute, SPY's price axis kept today's range (the candles at 779 stood off it) — seen in a
-  shot here, not yet traced.
+- ~~After a drag back a day at one minute, SPY's price axis kept today's range~~ — fixed 2026-10-15: the chart switched
+  autoscale off on the first press or wheel; now only a drag on the price axis does (`npm run terrain:check`).
