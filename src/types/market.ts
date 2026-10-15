@@ -53,6 +53,11 @@ export interface GexLevel {
   freshAt?: number;
   /** The share of the strike's gamma priced on a vol older than an hour at the column's clock (carried vols included) */
   staleShare?: number;
+  /** THE CHAIN READ STOPPED (the owner's orbs round 2, item 8, 2026-10-15: "If vols are stale for the last half hour,
+      those ovals must show the stale edge"): the moment (epoch ms) of the newest chain read knowable at the cell's
+      minute, set only when it is more than trailModel READ_GAP_MS before it — a read is due every ten minutes, so one
+      was missed and the vols stand where that read left them. The mark wears the stale edge. */
+  readGap?: number;
   coverage?: number;
   /** When the cell is a bar's peak minute (timeframe.ts aggregateSnapshots), that minute's own time (epoch s) */
   at?: number;
@@ -109,6 +114,8 @@ export interface TileColumnPre {
   refD: number;
   ringD: number;
   minutes: number;
+  /** the delta field's size reference: the session's largest |delta| node so far (refG is the gross's, the same rule) */
+  maxD: number;
   /** the last minute counted, epoch s */
   at: number;
   /** the column's net at that last minute — the regime as it stood when the bar closed (the regime strip's reading) */

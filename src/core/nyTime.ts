@@ -261,11 +261,12 @@ export const nyTickMarks: TickMarkFormatter = (time, type) => {
     case 1:
       return MONTHS[p.month - 1];
     case 2:
-      return String(p.day);
+      /* a day tick names its date, "Oct 2" — never a bare "2" between the times (the owner's orbs round 2, item 7) */
+      return `${MONTHS[p.month - 1]} ${p.day}`;
     case 4:
-      return typeof time === 'number' ? clock(time * 1000, { seconds: true }) : String(p.day);
+      return typeof time === 'number' ? clock(time * 1000, { seconds: true }) : `${MONTHS[p.month - 1]} ${p.day}`;
     default:
-      return typeof time === 'number' ? clock(time * 1000) : String(p.day);
+      return typeof time === 'number' ? clock(time * 1000) : `${MONTHS[p.month - 1]} ${p.day}`;
   }
 };
 

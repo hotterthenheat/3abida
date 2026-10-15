@@ -37,7 +37,7 @@ for (const zone of ZONES) {
   for (const [how, t] of Object.entries(stamps)) {
     const s = sessionDateOf(t as never);
     const viewer = fmtDayLocal(t as never);
-    const ok = s.y === SESSION.y && s.m === SESSION.m && s.d === SESSION.d && dayOf(t) === '13' && monthOf(t) === 'Oct' && SESSION_TIME.timeFormatter(t as never) === 'Oct 13';
+    const ok = s.y === SESSION.y && s.m === SESSION.m && s.d === SESSION.d && dayOf(t) === 'Oct 13' && monthOf(t) === 'Oct' && SESSION_TIME.timeFormatter(t as never) === 'Oct 13';
     check(`${zone} · ${how}: the session reads Oct 13 (tick "${dayOf(t)}", stamp "${SESSION_TIME.timeFormatter(t as never)}"; the viewer's own calendar says "${viewer}")`, ok);
   }
 }

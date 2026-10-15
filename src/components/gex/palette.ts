@@ -22,10 +22,11 @@ export const ACCENT = '#C7D3E8';
 /* THE WALLS WEAR THE GAMMA PAIR — GOLD ABSORBS, VIOLET AMPLIFIES (the owner, 2026-10-14, the orbs message: "Gold = absorb
    (calls side), Violet = amplify (puts side) — Skylit's meaning … Call wall chip gold, put wall chip violet"; from
    2026-10-14's earlier pass to that message the pair was ember/glacier the other way round, and green/red before it).
-   The dark tokens' own values (tokens.css --absorb 240 196 70, --amplify 132 102 234). A surface that can wear a light
+   The dark tokens' own values (tokens.css --absorb 232 185 74, --amplify 128 100 247 — saturated since the orbs' second
+   round, 2026-10-15). A surface that can wear a light
    ground reads the tokens off its own box (paletteInk, gexNodesPrimitive trailPaperFrom / axisInksFrom). */
-export const CALL_WALL = '#F0C446';
-export const PUT_WALL = '#8466EA';
+export const CALL_WALL = '#E8B94A';
+export const PUT_WALL = '#8064F7';
 /* INDECISION GRAY (Noah, 2026-08-29): the flip is the price where the book
    is on the verge of two sides — neither's color belongs to it. Gray IS the
    read. (The old baby blue moved up: it is the supreme's now.) */

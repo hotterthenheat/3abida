@@ -15,7 +15,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { WallStick, stickyWallMoves, stickyWalls, wallObsOf, wallObsOfRow, wallStateEventsOf, wallStateOn } from '../src/data/feed/trailModel';
 import { pickWalls } from '../src/core/walls';
-import { HOVER_KEEP, addOval, NODE_LABELS, OVAL_ALPHA_MIN, OVAL_MERGE_CSS, OVAL_MIN_CSS, OVAL_OUTLINE_MIN_CSS, OVAL_ROW_SHARE, PIN_KEEP, TOP_NODES, mergeBars, optimalCandlestickWidth, ovalAlpha, ovalDiameter } from '../src/components/gex/gexNodesPrimitive';
+import { BALANCED_BELOW, DARK_MARK_INKS, HOVER_KEEP, addOval, markInk, NODE_LABELS, OVAL_ALPHA_MIN, OVAL_MERGE_CSS, OVAL_MIN_CSS, OVAL_OUTLINE_MIN_CSS, OVAL_ROW_SHARE, PIN_KEEP, TOP_NODES, mergeBars, optimalCandlestickWidth, ovalAlpha, ovalDiameter } from '../src/components/gex/gexNodesPrimitive';
 import { beadLegendLines } from '../src/components/terrain/beadLegend';
 import type { StoreRow } from '../server/fieldStore';
 
@@ -126,7 +126,18 @@ const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
   check(`d at size 0 is ${OVAL_MIN_CSS} px on any row; at size 1 it is 85% of the row (row 20 → ${ovalDiameter(1, 20)} px; row 2 → ${ovalDiameter(1, 2)} px, never under ${OVAL_MIN_CSS})`, ovalDiameter(0, 20) === OVAL_MIN_CSS && near(ovalDiameter(1, 20), 17) && ovalDiameter(1, 2) === OVAL_MIN_CSS && near(OVAL_ROW_SHARE, 0.85));
   check(`d grows on the √ scale: at a quarter of the reference (√ = 0.5) it stands halfway (row 20 → ${ovalDiameter(0.5, 20)} px)`, near(ovalDiameter(0.5, 20), 10));
   check(`candles merge under ${OVAL_MERGE_CSS} px: spacing 6 → 1 bar, 3 → ${mergeBars(3)} bars (a ${3 * mergeBars(3)} px group), 1.5 → ${mergeBars(1.5)} bars, 0.8 → ${mergeBars(0.8)}`, mergeBars(6) === 1 && mergeBars(8) === 1 && mergeBars(3) === 3 && mergeBars(1.5) === 5 && mergeBars(0.8) === 9 && [3, 1.5, 0.8].every(sp => sp * mergeBars(sp) - 1 >= OVAL_MERGE_CSS));
-  check(`opacity ${OVAL_ALPHA_MIN} at size 0, 1 at full, on the same √ (0.5 → ${ovalAlpha(0.5)})`, ovalAlpha(0) === OVAL_ALPHA_MIN && ovalAlpha(1) === 1 && near(ovalAlpha(0.5), 0.775));
+  check(`opacity ${OVAL_ALPHA_MIN} at size 0, 1 at full, on the same √ (0.5 → ${ovalAlpha(0.5)}) — the orbs' second round: "Opacity 0.8 → 1.0"`, OVAL_ALPHA_MIN === 0.8 && ovalAlpha(0) === OVAL_ALPHA_MIN && ovalAlpha(1) === 1 && near(ovalAlpha(0.5), 0.9));
+  /* TWO STATES, NO GRADIENT (the orbs' second round, item 2: "Full hue unless |net| ÷ gross < 0.2; below that, grey") */
+  {
+    const inks = DARK_MARK_INKS;
+    const same = (a: readonly number[], b: readonly number[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+    const below = markInk(1, 0.19, inks);
+    const at = markInk(1, BALANCED_BELOW, inks);
+    const full = markInk(1, 1, inks);
+    const callAt = markInk(-1, 0.2, inks);
+    const callFull = markInk(-1, 0.9, inks);
+    check(`the colour is two states at ${BALANCED_BELOW}: one-sided 0.19 is the grey (${below.join(',')}), 0.2 and 1 the same full violet (${at.join(',')} / ${full.join(',')}), the calls' 0.2 and 0.9 the same full gold (${callAt.join(',')})`, BALANCED_BELOW === 0.2 && same(below, inks.neutral) && same(at, inks.put) && same(full, inks.put) && same(callAt, inks.call) && same(callFull, inks.call));
+  }
   check(`the renderer's constants: ${TOP_NODES} nodes a candle plus the walls, ${NODE_LABELS} pills, the outline from ${OVAL_OUTLINE_MIN_CSS} px, the rest at ${HOVER_KEEP * 100}% under a hover and ${PIN_KEEP * 100}% under a pin`, TOP_NODES === 5 && NODE_LABELS === 3 && OVAL_OUTLINE_MIN_CSS === 6 && HOVER_KEEP === 0.6 && PIN_KEEP === 0.4);
   /* the library's own body width, so the candles' edge lands on the body drawn */
   check(`the candle body width follows lightweight-charts' optimalCandlestickWidth (spacing 3 → ${optimalCandlestickWidth(3, 1)}, 6 → ${optimalCandlestickWidth(6, 1)}, 12 → ${optimalCandlestickWidth(12, 1)}, 12 at 2× → ${optimalCandlestickWidth(12, 2)})`, optimalCandlestickWidth(3, 1) === 3 && optimalCandlestickWidth(6, 1) === 5 && optimalCandlestickWidth(12, 1) === 9 && optimalCandlestickWidth(12, 2) === 19);

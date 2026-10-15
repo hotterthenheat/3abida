@@ -54,6 +54,7 @@ import {
 } from '../../data/timeframe';
 import { GexTrailsPrimitive, axisInksFrom, trailPaperFrom, type BeadHit, type BeadLegend } from './gexNodesPrimitive';
 import type { ScaleBasis, ScaleRef } from '../../data/feed/beadScale';
+import { largestNodeOf } from '../../data/feed/beadScale';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
 import { isoDayLabel, num, pct, pctSigned, usd, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
@@ -844,6 +845,10 @@ interface StrikeChartProps {
       the same reading the strip's chip prints (trailModel regimeWordsOf) — handed to the host for its decision strip;
       null when the strip is off or has no bar. Fired only when the reading changes. */
   onRegime?: (r: (RegimeRead & { words: string; range: string | null }) | null) => void;
+  /** "TOP" (the owner's orbs round 2, item 6): the field's largest node now — the strike of the newest column's largest
+      oval (beadScale `largestNodeOf`), the axis chip's "Top" — handed to the host so its header names the same strike;
+      null when there is no column. Fired only when it changes. */
+  onTopNode?: (strike: number | null) => void;
   /** A JUMP OF THE VIEW (the UI pass — the header's Today · 1W · 1M · 6M · 1Y · Max and its calendar): the host bumps
       `nonce` with a span or a day, and the time scale shows it — a span from the last bar back (today: from the
       session's open), a day centred, at the zoom the chart has. The host picks the timeframe first. */
@@ -959,6 +964,12 @@ const railSubscribe = (fn: () => void) => {
   };
 };
 const railSnapshot = () => railPrefs;
+/** The left inset the drawing rail takes from a pane's plot (docked left and open) — a host's chrome over the plot keeps
+    clear of it the way the candles do */
+export function useRailLeftInset(): number {
+  const r = useRailPrefs();
+  return r.open && r.dock === 'left' ? RAIL_LEFT_INSET_PX : 0;
+}
 function useRailPrefs(): { dock: RailDock; open: boolean } {
   return useSyncExternalStore(railSubscribe, railSnapshot, railSnapshot);
 }
@@ -1187,7 +1198,7 @@ const StrikeChart = ({
   barCountdown = 'measured',
   asOf = null,
   futureBars = null,
-  footBar = null, onRegime, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null,
+  footBar = null, onRegime, onTopNode, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null,
   onJumpResult, onViewEdge, onViewFrom, onBarClick, stale = false,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
@@ -1497,6 +1508,9 @@ const StrikeChart = ({
   onCrosshairRef.current = onCrosshair;
   const onRegimeRef = useRef(onRegime);
   onRegimeRef.current = onRegime;
+  const onTopNodeRef = useRef(onTopNode);
+  onTopNodeRef.current = onTopNode;
+  const topHandedRef = useRef<number | null | undefined>(undefined);
   const onViewEdgeRef = useRef(onViewEdge);
   onViewEdgeRef.current = onViewEdge;
   const onViewFromRef = useRef(onViewFrom);
@@ -1869,19 +1883,29 @@ const StrikeChart = ({
       rows.push({ key: 'supreme', price: levels.supreme, line1: `Sup ${k(levels.supreme)}`, line2: dist(levels.supreme), bg: css(inks.supreme), fg: inkFor(inks.supreme), title: 'The supreme — the heaviest strike in the book either way' });
       taken.add(levels.supreme);
     }
-    /* the field's heaviest strike now, with its share of the column */
+    /* "Top": the field's largest node now (beadScale `largestNodeOf` — the largest oval of the newest column, the first
+       pill beside the last candle), the one definition the header's Nearest reads too (onTopNode) */
     const hist = bookHistory();
     const newest = hist.length ? hist[hist.length - 1] : null;
-    if (newest && newest.levels.length) {
-      const total = newest.levels.reduce((a, l) => a + Math.abs(l.value), 0);
-      const top = [...newest.levels].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))[0];
-      if (top && total > 0 && fin(top.strike) && !taken.has(top.strike)) {
-        rows.push({ key: 'top', price: top.strike, line1: `Top ${k(top.strike)}`, line2: dist(top.strike), bg: css(top.value >= 0 ? inks.put : inks.call), fg: inkFor(top.value >= 0 ? inks.put : inks.call), title: `The field's heaviest strike now — ${Math.round((Math.abs(top.value) / total) * 100)}% of the column; the pill beside the last candle sizes it against the largest node` });
-      }
+    const top = newest ? largestNodeOf(newest.levels) : null;
+    if (top && fin(top.strike) && !taken.has(top.strike)) {
+      rows.push({ key: 'top', price: top.strike, line1: `Top ${k(top.strike)}`, line2: dist(top.strike), bg: css(top.value >= 0 ? inks.put : inks.call), fg: inkFor(top.value >= 0 ? inks.put : inks.call), title: "Top — the field's largest node now: the largest oval in the newest column, by total gamma at the strike (the first pill beside the last candle)" });
     }
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [axisChips, levels.callWall, levels.putWall, levels.flip, levels.supreme, levels.spot, quote, sigmaRem, revision, mainNonce, themeKey, appTheme, wallStates?.cw, wallStates?.pw]);
+  /* "Top" handed to the host (onTopNode) — the same function and column as the chip above, whether the chips stand or not */
+  useEffect(() => {
+    if (!onTopNodeRef.current) return;
+    const hist = bookHistory();
+    const newest = hist.length ? hist[hist.length - 1] : null;
+    const top = newest ? largestNodeOf(newest.levels) : null;
+    const strike = top && Number.isFinite(top.strike) ? top.strike : null;
+    if (strike === topHandedRef.current) return;
+    topHandedRef.current = strike;
+    onTopNodeRef.current(strike);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision, mainNonce, tape]);
   /* THE CHIPS RIDE THE AXIS: each frame the chip of each level is set at its price's y — pinned at the clear area's
      edges with ▲/▼ when it is off the plot — and the chips are pushed apart where they would overlap, the price tag's
      band kept clear; nothing is written that has not changed */
@@ -6283,6 +6307,15 @@ const StrikeChart = ({
             : lvl.prov === 'carried'
               ? `vols ${lvl.staleBound ? 'from prints at or before' : 'as traded to'} ${staleAt}`
               : `vols as traded to ${freshAt || staleAt}${share != null && share >= 0.005 ? ` · ${pct(share * 100)} of the strike's gamma on a vol older than an hour (${oldest})` : ' · every vol within the hour'}`;
+          /* WHY A MARK WEARS THE STALE EDGE, said on hover (the owner's orbs round 2, item 8): the chain read stopped
+             (trailModel READ_GAP_MS — a read is due every ten minutes), or half its gamma stands on vols over an hour old */
+          const staleWhy = !feedCell
+            ? null
+            : lvl.readGap
+              ? `Stale · no chain read since ${nyClockOf(lvl.readGap)} — the vols stand where that read left them`
+              : lvl.prov !== 'carried' && (share ?? 0) >= 0.5
+                ? `Stale · ${pct((share ?? 0) * 100)} of the strike's gamma on vols over an hour old`
+                : null;
           const measured = feedCell ? measuredAt(ticker, card.strike, card.time) : null;
           /* the expanded figures: the rank at that bar, the price then and the strike's distance, the change over the
              thirty minutes before, the live legs for a bead on the newest column, the count's date */
@@ -6314,6 +6347,7 @@ const StrikeChart = ({
                 Since the open ({marketClock(9, 30, { on: card.time * 1000 })}): {card.open == null ? '—' : usdCompactSigned(card.value - card.open)}
                 {!expanded && <span className="ml-2 text-textMuted">Details › click</span>}
               </div>
+              {staleWhy && <div className="font-mono text-[11px] text-warn whitespace-normal" data-bead-stale>{staleWhy}</div>}
               {expanded && (
                 <>
                   <div className="text-[11px] text-textMuted mt-1">Estimated dealer gamma (assumed sign){feedCell ? ` · ${pastDay ? `${isoDayLabel(beadDay)}'s` : "today's"} opening positions re-priced along the price path, each contract on its latest traded vol` : ''}</div>

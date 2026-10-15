@@ -66,6 +66,39 @@ export function refOfBins(counts: readonly Record<number, number>[]): ScaleRef |
   return n ? { ref: quantileOf(hist, n, SCALE_Q), ring: quantileOf(hist, n, RING_Q), minutes: n, sessions: counts.length } : null;
 }
 
+/** THE SIZE REFERENCE, A MINUTE AT A TIME (the owner's orbs round 2, item 1, 2026-10-15: "Make the reference the largest
+    node of the session so far (no look-ahead). The largest is full size; the rest scale by √(size ÷ largest)"): the
+    largest gross at a strike over the minutes AT OR BEFORE this one in its own session — the renderer's, the tiles' and
+    the store's one rule */
+export class RunningMax {
+  private m = 0;
+  push(x: number): number {
+    if (Number.isFinite(x) && x > this.m) this.m = x;
+    return this.m;
+  }
+  reset(): void {
+    this.m = 0;
+  }
+  get value(): number {
+    return this.m;
+  }
+}
+/** The size reference of each minute — the session's largest node at or before it */
+export function minuteMaxRefs(times: readonly number[], maxima: readonly number[], dayOf: (t: number) => string): Float64Array {
+  const out = new Float64Array(times.length);
+  const run = new RunningMax();
+  let day = '';
+  for (let i = 0; i < times.length; i++) {
+    const d = dayOf(times[i]);
+    if (d !== day) {
+      day = d;
+      run.reset();
+    }
+    out[i] = run.push(maxima[i]);
+  }
+  return out;
+}
+
 /** THE SESSION'S RUNNING REFERENCES, a minute at a time — the renderer's and the store's one code: each minute's
     reference and ring over the minutes AT OR BEFORE it in its own session (`dayOf` names the session) */
 export function minuteRefs(times: readonly number[], maxima: readonly number[], dayOf: (t: number) => string): { ref: Float64Array; ring: Float64Array } {
@@ -133,6 +166,21 @@ export const columnGross = (levels: readonly { value: number; gross?: number }[]
     if (g > m) m = g;
   }
   return m;
+};
+/** THE LARGEST NODE OF A COLUMN (the owner's orbs round 2, item 6, 2026-10-15: "The header says 'Top 765' and the axis
+    chip says 'Top 755'. Use one definition"): the strike whose oval is the largest — by gross gamma where the column keeps
+    it, |value| where not — the first pill beside the last candle, the axis chip "Top" and the header's "Top" alike */
+export const largestNodeOf = <L extends { strike: number; value: number; gross?: number }>(levels: readonly L[]): L | null => {
+  let best: L | null = null;
+  let m = 0;
+  for (const l of levels) {
+    const g = l.gross ?? Math.abs(l.value);
+    if (g > m && Number.isFinite(l.strike)) {
+      m = g;
+      best = l;
+    }
+  }
+  return best;
 };
 export const columnMax = (levels: readonly { value: number }[]): number => {
   let m = 0;

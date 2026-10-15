@@ -576,3 +576,36 @@ now says each: "OI dated Oct 14 · book figured 12:02 pm · vols traded to 12:17
   ($767.15 from 4 s on, the same as the axis and the strip).
 - The state chips can be busy when the price chops on a wall (five in 32 minutes above); section D registers any
   confirmation variant.
+
+## Orbs, round 2 (2026-10-15; the owner, of the 6:34 pm screenshot)
+
+The same view before and after: SPY, 15 minutes, Oct 14, your clock (Pacific) — shots/orbs2-before-spy-15m.png and
+shots/orbs2-after-spy-15m.png.
+
+| # | asked | what changed | checked by |
+|---|---|---|---|
+| 1 | size: reference = the session's largest node so far | one rule, `RunningMax` (data/feed/beadScale.ts), for the renderer, the tiles (`pre.refG`, `maxD`) and the store (`refG`, STORE_FORMAT 3); the pills' "% of the largest" is of the same reference; the legend says "Full size = $5.7B per 1% · the session's largest so far, as of 4:59 pm" | bead-scale-proof (renderer = store, every column, 1m and 5m; a row is replayed on the rule it was drawn under), tiles-proof. Measured on the after shot: the 780 ovals 31 px early, 13–14 px late; 772 19–38 px |
+| 2 | colour: two states at 0.2, opacity 0.8 → 1, saturated gold and blue-violet everywhere | `markInk` full hue at \|net\| ÷ gross ≥ 0.2, grey below (`BALANCED_BELOW`); `OVAL_ALPHA_MIN` 0.8; tokens --absorb 232 185 74 (#E8B94A), --amplify 128 100 247 (#8064F7); the ladder's ramp, the wall chips (palette.ts), the legend swatches all read them | orbs-proof: 0.19 grey, 0.2 and 1 the same violet; gold 10.8:1 and violet 4.8:1 on the dark panel; violet apart from the supreme's magenta (OKLab 0.203, darker) |
+| 3 | no enter/leave rings or ghosts | removed; the wall-move ticks stay | after shot |
+| 4 | one gap note per gap, at the foot inside its gap, hidden when narrow | deduplicated by gap and words; drawn at the plot's foot (or just over the Reset pill's row), clear of the library's mark and the Reset pill; skipped when wider than its gap | shots/orbs2-three-panes-gap-note.png ("no field after the close", AAPL, once) |
+| 5 | the legend cut off | its pieces never cut; it wraps between them (two lines on your view); a pane narrower than the words takes a short form ("● absorb ● amplify ● balanced · size = total gamma · soft edge = stale · Full size $5.7B"), the whole in its title; it starts past the drawing rail | measured: 570 px, two lines, nothing cut |
+| 6 | "Top 765" vs "Top 755" | one definition: Top = the field's largest node now (the first pill, `largestNodeOf`); the header's Nearest uses the axis chips' names and strikes (CW, PW, Flip, Sup, Top). 765 was the book's third-heaviest strike, 755 the field's heaviest | after: both read the same set — on this view Top is 770, the put wall, so neither prints a separate Top |
+| 7 | the day tick read "2" | day ticks name the date ("Oct 14"), intraday and daily, every chart | session-date-proof (26/26, "Oct 13" in six zones) |
+| 8 | "Vols to 12:29 pm" | see below | tiles-proof (3 new checks), shots/orbs2-stale-card.png |
+
+**Item 8 — why the vols stop at 12:29 pm Pacific.** It is this workspace's recorder, not the market or the model: on
+Oct 14 it read SPY's chain at 9:32 am … 3:18 pm and **3:29:30 pm New York for the last time**, and the books to 3:36 pm,
+because its dev server was restarted while I worked (the reads before it have gaps of 12–17 minutes for the same
+reason). The always-on recorder reads the chain every ten minutes to the close. **What changed**: a column whose newest
+read that brought vols is more than **15 minutes** before its end (a read is due every ten; one was missed) carries
+the read's time on every cell (`readGap`); its ovals wear the stale edge, the card says "Stale · no chain read since
+12:29 pm — the vols stand where that read left them", and the Fresh chip turns to the warn ink: "OI Oct 14 · vols to
+12:29 pm · no read since 12:29 pm". On this day that is every column from 3:44 pm New York on. The rule reads only
+reads that carried vols — a past session that opens on an open-interest read and has no minute vols (the session
+before's close vols alone) is "carried", not a gap.
+
+**The violet**: you asked for about #7B5CF5. It reads 4.4:1 on the dark panel, under the 4.5 the chips' words need;
+#8064F7 is the nearest that reads 4.8:1, with the same hue.
+
+**Seen while checking**: on Oct 14 SPY's field runs 4:00 am to 8:00 pm New York (today's columns are modeled on every
+bar). Your SPX message's item 5 asks for regular hours by default with the gap labelled — that is the next build.

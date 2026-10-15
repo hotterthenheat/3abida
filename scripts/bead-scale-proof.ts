@@ -13,7 +13,7 @@
 */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { BEAD_STEPS, RunningScale, columnGross, minuteRefs, pooledRef, stepOf, stepT, strengthOf } from '../src/data/feed/beadScale';
+import { BEAD_STEPS, RunningScale, columnGross, minuteMaxRefs, minuteRefs, pooledRef, stepOf, stepT, strengthOf } from '../src/data/feed/beadScale';
 import { DARK_MARK_INKS, GexTrailsPrimitive, STRENGTH_STEPS, markInk, type MarkInks } from '../src/components/gex/gexNodesPrimitive';
 import { heatRampColorFor, HEAT_MODE } from '../src/components/gex/heatmap';
 import { aggregateSnapshots } from '../src/data/timeframe';
@@ -89,12 +89,12 @@ const maximaG = base.map(s => columnGross(s.levels));
     }
     const l = prim.legend()!;
     check(`${texture}m texture: every column drawn against its last minute's reference (worst gap ${worst}); the legend's ${l.ref.toExponential(4)} is the newest column's`, worst === 0 && l.ref === prim.columnAt(cols.length - 1).ref && l.ref === ref[base.length - 1] && l.basis === 'session');
-    /* THE SIZE REFERENCE (B3): the same count over each minute's peak gross */
-    const refG = minuteRefs(
+    /* THE SIZE REFERENCE (B3; the orbs' second round): the session's largest peak gross at or before each minute */
+    const refG = minuteMaxRefs(
       base.map(s => s.time),
       maximaG,
       nyDay
-    ).ref;
+    );
     let worstG = 0;
     for (let i = 0; i < cols.length; i++) {
       const end = cols[i].time + texture * 60 - 1;
@@ -102,7 +102,7 @@ const maximaG = base.map(s => columnGross(s.levels));
       for (let k = 0; k < base.length && base[k].time <= end; k++) j = k;
       worstG = Math.max(worstG, Math.abs(prim.refAt(i).refG - refG[j]) / refG[j]);
     }
-    check(`${texture}m texture: the size reference is the store's count over each minute's peak gross (worst gap ${worstG}); the legend's ${l.refG.toExponential(4)} sizes by ${l.sizeBy}`, worstG === 0 && l.refG === refG[base.length - 1] && l.sizeBy === 'gross');
+    check(`${texture}m texture: the size reference is the session's largest node so far, the store's own rule (worst gap ${worstG}); the legend's ${l.refG.toExponential(4)} sizes by ${l.sizeBy}`, worstG === 0 && l.refG === refG[base.length - 1] && l.sizeBy === 'gross');
   }
 }
 
@@ -239,7 +239,7 @@ const maximaG = base.map(s => columnGross(s.levels));
     let read = 0;
     const cut: string[] = [];
     for (const s of sessions) {
-      type Row = { m: number; max: number; ref: number; maxG?: number; refG?: number; cells: [number, number, number?][] };
+      type Row = { f?: number; m: number; max: number; ref: number; maxG?: number; refG?: number; cells: [number, number, number?][] };
       const all = readFileSync(s.file, 'utf8')
         .split('\n')
         .filter(Boolean)
@@ -269,12 +269,20 @@ const maximaG = base.map(s => columnGross(s.levels));
       }
       read++;
       const pick = rng(rows.length);
-      /* THE SIZE (B3): rows of format 2 count the gross; older rows the net, on both sides alike */
-      const replay = minuteRefs(
+      /* THE SIZE (B3): rows of format 2 count the gross; older rows the net, on both sides alike. A row of format 3 was
+         drawn against the session's largest node so far (the orbs' second round), one before it against the 85th
+         percentile of the minutes' peaks — each is replayed on the rule it was drawn under */
+      const replayP85 = minuteRefs(
         rows.map(r => r.m / 1000),
         rows.map(r => r.maxG ?? r.max),
         nyDay
       ).ref;
+      const replayMax = minuteMaxRefs(
+        rows.map(r => r.m / 1000),
+        rows.map(r => r.maxG ?? r.max),
+        nyDay
+      );
+      const replay = rows.map((r, i) => ((r.f ?? 0) >= 3 ? replayMax[i] : replayP85[i]));
       for (let n = 0; n < 20; n++) {
         const i = Math.floor(pick() * rows.length);
         const r = rows[i];

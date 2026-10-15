@@ -1059,12 +1059,12 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   the ribbon of translucent, haloed, sub-bar ellipses that read as slivers is gone): a rect on the device-pixel grid,
   the slot's width less a hairline, no halo, pattern or shadow. WHAT A MARK ENCODES (B3): its HEIGHT the strike's GROSS
   gamma (|calls| + |puts|, `GexLevel.gross` — trailModel adds it to every column, the simulator to the house's, the
-  peak-minute fold carries it) √-scaled against the SIZE reference (the same running count over per-minute peak gross:
-  `refG`, the primitive's baseRunG), its HUE the net's side (ember puts, glacier calls), its COLOUR STRENGTH |net| ÷ gross
+  peak-minute fold carries it) √-scaled against the SIZE reference (`refG` — since the orbs' second round the session's
+  largest node so far, below), its HUE the net's side (ember puts, glacier calls), its COLOUR STRENGTH |net| ÷ gross
   (grey when balanced — `markInk`, STRENGTH_STEPS), a SOFT EDGE for a stale or carried cell and nothing else; no identity
   ink on a mark (no supreme magenta, no wall ink, no p95 ring — the chips name them); the zoom-out rule's "heaviest" is
-  by size (`topSet`). THE CHANGE MARKS (B4): a hollow ring where a strike enters the three heaviest, a grey outline where
-  one leaves, a two-pixel tick at the new strike where a wall moves. THE LEGEND says "size = total gamma at the strike ·
+  by size (`topSet`). THE CHANGE MARKS (B4): a two-pixel tick at the new strike where a wall moves (the ring where a strike
+  entered the three heaviest and the outline where one left went with the orbs' second round). THE LEGEND says "size = total gamma at the strike ·
   colour = which side wins · grey = balanced · soft edge = stale"; where a tape keeps no gross (store rows of format 1)
   the mark sizes by |net| and the legend says so. STORE FORMAT 2 (server/fieldStore.ts): cells `[strike, net, gross]`,
   `maxG`, `refG`; readers take the first two figures. NEVER A BLANK WITHOUT A REASON (B1): a run of bars with no column
@@ -1082,14 +1082,15 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   legend lines; the report docs/terrain-build-2026-10-14/README.md "The orbs"). THE NODE IS AN OVAL (gexNodesPrimitive):
   one solid oval per node per candle, centred on the candle and the strike, the cell the bar's peak minute; d = 3 px +
   (85% of the strike row − 3 px) × √(min(size ÷ reference, 1)), height d, width d capped at the candle spacing − 1 px
-  (`ovalDiameter`), opacity 0.55 → 1 on the same √ (`ovalAlpha`); candles closer than 6 px MERGE into one oval of the
+  (`ovalDiameter`), opacity 0.8 → 1 on the same √ (`ovalAlpha` — the orbs' second round: lower on near-black read muddy); candles closer than 6 px MERGE into one oval of the
   group's peak minute (`mergeBars`: ⌈7 ÷ spacing⌉ bars); whole device pixels, anti-aliased edges; an oval of 6 px or
   more wears a 1 px outline in a darker shade of its own hue; no glow, blur, gradient, shadow or depth — a soft edge is
   STALE and nothing else. HOW MANY: the TOP_NODES (5) largest by size a candle, plus the walls shown and the flip rule
   always; the "Every strike" switch draws every strike. THE COLOUR IS ONE MEANING EVERYWHERE — the ovals, the ladder's
   bars (heatmap.ts HEAT_MODE 'gold-violet'), the legend, the wall chips, the axis labels and the regime strip: GOLD =
-  ABSORB (the calls' side, --absorb 240 196 70 / paper 150 112 8) and VIOLET = AMPLIFY (the puts', --amplify 132 102 234
-  / paper 98 66 200), grey where |net| ÷ gross is small — the rails' Colours default to House (TerrainCfg `rails`, the reader's pick kept
+  ABSORB (the calls' side, --absorb 232 185 74 / paper 158 114 0) and VIOLET = AMPLIFY (the puts', --amplify 128 100 247
+  / paper 91 60 230 — a blue-violet clearly apart from the supreme's magenta; the owner's #7B5CF5 read 4.4:1 on the dark
+  panel, #8064F7 reads 4.8), TWO STATES, NO GRADIENT: the full hue, grey where |net| ÷ gross < 0.2 (`BALANCED_BELOW`) — the rails' Colours default to House (TerrainCfg `rails`, the reader's pick kept
   under that key since this build; Thermal stays a pick); the violet darker than the supreme's magenta, the paper pair
   3:1 or better; under data-cvd="blue-orange" a paler gold and a redder violet stand off the blue and orange candles
   (OKLab ≥ 0.13 on the dark ground under protan, deutan and tritan simulation; on paper the dichromat distances close to
@@ -1099,11 +1100,28 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   `optimalCandlestickWidth`), the price line, the words. HOVER (StrikeChart → `setHover`): the node under the pointer
   wears a 1.5 px ring in the ink, its strike's whole chain brightens and the rest dims to 60%; A CLICK on a node or on
   the ladder's strike PINS it (Terrain's focus, `onPinStrike`): the chain bright with a 1 px ring on every node, the rest
-  at 40%, until clicked again or Esc — a veil and a chain drawn over the cached bitmap, never in it. THE PILLS: the three
-  largest live nodes, "strike · % of the largest" with an oval swatch, beside the last candle inside the plot; every box on
+  at 40%, until clicked again or Esc — a veil and a chain drawn over the cached bitmap, never in it. NO RING OR GHOST for a
+  strike entering or leaving the top set (the orbs' second round: "top-5 membership changes too often for them to mean
+  anything"); the wall-move ticks stay. THE PILLS: the three
+  largest live nodes, "strike · % of the largest" (of the size reference, so the words match the sizes) with an oval swatch, beside the last candle inside the plot; every box on
   the plot (gap labels, pills, wall chips) settles clear of the others and of the library's mark at the bottom-left
   (`settle`). THE LEGEND: "size = total gamma at the strike · ● gold = absorb · ● violet = amplify · ● grey = balanced ·
   soft edge = stale" (Terrain LegendSwatch, the renderer's own inks through legend().inks), then the scale's statement.
+  THE ORBS, ROUND 2 (2026-10-15 — the owner, of the 6:34 pm screenshot; the report docs/terrain-build-2026-10-14/README.md
+  "Orbs, round 2"): THE SIZE REFERENCE IS THE SESSION'S LARGEST NODE SO FAR (beadScale `RunningMax` / `minuteMaxRefs`,
+  the renderer's runMaxG, the tiles' `pre.refG` and `maxD`, the store's `refG` from STORE_FORMAT 3 — no look-ahead): the
+  largest is full size, the rest √(size ÷ largest); the Fixed and Prior bases take the largest of their sessions. THE GAP
+  NOTES: one a gap, inside it at the plot's foot (or just over the Reset pill's row), never twice, hidden where the gap is
+  too narrow. THE LEGEND FITS: its pieces never cut, wrapping between pieces, the full words where the column holds them
+  in two lines (LEGEND_FULL_MIN_PX), the short form under it, starting past the drawing rail (StrikeChart
+  `useRailLeftInset`). ONE "TOP": the field's largest node now (beadScale `largestNodeOf`) — the axis chip, the first
+  pill and the header's Nearest (StrikeChart `onTopNode`); the Nearest names are the axis chips' own (CW, PW, Flip, Sup,
+  Top). A DAY TICK NAMES ITS DATE ("Oct 2" — chartTime and nyTime tick formatters). A MISSED CHAIN READ IS STALE: a
+  column whose newest read that brought vols (Universe `volReads` — never the open-interest read a past session opens on)
+  is more than READ_GAP_MS (15 min) before its end carries `readGap` on every cell (the fold, the window views and the
+  tiles' 12th cell figure keep it): the soft edge, "Stale · no chain read since …" on the card, and the Fresh chip in
+  the warn ink ("no read since …"). On 2026-10-14 this workspace's recorder read the chain last at 3:29:30 pm New York
+  and the books at 3:36 pm (its dev server restarted); the always-on recorder reads every ten minutes to the close.
   THE WALLS FROM THE BOOK (2026-10-15 — the owner: "no hold time fixes it, because the flip comes from the definition
   (the put wall must be below price). Choose walls from the book, not from price's side"; docs/data-feed.md "The walls
   from the book"): core/walls.ts `pickWalls` is the heaviest calls-absorb strike (the call wall) and the heaviest

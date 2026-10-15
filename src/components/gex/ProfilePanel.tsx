@@ -1116,8 +1116,11 @@ const ProfilePanel = ({
          past the tips when the lane has room; the spine through the rows */
       /* THE SIGN'S SHADE — one colour per side off the ramp the legs wear (the partner's flat
          inks, ours): the put pole where hedging amplifies, the call pole where it absorbs */
+      /* the House colours' bars are the pole itself — the same two values the ovals, the chips and the legend wear (the
+         orbs' second round, 2026-10-15: "Ovals, ladder bars, chips and legend all use the same values"); another palette
+         keeps its own ink a step short of its pole */
       const sideInk = (sign: 1 | -1) => {
-        const [rr, gg, bb] = ramp(sign, 0.8);
+        const [rr, gg, bb] = ramp(sign, pal.to === 'gold-violet' ? 1 : 0.8);
         return `rgb(${rr},${gg},${bb})`;
       };
       if (showSize && view === 'net') {

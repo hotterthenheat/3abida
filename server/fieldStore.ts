@@ -63,7 +63,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statS
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { columnSummary, modelColumn, pastInputs, readAt, straddleExpiries, straddleOfMinute, TRAIL_MODEL, universeOf, type ServerInputs, type StraddleRead, PARTS, PART_STRIDE } from '../src/data/feed/trailModel';
-import { RunningScale, columnGross, columnMax } from '../src/data/feed/beadScale';
+import { RunningMax, RunningScale, columnGross, columnMax } from '../src/data/feed/beadScale';
 /** A column's net by expiry partition — every strike's gamma parts summed */
 const partNets = (snap: { levels: readonly unknown[]; parts?: Float32Array }): number[] | undefined => {
   const p = snap.parts;
@@ -87,8 +87,10 @@ import type { MinuteBar, PastDay } from './fieldBackfill';
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
 /** The row's own format — a change of what a row holds is a new number */
 /* 2 since 2026-10-14 (the owner's B3): a cell carries its gross gamma as a third figure, and a row its largest gross (maxG)
-   and the size reference (refG) — a row of format 1 reads as before, the map sizing by |net| where no gross is kept */
-export const STORE_FORMAT = 2;
+   and the size reference (refG) — a row of format 1 reads as before, the map sizing by |net| where no gross is kept.
+   3 since 2026-10-15 (the owner's orbs round 2, item 1): refG is the session's largest node so far (beadScale RunningMax),
+   no longer the 85th percentile of the minutes' peaks — a row of format 2 keeps the reference it was drawn against */
+export const STORE_FORMAT = 3;
 /** A shown row is written this long after its minute at the latest; later, the minute is a gap */
 export const SHOWN_LATE_MS = 3 * 60_000;
 /** A minute is complete this long after its end (its bar in, its prints reported) */
@@ -154,8 +156,8 @@ export interface StoreDay {
 interface State {
   written: Set<number>;
   scale: RunningScale;
-  /** the size reference's running count (the gross) */
-  scaleG: RunningScale;
+  /** the size reference: the session's largest gross so far */
+  scaleG: RunningMax;
   /** The newest minute written — a row never goes in before one already written */
   last: number;
   gaps: number;
@@ -213,7 +215,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     /* a file another writer grew since this store last saw it is read again — its minutes are written */
     if (!st || st.size !== size) {
       const gaps = st?.gaps ?? 0;
-      st = { written: new Set(), scale: new RunningScale(), scaleG: new RunningScale(), last: 0, gaps, loaded: false, size };
+      st = { written: new Set(), scale: new RunningScale(), scaleG: new RunningMax(), last: 0, gaps, loaded: false, size };
       for (const r of readRows(name, day, kind)) {
         st.written.add(r.m);
         st.scale.push(r.max);
@@ -395,7 +397,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     const u = universeOf(past.name, past.day, inputsOf(past));
     const exps = straddleExpiries(u.expiry, past.day);
     const scale = new RunningScale();
-    const scaleG = new RunningScale();
+    const scaleG = new RunningMax();
     const out: StoreRow[] = [];
     for (const bar of [...bars].sort((a, b) => a.time - b.time)) {
       const m = bar.time * 1000;

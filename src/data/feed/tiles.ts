@@ -11,7 +11,8 @@
   own fold (timeframe.ts aggregateSnapshots — a bar's cell is its peak minute) and the bars beside it
   (aggregateCandles; the day's bar closes at the official close where it is known). Each folded column carries what
   the renderer would otherwise read off the per-minute store (GexSnapshot `pre`): the session's bead references as of
-  the column's last minute — the net's p85 and p95, the gross's p85, the delta's p85 and p95, the minutes counted —
+  the column's last minute — the net's p85 and p95, the size reference (the session's largest node so far, the gross's
+  and the delta's), the delta's p85 and p95, the minutes counted —
   and the walls the one stick (trailModel WallStick) held then, with their states. And each window's per-minute peaks
   (`maxima`), so the prior and fixed bases pool them as they pool the store's.
 
@@ -31,16 +32,17 @@ import { RunningScale, columnGross, columnMax } from './beadScale';
 import { modelColumn, netOf, pastInputs, universeOf, wallObsOf, WallStick, windowView, TRAIL_MODEL, type ExpiryWindow, type PastInputsLike } from './trailModel';
 import { nyWallTime } from '../../core/nyTime';
 
-export const TILES_FORMAT = 1;
+/** 2 (2026-10-15, the orbs' second round): the size reference is the session's largest node so far, not a p85 */
+export const TILES_FORMAT = 2;
 export const TILE_TFS = [1, 5, 15, 30, 60, 1440] as const;
 export type TileTf = (typeof TILE_TFS)[number];
 export const TILE_WINDOWS: readonly ExpiryWindow[] = ['all', '0dte', 'fri', 'opex'];
 /** Numbers a cell holds */
-export const CELL_W = 11;
+export const CELL_W = 12;
 
 /** [time (epoch s), open, high, low, close, volume] */
 export type TileBar = [number, number, number, number, number, number];
-/** [time, spot, flags (1 rebuilt), pre: [ref, ring, refG, refD, ringD, minutes, at, net], walls: [cw, pw, cwState, pwState],
+/** [time, spot, flags (1 rebuilt), pre: [ref, ring, refG, refD, ringD, minutes, at, net, maxD], walls: [cw, pw, cwState, pwState],
     cells, scale: [the net's and gross's power of ten, the delta's]] — a cell's money is a whole number of its scale */
 export type TileCol = [number, number, number, number[], (number | null)[], (number | null)[], [number, number]];
 export interface Tile {
@@ -107,6 +109,7 @@ function encodeCells(levels: readonly GexLevel[], t: number, sc: [number, number
     out[o++] = offsetOf(t, l.freshAt != null ? l.freshAt / 1000 : undefined);
     out[o++] = offsetOf(t, l.staleSince != null ? l.staleSince / 1000 : undefined);
     out[o++] = l.staleBound ? 1 : 0;
+    out[o++] = offsetOf(t, l.readGap != null ? l.readGap / 1000 : undefined);
   }
   return out;
 }
@@ -134,6 +137,8 @@ function decodeCells(cells: readonly (number | null)[], t: number, sc: [number, 
     const stale = fromOffset(t, cells[o + 9]);
     if (stale != null) l.staleSince = stale * 1000;
     if (num(cells[o + 10])) l.staleBound = true;
+    const gap = fromOffset(t, cells[o + 11]);
+    if (gap != null) l.readGap = gap * 1000;
     out[i] = l;
   }
   return out;
@@ -151,7 +156,7 @@ export function encodeColumn(snap: GexSnapshot, pre: TileColumnPre): TileCol {
     snap.time,
     snap.spot ?? 0,
     snap.rebuilt ? 1 : 0,
-    [sig(pre.ref), sig(pre.ring), sig(pre.refG), sig(pre.refD), sig(pre.ringD), pre.minutes, pre.at, sig(pre.net)],
+    [sig(pre.ref), sig(pre.ring), sig(pre.refG), sig(pre.refD), sig(pre.ringD), pre.minutes, pre.at, sig(pre.net), sig(pre.maxD)],
     [pre.cw, pre.pw, stateCode(pre.cwState), stateCode(pre.pwState)],
     encodeCells(snap.levels, snap.time, sc),
     sc,
@@ -163,7 +168,7 @@ export function decodeColumn(c: TileCol): GexSnapshot {
   const snap: GexSnapshot = {
     time,
     levels: decodeCells(cells, time, sc ?? [0, 0]),
-    pre: { ref: p[0], ring: p[1], refG: p[2], refD: p[3], ringD: p[4], minutes: p[5], at: p[6], net: p[7] ?? 0, cw: w[0] ?? null, pw: w[1] ?? null, cwState: STATES[(w[2] as number) ?? 0] ?? null, pwState: STATES[(w[3] as number) ?? 0] ?? null },
+    pre: { ref: p[0], ring: p[1], refG: p[2], refD: p[3], ringD: p[4], minutes: p[5], at: p[6], net: p[7] ?? 0, maxD: p[8] ?? p[3], cw: w[0] ?? null, pw: w[1] ?? null, cwState: STATES[(w[2] as number) ?? 0] ?? null, pwState: STATES[(w[3] as number) ?? 0] ?? null },
   };
   if (spot) snap.spot = spot;
   if (flags & 1) snap.rebuilt = true;
@@ -266,8 +271,10 @@ export function buildDayTiles(inp: DayTileInputs, minutes?: readonly GexSnapshot
     const ws = w === 'all' ? [...snaps] : snaps.map(s => windowView(s, w));
     /* the per-minute references and the held walls — the renderer's own counts, run once here */
     const run = new RunningScale();
-    const runG = new RunningScale();
     const runD = new RunningScale();
+    /* the size references: the session's largest node so far (the renderer's own rule since the orbs' second round) */
+    let maxG = 0;
+    let maxD = 0;
     const stick = new WallStick();
     const times: number[] = [];
     const pres: TileColumnPre[] = [];
@@ -281,11 +288,13 @@ export function buildDayTiles(inp: DayTileInputs, minutes?: readonly GexSnapshot
       let dm = 0;
       for (const l of s.levels) dm = Math.max(dm, Math.abs(l.dex ?? 0));
       const ref = run.push(m);
-      const refG = runG.push(g);
+      maxG = Math.max(maxG, g);
+      maxD = Math.max(maxD, dm);
+      const refG = maxG;
       const refD = runD.push(dm);
       const held = stick.next(wallObsOf(s.time, s.spot ?? NaN, s.levels));
       times.push(s.time);
-      const pre: TileColumnPre = { ref, ring: run.ring(), refG, refD, ringD: runD.ring(), minutes: i + 1, at: s.time, net: netOf(s.levels), cw: held.cw, pw: held.pw, cwState: held.cwState, pwState: held.pwState };
+      const pre: TileColumnPre = { ref, ring: run.ring(), refG, refD, ringD: runD.ring(), maxD, minutes: i + 1, at: s.time, net: netOf(s.levels), cw: held.cw, pw: held.pw, cwState: held.cwState, pwState: held.pwState };
       pres.push(pre);
       /* the plot's chips: a held wall's move (trailModel stickyWallMoves' rule) and a state that is not a move (wallStateEventsOf's) */
       if (prev)

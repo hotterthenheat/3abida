@@ -58,35 +58,35 @@ const RAMPS: Record<
   RampPalette
 > = {
   /* THE GAMMA PAIR (the owner's orbs message, 2026-10-14): positive = put-dominant = AMPLIFY climbs VIOLET from the dark
-     zero to the --amplify token (132 102 234); negative = call-dominant = ABSORB climbs GOLD to the --absorb token
-     (240 196 70). Nine stops a side, even in OKLab from the neutral to the pole (the gold with a warm bend so its
-     middle is amber, not khaki). */
+     zero to the --amplify token (128 100 247); negative = call-dominant = ABSORB climbs GOLD to the --absorb token
+     (232 185 74) — the saturated pair of the orbs' second round (2026-10-15). Nine stops a side from the neutral to the
+     pole. Terrain's ladder draws its bars at the pole (ProfilePanel sideInk), the same two values as the ovals. */
   'gold-violet': {
     pos: [
       [0, [42, 42, 42]],
-      [0.125, [52, 50, 64]],
-      [0.25, [62, 58, 86]],
-      [0.375, [73, 66, 109]],
-      [0.5, [84, 73, 133]],
-      [0.625, [95, 81, 157]],
-      [0.75, [107, 88, 182]],
-      [0.875, [119, 95, 208]],
-      [1, [132, 102, 234]],
+      [0.125, [53, 49, 68]],
+      [0.25, [64, 56, 93]],
+      [0.375, [74, 64, 119]],
+      [0.5, [85, 71, 144]],
+      [0.625, [96, 78, 170]],
+      [0.75, [106, 86, 196]],
+      [0.875, [117, 93, 221]],
+      [1, [128, 100, 247]],
     ],
     neg: [
       [0, [42, 42, 42]],
-      [0.125, [67, 58, 49]],
-      [0.25, [93, 74, 54]],
-      [0.375, [118, 91, 59]],
-      [0.5, [144, 110, 63]],
-      [0.625, [169, 130, 67]],
-      [0.75, [193, 151, 69]],
-      [0.875, [216, 173, 70]],
-      [1, [240, 196, 70]],
+      [0.125, [66, 60, 46]],
+      [0.25, [90, 78, 50]],
+      [0.375, [113, 96, 54]],
+      [0.5, [137, 114, 58]],
+      [0.625, [161, 131, 62]],
+      [0.75, [184, 149, 66]],
+      [0.875, [208, 167, 70]],
+      [1, [232, 185, 74]],
     ],
     // top of the bar is +maxAbs, so the violet leads
     gradient:
-      'linear-gradient(to bottom, #8466EA 0%, #775FD0 6%, #6B58B6 13%, #5F519D 19%, #544985 25%, #49426D 31%, #3E3A56 38%, #343240 44%, #2A2A2A 50%, #433A31 56%, #5D4A36 63%, #765B3B 69%, #906E3F 75%, #A98243 81%, #C19745 88%, #D8AD46 94%, #F0C446 100%)',
+      'linear-gradient(to bottom, #8064F7 0%, #755DDD 6%, #6A56C4 12%, #604EAA 19%, #554790 25%, #4A4077 31%, #40385D 38%, #353144 44%, #2A2A2A 50%, #423C2E 56%, #5A4E32 62%, #716036 69%, #89723A 75%, #A1833E 81%, #B89542 88%, #D0A746 94%, #E8B94A 100%)',
   },
   /* THE THERMAL, a try (Noah, 2026-09-05: "can we try the thermal design
      just for a try", after ruling the same mapping for the wheel: "the
@@ -509,8 +509,8 @@ export function heatRampColor(sign: 1 | -1, t: number): RGB {
 const PAPER_MUTED: RGB = [75, 78, 86]; /* --text-muted on paper */
 const PAPER_INSET: RGB = [245, 244, 240]; /* --inset on paper, the island's ground */
 const PAPER_POLES: Record<'gold-violet' | 'ember-glacier' | 'thermal-yellow', { pos: RGB; neg: RGB }> = {
-  /* the gamma pair's paper tokens (tokens.css --amplify 98 66 200, --absorb 150 112 8) */
-  'gold-violet': { pos: [98, 66, 200], neg: [150, 112, 8] },
+  /* the gamma pair's paper tokens (tokens.css --amplify 91 60 230, --absorb 158 114 0) */
+  'gold-violet': { pos: [91, 60, 230], neg: [158, 114, 0] },
   'ember-glacier': { pos: [146, 86, 4], neg: [3, 105, 161] },
   'thermal-yellow': { pos: [165, 0, 38], neg: [49, 54, 149] },
 };

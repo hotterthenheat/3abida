@@ -132,10 +132,13 @@
   --glacier: 122 189 215;
   /* THE GAMMA PAIR (the owner's orbs message, 2026-10-14 — "Gold = absorb (calls side), Violet = amplify (puts side) —
      Skylit's meaning … Blue-violet clearly darker than the supreme's magenta"): one meaning on Terrain's ovals, the
-     ladder's bars, the legend, the wall chips and the regime strip; grey where the two sides balance. Gold 12:1 on the
-     panel, the violet 4.7:1 and darker than the magenta (OKLab distance 0.20). */
-  --absorb: 240 196 70;
-  --amplify: 132 102 234;
+     ladder's bars, the legend, the wall chips and the regime strip; grey where the two sides balance. SATURATED (the
+     orbs' second round, 2026-10-15 — the owner: "the ovals read as khaki, grey-lavender and grey … gold ≈ #E8B94A, violet
+     ≈ #7B5CF5 (blue-violet, clearly apart from the supreme's magenta)"): the gold #E8B94A, 10.5:1 on the panel; the
+     violet #8064F7 — a hair lighter than #7B5CF5, whose 4.3:1 is under the 4.5:1 the chips' and axis's words drawn in
+     it need — 4.7:1, darker than the magenta and clearly apart from it. */
+  --absorb: 232 185 74;
+  --amplify: 128 100 247;
   /* THE WIRE'S BEATS (components/news/CatTag): a categorical set, deliberately muted so
      it never impersonates the semantic set — tokens since 2026-09-16 so paper can cut them */
   --cat-earnings: 232 196 104;
@@ -268,10 +271,10 @@
   --thermal-cool: 29 97 168;
   --ember: 146 86 4; /* 5.9:1 (was 4.9) — the put figures on the ladder tile read this on paper */
   --glacier: 3 105 161;
-  /* the gamma pair on paper: a deep gold at 4.6:1 on white (4.0 on the canvas), a violet at 6.7:1 — both over the owner's
-     3:1 floor for the paper variants */
-  --absorb: 150 112 8;
-  --amplify: 98 66 200;
+  /* the gamma pair on paper, saturated as on black (the orbs' second round): a deep gold at 4.3:1 on white (3.5 on the
+     panel, 3.9 on the canvas), a blue-violet at 6.5:1 — both over the owner's 3:1 floor for the paper variants */
+  --absorb: 158 114 0;
+  --amplify: 91 60 230;
   /* the wire's beats cut for paper — the same seven hues, 5.6:1 to 7.3:1 on white (the dark
      pastels printed at 1.5:1 to 1.9:1 here) */
   --cat-earnings: 140 92 6;

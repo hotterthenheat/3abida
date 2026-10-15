@@ -51,6 +51,11 @@ export const CHAIN_MAX_DTE = 60;
 const LAST_HOUR_MS = 3600_000;
 /** A vol older than this at the column's clock counts as old in the cell's `staleShare` */
 const STALE_MS = 3600_000;
+/** A CHAIN READ MISSED (the owner's orbs round 2, item 8): the recorder reads the chain every ten minutes (a read lands
+    about eleven apart); a column whose newest read knowable at its end is more than this old stands on vols nothing has
+    refreshed since — every cell carries `readGap` and wears the stale edge. On a past session rebuilt from the minute
+    vols a read is every minute a contract traded, so this marks only a real hole in the inputs. */
+export const READ_GAP_MS = 15 * 60_000;
 const YEAR_MS = 365 * 864e5;
 
 /** UW's carry: the rate and yield its vols are solved under (fitted on six names, one figure for all of them) */
@@ -186,6 +191,9 @@ export interface Universe {
   obs: Obs[][];
   /** The chain reads' moments, oldest first — a column's inputs are named by the newest at or before it */
   reads: number[];
+  /** The moments a read BROUGHT VOLS, oldest first — a chain read carrying vols, a past minute's prints (never the
+      open-interest read a past session opens on) — the read gap (READ_GAP_MS) is measured on these */
+  volReads: number[];
   seedDate: string | null;
   /** The rate the universe is priced on (ServerInputs.rate); undefined: UW's convention */
   rate?: number;
@@ -263,6 +271,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
   const [dy, dm, dd] = day.split('-').map(Number);
   const priorAt = inputs.seed ? (([y, m, d]) => nyWallTime(y, m, d, 16, 0))(inputs.seed.date.split('-').map(Number)) : nyWallTime(dy, dm, dd, 0, 0);
   let oiTodayFrom = 0;
+  const volReads = new Set<number>();
   for (const read of reads) {
     const todays = read.receivedAt >= publish;
     if (todays && !oiTodayFrom) oiTodayFrom = read.receivedAt;
@@ -275,7 +284,10 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
       /* a count is noted when it changes — the same count read again is the same knowledge; the newest read of a kind
          (prior or published) is the count of that kind */
       if (!c.oiObs.length || c.oiObs[c.oiObs.length - 1].oi !== oi) c.oiObs.push({ at, oi });
-      if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false });
+      if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) {
+        c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false });
+        volReads.add(read.receivedAt);
+      }
     }
   }
   /* a past session's vols minute by minute: each knowable at its minute's end, its print within the minute */
@@ -331,6 +343,7 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     part: (ends => Uint8Array.from(kept.map(c => partOf(c.expiry, day, ends))))(windowEnds(day)),
     obs: kept.map(c => c.obs),
     reads: [...new Set([...reads.map(r => r.receivedAt), ...tickEnds])].sort((a, b) => a - b),
+    volReads: [...new Set([...volReads, ...tickEnds])].sort((a, b) => a - b),
     seedDate: seed?.date ?? null,
     ...(inputs.rate != null && Number.isFinite(inputs.rate) ? { rate: inputs.rate } : {}),
   };
@@ -384,6 +397,20 @@ export function oiAt(list: readonly OiObs[], by: number): number {
   return out;
 }
 
+/** The newest read that brought vols knowable by `by` (its moment), 0 for none */
+export function volReadAt(u: Pick<Universe, 'volReads'>, by: number): number {
+  const r = u.volReads;
+  let lo = 0;
+  let hi = r.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (r[m] <= by) lo = m + 1;
+    else hi = m;
+  }
+  const out = lo > 0 ? r[lo - 1] : 0;
+  if (pitProbe && out) pitProbe('chain read', out);
+  return out;
+}
 /** The newest chain read knowable by `by` (its moment), 0 for none */
 export function readAt(u: Universe, by: number): number {
   let out = 0;
@@ -467,6 +494,10 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
   const s2 = spot * spot;
   const [a, b] = windowAt(u.strikes, spot, half);
   const levels: GexLevel[] = [];
+  /* the newest read that brought vols, knowable at the column's end — past READ_GAP_MS, the column's vols are where it
+     left them (a session with no vol read at all is the session before's close vols: 'carried' says it) */
+  const lastRead = volReadAt(u, knowBy);
+  const readGap = lastRead > 0 && knowBy - lastRead > READ_GAP_MS ? lastRead : 0;
   /* the strike's sums by expiry partition (item 6) — the window views add them up, so every window is priced in this
      one pass and a switch asks nothing */
   const parts: number[] = [];
@@ -522,7 +553,7 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
     const coverage = fresh / all;
     /* the house's sign (levels.ts feedStrike): the calls' gamma and every delta turned over, the puts' gamma as is */
     /* `gross` (the owner's B3): the calls' and the puts' gamma added without sign — `all`, the strike's size on the map */
-    levels.push({ strike: k, value: -gc + gp, gross: all, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, coverage });
+    levels.push({ strike: k, value: -gc + gp, gross: all, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, ...(readGap ? { readGap } : {}), coverage });
   }
   const drift = driftToClose(u, bar);
   return { time: bar.time, levels, spot, rebuilt: true, parts: Float32Array.from(parts), ...(drift ? { drift } : {}) };
@@ -551,7 +582,7 @@ export function windowView(snap: GexSnapshot, w: ExpiryWindow): GexSnapshot {
     const all = sum(o + 2 * PARTS);
     if (!(all > 0)) return;
     const coverage = sum(o + 3 * PARTS) / all;
-    levels.push({ strike: l.strike, value: sum(o), gross: all, dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, coverage, ...(l.at != null ? { at: l.at } : {}) });
+    levels.push({ strike: l.strike, value: sum(o), gross: all, dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, ...(l.readGap ? { readGap: l.readGap } : {}), coverage, ...(l.at != null ? { at: l.at } : {}) });
   });
   /* the drift by partition rides along: driftOf sums it through the window it is asked for */
   const view: GexSnapshot = { time: snap.time, levels, spot: snap.spot, rebuilt: snap.rebuilt, ...(snap.drift ? { drift: snap.drift } : {}) };

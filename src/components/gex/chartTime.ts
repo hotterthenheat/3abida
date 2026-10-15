@@ -84,10 +84,9 @@ export const fmtStampLocal = (t: Time, clock?: ChartClock): string => `${fmtDayL
 /**
  * Axis tick marks, in the reader's timezone.
  *
- * Day ticks stay bare numbers and month ticks carry the name — the library
- * emits a Month tick whenever the visible range crosses a boundary, so the
- * context arrives without every tick paying for it in width. These panes run
- * at 9-10px; a column of "Aug 30"s would crowd out the tape.
+ * A DAY TICK NAMES ITS DATE (the owner's orbs round 2, item 7, 2026-10-15: "The day marker on the time axis reads '2';
+ * it should be the date"): "Oct 2", not a bare "2" between the clock times — the library spaces its marks by their
+ * width, so a wider day mark only drops a time tick near it. Month and year ticks keep their names.
  */
 const tickMarks = (time: Time, type: TickMarkType, clock: ChartClock): string => {
   const d = chartDate(time, clock);
@@ -97,7 +96,7 @@ const tickMarks = (time: Time, type: TickMarkType, clock: ChartClock): string =>
     case TickMarkType.Month:
       return MONTHS[d.getMonth()];
     case TickMarkType.DayOfMonth:
-      return String(d.getDate());
+      return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
     case TickMarkType.TimeWithSeconds:
       return readerClock(d.getTime(), { seconds: true });
     default:
@@ -155,7 +154,7 @@ export const sessionTickMarks: TickMarkFormatter = (time, type) => {
     case TickMarkType.Month:
       return MONTHS[s.m - 1];
     case TickMarkType.DayOfMonth:
-      return String(s.d);
+      return `${MONTHS[s.m - 1]} ${s.d}`;
     default:
       return fmtSession(time);
   }

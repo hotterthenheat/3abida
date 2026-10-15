@@ -1241,6 +1241,8 @@ not recorded, or the live lag in minutes.
 `maxG` (the column's largest gross) and `refG` (the size reference). Every reader takes the first two figures (the
 track record, the recap, the agree check, the replay); rows of format 1 read as before, and the map sizes them by
 |net| with the legend saying so. The model's version is unchanged: the figures are the same, a field is added.
+**Store format 3** (2026-10-15, the orbs' second round): `refG` is the session's largest gross so far (beadScale
+`RunningMax`), no longer the p85 of the minutes' peaks; a row of format 2 keeps the reference it was drawn against.
 
 **The series job** (server/seriesBackfill.ts, on the always-on recorder — SERIES_NAMES=SPY,QQQ,SPX, SERIES_DAYS=730,
 `off` to stop it): thirty seconds after the recorder starts, and at 5:15 pm New York for the session just over, it
@@ -1265,12 +1267,14 @@ scripts/series-backfill-proof.ts runs the rules against a stand-in client in `np
 draws (the same model: universeOf and modelColumn on the session's rebuilt inputs, every regular minute), seen through
 the window (windowView) and folded by the page's own fold (aggregateSnapshots: a bar's cell is its peak minute). Each
 column carries what the renderer would otherwise count off the per-minute store, as of the column's last minute: the
-session's p85 and p95 of per-minute peaks (the net's), the gross's p85, the delta's p85 and p95, the minutes counted,
+session's p85 and p95 of per-minute peaks (the net's), the size reference (the session's largest gross so far; the
+delta's largest, `maxD`, since tiles format 2), the delta's p85 and p95, the minutes counted,
 the last minute's net, and the walls the one stick held then with their states. A tile also keeps the window's
 per-minute peaks (the prior and fixed bases pool them) and the held walls' moves and states at the minute. The bars
 are kept once a timeframe (bars-<tf>.json.gz); the day's bar closes at the official close where close.json holds it.
-A cell is eleven numbers — money as whole numbers of a power of ten per column (within a twenty-thousandth of the
-column's largest figure), shares in thousandths, times as seconds from the column.
+A cell is twelve numbers — money as whole numbers of a power of ten per column (within a twenty-thousandth of the
+column's largest figure), shares in thousandths, times as seconds from the column; the twelfth is the missed chain
+read (`readGap`, the orbs' second round), the read's time from the column or null.
 
 **Where they come from** (server/fieldTiles.ts): written beside the session (`<NAME>/<D>/tiles/`) when the backfill
 saves a rebuilt session, when the Theta rebuild builds a day UW's backfill did not, by a sweep on the always-on

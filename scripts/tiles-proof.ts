@@ -7,7 +7,8 @@
   - every timeframe's columns are the page's own fold of the same minutes (timeframe.ts aggregateSnapshots), every
     window's the page's own window view (trailModel windowView) folded the same way
   - each column carries the renderer's own counts as of its last minute: the session's p85 and p95 of per-minute peaks
-    (beadScale RunningScale), the gross's p85, the delta's p85 and p95, and the walls the one stick held (WallStick)
+    (beadScale RunningScale), the size reference (the session's largest node so far, the gross's and the delta's), the
+    delta's p85 and p95, and the walls the one stick held (WallStick)
   - the walls' events are the chips' own (stickyWallMoves, wallStateEventsOf) at the minute
   - the bars are the page's fold (aggregateCandles); the day's bar closes at the official close
   - the server writes, serves a range, lists the day's bar and the sessions it can tile, and a changed model is built again
@@ -20,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { buildDayTiles, dayBarOf, decodeBar, decodeColumn, encodeColumn, mergeByTime, modelDay, TILE_TFS, TILE_WINDOWS, type TileMinuteBar } from '../src/data/feed/tiles';
-import { stickyWalls, wallObsOf, wallStateEventsOf, stickyWallMoves, windowView, type SeedRow } from '../src/data/feed/trailModel';
+import { READ_GAP_MS, stickyWalls, wallObsOf, wallStateEventsOf, stickyWallMoves, windowView, type SeedRow } from '../src/data/feed/trailModel';
 import { aggregateCandles, aggregateSnapshots } from '../src/data/timeframe';
 import { RunningScale, columnGross, columnMax } from '../src/data/feed/beadScale';
 import { nyWallTime } from '../src/core/nyTime';
@@ -75,7 +76,7 @@ check(`a tile a window and timeframe: ${tiles.length} (${TILE_WINDOWS.length} wi
   let strikesOk = true;
   let timesOk = true;
   for (const snap of minutes.slice(0, 120)) {
-    const enc = encodeColumn(snap, { ref: 1, ring: 2, refG: 3, refD: 4, ringD: 5, minutes: 6, at: snap.time, net: 7, cw: 600, pw: 598, cwState: 'holding', pwState: 'broken' });
+    const enc = encodeColumn(snap, { ref: 1, ring: 2, refG: 3, refD: 4, ringD: 5, maxD: 8, minutes: 6, at: snap.time, net: 7, cw: 600, pw: 598, cwState: 'holding', pwState: 'broken' });
     const dec = decodeColumn(JSON.parse(JSON.stringify(enc)));
     let mV = 0;
     let mD = 0;
@@ -132,7 +133,9 @@ check(`a tile a window and timeframe: ${tiles.length} (${TILE_WINDOWS.length} wi
 for (const w of ['all', '0dte'] as const) {
   const ws = w === 'all' ? minutes : minutes.map(s => windowView(s, w));
   const run = new RunningScale();
-  const runG = new RunningScale();
+  let maxG = 0;
+  let maxD = 0;
+  const maxDs: number[] = [];
   const runD = new RunningScale();
   const ref: number[] = [];
   const ring: number[] = [];
@@ -141,10 +144,13 @@ for (const w of ['all', '0dte'] as const) {
   for (const s of ws) {
     ref.push(run.push(columnMax(s.levels)));
     ring.push(run.ring());
-    refG.push(runG.push(columnGross(s.levels)));
+    maxG = Math.max(maxG, columnGross(s.levels));
+    refG.push(maxG);
     let dm = 0;
     for (const l of s.levels) dm = Math.max(dm, Math.abs(l.dex ?? 0));
     refD.push(runD.push(dm));
+    maxD = Math.max(maxD, dm);
+    maxDs.push(maxD);
   }
   const held = stickyWalls(ws.map(s => wallObsOf(s.time, s.spot ?? NaN, s.levels)));
   const rel = (a: number, b: number) => Math.abs(a - b) / Math.max(1, Math.abs(b));
@@ -157,7 +163,7 @@ for (const w of ['all', '0dte'] as const) {
       let j = -1;
       for (let i = 0; i < ws.length; i++) if (ws[i].time <= end) j = i;
       const p = c.pre!;
-      worst = Math.max(worst, rel(p.ref, ref[j]), rel(p.ring, ring[j]), rel(p.refG, refG[j]), rel(p.refD, refD[j]));
+      worst = Math.max(worst, rel(p.ref, ref[j]), rel(p.ring, ring[j]), rel(p.refG, refG[j]), rel(p.refD, refD[j]), rel(p.maxD, maxDs[j]));
       if (p.cw !== held.cw[j] || p.pw !== held.pw[j] || p.cwState !== held.shown[j].cwState || p.pwState !== held.shown[j].pwState || p.minutes !== j + 1) wallsOff++;
       n++;
     }
@@ -229,6 +235,33 @@ for (const w of ['all', '0dte'] as const) {
 {
   const got = tile('all', 1).cols.map(decodeColumn) as GexSnapshot[];
   check(`the 1m tile holds every regular minute (${got.length}) at its own time`, got.length === 390 && got.every((g, i) => g.time === minutes[i].time));
+}
+
+/* THE READ GAP (the owner's orbs round 2, item 8): vols read every minute to 1:59 pm and none after — every column from
+   the first one past READ_GAP_MS carries the last read's moment and wears the stale edge, none before it does, the codec
+   and the fold keep it, and a session with no vol read at all (the session before's close vols alone) carries none */
+{
+  const ticks: Record<string, number[]> = {};
+  for (const s of syms) {
+    const arr: number[] = [];
+    for (let m = 9 * 60 + 30; m < 14 * 60; m++) arr.push(at(Math.floor(m / 60), m % 60), ivOf(s, 0.16));
+    ticks[s] = arr;
+  }
+  const cut = modelDay({ name: 'SPY', day, past: { ...past, ticks }, bars });
+  const lastRead = at(14, 0);
+  const minuteOf = (t: number) => Math.round((t * 1000 - at(0, 0)) / 60_000);
+  const first = cut.find(c => c.levels.some(l => l.readGap));
+  const before = cut.filter(c => c.time * 1000 + 60_000 - lastRead <= READ_GAP_MS);
+  const after = cut.filter(c => c.time * 1000 + 60_000 - lastRead > READ_GAP_MS);
+  const allMarked = after.every(c => c.levels.length > 0 && c.levels.every(l => l.readGap === lastRead));
+  const noneBefore = before.every(c => c.levels.every(l => l.readGap == null));
+  check(`vols to 2:00 pm and none after: the first column with the gap is ${first ? `${Math.floor(minuteOf(first.time) / 60)}:${String(minuteOf(first.time) % 60).padStart(2, '0')}` : 'none'} (2:15 pm, past ${READ_GAP_MS / 60_000} minutes); ${after.length} columns after it carry the 2:00 pm read on every cell, the ${before.length} before carry none`, !!first && minuteOf(first.time) === 14 * 60 + 15 && allMarked && noneBefore && after.length === 105);
+  const enc = decodeColumn(JSON.parse(JSON.stringify(encodeColumn(after[0], { ref: 1, ring: 2, refG: 3, refD: 4, ringD: 5, maxD: 8, minutes: 6, at: after[0].time, net: 7, cw: null, pw: null, cwState: null, pwState: null }))));
+  const folded = aggregateSnapshots(cut, 15);
+  const f215 = folded.find(c => minuteOf(c.time) === 14 * 60 + 15);
+  const f200 = folded.find(c => minuteOf(c.time) === 14 * 60);
+  check(`the codec keeps it (${enc.levels.filter(l => l.readGap === lastRead).length} of ${enc.levels.length}), and a 15-minute bar keeps its peak minute's: 2:15 pm's bar ${f215?.levels.every(l => l.readGap === lastRead) ? 'all' : 'not all'}, 2:00 pm's ${f200?.levels.some(l => l.readGap) ? 'some' : 'none'}`, enc.levels.length > 0 && enc.levels.every(l => l.readGap === lastRead) && !!f215 && f215.levels.every(l => l.readGap === lastRead) && !!f200 && f200.levels.every(l => l.readGap == null));
+  check(`a session on the session before's close vols alone carries no gap (${minutes.reduce((n, c) => n + c.levels.filter(l => l.readGap).length, 0)} cells) — 'carried' says it`, minutes.every(c => c.levels.every(l => l.readGap == null)));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

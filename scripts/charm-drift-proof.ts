@@ -94,6 +94,7 @@ function built(day: string): Universe {
     part: Uint8Array.from(exp.map(e => partOf(e, day))),
     obs,
     reads: [],
+    volReads: [],
     seedDate: null,
   };
 }

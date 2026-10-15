@@ -36,8 +36,8 @@ import { stickyWallMoves, wallObsOf, wallStateEventsOf, WallStick, type WallMove
 /* THE GAMMA PAIR (the owner's orbs message, 2026-10-14: "Gold = absorb (calls side), Violet = amplify (puts side) —
    Skylit's meaning"): the dark tokens' own values (tokens.css --absorb, --amplify); a light tape reads its own off the
    box (trailPaperFrom). Ember/glacier the other way round from 2026-08 to that day. */
-const PUT_RGB: readonly [number, number, number] = [132, 102, 234]; // --amplify (violet): put-dominant, hedging amplifies a move
-const CALL_RGB: readonly [number, number, number] = [240, 196, 70]; // --absorb (gold): call-dominant, hedging absorbs it
+const PUT_RGB: readonly [number, number, number] = [128, 100, 247]; // --amplify (violet): put-dominant, hedging amplifies a move
+const CALL_RGB: readonly [number, number, number] = [232, 185, 74]; // --absorb (gold): call-dominant, hedging absorbs it
 const NEUTRAL_RGB: readonly [number, number, number] = [125, 125, 125]; // --text-muted on black: a balanced strike
 /* THE WALLS WEAR THE GAMMA PAIR (the orbs message: "Call wall chip gold, put wall chip violet"): the chips, the ticks,
    the wall lines and the axis labels — one meaning with the nodes. */
@@ -55,8 +55,9 @@ export const OVAL_ROW_SHARE = 0.85;
 export const OVAL_MERGE_CSS = 6;
 /** An oval this big or bigger wears a one-pixel outline in a darker shade of its own hue */
 export const OVAL_OUTLINE_MIN_CSS = 6;
-/** Opacity OVAL_ALPHA_MIN → 1 on the same √ */
-export const OVAL_ALPHA_MIN = 0.55;
+/** Opacity OVAL_ALPHA_MIN → 1 on the same √ (the orbs' second round, 2026-10-15: "0.8 → 1.0 — lower opacity on
+    near-black turns colours muddy") */
+export const OVAL_ALPHA_MIN = 0.8;
 const WALL_LINE_ALPHA = 0.4;
 /** The light the rest of the field keeps under a hover (60%) and under a pin (40%) */
 export const HOVER_KEEP = 0.6;
@@ -68,6 +69,9 @@ const TICK_W_CSS = 2;
 const TICK_H_CSS = 7;
 /** The library's attribution mark, bottom-left: the words keep clear of it */
 const LOGO_W_CSS = 110;
+/** The Reset pill's keep-out: half its width with a margin, and the price scale it is centred over with the plot */
+const RESET_HALF_W_CSS = 56;
+const RESET_SCALE_CSS = 72;
 const LOGO_H_CSS = 26;
 /** A node's diameter in CSS px at size t (√ of gross ÷ reference, clipped at 1) on a strike row `rowCss` tall:
     3 px + (85% of the row − 3 px) × t — a row too short for three pixels gives three */
@@ -98,23 +102,22 @@ export function optimalCandlestickWidth(barSpacing: number, pixelRatio: number):
    soft — a one-device-pixel border at SOFT_EDGE_ALPHA of the mark's own alpha round a core inset by that pixel. The
    card says which of the two it is. */
 export const SOFT_EDGE_ALPHA = 0.45;
-const staleOf = (l: GexSnapshot['levels'][number]): 0 | 1 | 2 => (l.prov === 'carried' ? 2 : (l.staleShare ?? 0) >= 0.5 ? 1 : 0);
+const staleOf = (l: GexSnapshot['levels'][number]): 0 | 1 | 2 => (l.prov === 'carried' ? 2 : (l.staleShare ?? 0) >= 0.5 || l.readGap ? 1 : 0);
 
-/* THE MARK'S COLOUR (B3): the side's ink mixed from the neutral by the colour strength — grey at 0 (the two sides
-   balanced), the ink whole at 1 (one-sided); quantized to STRENGTH_STEPS so the field is a few paths a frame */
+/* THE MARK'S COLOUR, TWO STATES (the orbs' second round, 2026-10-15 — the owner: "Most strikes hold both calls and puts,
+   so the grey fade washes nearly everything out … Full hue unless |net| ÷ gross < 0.2; below that, grey. Two states, no
+   gradient"): the side's ink whole where one side holds a fifth or more of the strike's gamma over the other, the
+   neutral grey where the two all but cancel. STRENGTH_STEPS stays the quantum the paths are keyed by. */
 export const STRENGTH_STEPS = 10;
+/** |net| ÷ gross under this draws grey (balanced) */
+export const BALANCED_BELOW = 0.2;
 export interface MarkInks {
   put: RGB3;
   call: RGB3;
   neutral: RGB3;
 }
 export const DARK_MARK_INKS: MarkInks = { put: PUT_RGB, call: CALL_RGB, neutral: NEUTRAL_RGB };
-export const markInk = (side: 1 | -1, strength: number, inks: MarkInks): RGB3 => {
-  const u = Math.max(0, Math.min(1, strength));
-  const to = side > 0 ? inks.put : inks.call;
-  const n = inks.neutral;
-  return [Math.round(n[0] + (to[0] - n[0]) * u), Math.round(n[1] + (to[1] - n[1]) * u), Math.round(n[2] + (to[2] - n[2]) * u)];
-};
+export const markInk = (side: 1 | -1, strength: number, inks: MarkInks): RGB3 => (strength >= BALANCED_BELOW - 1e-9 ? (side > 0 ? inks.put : inks.call) : inks.neutral);
 
 /** One node: a strike's size against the size reference, and how one-sided its book is */
 interface Bead {
@@ -163,7 +166,8 @@ interface Column {
   /** The moment's own price and the strikes' step — the density's distance fade reads them */
   spot: number;
   step: number;
-  /** THE TOP SET (B4): the three heaviest strikes by size — a strike entering it wears a ring, one leaving it a ghost */
+  /** THE TOP SET (B4): the three heaviest strikes by size — the zoom-out rule keeps them at full light (no ring or ghost
+      since the orbs' second round) */
   topSet: Set<number>;
 }
 /** A GROUP: one candle's columns (a 5-minute texture under an hour bar), or neighbouring candles merged where they stand
@@ -246,8 +250,8 @@ export function trailPaperFrom(el: Element): TrailPaper {
     put: heatRampColorFor(1, 1, HEAT_MODE, true),
     call: heatRampColorFor(-1, 1, HEAT_MODE, true),
     neutral: tokenRgb(el, '--text-muted', [64, 67, 74]),
-    cw: tokenRgb(el, '--absorb', [150, 112, 8]),
-    pw: tokenRgb(el, '--amplify', [98, 66, 200]),
+    cw: tokenRgb(el, '--absorb', [158, 114, 0]),
+    pw: tokenRgb(el, '--amplify', [91, 60, 230]),
     supreme: tokenRgb(el, '--supreme', [163, 0, 179]),
     focus: tokenRgb(el, '--select', [47, 61, 92]),
     flip: tokenRgb(el, '--flip', [107, 114, 128]),
@@ -260,12 +264,12 @@ const rgba = (c: RGB3, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
     choice through the tokens) */
 export function axisInksFrom(el: Element): Record<'cw' | 'pw' | 'flip' | 'supreme' | 'put' | 'call', RGB3> {
   return {
-    cw: tokenRgb(el, '--absorb', [240, 196, 70]),
-    pw: tokenRgb(el, '--amplify', [132, 102, 234]),
+    cw: tokenRgb(el, '--absorb', [232, 185, 74]),
+    pw: tokenRgb(el, '--amplify', [128, 100, 247]),
     flip: tokenRgb(el, '--flip', [156, 163, 175]),
     supreme: tokenRgb(el, '--supreme', [234, 0, 255]),
-    put: tokenRgb(el, '--amplify', [132, 102, 234]),
-    call: tokenRgb(el, '--absorb', [240, 196, 70]),
+    put: tokenRgb(el, '--amplify', [128, 100, 247]),
+    call: tokenRgb(el, '--absorb', [232, 185, 74]),
   };
 }
 
@@ -519,9 +523,6 @@ class TrailsPaneRenderer {
         const fills = new Map<string, Path2D>();
         const edges = new Map<string, Path2D>();
         const outlines = new Map<string, Path2D>();
-        const rings = new Map<string, Path2D>();
-        const ghosts = new Path2D();
-        let ghostDrawn = false;
         const flipPath = new Path2D();
         let flipDrawn = false;
         const cwLine = new Path2D();
@@ -540,7 +541,6 @@ class TrailsPaneRenderer {
         const zoomedOut = src.density && (last - first) * Math.max(1, src.stepSec) > 8 * 3600;
         for (let pi = 0; pi < placed.length; pi++) {
           const { g, cxDev, capDev } = placed[pi];
-          const prev = pi > 0 ? placed[pi - 1].g : null;
           const col = g.last;
           const levelSet = src.density ? new Set<number>([col.cw ?? NaN, col.pw ?? NaN, ...g.topSet]) : null;
           for (const bead of src.nodesOf(g)) {
@@ -556,7 +556,8 @@ class TrailsPaneRenderer {
               if (Math.abs(bead.strike - col.spot) > 15 * col.step) dimA *= 0.6;
             }
             const dim = dimA >= 1 ? '1' : dimA.toFixed(2);
-            const sStep = Math.round(Math.max(0, Math.min(1, bead.strength)) * STRENGTH_STEPS);
+            /* two states: the side's ink, or grey where the sides all but cancel */
+            const sStep = bead.strength >= BALANCED_BELOW - 1e-9 ? STRENGTH_STEPS : 0;
             const aStep = Math.round(Math.max(0, Math.min(1, bead.t)) * STRENGTH_STEPS);
             const k = `${bead.put ? 'p' : 'c'}|${sStep}|${aStep}|${bead.stale}|${dim}`;
             if (bead.stale > 0 && box.w > 2 * px && box.h > 2 * pxV) {
@@ -568,24 +569,9 @@ class TrailsPaneRenderer {
               /* THE OUTLINE: a node six pixels or more wears a one-pixel line in a darker shade of its own hue */
               if (Math.min(box.w / hr, box.h / vr) >= OVAL_OUTLINE_MIN_CSS) ellipse(pathFor(outlines, k), box, Math.max(px, pxV) / 2);
             }
-            /* THE RING (B4): a strike entering the three heaviest wears a hollow ring on the bar it entered, one device
-               pixel outside the node, in its side's ink */
-            if (prev && g.topSet.has(bead.strike) && !prev.topSet.has(bead.strike)) {
-              const p = pathFor(rings, bead.put ? 'p' : 'c');
-              addOval(p, box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px + 0.5, box.h / 2 + pxV + 0.5);
-            }
+            /* no ring where a strike enters the three heaviest and no ghost where one leaves (the orbs' second round: "top-5
+               membership changes too often for them to mean anything") — the wall-move ticks stay */
           }
-          /* THE GHOST (B4): a strike that LEFT the three heaviest draws an outline where it stood — the slot wide, the
-             tallest node's height, no fill, in the neutral */
-          if (prev)
-            for (const s of prev.topSet)
-              if (!g.topSet.has(s)) {
-                const y = yOf(s);
-                if (y === null || y < floorCss || y > paneHCss) continue;
-                const box = boxOf(cxDev, y, 1, capDev);
-                addOval(ghosts, box.left + box.w / 2, box.top + box.h / 2, Math.max(0.5, box.w / 2 - 0.5), Math.max(0.5, box.h / 2 - 0.5));
-                ghostDrawn = true;
-              }
           /* THE WALL LINES (the orbs message, "wall lines (thin, 40% opacity, in their oval colour)") and THE FLIP
              (a dashed grey rule) — each column's own, so a wall that moves steps, and a column whose book never changes
              sign leaves a gap in the flip */
@@ -646,16 +632,6 @@ class TrailsPaneRenderer {
           paint(fills, 'fill');
           paint(outlines, 'outline');
           bctx.lineWidth = Math.max(px, pxV);
-          for (const [side, path] of rings) {
-            const rgb = markInk(side === 'p' ? 1 : -1, 1, inks);
-            bctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.9 * src.globalDim).toFixed(3)})`;
-            bctx.stroke(path);
-          }
-          if (ghostDrawn) {
-            const n = inks.neutral;
-            bctx.strokeStyle = `rgba(${n[0]},${n[1]},${n[2]},${(0.55 * src.globalDim).toFixed(3)})`;
-            bctx.stroke(ghosts);
-          }
           if (cwDrawn) {
             const c = paper ? paper.cw : CW_RGB;
             bctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${(WALL_LINE_ALPHA * src.globalDim).toFixed(3)})`;
@@ -765,6 +741,12 @@ class TrailsPaneRenderer {
       const rightMost = (wCss - CHIP_RIGHT) * hr;
       /* the library's attribution mark stands at the plot's bottom-left: a keep-out box */
       boxes.push({ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr });
+      /* and the chart's Reset whisper pill (ResetViewControl: centred on the chart's box, price scale included, 24 px
+         tall, its foot 4 px over the plot's) — a keep-out box a little wider than the pill */
+      {
+        const cx = (wCss + RESET_SCALE_CSS) / 2;
+        boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30) * vr, b: (paneHCss - 2) * vr });
+      }
       const collides = (l: number, r: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && r > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
       /** a box slid down (then up) until it stands clear, or null when the plot has no room for it */
       const settle = (l: number, r: number, t: number, h: number): number | null => {
@@ -787,36 +769,35 @@ class TrailsPaneRenderer {
       const wordInk: RGB3 = paper ? paper.ink : [235, 235, 235];
       const n = paper ? paper.neutral : NEUTRAL_RGB;
 
-      // the gaps, each with its reason (B1: "Never a blank chart without a reason")
+      // the gaps, each with its reason (B1: "Never a blank chart without a reason") — ONE small note per gap, INSIDE its gap at
+      // the foot of the plot, hidden where the gap is too narrow to hold it (the orbs' second round, 2026-10-15)
       if (this.gapRuns.length) {
         ctx.textAlign = 'center';
+        const seen = new Set<string>();
+        const footTop = (paneHCss - 4) * vr - full;
+        const liftTop = (paneHCss - 32) * vr - full;
         for (const g of this.gapRuns) {
           const gx0 = ts.timeToCoordinate(g.t0 as Time);
           const gx1 = ts.timeToCoordinate(g.t1 as Time);
           if (gx0 === null || gx1 === null) continue;
-          const l = (gx0 - barSpacing / 2) * hr;
-          const r = (gx1 + barSpacing / 2) * hr;
+          const l = Math.max(leftMost, (gx0 - barSpacing / 2) * hr);
+          const r = Math.min(rightMost, (gx1 + barSpacing / 2) * hr);
+          const key = `${Math.round(l)}|${Math.round(r)}|${g.words}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
           const w = ctx.measureText(g.words).width;
-          let bl = (l + r) / 2 - w / 2 - padX;
-          let br = bl + w + 2 * padX;
-          if (bl < leftMost) {
-            bl = leftMost;
-            br = bl + w + 2 * padX;
-          }
-          if (br > rightMost) {
-            br = rightMost;
-            bl = br - w - 2 * padX;
-          }
-          if (bl < leftMost) continue;
-          const top = settle(bl, br, floorDev + 4 * vr, full);
+          if (w + 2 * padX > r - l) continue;
+          const bl = (l + r) / 2 - w / 2 - padX;
+          const br = bl + w + 2 * padX;
+          /* at the foot, clear of the library's mark, the Reset pill and the other notes — or just over the pill's row
+             where the foot is taken; never outside the gap */
+          const top = !collides(bl, br, footTop, footTop + full) ? footTop : !collides(bl, br, liftTop, liftTop + full) ? liftTop : null;
           if (top === null) continue;
           boxes.push({ l: bl, r: br, t: top, b: top + full });
           ctx.fillStyle = padInk;
           ctx.fillRect(bl, top, br - bl, full);
           ctx.fillStyle = `rgba(${n[0]},${n[1]},${n[2]},0.95)`;
           ctx.fillText(g.words, (bl + br) / 2, top + full / 2);
-          ctx.fillStyle = `rgba(${n[0]},${n[1]},${n[2]},0.35)`;
-          ctx.fillRect(Math.max(leftMost, l), top + full + vr, Math.max(1, Math.min(rightMost, r) - Math.max(leftMost, l)), Math.max(1, Math.round(vr)));
         }
       }
 
@@ -827,7 +808,8 @@ class TrailsPaneRenderer {
         const isLive = liveP.g.cols[liveP.g.cols.length - 1] === snaps.length - 1;
         if (isLive) {
           const nodes = src.nodesOf(liveP.g).slice().sort((a, b) => b.gross - a.gross).slice(0, NODE_LABELS);
-          const largest = nodes[0]?.gross ?? 0;
+          /* "% of the largest": the size reference — the session's largest node so far — so the words match the sizes */
+          const largest = src.refAt(snaps.length - 1).refG || nodes[0]?.gross || 0;
           ctx.textAlign = 'left';
           const swW = 7 * hr;
           const swH = 9 * vr;
@@ -837,7 +819,7 @@ class TrailsPaneRenderer {
             const y = yOf(b.strike);
             if (y === null) continue;
             const strikeLabel = b.strike % 1 === 0 ? num(b.strike, 0) : num(b.strike, 2);
-            const text = `${strikeLabel} · ${Math.round((b.gross / largest) * 100)}%`;
+            const text = `${strikeLabel} · ${Math.round(Math.min(1, b.gross / largest) * 100)}%`;
             const tw = ctx.measureText(text).width;
             const pw = swW + 4 * hr + tw + 2 * padX;
             let l = (xLastCss + 8) * hr;
@@ -1224,7 +1206,11 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       is √(gross ÷ this); where a cell keeps no gross, its |net| stands in (the legend says so) */
   private baseMaxG: number[] = [];
   private baseRefG: number[] = [];
-  private baseRunG = new RunningScale();
+  /* THE SIZE REFERENCE IS THE SESSION'S LARGEST NODE SO FAR (the orbs' second round, 2026-10-15 — the owner: "almost
+     every oval draws at full height, so size says nothing … Make the reference the largest node of the session so far
+     (no look-ahead). The largest is full size; the rest scale by √(size ÷ largest)"): a running maximum of each
+     minute's peak gross, started over each New York day — the p85 it was clipped nearly every node at full */
+  private runMaxG = 0;
   private dayMaximaG = new Map<string, number[]>();
   /** refAt's answers by column, kept until the base, the basis or the references change */
   private refMemo = new WeakMap<GexSnapshot, ReturnType<GexTrailsPrimitive['refAt']>>();
@@ -1278,7 +1264,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     }
     for (const arr of [this.baseIds, this.baseTimes, this.baseMax, this.baseRef, this.baseRing, this.baseDays, this.baseFirst, this.baseMaxG, this.baseRefG] as unknown[][]) arr.length = k;
     this.baseRun.reset();
-    this.baseRunG.reset();
+    this.runMaxG = 0;
     this.refMemo = new WeakMap();
     let day = k > 0 ? this.baseDays[k - 1] : '';
     let first = k > 0 ? this.baseFirst[k - 1] : 0;
@@ -1289,7 +1275,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         day = d;
         first = i;
         this.baseRun.reset();
-        this.baseRunG.reset();
+        this.runMaxG = 0;
       }
       let m = memo.get(snap);
       if (m === undefined) {
@@ -1312,7 +1298,8 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       this.baseRef.push(this.baseRun.push(m));
       this.baseRing.push(this.baseRun.ring());
       this.baseMaxG.push(mg);
-      this.baseRefG.push(this.baseRunG.push(mg));
+      this.runMaxG = Math.max(this.runMaxG, mg);
+      this.baseRefG.push(this.runMaxG);
       this.baseDays.push(d);
       this.baseFirst.push(first);
       let list = this.dayMaxima.get(d);
@@ -1339,8 +1326,14 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     const fixed = ext?.fixed ?? (pool.length ? pooledRef(pool.flatMap(d => maxOf(d) ?? []), pool.length) : null);
     /* the size's twins stand on the sessions this page holds (the server's scale.json carries the net's references
        alone — a follow-up adds the gross) */
-    const priorG = priorDay ? pooledRef(maxGOf(priorDay) ?? [], 1) : null;
-    const fixedG = pool.length ? pooledRef(pool.flatMap(d => maxGOf(d) ?? []), pool.length) : null;
+    /* the size's: the largest node of the prior session, or of the sixty before (the largest, as the session's own is) */
+    const largestOf = (xs: number[], sessions: number): ScaleRef | null => {
+      let m = 0;
+      for (const x of xs) if (x > m) m = x;
+      return m > 0 ? { ref: m, ring: m, minutes: xs.length, sessions } : null;
+    };
+    const priorG = priorDay ? largestOf(maxGOf(priorDay) ?? [], 1) : null;
+    const fixedG = pool.length ? largestOf(pool.flatMap(d => maxGOf(d) ?? []), pool.length) : null;
     r = { prior, fixed, priorG, fixedG, priorDay: ext?.priorDay ?? priorDay };
     this.dayRefs.set(day, r);
     return r;
@@ -1378,7 +1371,7 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     }
     if (pre) {
       const dex = this.greek === 'dex';
-      return { ref: dex ? pre.refD : pre.ref, ring: dex ? pre.ringD : pre.ring, refG: dex ? pre.refD : pre.refG, basis: 'session', at: pre.at, minutes: pre.minutes, sessions: 1, priorDay: null };
+      return { ref: dex ? pre.refD : pre.ref, ring: dex ? pre.ringD : pre.ring, refG: dex ? pre.maxD : pre.refG, basis: 'session', at: pre.at, minutes: pre.minutes, sessions: 1, priorDay: null };
     }
     if (j >= 0 && this.baseDays[j] === day) return { ref: this.baseRef[j], ring: this.baseRing[j], refG: this.baseRefG[j], basis: 'session', at: this.baseTimes[j], minutes: j - this.baseFirst[j] + 1, sessions: 1, priorDay: null };
     return { ref: 0, ring: 0, refG: 0, basis: 'session', at: snap.time, minutes: 0, sessions: 0, priorDay: null };

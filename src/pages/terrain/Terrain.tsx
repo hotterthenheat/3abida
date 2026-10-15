@@ -1,4 +1,4 @@
-import { isoDayLabel, num, numSigned, pctSigned, usd, usdCompactSigned, usdSigned } from '../../core/format';
+import { isoDayLabel, num, numSigned, pctSigned, usd, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
 import PaneHead, { type JumpSpan, type WindowValue } from '../../components/terrain/PaneHead';
 import DecisionStrip, { type DecisionBox } from '../../components/terrain/DecisionStrip';
 import CrosshairReadout from '../../components/terrain/CrosshairReadout';
@@ -38,6 +38,7 @@ import StrikeChart, {
   type ChartStyle,
   priceScaleLockedBy,
   PRICE_SCALES,
+  useRailLeftInset,
   type CrosshairBar,
   type CompareEntry,
   type CompareMode,
@@ -49,6 +50,9 @@ import StrikeChart, {
 import type { BeadLegend } from '../../components/gex/gexNodesPrimitive';
 import { BASIS_HINT, BASIS_LABEL, FLOORS, beadLegendLines, beadLegendWords } from '../../components/terrain/beadLegend';
 
+/** The column the bead legend's whole words take in two lines (its key ~470 px, then the full size and basis); under it
+    the short form */
+const LEGEND_FULL_MIN_PX = 480;
 /** A legend swatch: an oval in a node's ink, with the darker outline the nodes wear (the orbs message, item 12) */
 const LegendSwatch = ({ rgb }: { rgb: readonly [number, number, number] }) => (
   <span aria-hidden className="inline-block w-[7px] h-[9px] rounded-[50%] align-[-1px] mr-1 shrink-0" style={{ background: `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, boxShadow: `inset 0 0 0 1px rgb(${Math.round(rgb[0] * 0.6)},${Math.round(rgb[1] * 0.6)},${Math.round(rgb[2] * 0.6)})` }} data-legend-swatch />
@@ -1169,6 +1173,9 @@ const Pane = ({
      Before the first measurement stripW is 0 and everything renders — the
      honest default is the full row for one frame, not a shed one that grows. */
   const stripInner = stripW > 0 ? stripW - PRICE_GUTTER_PX - (ownScale ? PRICE_GUTTER_PX : STRIP_PAD_PX) : 0;
+  /* the bead legend's form: the whole words where the column holds them in two lines, the short form under that */
+  const railInset = useRailLeftInset();
+  const legendShort = stripInner > 0 && stripInner - railInset < LEGEND_FULL_MIN_PX;
   /* The tape, straight from the provider that accumulates it. Read HERE rather
      than threaded down from Terrain: this component already takes fourteen
      props, and every pane wants the same unfiltered tape — StrikeChart narrows
@@ -1792,6 +1799,8 @@ const Pane = ({
     return { callWall: fin(levels.callWall), putWall: fin(levels.putWall), flip: fin(levels.flip) };
   }, [levels.callWall, levels.putWall, levels.flip]);
   const top3 = useMemo(() => [...rail.rows].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3).map(r => r.strike), [rail.rows]);
+  /* the field's largest node now, as the chart drew it (StrikeChart onTopNode) — the header's "Top" */
+  const [topNode, setTopNode] = useState<number | null>(null);
   /* THE DECISION STRIP'S FIVE READS (the Terrain UI pass, 2026-10-14): one line each off what the pane already holds —
      the regime, the nearest named level each side with its distance in dollars and σ to the close, the priced move,
      what stands behind the track record, and how fresh the inputs are. Each box opens How sure at its own section. */
@@ -1809,7 +1818,11 @@ const Pane = ({
     if (fin(levels.callWall)) cands.push({ name: 'CW', price: levels.callWall });
     if (fin(levels.putWall)) cands.push({ name: 'PW', price: levels.putWall });
     if (fin(levels.flip)) cands.push({ name: 'Flip', price: levels.flip });
-    for (const st of top3) if (fin(st) && !cands.some(c => Math.abs(c.price - st) < 1e-9)) cands.push({ name: 'Top', price: st });
+    /* ONE "TOP" (the owner's orbs round 2, item 6, 2026-10-15: "The header says 'Top 765' and the axis chip says 'Top 755'.
+       Use one definition, or two different names"): the names are the axis chips' own — CW, PW, Flip, Sup off the book,
+       Top the field's largest node now, handed by the chart (onTopNode, beadScale `largestNodeOf`) */
+    if (fin(levels.supreme) && !cands.some(c => Math.abs(c.price - levels.supreme) < 1e-9)) cands.push({ name: 'Sup', price: levels.supreme });
+    if (topNode != null && fin(topNode) && !cands.some(c => Math.abs(c.price - topNode) < 1e-9)) cands.push({ name: 'Top', price: topNode });
     const above = cands.filter(c => c.price > price).sort((a, b) => a.price - b.price)[0] ?? null;
     const below = cands.filter(c => c.price < price).sort((a, b) => b.price - a.price)[0] ?? null;
     const side = (c: { name: string; price: number } | null, arrow: string, short: boolean) => {
@@ -1819,7 +1832,7 @@ const Pane = ({
       return short ? `${arrow}${c.name} ${k(c.price)}${sigma || ` ${usdSigned(c.price - price)}`}` : `${arrow}${c.name} ${k(c.price)} ${usdSigned(c.price - price)}${sigma}`;
     };
     const have = fin(price) && cands.length > 0;
-    out.push({ key: 'levels', label: 'Nearest', words: have ? `${side(above, '▲', false)} · ${side(below, '▼', false)}` : '—', short: have ? `${side(above, '▲', true)} ${side(below, '▼', true)}` : '—', title: 'The nearest named level each side of the price — a wall, the flip or one of the three heaviest strikes — its distance in dollars and in σ to the close', tone: null });
+    out.push({ key: 'levels', label: 'Nearest', words: have ? `${side(above, '▲', false)} · ${side(below, '▼', false)}` : '—', short: have ? `${side(above, '▲', true)} ${side(below, '▼', true)}` : '—', title: "The nearest named level each side of the price — one of the chips on the price axis: a wall, the flip, the supreme (the book's heaviest strike) or Top (the field's largest node now) — its distance in dollars and in σ to the close", tone: null });
     if (sigmaRem && moveNow && sessionMinute != null) {
       const r = readoutOf(price, moveNow.prevClose, moveNow.sigma, sessionMinute, moveNow.profile);
       out.push({ key: 'move', label: 'Move', words: `±${usd(sigmaRem.sigma)} to close · ${sigmaRem.src === 'straddle' ? 'market' : 'budget'}${r ? ` · ${r.sigmas >= 0 ? '+' : '−'}${num(Math.abs(r.sigmas), 1)}σ day` : ''}`, short: `±${usd(sigmaRem.sigma)} ${sigmaRem.src === 'straddle' ? 'mkt' : 'bgt'}`, title: `${sigmaRem.src === 'straddle' ? "1σ to the close off the straddle on today's expiry, live" : '1σ to the close as the budget leaves it: σ_day × √(1 − the variance used)'} — and where the price stands on the day's budget`, tone: null });
@@ -1831,7 +1844,11 @@ const Pane = ({
     if (onFeed) {
       const col = fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null;
       let vols = 0;
-      if (col) for (const l of col.levels) if (l.freshAt && l.freshAt > vols) vols = l.freshAt;
+      let readGap = 0;
+      if (col) for (const l of col.levels) {
+        if (l.freshAt && l.freshAt > vols) vols = l.freshAt;
+        if (l.readGap && l.readGap > readGap) readGap = l.readGap;
+      }
       /* EVERY TIME SAYS WHAT IT IS (the orbs message, item 17: "The OI chip says 12:02 pm in one screenshot and 12:17 pm in
          the other; OI changes once a day — say what that time is"): the count is dated, the book's and the vols' times
          are their reads — the short form kept the times and dropped their words */
@@ -1839,13 +1856,16 @@ const Pane = ({
          interest carries its DATE alone (counted once a day after the close, published before the open); the book's time
          is when Unusual Whales figured it (its rows' own stamp); the vols' time is the newest option trade a vol the
          field priced with came from (the newest column's `freshAt`) — it moves with each chain read, every ten minutes */
-      const parts = [fOi?.date ? `OI dated ${shortDay(fOi.date)}` : 'OI —', fBook ? `book figured ${printClock(fBook.at)}` : 'book —', vols ? `vols traded to ${printClock(vols)}` : null].filter((x): x is string => !!x);
-      const shortParts = [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', vols ? `vols to ${printClock(vols)}` : fBook ? `book ${printClock(fBook.at)}` : null].filter((x): x is string => !!x);
-      out.push({ key: 'freshness', label: 'Fresh', words: parts.join(' · '), short: shortParts.join(' · '), title: `${rail.sure[0]?.freshness ?? 'How fresh the inputs are'} — open interest carries its date alone: it is counted once a day after the close and published before the open. "Book figured" is when Unusual Whales figured the book by strike; "vols traded to" is the newest option trade behind the vols the field priced with, which moves with each chain read (every ten minutes)`, tone: null });
+      /* THE CHAIN READ STOPPED (the owner's orbs round 2, item 8): the newest column stands on a read more than fifteen
+         minutes old (trailModel READ_GAP_MS) — said in the warn ink, as its marks wear the stale edge */
+      const gapWords = readGap ? `no chain read since ${printClock(readGap)}` : null;
+      const parts = [fOi?.date ? `OI dated ${shortDay(fOi.date)}` : 'OI —', fBook ? `book figured ${printClock(fBook.at)}` : 'book —', vols ? `vols traded to ${printClock(vols)}` : null, gapWords].filter((x): x is string => !!x);
+      const shortParts = [fOi?.date ? `OI ${shortDay(fOi.date)}` : 'OI —', vols ? `vols to ${printClock(vols)}` : fBook ? `book ${printClock(fBook.at)}` : null, readGap ? `no read since ${printClock(readGap)}` : null].filter((x): x is string => !!x);
+      out.push({ key: 'freshness', label: 'Fresh', words: parts.join(' · '), short: shortParts.join(' · '), title: `${rail.sure[0]?.freshness ?? 'How fresh the inputs are'} — open interest carries its date alone: it is counted once a day after the close and published before the open. "Book figured" is when Unusual Whales figured the book by strike; "vols traded to" is the newest option trade behind the vols the field priced with, which moves with each chain read (every ten minutes)${readGap ? `. No chain read has come since ${printClock(readGap)}: the field's vols stand where that read left them, and its marks wear the stale edge` : ''}`, tone: readGap ? 'warn' : null });
     } else out.push({ key: 'freshness', label: 'Fresh', words: 'OI last close · spot live', short: 'OI last close', title: rail.sure[0]?.freshness ?? 'How fresh the inputs are', tone: null });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paneRegime, levels, top3, sigmaRem, moveNow, sessionMinute, fRecord, onFeed, fTrail.snaps, fOi, fBook, rail.sure, revision]);
+  }, [paneRegime, levels, topNode, sigmaRem, moveNow, sessionMinute, fRecord, onFeed, fTrail.snaps, fOi, fBook, rail.sure, revision]);
   /* THE LEVEL ALERTS IN HOW SURE (item 7): today's, each joined to its +15 and +30 minutes on the chart's own minutes */
   const levelEvents = useLevelLog(ticker);
   const alertSure = useMemo(() => {
@@ -2657,6 +2677,7 @@ const Pane = ({
               regimeRanges={win === 'all' && !rp.active ? fRecord?.main.regime?.ranges ?? null : null}
               pricedMove={rp.active ? rpMove : fMove}
               onRegime={onRegime}
+              onTopNode={setTopNode}
               jumpTo={jumpTo}
               /* THE AXIS CHIPS, the σ, the live legs, the count's date, the density and the card's doors (the UI pass) */
               axisChips
@@ -3001,21 +3022,34 @@ const Pane = ({
                   in money, as of when — the renderer's own reference (data-bead-ref) — with the basis (item 5 (b)) and
                   the floor (item 5 (e)) beside it */}
               {overlays.trails && beadLegend && legendOn && (
-                /* ONE LINE (the UI pass, 2026-10-14): the scale's statement, truncated to the column, its second line and
-                   the basis's words in the title; the basis and the floor ride the hover row (beadControls); L hides it */
-                <div className="relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-0.5 flex items-center min-w-0 text-[11px] leading-[16px] text-textMuted tnum" title={`${beadLegendLines(beadLegend, beadBasis, beadFloor).tail} · ${beadLegendWords(beadLegend, beadBasis, beadFloor)}`} data-bead-legend data-bead-ref={beadLegend.ref} data-bead-basis={beadLegend.basis}>
+                /* IT FITS (the owner's orbs round 2, item 5, 2026-10-15: "The legend is cut off ('soft edge = sta…'); make it
+                   fit"): each piece keeps its words whole and the line wraps between pieces when the column is narrow, so
+                   nothing is cut — the chart measures the band it takes (StrikeChart's chrome band) and fits under it. The
+                   basis's words stand in the title; the basis and the floor ride the hover row (beadControls); L hides it */
+                /* A NARROW PANE (a desk of two or more) takes the short form — the swatches name their side, the size its
+                   full figure — so the legend stays two lines at most; the whole of it stands in the title. It starts past
+                   the drawing rail, as the candles do (useRailLeftInset) */
+                <div className="relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-0.5 text-[11px] leading-[16px] text-textMuted tnum" style={railInset ? { marginLeft: Math.max(0, railInset - 6), maxWidth: `calc(100% - ${Math.max(0, railInset - 6)}px)` } : undefined} title={`${beadLegendLines(beadLegend, beadBasis, beadFloor).tail} · ${beadLegendWords(beadLegend, beadBasis, beadFloor)}`} data-bead-legend data-bead-form={legendShort ? 'short' : 'full'} data-bead-ref={beadLegend.ref} data-bead-basis={beadLegend.basis}>
                   {/* THE SWATCHES (the orbs message, item 12): an oval before each colour's word, in the inks the nodes wear on
                       this tape — the renderer's own hand-off (legend().inks) */}
-                  <span className="min-w-0 truncate" data-bead-scale>
-                    <span>size = total gamma at the strike · </span>
-                    <LegendSwatch rgb={beadLegend.inks.call} />
-                    <span>gold = absorb · </span>
-                    <LegendSwatch rgb={beadLegend.inks.put} />
-                    <span>violet = amplify · </span>
-                    <LegendSwatch rgb={beadLegend.inks.neutral} />
-                    <span>grey = balanced · soft edge = stale · </span>
-                    <span data-bead-scale-words>{beadLegendLines(beadLegend, beadBasis, beadFloor).head}</span>
-                  </span>
+                  {legendShort ? (
+                    <span className="flex flex-wrap items-center gap-x-1.5 min-w-0 [&>span]:whitespace-nowrap" data-bead-scale>
+                      <span className="inline-flex items-center"><LegendSwatch rgb={beadLegend.inks.call} />absorb</span>
+                      <span className="inline-flex items-center"><LegendSwatch rgb={beadLegend.inks.put} />amplify</span>
+                      <span className="inline-flex items-center"><LegendSwatch rgb={beadLegend.inks.neutral} />balanced ·</span>
+                      <span>size = total gamma · soft edge = stale ·</span>
+                      <span data-bead-scale-words>Full size {usdCompact(beadLegend.refG)}</span>
+                    </span>
+                  ) : (
+                    <span className="flex flex-wrap items-center gap-x-1.5 min-w-0 [&>span]:whitespace-nowrap" data-bead-scale>
+                      <span>size = total gamma at the strike ·</span>
+                      <span className="inline-flex items-center"><LegendSwatch rgb={beadLegend.inks.call} />gold = absorb ·</span>
+                      <span className="inline-flex items-center"><LegendSwatch rgb={beadLegend.inks.put} />violet = amplify ·</span>
+                      <span className="inline-flex items-center"><LegendSwatch rgb={beadLegend.inks.neutral} />grey = balanced ·</span>
+                      <span>soft edge = stale ·</span>
+                      <span className="!whitespace-normal min-w-0" data-bead-scale-words>{beadLegendLines(beadLegend, beadBasis, beadFloor).head}</span>
+                    </span>
+                  )}
                 </div>
               )}
 
