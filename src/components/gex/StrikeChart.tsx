@@ -3,6 +3,7 @@ import { alpha } from './paletteInk';
 import { netOf, regimeBucketOf, regimeBucketsFor, regimePercentile, regimeReadOf, regimeWordsOf, wallMovesOf, type RegimeRead, type RegimeReference } from '../../data/feed/trailModel';
 import { nyMinuteOf, touchCountOf } from '../../data/feed/trackRecord';
 import { pickWalls } from '../../core/walls';
+import { mergeByTime } from '../../data/feed/tiles';
 import {
   useCallback, useEffect, useMemo, useRef, useReducer, useState,
   useSyncExternalStore,
@@ -585,6 +586,11 @@ export interface ChartTape {
   /** THE BOOK THROUGH TIME for the strike field, where the host has one (Terrain on the feed, 2026-10-12: the books read
       today, oldest first) — absent, a tape has no field */
   book?: GexSnapshot[];
+  /** THE SESSIONS BEFORE TODAY AS THE SERVER FOLDED THEM (Section I, data/feed/tiles.ts and tileClient.ts) — at `tf`
+      minutes, oldest first: their bars and their columns (each carrying `pre`: its references and held walls), each
+      session's per-minute peaks and its walls' minute-precise events. The chart draws them beside `bars` and `book`
+      (today's and any session not tiled) and never folds their minutes. Absent: the minutes are folded as before. */
+  pre?: { tf: number; bars: Candle[]; cols: GexSnapshot[]; maxima: Map<string, { m: number[]; g: number[]; d: number[] }>; events: [number, number, number | null, number, number][] };
   /** DAY BARS, oldest first, for the 1D and 1W timeframes (Terrain on the feed: UW's and Theta Data's day bars, a bar a New
       York date at noon UTC, so the axis reads the date on New York's clock; 1W folds them Monday to Friday) — absent, the
       minutes are folded into days */
@@ -847,6 +853,9 @@ interface StrikeChartProps {
   /** THE LIVE EDGE (the UI pass): told when the view's right edge leaves the last bar, and when it returns — the host's
       "Back to live" pill. Fired on change alone. */
   onViewEdge?: (atLive: boolean) => void;
+  /** THE VIEW'S LEFT EDGE (Section I): the time of the oldest bar in view, said when it reaches another New York day —
+      the host loads the sessions to its left before the reader gets there */
+  onViewFrom?: (fromTime: number) => void;
   /** A CLICK ON A BAR while nothing else owns the click (no pick, no drawing, no bead under the pointer) — the host's day
       panel on a daily chart */
   onBarClick?: (time: number) => void;
@@ -1111,6 +1120,8 @@ const INITIAL_BARS = 1000;
 /** ...which is this many bars from the first loaded one */
 const FULL_TRIGGER = 80;
 /** The bars a world shows: the whole store once asked for, the recent window otherwise */
+const NO_PRE_MAXIMA = new Map<string, { m: number[]; g: number[]; d: number[] }>();
+
 const windowOf = (all: Candle[], full: boolean): Candle[] =>
   full || all.length <= INITIAL_BARS + 200 ? all : all.slice(all.length - INITIAL_BARS);
 
@@ -1177,7 +1188,7 @@ const StrikeChart = ({
   asOf = null,
   futureBars = null,
   footBar = null, onRegime, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null,
-  onJumpResult, onViewEdge, onBarClick, stale = false,
+  onJumpResult, onViewEdge, onViewFrom, onBarClick, stale = false,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
   const asOfRef = useRef<number | null>(asOf);
@@ -1200,7 +1211,9 @@ const StrikeChart = ({
     if (!tp) return displayBars(ticker, mins, alt);
     if (alt) return buildAltBars(tp.bars, alt);
     if (mins >= 1440 && tp.daily) return mins > 1440 ? foldWeeks(tp.daily) : tp.daily;
-    return aggregateCandles(tp.bars, Math.max(1, mins));
+    const live = aggregateCandles(tp.bars, Math.max(1, mins));
+    /* the sessions the server folded to this timeframe, never folded here */
+    return tp.pre && tp.pre.tf === mins && mins < 1440 ? mergeByTime(tp.pre.bars, live) : live;
   };
   const baseBars = (): Candle[] => tapeRef.current?.bars ?? Simulator.getCandles(ticker) ?? [];
   const bookHistory = () => (tapeRef.current ? (tapeRef.current.book ?? []) : (Simulator.getGexHistory(ticker) ?? []));
@@ -1486,6 +1499,9 @@ const StrikeChart = ({
   onRegimeRef.current = onRegime;
   const onViewEdgeRef = useRef(onViewEdge);
   onViewEdgeRef.current = onViewEdge;
+  const onViewFromRef = useRef(onViewFrom);
+  onViewFromRef.current = onViewFrom;
+  const viewFromDayRef = useRef('');
   const atLiveRef = useRef<boolean | null>(null);
   const onBarClickRef = useRef(onBarClick);
   onBarClickRef.current = onBarClick;
@@ -2021,6 +2037,9 @@ const StrikeChart = ({
   /* A JUMP OF THE VIEW (the Terrain UI pass, 2026-10-14): the host's span or day, applied once the bars of the pane's
      timeframe stand — a span runs from the last bar back (today: from New York's 09:30 of the last bar's day), a little
      room ahead as the opening view keeps; a day is centred at the zoom the chart has. Nothing the host did not ask. */
+  /** the bars the series holds (Section I: sessions arriving anywhere but the end reload it, the view kept) */
+  const loadedLenRef = useRef(0);
+  const loadedFirstRef = useRef(0);
   const jumpAppliedRef = useRef(0);
   /* APPLIED ONCE THE SERIES HOLDS THIS TIMEFRAME (2026-10-15, found by the speed budget): a 1Y or Max changes the
      timeframe with the jump, and this ran before the data effect had loaded the new bars — the view was set on the old
@@ -2546,7 +2565,15 @@ const StrikeChart = ({
       /* THE VIEW, SAID ON THE ROOT for the speed budgets (scripts/speed-budget.mjs, Section I): the visible time range */
       {
         const vr = chart.timeScale().getVisibleRange();
-        if (vr) containerRef.current?.setAttribute('data-chart-view', `${Math.round(vr.from as number)}-${Math.round(vr.to as number)}`);
+        if (vr) {
+          containerRef.current?.setAttribute('data-chart-view', `${Math.round(vr.from as number)}-${Math.round(vr.to as number)}`);
+          /* the host hears the left edge when it reaches another day (Section I: the sessions to its left are loaded ahead) */
+          const d = nyIsoDateOf((vr.from as number) * 1000);
+          if (d !== viewFromDayRef.current) {
+            viewFromDayRef.current = d;
+            onViewFromRef.current?.(vr.from as number);
+          }
+        }
       }
       /* THE LIVE EDGE: the view's right edge within two bars of the last one — said to the host on change alone */
       {
@@ -3093,6 +3120,14 @@ const StrikeChart = ({
       const cur = byBar.get(t);
       if (!cur || snap.time >= cur.at) byBar.set(t, { net: netOf(snap.levels), at: snap.time });
     }
+    /* a session the server folded: each column's net at its last minute (Section I) */
+    const preTape = tapeRef.current?.pre;
+    if (preTape && preTape.tf * 60 === barSec)
+      for (const c of preTape.cols) {
+        if (!c.pre) continue;
+        const t = Math.floor(c.time / barSec) * barSec;
+        if (!byBar.has(t)) byBar.set(t, { net: c.pre.net, at: c.pre.at });
+      }
     const el = boxElRef.current ?? undefined;
     /* THE GAMMA PAIR, as everywhere gamma is drawn (the owner, 2026-10-14: the regime strip wears the pair, never
        bull/bear; the orbs message the same day: gold where hedging absorbs — the calls' side — violet where it amplifies) */
@@ -3148,7 +3183,7 @@ const StrikeChart = ({
       handRegime({ ...read, words, range: tercile });
     }
     remeasurePaneLabels();
-  }, [overlays.regime, altSpec, timeframe, ticker, themeKey, regimeRef, regimeDir, regimeRanges, remeasurePaneLabels, tape?.book, tape?.key]);
+  }, [overlays.regime, altSpec, timeframe, ticker, themeKey, regimeRef, regimeDir, regimeRanges, remeasurePaneLabels, tape?.book, tape?.key, tape?.pre]);
 
   /*
     THE NET DRIFT: the same premium the flow band bars, kept as a running total.
@@ -3792,7 +3827,31 @@ const StrikeChart = ({
     }
 
 
-    if (changed || jumped || reshaped) {
+    /* SESSIONS ARRIVING ANYWHERE BUT THE END (Section I: the tiles of the sessions the view and its buffer hold arrive one
+       range at a time, older ones before newer, and a session is tiled while the page draws its minutes): the bar count
+       moving by anything but the one new bar at the end is a series to load afresh — an update() of the last bar would
+       leave the new sessions undrawn — and the view is kept on the BAR TIMES it showed, since the library keeps a
+       logical range that bars arriving to its left would shift */
+    const prevLen = loadedLenRef.current;
+    const firstNow = bars.length ? bars[0].time : 0;
+    const prevFirst = loadedFirstRef.current;
+    /* the recent window (held: the last INITIAL_BARS) slides a bar at a time as the session runs — that is the one new bar;
+       a window whose first bar moved under the same last bar has had sessions arrive inside it */
+    const slid = held && bars.length === prevLen && lastT !== prevLast;
+    const regrown = !changed && prevLen > 0 && !slid && (bars.length !== prevLen + (lastT !== prevLast && prevLast > 0 ? 1 : 0) || (lastT === prevLast && firstNow !== prevFirst));
+    let keepAt: { time: number; off: number; span: number } | null = null;
+    if (regrown && !jumped) {
+      const r = chart.timeScale().getVisibleLogicalRange();
+      if (r) {
+        const i0 = Math.max(0, Math.min(prevLen - 1, Math.round(r.from)));
+        const d = candleSeries.dataByIndex(i0) as { time?: unknown } | null;
+        if (d && typeof d.time === 'number') keepAt = { time: d.time, off: r.from - i0, span: r.to - r.from };
+      }
+    }
+    loadedLenRef.current = bars.length;
+    loadedFirstRef.current = firstNow;
+
+    if (changed || jumped || reshaped || regrown) {
       /* THE FIRST PAINT CARRIES THE RECENT BARS (2026-09-06, the perf sweep):
          a month of one-minute bars is 8,580 points, and the library checks
          every one of them on setData — the single largest cost of opening a
@@ -3804,6 +3863,11 @@ const StrikeChart = ({
          right edge, not to a bar index. */
       candleSeries.setData(bars.map(toMain));
       volumeSeries.setData(bars.map(b => toVolume(b, theme)));
+      if (keepAt) {
+        let idx = 0;
+        while (idx < bars.length - 1 && bars[idx].time < keepAt.time) idx++;
+        chart.timeScale().setVisibleLogicalRange({ from: idx + keepAt.off, to: idx + keepAt.off + keepAt.span });
+      }
       // Baseline style pivots on the CURRENT session's open — found at the
       // last overnight gap in the aggregated bars (intraday only; dailies
       // fall back to the buffer's first open)
@@ -3904,7 +3968,13 @@ const StrikeChart = ({
       containerRef.current?.setAttribute('data-chart-state', `${ticker}|${timeframe}|${bars.length}|${bars[0]?.time ?? 0}|${bars[bars.length - 1]?.time ?? 0}|${fieldCols == null ? 'f-' : `f${fieldCols}`}|r${revision}`);
     markState(null);
     const handTrails = () => {
-      const snaps = aggregateSnapshots(baseGex ?? [], trailMins);
+      const folded = aggregateSnapshots(baseGex ?? [], trailMins);
+      /* the sessions the server folded to this timeframe stand ahead of the page's own, their references, peaks and
+         walls their own (Section I) */
+      const pre = tapeRef.current?.pre;
+      const preOn = !!pre && pre.tf === mins && mins < 1440;
+      const snaps = preOn ? mergeByTime(pre!.cols, folded) : folded;
+      trails.setPre(preOn ? pre!.maxima : NO_PRE_MAXIMA, preOn ? pre!.events : []);
       /* the per-minute store rides beside the folded columns: the reference counts minutes whatever the texture */
       trails.setData(snaps, snapshotsMaxAbs(snaps), showTrails, mins * 60, trailsGreek, baseGex ?? undefined);
       publishBeadLegend();

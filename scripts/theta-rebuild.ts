@@ -15,6 +15,7 @@
   version with them: a changed version rebuilds every day on the next run.
 ==================================================
 */
+import { createFieldTiles } from '../server/fieldTiles';
 import { existsSync, readFileSync } from 'node:fs';
 import { rebuildTheta, THETA_REBUILD, type ThetaRebuildConfig } from '../server/thetaRebuild';
 
@@ -67,7 +68,15 @@ if (!existsSync(histRoot)) {
 const stamp = () => new Date().toISOString().slice(11, 19);
 console.log(`theta rebuild ${cfg.version}: ${names.join(', ')} from ${histRoot} into ${fieldRoot}${maxDays ? `, ${maxDays} days a name` : ''}${again ? ', built again' : ''} — quote clock ${cfg.quoteClock}, SPX ${cfg.spxSource}, rate ${cfg.rate}`);
 const t0 = Date.now();
-const trust = await rebuildTheta({ histRoot, fieldRoot, names, maxDays, cfg, again, log: l => console.log(`${stamp()}  ${l}`) });
+/* each day built is tiled (Section I: every timeframe and window folded once, at rebuild time — server/fieldTiles.ts) */
+const tiles = createFieldTiles(null, { root: fieldRoot, log: l => console.log(`${stamp()}  ${l}`) });
+const trust = await rebuildTheta({ histRoot, fieldRoot, names, maxDays, cfg, again, log: l => console.log(`${stamp()}  ${l}`), onDay: (name, day, past, bars) => {
+  try {
+    tiles.buildFrom(name, day, past, bars, null);
+  } catch (e) {
+    console.log(`${stamp()}  tiles ${name} ${day} failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+} });
 let stopped = 0;
 for (const [name, t] of Object.entries(trust)) {
   if (t.stoppedAt) stopped++;

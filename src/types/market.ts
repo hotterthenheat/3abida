@@ -94,6 +94,29 @@ export interface GexSnapshot {
       underlying, house's sign, repriced at 3:50 pm New York at this moment's price and vols, minus now's — by expiry
       partition (driftOf sums a window). Absent off the model, at or past 3:50 pm, and with none of today's contracts. */
   drift?: Float64Array;
+  /** A PRECOMPUTED COLUMN (Section I, src/data/feed/tiles.ts — the server folds a past session to every timeframe at
+      rebuild time, so a zoomed-out view never folds minute rows on the fly): what the renderer would otherwise read off
+      the per-minute store — the session's bead references as of the column's last minute (the net's p85 and p95, the
+      gross's p85, the delta's p85 and p95; the minutes counted and the last one) and the walls the one stick held then,
+      with their states. Absent on a column folded in the page. */
+  pre?: TileColumnPre;
+}
+
+export interface TileColumnPre {
+  ref: number;
+  ring: number;
+  refG: number;
+  refD: number;
+  ringD: number;
+  minutes: number;
+  /** the last minute counted, epoch s */
+  at: number;
+  /** the column's net at that last minute — the regime as it stood when the bar closed (the regime strip's reading) */
+  net: number;
+  cw: number | null;
+  pw: number | null;
+  cwState: 'holding' | 'broken' | 'reclaimed' | null;
+  pwState: 'holding' | 'broken' | 'reclaimed' | null;
 }
 
 export interface Indicators {

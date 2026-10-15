@@ -1062,16 +1062,18 @@ export interface PastSessions {
  * Ask the server for the sessions before today the chart holds, and fold each built one into the field. Asked every
  * 15 s while any is still being built (an ask nobody repeats in five minutes is dropped there); null before an answer.
  */
-export function useServerPastSessions(on: boolean, ticker: string, bars: readonly Candle[] | null): PastSessions | null {
+export function useServerPastSessions(on: boolean, ticker: string, bars: readonly Candle[] | null, model = true): PastSessions | null {
   const t = ticker.toUpperCase();
   const days = useMemo(() => pastSessionsOf(bars), [bars]);
   const list = days.join(',');
-  const key = on && t && list ? `field:past:${t}:${list}` : null;
+  /* `model` false (Section I — the server tiles the session, the page models nothing): the server is still asked to
+     REBUILD the sessions the chart holds, the page fetches none of them */
+  const key = on && t && list ? `field:past:${t}:${list}:${model ? 'm' : 'a'}` : null;
   const r = useFeedPoll(
     key,
     async () => {
       const a = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/past?days=${list}`)) as FeedResult<PastAnswer>;
-      if (a.ok && a.data) for (const d of a.data.ready) void loadPastDay(t, d);
+      if (model && a.ok && a.data) for (const d of a.data.ready) void loadPastDay(t, d);
       return a;
     },
     15_000

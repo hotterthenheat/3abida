@@ -1259,6 +1259,35 @@ with rows, empty dates, oldest, newest). A live walk from the workspace on 2026-
 SPX six): 18 sessions written in 9.5 s, 14 fields a row, 493–557 rows a session from about 6:35 am to 4:00 pm New York.
 scripts/series-backfill-proof.ts runs the rules against a stand-in client in `npm test`.
 
+## The tiles (2026-10-15 — the owner's Section I: "Load by visible range plus a buffer; never load a whole history into the page. Precompute every timeframe (1m, 5m, 15m, 1h, 1D) at rebuild time")
+
+**What a tile is** (src/data/feed/tiles.ts): one session through one expiry window at one timeframe — the field the page
+draws (the same model: universeOf and modelColumn on the session's rebuilt inputs, every regular minute), seen through
+the window (windowView) and folded by the page's own fold (aggregateSnapshots: a bar's cell is its peak minute). Each
+column carries what the renderer would otherwise count off the per-minute store, as of the column's last minute: the
+session's p85 and p95 of per-minute peaks (the net's), the gross's p85, the delta's p85 and p95, the minutes counted,
+the last minute's net, and the walls the one stick held then with their states. A tile also keeps the window's
+per-minute peaks (the prior and fixed bases pool them) and the held walls' moves and states at the minute. The bars
+are kept once a timeframe (bars-<tf>.json.gz); the day's bar closes at the official close where close.json holds it.
+A cell is eleven numbers — money as whole numbers of a power of ten per column (within a twenty-thousandth of the
+column's largest figure), shares in thousandths, times as seconds from the column.
+
+**Where they come from** (server/fieldTiles.ts): written beside the session (`<NAME>/<D>/tiles/`) when the backfill
+saves a rebuilt session, when the Theta rebuild builds a day UW's backfill did not, by a sweep on the always-on
+recorder (a minute after it starts and at 4:30 pm New York), and when a range asks for a session that has inputs
+but no tiles of this format and model — one at a time, a breath between. On this machine: ~0.5 s to model a SPY
+session and ~0.3 s to fold and encode it; 0.9–1.1 MB gzipped a session for every window and timeframe (1m is 70%
+of it), so fourteen years of one name is about 3.5 GB.
+
+**How the page reads them** (src/data/feed/tileClient.ts, Terrain): `GET /feed/field/<NAME>/tiles/days` lists every
+tiled session's day bar (1D and 1W over the whole history — 3,528 bars for fourteen years) and the sessions the server
+can tile; `GET /feed/field/<NAME>/tiles?tf=&w=&from=&to=` answers a range (the files' own text, never parsed and
+written again: 11 SPY sessions at 5m in 30 ms, 2.4 MB). Terrain asks the newest sessions its timeframe shows and the
+same again (1m 3, 5m 10, 15m 25, 30m 40, 1h 60), the next block when the view's left edge reaches the oldest, and
+behind the view the neighbouring timeframes and the other windows. The chart draws them as the tape's `pre` beside
+today's minutes and never folds them; the page models today alone. A cut on a listed date, an index, and a server
+with no tiles route (an always-on recorder on older code) read the sessions as before.
+
 ## The walls from the book (2026-10-15 — the owner: "no hold time fixes it, because the flip comes from the definition (the put wall must be below price). Choose walls from the book, not from price's side")
 
 **The rule** (core/walls.ts `pickWalls`, everywhere a wall is named — Terrain, Pinpoint, Pulse, the Weigher, Compass's

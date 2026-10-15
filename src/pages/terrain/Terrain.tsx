@@ -115,6 +115,8 @@ import {
   type FeedOi,
   type FeedStrike, useBeadScaleRefs, measuredBooks60, measuredBooks, pastSessionsOf, useReplaySessions, type PricedMoveFeed
 } from '../../data/feed/levels';
+import { loadTileRange, tileDay, tileHeld, tileSaid, useTileDaily, useTileSessions, type TileDay } from '../../data/feed/tileClient';
+import { mergeByTime, TILE_WINDOWS, type TileTf } from '../../data/feed/tiles';
 import { book60Window, driftEndOf, driftOf, netOf, ordinal, regimeForWindow, regimeReadOf, regimeSide, regimeWordsOf, sigmaOf, wallStateOn, WallStick, type ExpiryWindow, type RegimeRead, type WallShown } from '../../data/feed/trailModel';
 import ReplayStrip from '../../components/gex/ReplayStrip';
 import ReplayTools from '../../components/terrain/ReplayTools';
@@ -434,6 +436,13 @@ const FEED_HELD: Partial<Record<Timeframe, string>> = {
   '15s': 'No seconds on the feed here yet — the panes draw bars of a minute and up',
 };
 const EMPTY_BARS: Candle[] = [];
+/* THE SESSIONS BEFORE TODAY, BY TIMEFRAME (Section I — "load by visible range plus a buffer"): the timeframe's tile, and
+   how many sessions the view opens on — about what a pane shows at its opening zoom and the same again to its left; the
+   left edge reaching the oldest asks the next block (the adjacent range, prefetched behind the view) */
+const TILE_TF_OF: Partial<Record<Timeframe, TileTf>> = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60 };
+const TILE_SPAN: Record<number, number> = { 1: 3, 5: 10, 15: 25, 30: 40, 60: 60 };
+/** The timeframes a switch reaches in one step from this one — prefetched behind the view */
+const TILE_NEIGHBOURS: Record<number, TileTf[]> = { 1: [5], 5: [1, 15], 15: [5, 30], 30: [15, 60], 60: [30] };
 const lastClose = (bars: readonly Candle[] | undefined): number => (bars && bars.length ? bars[bars.length - 1].close : NaN);
 /** A price scale for a pane with no bars (an index on the feed): the book's strikes round the price, top to bottom of
     the box, so the ladder still stands on rows */
@@ -1250,9 +1259,76 @@ const Pane = ({
   /* the field follows the pane's expiry card: one listed date's contracts alone, or every expiry */
   const trailCut = cutDate;
   const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, trailCut, win);
-  /* the sessions before today the chart holds, rebuilt by the server from UW's dated history (server/fieldBackfill.ts) */
-  const fPast = useServerPastSessions(onFeed && !isCashIndex(ticker) && overlays.trails, ticker, fBars.bars);
+  /* ══ THE SESSIONS BEFORE TODAY, AS THE SERVER FOLDED THEM (the owner's Section I, 2026-10-15) ══════════════════════
+     Each past session comes as tiles (server/fieldTiles.ts): its bars at this pane's timeframe and its columns through
+     the pane's window, each column carrying its references and held walls — modeled once on the server at rebuild time,
+     never in the page, never folded here. The view opens on the newest sessions the timeframe shows and a buffer; its
+     left edge reaching the oldest asks the next block (onViewFrom); behind the view the page asks the next block, the
+     same sessions at the neighbouring timeframes and the other windows, so a switch finds them in hand. A listed-date
+     cut, an index, and a server with no tiles route read the sessions as before (useServerPastSessions). */
+  const tileTf = TILE_TF_OF[timeframe === '15s' ? '1m' : timeframe] ?? null;
+  const tileReady = onFeed && !isCashIndex(ticker) && cutDate == null;
+  const tDaily = useTileDaily(tileReady, ticker);
+  const tilesToday = nyIsoDate();
+  const [tileExtra, setTileExtra] = useState(0);
+  useEffect(() => setTileExtra(0), [ticker, timeframe]);
+  /* the sessions there are or will be tiles for: the tiled ones, the ones the server can tile (rebuilt, not yet tiled)
+     and the ones the chart's own minutes hold (the server is asked to rebuild them — useServerPastSessions below) */
+  const barDays = useMemo(() => pastSessionsOf(fBars.bars), [fBars.bars]);
+  const tiledBefore = useMemo(() => (tDaily ? [...new Set([...tDaily.days, ...tDaily.pending, ...barDays])].filter(d => d < tilesToday).sort() : []), [tDaily, barDays, tilesToday]);
+  const tileSpan = tileTf ? TILE_SPAN[tileTf] : 0;
+  const tileDays = useMemo(() => (tileReady && tileTf ? tiledBefore.slice(-(tileSpan + tileExtra)) : []), [tileReady, tileTf, tiledBefore, tileSpan, tileExtra]);
+  const tileAlso = useMemo(() => {
+    if (!tileTf || !tileDays.length) return [];
+    const n = tileSpan + tileExtra;
+    const older = tiledBefore.slice(Math.max(0, tiledBefore.length - n - tileSpan), Math.max(0, tiledBefore.length - n));
+    return [
+      { tf: tileTf, w: win, days: older },
+      ...TILE_NEIGHBOURS[tileTf].map(nt => ({ tf: nt, w: win, days: tiledBefore.slice(-TILE_SPAN[nt]) })),
+      ...TILE_WINDOWS.filter(ow => ow !== win).map(ow => ({ tf: tileTf, w: ow, days: tileDays })),
+    ];
+  }, [tileTf, tileDays, tiledBefore, tileSpan, tileExtra, win]);
+  const tiles = useTileSessions(tileReady && !!tileTf, ticker, tileTf ?? 5, win, tileDays, tileAlso);
+  /* the tiles route answers (a server with none — an always-on recorder on older code — reads the sessions as before) */
+  const tilesOn = tileReady && !tiles.unavailable && tDaily != null;
+  const preTape = useMemo(() => {
+    if (!tilesOn || !tileTf || !tileDays.length) return undefined;
+    const held: TileDay[] = [];
+    for (const d of tileDays) {
+      const td = tileDay(ticker, tileTf, win, d);
+      if (td) held.push(td);
+    }
+    if (!held.length) return undefined;
+    const maxima = new Map<string, TileDay['maxima']>();
+    for (const td of held) maxima.set(td.day, td.maxima);
+    return { tf: tileTf, bars: held.flatMap(td => td.bars), cols: held.flatMap(td => td.cols), maxima, events: held.flatMap(td => td.events), days: held.map(td => td.day) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tilesOn, tileTf, tileDays, ticker, win, tiles.version]);
+  /* the reader's view reaching the oldest session in hand asks the block before it */
+  const onViewFrom = useCallback(
+    (fromTime: number) => {
+      if (!tilesOn || !tileDays.length || tileDays.length >= tiledBefore.length) return;
+      const d = nyIsoDate(fromTime * 1000);
+      const idx = tileDays.indexOf(d);
+      if (d <= tileDays[0] || (idx >= 0 && idx < Math.ceil(tileSpan / 3))) setTileExtra(e => e + tileSpan);
+    },
+    [tilesOn, tileDays, tiledBefore.length, tileSpan]
+  );
+  /* the sessions before today the chart holds, rebuilt by the server from UW's dated history (server/fieldBackfill.ts) —
+     modeled in the page only where the tiles do not stand (above) */
+  /* a replay reads the live trail's columns for every session the recorder did not keep (the replay's twin), so while the
+     pane is in a replay the sessions are modeled in the page as before */
+  const fPast = useServerPastSessions(onFeed && !isCashIndex(ticker) && overlays.trails, ticker, fBars.bars, !tilesOn || replay);
   const fField = fTrail.snaps;
+  /* the page's own minutes for the tape: the tiled sessions' left out (their bars come folded with their columns) */
+  const tiledSet = useMemo(() => new Set(preTape?.days ?? []), [preTape]);
+  const tapeBars = useMemo(() => (fBars.bars && tiledSet.size ? fBars.bars.filter(b => !tiledSet.has(nyIsoDate(b.time * 1000))) : fBars.bars), [fBars.bars, tiledSet]);
+  /* the day bars: the vendor's (UW, Theta) over every tiled session's — fourteen years where the server holds them */
+  const allDaily = useMemo(() => {
+    if (!tilesOn || !tDaily?.bars.length) return fDaily;
+    if (!fDaily?.length) return tDaily.bars;
+    return mergeByTime(fDaily, tDaily.bars);
+  }, [tilesOn, tDaily, fDaily]);
   const fByDate = useFeedByExpiry(onFeed && cutDate !== null, ticker, cutDate ? [cutDate] : []);
   const houseRail = useMemo(
     () => (offHouse ? null : railForCut(ticker, railCut)),
@@ -1402,9 +1478,9 @@ const Pane = ({
   const feedTape = useMemo(
     () =>
       onFeed && fBars.bars
-        ? { bars: fBars.bars, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, daily: fDaily ?? undefined, compareBars, earnings: fEarnings, macro: fMacro ?? [] }
+        ? { bars: tapeBars ?? fBars.bars, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, daily: allDaily ?? undefined, compareBars, earnings: fEarnings, macro: fMacro ?? [], pre: preTape }
         : undefined,
-    [onFeed, fBars.bars, feedIv, ticker, fField, fDaily, compareBars, fEarnings, fMacro]
+    [onFeed, fBars.bars, tapeBars, feedIv, ticker, fField, allDaily, compareBars, fEarnings, fMacro, preTape]
   );
   const feedRevision = useMemo(() => (feedRev += 1), [feedTape]); // eslint-disable-line react-hooks/exhaustive-deps
   /* no plan carries seconds: a pane kept on 15 s draws the minute until the reader picks again */
@@ -1492,8 +1568,8 @@ const Pane = ({
     const charm = new Map<number, { charm: number; gamma: number }>();
     /* charm's template is the newest book's — a replay has no book of its minute, so its charm lens stands empty */
     if (!rp.active) for (const r of fBook?.rows ?? []) charm.set(r.strike, { charm: r.charm.net, gamma: r.gex.net });
-    return { hist: rp.active && rp.cut ? rp.cut.cols : fField, charm };
-  }, [onFeed, fField, fBook, rp.active, rp.cut]);
+    return { hist: rp.active && rp.cut ? rp.cut.cols : preTape ? mergeByTime(preTape.cols, fField) : fField, charm };
+  }, [onFeed, fField, fBook, rp.active, rp.cut, preTape]);
   /* The rail's rows come off the SAME snapshot `levels` was reduced from. The
      header's three-strike read uses them too, so the line and the column can
      never name different strikes. Read even when the rail is hidden, because
@@ -1686,7 +1762,9 @@ const Pane = ({
     if (!dayPanel) return null;
     const day = dayPanel;
     const bar = (fDaily ?? (!offHouse ? Simulator.getCandles(Simulator.ensureTicker(ticker)) ?? [] : [])).find(b => nyIsoDate(b.time * 1000) === day) ?? null;
-    const cols = (offHouse ? fTrail.snaps : Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? []).filter(c => nyIsoDate(c.time * 1000) === day);
+    /* a tiled session's minutes come from its 1m tile (Section I); today's and an untiled session's off the page's field */
+    const tiled = tilesOn && day < nyIsoDate() ? tileDay(ticker, 1, win, day)?.cols ?? null : null;
+    const cols = tiled ?? (offHouse ? fTrail.snaps : Simulator.getGexHistory(Simulator.ensureTicker(ticker)) ?? []).filter(c => nyIsoDate(c.time * 1000) === day);
     const last = cols.length ? cols[cols.length - 1] : null;
     const close = bar?.close ?? last?.spot ?? null;
     const spot = last ? last.spot ?? close ?? 0 : 0;
@@ -1701,7 +1779,11 @@ const Pane = ({
     })() : null;
     return { day, close, last, walls, flip, regime: regime ? regimeWordsOf(regime, usdCompactSigned, ms => printClock(ms)) : null, nearest, uw, uwFailed: dayBook?.day === day && dayBook.failed, uwWaiting: onFeed && !isCashIndex(ticker) && (!dayBook || dayBook.day !== day) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayPanel, fDaily, offHouse, ticker, fTrail.snaps, fRegime, win, dayBook, onFeed]);
+  }, [dayPanel, fDaily, offHouse, ticker, fTrail.snaps, fRegime, win, dayBook, onFeed, tilesOn, tiles.version]);
+  /* the day panel's session at the minute, from its 1m tile */
+  useEffect(() => {
+    if (dayPanel && tilesOn && dayPanel < nyIsoDate() && !tileHeld(ticker, 1, win, dayPanel)) void loadTileRange(ticker, 1, win, dayPanel, dayPanel);
+  }, [dayPanel, tilesOn, ticker, win]);
   /* THE LADDER'S PEEK ON A PHONE (the UI pass): the three strikes nearest the price, a tap opening the ladder */
   const peek = useMemo(() => (belowLg && rail.rows.length ? [...rail.rows].sort((a, b) => Math.abs(a.strike - levels.spot) - Math.abs(b.strike - levels.spot)).slice(0, 3).sort((a, b) => b.strike - a.strike) : []), [belowLg, rail.rows, levels.spot]);
   /* THE LEVELS A RIGHT-CLICK CAN FOLLOW (item 7): the book's walls and flip, and its three heaviest strikes */
@@ -2021,6 +2103,16 @@ const Pane = ({
       const mTo = nyMinutes(Math.max(fromSec, toSec - 60) * 1000);
       if (mTo < 570) return `no field before the open · the book is read ${hours}`;
       if (mFrom > 960) return 'no field after the close';
+      if (day < today && tilesOn && tileTf) {
+        /* a tiled session: what the server said of it (Section I) */
+        if (tileHeld(ticker, tileTf, win, day)) return 'rebuilt · no column at these minutes';
+        const said = tileSaid(ticker, tileTf, win, day);
+        if (said?.failed) return `not rebuilt · ${said.failed}`;
+        if (said?.building) return said.queued ? 'queued to rebuild' : 'rebuilding on the server';
+        if (said?.none) return 'not rebuilt · nothing on the server to rebuild it from';
+        if (!tileDays.includes(day)) return tiledBefore.includes(day) ? 'not loaded · scroll to it' : 'not rebuilt';
+        return 'loading';
+      }
       if (day < today) {
         if (past?.failedWhy[day]) return `not rebuilt · ${past.failedWhy[day]}`;
         if (past?.working === day) return 'rebuilding on the server';
@@ -2037,7 +2129,8 @@ const Pane = ({
       if (toSec <= firstToday) return 'not recorded · before the first read';
       return 'not recorded';
     };
-  }, [onFeed, overlays.trails, fTrail.snaps, fTrail.full, fPast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFeed, overlays.trails, fTrail.snaps, fTrail.full, fPast, tilesOn, tileTf, win, ticker, tileDays, tiledBefore, tiles.version]);
 
   /* development only: what this pane stood at if React reports a render loop (src/dev/depthTrap.ts — the owner,
      2026-10-14: "log the component and state when it fires") */
@@ -2576,6 +2669,7 @@ const Pane = ({
               onPinStrike={k => setFocus(cur => (cur != null && Math.abs(cur - k) < 1e-9 ? null : k))}
               onJumpResult={onJumpResult}
               onViewEdge={onViewEdge}
+              onViewFrom={onViewFrom}
               onBarClick={tfMinutes(tf) >= 1440 ? onBarClick : undefined}
               stale={stale}
               beadBasis={beadBasis}
@@ -2651,9 +2745,9 @@ const Pane = ({
             {/* WHILE THE FIELD IS EMPTY on the feed (2026-10-13): the server has not read the chain yet, or there is no bar of
                 today — the line goes as the first modeled minute lands (the house's pane has no such line) */}
             {/* BUILDING / CATCHING UP (the UI pass): a hatched chip while the field fills or the earlier sessions come in */}
-            {onFeed && overlays.trails && !noBars && (!fTrail.full || (fPast && fPast.ready < fPast.asked)) && (
+            {onFeed && overlays.trails && !noBars && (!fTrail.full || (tilesOn ? (preTape?.days.length ?? 0) < tileDays.length : fPast && fPast.ready < fPast.asked)) && (
               <div className={`stripes absolute left-14 ${stale ? 'bottom-[3.75rem]' : 'bottom-8'} z-20 pointer-events-none select-none rounded border border-ink/[0.10] bg-canvas/70 px-1.5 py-0.5 text-[11px] text-textSecondary tnum`} data-trail-since data-building={!fTrail.full ? 'field' : 'past'}>
-                {!fTrail.full ? 'Building · the chain is being read' : `Catching up · earlier sessions ${fPast!.ready} of ${fPast!.asked} in`}
+                {!fTrail.full ? 'Building · the chain is being read' : tilesOn ? `Catching up · earlier sessions ${preTape?.days.length ?? 0} of ${tileDays.length} in` : `Catching up · earlier sessions ${fPast!.ready} of ${fPast!.asked} in`}
               </div>
             )}
             {/* THE STALE BANNER: the newest data is old — when it was last repriced, and a way to ask again */}

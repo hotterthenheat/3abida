@@ -86,12 +86,21 @@ const seriesNames = (env.SERIES_NAMES ?? 'SPY,QQQ,SPX')
 const seriesDays = Math.max(1, Number(env.SERIES_DAYS ?? 730) || 730);
 const series = createSeriesBackfill(handle.client, { log: l => console.log(`${stamp()} ${l}`) });
 let seriesDay = '';
+let tilesDay = '';
 const walkSeries = (why: string) => {
   if (!seriesNames.length || !env.UW_API_TOKEN || series.status().running) return;
   console.log(`${stamp()} series ${seriesNames.join(', ')}: ${seriesDays} days back, newest first (${why})`);
   void series.run(seriesNames, seriesDays).then(s => console.log(`${stamp()} series done: written ${s.written}, empty ${s.empty}, skipped ${s.skipped}, refused ${s.refused}, failed ${Object.keys(s.failed).length}`));
 };
 setTimeout(() => walkSeries('at start'), 30_000).unref();
+/* THE TILES (Section I, server/fieldTiles.ts): every session on disk with its inputs tiled — folded once to every
+   timeframe and window — a session at a time behind the recorder's reads; a minute after start, and nightly after the
+   close; new rebuilds are tiled as they are saved */
+const sweepTiles = (why: string) => {
+  const n = handle.tiles.sweep();
+  if (n) console.log(`${stamp()} tiles: ${n} sessions queued (${why})`);
+};
+setTimeout(() => sweepTiles('at start'), 60_000).unref();
 /* THE SCORECARD, NIGHTLY (the owner's item 2: "runs after 4:00 p.m. ET"): once a day after 4:05 pm New York, every
    recorded name but the indices; and once at start where a name has none yet */
 const nyMinuteNow = () => {
@@ -139,6 +148,10 @@ const nightly = setInterval(() => {
   if (minute >= 17 * 60 + 5 && recheckDay !== day && recapDay === day) {
     recheckDay = day;
     if (!weekend(day)) void recaps(day, 'at 5:05 pm, the official close kept');
+  }
+  if (minute >= 16 * 60 + 30 && tilesDay !== day) {
+    tilesDay = day;
+    sweepTiles('after the close');
   }
   /* the session just over joins the series (UW's rows for a date stand once it has closed) */
   if (minute >= 17 * 60 + 15 && seriesDay !== day) {

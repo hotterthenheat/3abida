@@ -1126,6 +1126,24 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   figured 12:02 pm · vols traded to 12:17 pm", short "OI Oct 14 · vols to 12:17 pm"): open interest carries its DATE
   alone (counted once a day after the close, published before the open); "book figured" is when UW figured the book by
   strike; "vols traded to" is the newest option trade behind the field's vols, moving with each chain read (item 17).
+- THE TILES (2026-10-15, the owner's Section I — "Precompute every timeframe (1m, 5m, 15m, 1h, 1D) at rebuild time, so a
+  zoomed-out view never aggregates minute rows on the fly … Load by visible range plus a buffer"; docs/data-feed.md "The
+  tiles"): a past session is modeled ONCE on the server (src/data/feed/tiles.ts buildDayTiles: the page's model,
+  windowView and aggregateSnapshots — never a second fold) into tiles a window × timeframe (1m, 5m, 15m, 30m, 1h, 1D;
+  all, 0DTE, Fri, OPEX) with the bars once a timeframe, each column carrying `pre` (GexSnapshot): the session's bead
+  references and the held walls AS OF ITS LAST MINUTE, the last minute's net (the regime strip), the window's per-minute
+  peaks (prior and fixed bases) and the walls' minute-precise events (the chips). server/fieldTiles.ts writes them
+  (.feed-cache/field/<NAME>/<D>/tiles/), on the backfill's save, the Theta rebuild (where UW's own rebuild is not
+  there), a sweep on the always-on recorder (start and 4:30 pm) and on a range that asks; GET /feed/field/<NAME>/tiles
+  ?tf=&w=&from=&to= and /tiles/days (every tiled day's bar, and `pending`: the sessions it can tile). Terrain
+  (data/feed/tileClient.ts) asks the sessions its timeframe shows and the same again (TILE_SPAN: 1m 3, 5m 10, 15m 25,
+  30m 40, 1h 60), the next block when the view's left edge reaches the oldest (StrikeChart `onViewFrom`), and behind
+  the view the neighbouring timeframes and the other windows; the chart takes them as the tape's `pre` beside today's
+  minutes (`bars`, `book`) and never folds them; the page models TODAY alone (useServerPastSessions keeps asking the
+  server to rebuild, `model` false) — except in a replay, and where there are no tiles (a cut on a listed date, an
+  index, a recorder on older code: the old path). The series is reloaded whenever its bar count moves by anything
+  but the one new bar at the end, the view kept on the bar times it showed. ~1 MB a session on disk (all windows and
+  timeframes), ~0.9 s to tile one; scripts/tiles-proof.ts in `npm test`.
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

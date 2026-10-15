@@ -221,7 +221,7 @@ export function compressTicks(rows: readonly Pick<TapeRow, 'start_time' | 'iv_lo
   return out;
 }
 
-export function createFieldBackfill(client: FeedClient, opts: { now?: () => number; root?: string; tape?: TapeReader } = {}) {
+export function createFieldBackfill(client: FeedClient, opts: { now?: () => number; root?: string; tape?: TapeReader; onSaved?: (name: string, day: string) => void } = {}) {
   const clock = opts.now ?? Date.now;
   let tapeOf: TapeReader | undefined = opts.tape;
   /** The tape reader the job uses for days before TAPE_UNTIL (server/tapeBackfill.ts) */
@@ -487,6 +487,8 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
     if (minutes?.length) writeFileSync(join(root, p.name, p.day, BARS), gzipSync(Buffer.from(JSON.stringify(minutes))));
     /* the coverage line reads these alone — never the sessions themselves */
     writeFileSync(join(root, p.name, p.day, META), JSON.stringify({ vols: p.vols, builtAt: p.builtAt, asked: p.asked, refused: p.refused, calls: p.calls } satisfies PastMeta));
+    /* the session's tiles follow it (server/fieldTiles.ts — Section I: every timeframe folded at rebuild time) */
+    opts.onSaved?.(p.name, p.day);
   }
   const noneFile = (name: string, day: string) => join(root, name, day, 'none.json');
   const noneOf = (name: string, day: string) => existsSync(noneFile(name, day));

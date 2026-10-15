@@ -509,6 +509,8 @@ export interface RebuildOptions {
   now?: () => number;
   /** Build again a day already built (a config change) */
   again?: boolean;
+  /** Each day built, its inputs and bars (Section I: the CLI tiles it — server/fieldTiles.ts) */
+  onDay?: (name: string, day: string, past: PastDay, bars: HistoryBar[]) => void;
 }
 
 /** The version a day's build note names (null with none) */
@@ -562,6 +564,8 @@ export async function rebuildTheta(opts: RebuildOptions): Promise<Record<string,
       writeFileSync(join(dir, 'theta-build.json'), JSON.stringify({ version: cfg.version, config: cfg, builtAt: now(), rate: b.rate, counts: b.counts, rows: rows.length, seed: b.past.seed?.date ?? null, total: !!b.past.total }));
       built++;
       trust.reached = day;
+      /* the day's tiles — where UW's own rebuild of the day is not there (finalRowsOf's rule: UW's stand over the history's) */
+      if (!existsSync(join(dir, 'past.json.gz'))) opts.onDay?.(name, day, b.past, b.bars);
       const secs = (now() - t0) / 1000;
       log(`${name} ${day}: ${rows.length} rows from ${b.counts.quoted} quoted contracts of ${b.counts.contracts} (${b.counts.files} quote files)${b.rate ? `, r ${(b.rate.r * 100).toFixed(2)}% (${b.rate.source})` : ', UW\'s rate'}${b.past.seed ? `, seed ${b.past.seed.date}` : ', no seed'} — ${secs.toFixed(1)} s`);
       /* THE TRUST GATE: a day the recorder kept is the rebuild's check; a FAIL stops the walk for the name */

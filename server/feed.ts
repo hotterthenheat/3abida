@@ -41,6 +41,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createFieldRecorder } from './fieldRecorder';
 import { createFieldBackfill } from './fieldBackfill';
+import { createFieldTiles, type FieldTiles } from './fieldTiles';
 import { createFieldStore } from './fieldStore';
 import { createScorecard } from './scorecard';
 import { createRecap } from './recap';
@@ -537,8 +538,12 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     const code = cause?.code ?? (e as { code?: string } | null)?.code ?? '';
     return code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH' || code === 'ECONNRESET';
   };
-  /* THE FIELD'S PAST SESSIONS (server/fieldBackfill.ts): a session before today rebuilt from UW's dated history, once */
-  const backfill = createFieldBackfill(client);
+  /* THE FIELD'S PAST SESSIONS (server/fieldBackfill.ts): a session before today rebuilt from UW's dated history, once —
+     and TILED as it is saved (server/fieldTiles.ts, Section I: folded to every timeframe and window at rebuild time) */
+  let tilesRef: FieldTiles | null = null;
+  const backfill = createFieldBackfill(client, { onSaved: (name, day) => tilesRef?.ensure(name, [day]) });
+  const tiles = createFieldTiles(backfill);
+  tilesRef = tiles;
   /* THE POINT-IN-TIME STORE (server/fieldStore.ts): two rows a minute, written by the recorder */
   const store = createFieldStore();
   const recorder = createFieldRecorder(client, { always: opts.recordNames, backfill, store });
@@ -610,6 +615,18 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
       const sr = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/store$/.exec(url.pathname);
       if (sr) {
         const r = store.serve(sr[1], url.searchParams.get('day') ?? '', url.searchParams.get('kind') ?? 'final', Number(url.searchParams.get('since')) || 0);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
+      /* THE TILES (Section I): a range of sessions folded to one timeframe through one window, and every day's bar */
+      const td = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/tiles\/days$/.exec(url.pathname);
+      if (td) {
+        const r = tiles.daily(td[1]);
+        return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
+      }
+      const tl = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/tiles$/.exec(url.pathname);
+      if (tl) {
+        const g = (k: string) => url.searchParams.get(k) ?? '';
+        const r = tiles.serve(tl[1], g('tf'), g('w'), g('from'), g('to'));
         return send(res, { status: r.status, contentType: 'application/json', body: r.body, from: 'proxy' });
       }
       const mv = /^\/feed\/field\/([A-Za-z0-9.]{1,10})\/move$/.exec(url.pathname);
@@ -684,5 +701,5 @@ export function feedMiddleware(opts: FeedClientOptions & { allowLan?: boolean; r
     }
   };
   /* the standalone recorder (server/recorderMain.ts) reaches the job and the store through the handler */
-  return Object.assign(handler, { backfill, recorder, store, client, scorecard, move, scale, recap, close });
+  return Object.assign(handler, { backfill, recorder, store, client, scorecard, move, scale, recap, tiles, close });
 }

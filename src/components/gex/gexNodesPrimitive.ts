@@ -1233,6 +1233,25 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   private dayMaxima = new Map<string, number[]>();
   private dayRefs = new Map<string, { prior: ScaleRef | null; fixed: ScaleRef | null; priorG: ScaleRef | null; fixedG: ScaleRef | null; priorDay: string | null }>();
 
+  /* THE SESSIONS THE SERVER FOLDED (Section I, src/data/feed/tiles.ts): their columns carry their own references and
+     held walls (GexSnapshot `pre`); their per-minute peaks (the prior and fixed bases pool them as they pool the
+     store's) and their walls' minute-precise moves and states are handed here, beside the page's own minutes */
+  private preMaxima = new Map<string, { m: number[]; g: number[]; d: number[] }>();
+  private preMoves: WallMove[] = [];
+  private preStates: WallStateEvent[] = [];
+  setPre(maxima: Map<string, { m: number[]; g: number[]; d: number[] }>, events: readonly [number, number, number | null, number, number][]): void {
+    this.preMaxima = maxima;
+    this.preMoves = [];
+    this.preStates = [];
+    for (const [k, strike, from, state, time] of events) {
+      const kind = k === 0 ? 'CW' : 'PW';
+      if (from != null) this.preMoves.push({ kind, from, to: strike, time, i: -1 });
+      else if (state === 2 || state === 3) this.preStates.push({ kind, strike, state: state === 2 ? 'broken' : 'reclaimed', time, i: -1 });
+    }
+    this.dayRefs.clear();
+    this.refMemo = new WeakMap();
+  }
+
   /** The basis (item 5 (b)) and the floor (item 5 (e): a share of the reference; 0 = off) */
   basis: ScaleBasis = 'session';
   floor = 0;
@@ -1310,15 +1329,18 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     let r = this.dayRefs.get(day);
     if (r) return r;
     const ext = this.external.get(day);
-    const before = [...this.dayMaxima.keys()].filter(d => d < day).sort();
+    /* a day's per-minute peaks: the page's own minutes, else the server's fold (the greek's own list) */
+    const maxOf = (d: string): number[] | undefined => this.dayMaxima.get(d) ?? (this.preMaxima.has(d) ? (this.greek === 'dex' ? this.preMaxima.get(d)!.d : this.preMaxima.get(d)!.m) : undefined);
+    const maxGOf = (d: string): number[] | undefined => this.dayMaximaG.get(d) ?? this.preMaxima.get(d)?.g;
+    const before = [...new Set([...this.dayMaxima.keys(), ...this.preMaxima.keys()])].filter(d => d < day).sort();
     const priorDay = before.length ? before[before.length - 1] : null;
-    const prior = ext?.prior ?? (priorDay ? pooledRef(this.dayMaxima.get(priorDay)!, 1) : null);
+    const prior = ext?.prior ?? (priorDay ? pooledRef(maxOf(priorDay) ?? [], 1) : null);
     const pool = before.slice(-FIXED_SESSIONS);
-    const fixed = ext?.fixed ?? (pool.length ? pooledRef(pool.flatMap(d => this.dayMaxima.get(d)!), pool.length) : null);
+    const fixed = ext?.fixed ?? (pool.length ? pooledRef(pool.flatMap(d => maxOf(d) ?? []), pool.length) : null);
     /* the size's twins stand on the sessions this page holds (the server's scale.json carries the net's references
        alone — a follow-up adds the gross) */
-    const priorG = priorDay ? pooledRef(this.dayMaximaG.get(priorDay)!, 1) : null;
-    const fixedG = pool.length ? pooledRef(pool.flatMap(d => this.dayMaximaG.get(d)!), pool.length) : null;
+    const priorG = priorDay ? pooledRef(maxGOf(priorDay) ?? [], 1) : null;
+    const fixedG = pool.length ? pooledRef(pool.flatMap(d => maxGOf(d) ?? []), pool.length) : null;
     r = { prior, fixed, priorG, fixedG, priorDay: ext?.priorDay ?? priorDay };
     this.dayRefs.set(day, r);
     return r;
@@ -1346,11 +1368,17 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     }
     const j = lo - 1;
     const day = nyDayKey(snap.time);
+    /* a column the server folded carries its session's reference as of its last minute (the greek's own) */
+    const pre = snap.pre;
     if (this.basis !== 'session') {
       const r = this.dayRef(day);
       const got = this.basis === 'prior' ? r.prior : r.fixed;
       const gotG = this.basis === 'prior' ? r.priorG : r.fixedG;
       if (got) return { ref: got.ref, ring: got.ring, refG: gotG?.ref ?? got.ref, basis: this.basis, at: j >= 0 ? this.baseTimes[j] : snap.time, minutes: got.minutes, sessions: got.sessions, priorDay: r.priorDay };
+    }
+    if (pre) {
+      const dex = this.greek === 'dex';
+      return { ref: dex ? pre.refD : pre.ref, ring: dex ? pre.ringD : pre.ring, refG: dex ? pre.refD : pre.refG, basis: 'session', at: pre.at, minutes: pre.minutes, sessions: 1, priorDay: null };
     }
     if (j >= 0 && this.baseDays[j] === day) return { ref: this.baseRef[j], ring: this.baseRing[j], refG: this.baseRefG[j], basis: 'session', at: this.baseTimes[j], minutes: j - this.baseFirst[j] + 1, sessions: 1, priorDay: null };
     return { ref: 0, ring: 0, refG: 0, basis: 'session', at: snap.time, minutes: 0, sessions: 0, priorDay: null };
@@ -1431,13 +1459,19 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
         }
         shown[i] = { ...stick.next(o), time: snap.time };
       }
-      this.wallMoves = stickyWallMoves(shown.length, i => shown[i]);
-      this.wallStates = wallStateEventsOf(shown.length, i => shown[i]);
+      this.wallMoves = [...this.preMoves, ...stickyWallMoves(shown.length, i => shown[i])];
+      this.wallStates = [...this.preStates, ...wallStateEventsOf(shown.length, i => shown[i])];
       /* a column's last minute: its time plus its span less a minute */
       const span = Math.max(60, this.stepSec) - 60;
       this.colShown = new Array(snapshots.length);
       let j = 0;
       for (let i = 0; i < snapshots.length; i++) {
+        /* a column the server folded carries the walls the stick held at its last minute */
+        const pre = snapshots[i].pre;
+        if (pre) {
+          this.colShown[i] = { cw: pre.cw, pw: pre.pw, cwState: pre.cwState, pwState: pre.pwState, cwSince: 0, pwSince: 0, cwStateAt: 0, pwStateAt: 0 };
+          continue;
+        }
         const end = snapshots[i].time + span;
         while (j + 1 < shown.length && shown[j + 1].time <= end) j++;
         this.colShown[i] = shown.length && shown[j].time <= end ? shown[j] : null;
