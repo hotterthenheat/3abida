@@ -1,0 +1,628 @@
+{
+ "meta": {
+  "at": "2026-10-15T07:38:21.419Z",
+  "base": "http://127.0.0.1:5181",
+  "commit": "521d7de",
+  "viewport": "1440 × 900 unless the row says otherwise",
+  "timezone": "America/Los_Angeles",
+  "runSeconds": 51,
+  "totals": {
+   "pass": 60,
+   "fail": 1,
+   "manual": 0
+  },
+  "note": "Wall-clock timings on a machine shared with two other browser agents — pessimistic. ms runs from the action to the observed result."
+ },
+ "rows": [
+  {
+   "id": "A-98",
+   "item": "The hover row itself",
+   "action": "move the pointer off the pane, onto it, off again, then Tab into the pane",
+   "expected": "hidden at rest; display flex on hover and on focus-within",
+   "observed": "at rest none; on hover flex; on focus flex; holds: No seconds on the feed h · 1m · 5m · 15m · 30m · 1h · 1D · 1W · Indicators and scripts · Chart style & price scal · Candle theme · Glacier · The reference grows thro · One reference for the wh · One reference for the wh · Off · 5% · 10% · 25% · The bead legend's line —",
+   "pass": true,
+   "ms": 321,
+   "notes": ""
+  },
+  {
+   "id": "A-99",
+   "item": "Hover-row timeframe (trigger or strip)",
+   "action": "hover the pane, open the timeframe control",
+   "expected": "a list of the 8 timeframes",
+   "observed": "strip form: 15s 1m 5m 15m 30m 1h 1D 1W",
+   "pass": true,
+   "ms": null,
+   "notes": "the header shows the same timeframe as tabs: two controls for one state in one pane"
+  },
+  {
+   "id": "A-100",
+   "item": "Hover-row option \"15s\"",
+   "action": "pick 15s from the hover row",
+   "expected": "disabled on the feed, with its reason",
+   "observed": "disabled true; title \"No seconds on the feed here yet — the panes draw bars of a minute and up\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-101",
+   "item": "Hover-row option \"1m\"",
+   "action": "pick 1m from the hover row",
+   "expected": "the pane on 1m",
+   "observed": "config 1m, chart 1m",
+   "pass": true,
+   "ms": 478,
+   "notes": ""
+  },
+  {
+   "id": "A-102",
+   "item": "Hover-row option \"5m\"",
+   "action": "pick 5m from the hover row",
+   "expected": "the pane on 5m",
+   "observed": "config 5m, chart 5m",
+   "pass": true,
+   "ms": 446,
+   "notes": ""
+  },
+  {
+   "id": "A-103",
+   "item": "Hover-row option \"15m\"",
+   "action": "pick 15m from the hover row",
+   "expected": "the pane on 15m",
+   "observed": "config 15m, chart 15m",
+   "pass": true,
+   "ms": 439,
+   "notes": ""
+  },
+  {
+   "id": "A-104",
+   "item": "Hover-row option \"30m\"",
+   "action": "pick 30m from the hover row",
+   "expected": "the pane on 30m",
+   "observed": "config 30m, chart 30m",
+   "pass": true,
+   "ms": 625,
+   "notes": ""
+  },
+  {
+   "id": "A-105",
+   "item": "Hover-row option \"1h\"",
+   "action": "pick 1h from the hover row",
+   "expected": "the pane on 1h",
+   "observed": "config 1h, chart 1h",
+   "pass": true,
+   "ms": 629,
+   "notes": ""
+  },
+  {
+   "id": "A-106",
+   "item": "Hover-row option \"1D\"",
+   "action": "pick 1D from the hover row",
+   "expected": "the pane on 1D",
+   "observed": "config 1D, chart 1D",
+   "pass": true,
+   "ms": 395,
+   "notes": ""
+  },
+  {
+   "id": "A-107",
+   "item": "Hover-row option \"1W\"",
+   "action": "pick 1W from the hover row",
+   "expected": "the pane on 1W",
+   "observed": "config 1W, chart 1W",
+   "pass": true,
+   "ms": 249,
+   "notes": ""
+  },
+  {
+   "id": "A-108",
+   "item": "\"Indicators\" door (with count)",
+   "action": "open it, search EMA, turn on \"EMA 21\", then off",
+   "expected": "the library opens; the count chip goes up by one",
+   "observed": "library open; \"pineEMA ribbonThe 9, 21 and 50 exponenti\" on → count 0→1; off → back",
+   "pass": true,
+   "ms": 149,
+   "notes": ""
+  },
+  {
+   "id": "A-109",
+   "item": "\"Candles\" door (chart style & price scale)",
+   "action": "click it",
+   "expected": "the style, scale, bar clock and Export PNG menu opens",
+   "observed": "menu: CandlesHollow candlesBarsLineStep lineAreaBaselinePrice scaleLINLOG%100Bar clockTime$0.50$210k50kExport PNG",
+   "pass": true,
+   "ms": 116,
+   "notes": ""
+  },
+  {
+   "id": "A-110",
+   "item": "Style \"Candles\"",
+   "action": "pick Candles",
+   "expected": "chartStyle === candles; the menu closes",
+   "observed": "chartStyle candles; menu closed",
+   "pass": true,
+   "ms": 227,
+   "notes": ""
+  },
+  {
+   "id": "A-111",
+   "item": "Style \"Hollow candles\"",
+   "action": "pick Hollow candles",
+   "expected": "chartStyle === hollow; the menu closes",
+   "observed": "chartStyle hollow; menu closed",
+   "pass": true,
+   "ms": 480,
+   "notes": ""
+  },
+  {
+   "id": "A-112",
+   "item": "Style \"Bars\"",
+   "action": "pick Bars",
+   "expected": "chartStyle === bars; the menu closes",
+   "observed": "chartStyle bars; menu closed",
+   "pass": true,
+   "ms": 394,
+   "notes": ""
+  },
+  {
+   "id": "A-113",
+   "item": "Style \"Line\"",
+   "action": "pick Line",
+   "expected": "chartStyle === line; the menu closes",
+   "observed": "chartStyle line; menu closed",
+   "pass": true,
+   "ms": 445,
+   "notes": ""
+  },
+  {
+   "id": "A-114",
+   "item": "Style \"Step line\"",
+   "action": "pick Step line",
+   "expected": "chartStyle === step; the menu closes",
+   "observed": "chartStyle step; menu closed",
+   "pass": true,
+   "ms": 164,
+   "notes": ""
+  },
+  {
+   "id": "A-115",
+   "item": "Style \"Area\"",
+   "action": "pick Area",
+   "expected": "chartStyle === area; the menu closes",
+   "observed": "chartStyle area; menu closed",
+   "pass": true,
+   "ms": 392,
+   "notes": ""
+  },
+  {
+   "id": "A-116",
+   "item": "Style \"Baseline\"",
+   "action": "pick Baseline",
+   "expected": "chartStyle === baseline; the menu closes",
+   "observed": "chartStyle baseline; menu closed",
+   "pass": true,
+   "ms": 419,
+   "notes": ""
+  },
+  {
+   "id": "A-117",
+   "item": "\"Price scale\" label",
+   "action": "open the menu, read the section",
+   "expected": "a \"Price scale\" head over four chips",
+   "observed": "head present; chips LIN LOG % 100",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-118",
+   "item": "Scale \"LIN\"",
+   "action": "pick LIN",
+   "expected": "priceScale === normal",
+   "observed": "priceScale normal; the chart's right scale mode 0",
+   "pass": true,
+   "ms": 398,
+   "notes": ""
+  },
+  {
+   "id": "A-119",
+   "item": "Scale \"LOG\"",
+   "action": "pick LOG",
+   "expected": "priceScale === log",
+   "observed": "priceScale log; the chart's right scale mode 1",
+   "pass": true,
+   "ms": 466,
+   "notes": ""
+  },
+  {
+   "id": "A-120",
+   "item": "Scale \"%\"",
+   "action": "pick %",
+   "expected": "priceScale === percent",
+   "observed": "priceScale percent; the chart's right scale mode 2",
+   "pass": true,
+   "ms": 464,
+   "notes": ""
+  },
+  {
+   "id": "A-121",
+   "item": "Scale \"100\"",
+   "action": "pick 100",
+   "expected": "priceScale === indexed",
+   "observed": "priceScale indexed; the chart's right scale mode 3",
+   "pass": true,
+   "ms": 395,
+   "notes": ""
+  },
+  {
+   "id": "A-122",
+   "item": "Bar clock \"Time\"",
+   "action": "pick Time",
+   "expected": "clock === time",
+   "observed": "clock time; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 386,
+   "notes": ""
+  },
+  {
+   "id": "A-123",
+   "item": "Bar clock \"$0.50\"",
+   "action": "pick $0.50",
+   "expected": "clock === r50; the held overlays dim",
+   "observed": "clock r50; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 456,
+   "notes": ""
+  },
+  {
+   "id": "A-124",
+   "item": "Bar clock \"$2\"",
+   "action": "pick $2",
+   "expected": "clock === r200; the held overlays dim",
+   "observed": "clock r200; chart SPY|5m|1000; 10 overlay rows held",
+   "pass": true,
+   "ms": 415,
+   "notes": ""
+  },
+  {
+   "id": "A-125",
+   "item": "Bar clock \"10k\"",
+   "action": "pick 10k",
+   "expected": "clock === v10k; the held overlays dim",
+   "observed": "clock v10k; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 458,
+   "notes": ""
+  },
+  {
+   "id": "A-126",
+   "item": "Bar clock \"50k\"",
+   "action": "pick 50k",
+   "expected": "clock === v50k; the held overlays dim",
+   "observed": "clock v50k; chart SPY|5m|1000",
+   "pass": true,
+   "ms": 407,
+   "notes": ""
+  },
+  {
+   "id": "A-127",
+   "item": "Rule-bar note",
+   "action": "with $2 picked, read the note in the menu",
+   "expected": "the note says what the feed folds (its one-minute bars)",
+   "observed": "\"Rule bars fold the one-minute bars, their history included — the interval-based overlays sit out.\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-128",
+   "item": "\"Export PNG\"",
+   "action": "click it",
+   "expected": "a PNG downloads",
+   "observed": "downloaded \"SPY-5m-202610150737.png\" (131924 bytes)",
+   "pass": true,
+   "ms": 493,
+   "notes": ""
+  },
+  {
+   "id": "A-129",
+   "item": "\"Theme\" door",
+   "action": "click it",
+   "expected": "the candle theme list with a live preview",
+   "observed": "13 themes; preview canvas drawn",
+   "pass": true,
+   "ms": 186,
+   "notes": ""
+  },
+  {
+   "id": "A-130",
+   "item": "Theme \"Glacier\"",
+   "action": "pick Glacier",
+   "expected": "theme === glacier; the pane's ground follows",
+   "observed": "theme glacier; ground light → dark",
+   "pass": true,
+   "ms": 333,
+   "notes": ""
+  },
+  {
+   "id": "A-131",
+   "item": "Theme \"Foil\"",
+   "action": "pick Foil",
+   "expected": "theme === foil; the pane's ground follows",
+   "observed": "theme foil; ground dark → dark",
+   "pass": true,
+   "ms": 361,
+   "notes": ""
+  },
+  {
+   "id": "A-132",
+   "item": "Theme \"Chrome\"",
+   "action": "pick Chrome",
+   "expected": "theme === chrome; the pane's ground follows",
+   "observed": "theme chrome; ground dark → dark",
+   "pass": true,
+   "ms": 386,
+   "notes": ""
+  },
+  {
+   "id": "A-133",
+   "item": "Theme \"Velvet\"",
+   "action": "pick Velvet",
+   "expected": "theme === velvet; the pane's ground follows",
+   "observed": "theme velvet; ground dark → dark",
+   "pass": true,
+   "ms": 443,
+   "notes": ""
+  },
+  {
+   "id": "A-134",
+   "item": "Theme \"Mono\"",
+   "action": "pick Mono",
+   "expected": "theme === mono; the pane's ground follows",
+   "observed": "theme mono; ground dark → dark",
+   "pass": true,
+   "ms": 377,
+   "notes": ""
+  },
+  {
+   "id": "A-135",
+   "item": "Theme \"Neon\"",
+   "action": "pick Neon",
+   "expected": "theme === classic; the pane's ground follows",
+   "observed": "theme classic; ground dark → dark",
+   "pass": true,
+   "ms": 454,
+   "notes": ""
+  },
+  {
+   "id": "A-136",
+   "item": "Theme \"Market\"",
+   "action": "pick Market",
+   "expected": "theme === market; the pane's ground follows",
+   "observed": "theme market; ground dark → dark",
+   "pass": true,
+   "ms": 467,
+   "notes": ""
+  },
+  {
+   "id": "A-137",
+   "item": "Theme \"Tide\"",
+   "action": "pick Tide",
+   "expected": "theme === tide; the pane's ground follows",
+   "observed": "theme tide; ground dark → dark",
+   "pass": true,
+   "ms": 393,
+   "notes": ""
+  },
+  {
+   "id": "A-138",
+   "item": "Theme \"Harbor\"",
+   "action": "pick Harbor",
+   "expected": "theme === harbor; the pane's ground follows",
+   "observed": "theme harbor; ground dark → dark",
+   "pass": true,
+   "ms": 280,
+   "notes": ""
+  },
+  {
+   "id": "A-139",
+   "item": "Theme \"Whipsaw\"",
+   "action": "pick Whipsaw",
+   "expected": "theme === whipsaw; the pane's ground follows",
+   "observed": "theme whipsaw; ground dark → dark",
+   "pass": true,
+   "ms": 438,
+   "notes": ""
+  },
+  {
+   "id": "A-140",
+   "item": "Theme \"Contrast\"",
+   "action": "pick Contrast",
+   "expected": "theme === contrast; the pane's ground follows",
+   "observed": "theme contrast; ground dark → dark",
+   "pass": true,
+   "ms": 484,
+   "notes": ""
+  },
+  {
+   "id": "A-141",
+   "item": "Theme \"Wire\"",
+   "action": "pick Wire",
+   "expected": "theme === wire; the pane's ground follows",
+   "observed": "theme wire; ground dark → dark",
+   "pass": true,
+   "ms": 398,
+   "notes": ""
+  },
+  {
+   "id": "A-142",
+   "item": "Theme \"Stone\"",
+   "action": "pick Stone",
+   "expected": "theme === stone; the pane's ground follows",
+   "observed": "theme stone; ground dark → light",
+   "pass": true,
+   "ms": 466,
+   "notes": ""
+  },
+  {
+   "id": "A-143",
+   "item": "Preview and \"Use Tide\"",
+   "action": "hover Tide in the list, then click Use",
+   "expected": "the preview redraws for Tide; Use applies it",
+   "observed": "preview button \"Use Tide\" (after moving onto it \"Use Tide\"); Use → theme tide",
+   "pass": true,
+   "ms": 152,
+   "notes": ""
+  },
+  {
+   "id": "A-144",
+   "item": "Walls lens \"GEX\"",
+   "action": "with the walls overlay on, click GEX",
+   "expected": "wallsLens === gex",
+   "observed": "wallsLens gex; pressed true",
+   "pass": true,
+   "ms": 155,
+   "notes": ""
+  },
+  {
+   "id": "A-145",
+   "item": "Walls lens \"Charm\"",
+   "action": "with the walls overlay on, click Charm",
+   "expected": "wallsLens === charm",
+   "observed": "wallsLens charm; pressed true",
+   "pass": true,
+   "ms": 449,
+   "notes": ""
+  },
+  {
+   "id": "A-146",
+   "item": "Walls lens \"DEX\"",
+   "action": "with the walls overlay on, click DEX",
+   "expected": "wallsLens === dex",
+   "observed": "wallsLens dex; pressed true",
+   "pass": true,
+   "ms": 226,
+   "notes": ""
+  },
+  {
+   "id": "A-147",
+   "item": "Bead basis \"Session so far\"",
+   "action": "click Session so far",
+   "expected": "beadBasis unset; the legend's basis follows (or says it fell back)",
+   "observed": "beadBasis (unset); legend basis session — \"…y ·grey = balanced ·soft edge = stale ·Full size = $5.7B per 1% · the session's largest so far, as of 12:59 pm\"",
+   "pass": true,
+   "ms": 228,
+   "notes": ""
+  },
+  {
+   "id": "A-148",
+   "item": "Bead basis \"Fixed\"",
+   "action": "click Fixed",
+   "expected": "beadBasis === fixed; the legend's basis follows (or says it fell back)",
+   "observed": "beadBasis fixed; legend basis fixed — \"…ft edge = stale ·Full size = $62.8B per 1% · the largest over the 13 sessions before Oct 14, fixed for the day\"",
+   "pass": true,
+   "ms": 186,
+   "notes": ""
+  },
+  {
+   "id": "A-149",
+   "item": "Bead basis \"Prior session\"",
+   "action": "click Prior session",
+   "expected": "beadBasis === prior; the legend's basis follows (or says it fell back)",
+   "observed": "beadBasis prior; legend basis prior — \"…= amplify ·grey = balanced ·soft edge = stale ·Full size = $62.8B per 1% · the prior session's largest, Oct 13\"",
+   "pass": true,
+   "ms": 190,
+   "notes": ""
+  },
+  {
+   "id": "A-150",
+   "item": "\"Every strike\" checkbox",
+   "action": "check it, then uncheck it",
+   "expected": "beadDensity === false, then unset",
+   "observed": "checked → beadDensity false: true; unchecked → unset: true",
+   "pass": true,
+   "ms": 148,
+   "notes": ""
+  },
+  {
+   "id": "A-151",
+   "item": "Floor \"Off\"",
+   "action": "click Off",
+   "expected": "beadFloor unset",
+   "observed": "beadFloor (unset); legend names it",
+   "pass": true,
+   "ms": 374,
+   "notes": ""
+  },
+  {
+   "id": "A-152",
+   "item": "Floor \"5%\"",
+   "action": "click 5%",
+   "expected": "beadFloor === 0.05; the legend says what is hidden",
+   "observed": "beadFloor 0.05; legend names it",
+   "pass": true,
+   "ms": 260,
+   "notes": ""
+  },
+  {
+   "id": "A-153",
+   "item": "Floor \"10%\"",
+   "action": "click 10%",
+   "expected": "beadFloor === 0.1; the legend says what is hidden",
+   "observed": "beadFloor 0.1; legend names it",
+   "pass": true,
+   "ms": 330,
+   "notes": ""
+  },
+  {
+   "id": "A-154",
+   "item": "Floor \"25%\"",
+   "action": "click 25%",
+   "expected": "beadFloor === 0.25; the legend says what is hidden",
+   "observed": "beadFloor 0.25; legend names it",
+   "pass": true,
+   "ms": 331,
+   "notes": ""
+  },
+  {
+   "id": "A-155",
+   "item": "\"Legend\" door",
+   "action": "click it twice",
+   "expected": "legend === false and the legend goes; then it comes back",
+   "observed": "off: legend gone; on: back",
+   "pass": true,
+   "ms": 355,
+   "notes": ""
+  },
+  {
+   "id": "A-156",
+   "item": "Bead legend (full form)",
+   "action": "read the legend on a wide pane",
+   "expected": "the full words: size, gold, violet, grey, soft edge, the scale",
+   "observed": "form full; \"size = total gamma at the strike ·gold = absorb ·violet = amplify ·grey = balanced ·soft edge = stale ·Full size = $5.7B per 1% · the session's largest so far, as of 12:59 pm\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-157",
+   "item": "Decision strip",
+   "action": "look for it under the header",
+   "expected": "present (its boxes are another area's)",
+   "observed": "\"—▲PW 770 +$2.85 0.5σ · ▼ —±$5.97 to close · budget · −0.4σ day2 sessions · 153 touches · thinOI dated Oct 14 · book figured 1:15 pm\"",
+   "pass": true,
+   "ms": null,
+   "notes": "presence only — the boxes belong to another area"
+  },
+  {
+   "id": "A-158",
+   "item": "Crosshair readout",
+   "action": "hover a bar",
+   "expected": "the readout shows the bar's figures",
+   "observed": "exercise error: Cannot read properties of null (reading 'x')",
+   "pass": false,
+   "ms": null,
+   "notes": "the step itself threw; see observed"
+  }
+ ]
+}

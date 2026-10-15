@@ -54,3 +54,6 @@ graphify-out/
 
 # The field's recorder (server/fieldRecorder.ts): a day of UW books a watched name, deleted as the day turns
 .feed-cache/
+
+# scratch scripts while auditing — never committed
+scripts/_tmp/

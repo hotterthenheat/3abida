@@ -1,0 +1,8522 @@
+[
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 8:03 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979380,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 8:03 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979380,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 8:03 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979380,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 8:03 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979380,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 9, 4:55 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791579300,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:55 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791579300,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:55 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791579300,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:55 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791579300,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "SPY",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 8:30 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791981000,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 8:30 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791981000,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 8:30 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791981000,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 8:30 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791981000,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 9, 5:40 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582000,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 5:40 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582000,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 9, 5:40 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582000,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 9, 5:40 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582000,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 2, 4:00 AM",
+  "to": "Apr 2, 8:00 AM",
+  "t0": 1743580800,
+  "t1": 1743595200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 2, 4:00 PM",
+  "to": "Apr 2, 4:00 PM",
+  "t0": 1743624000,
+  "t1": 1743624000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 2, 5:00 PM",
+  "to": "Apr 2, 7:00 PM",
+  "t0": 1743627600,
+  "t1": 1743634800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 3, 4:00 AM",
+  "to": "Apr 3, 8:00 AM",
+  "t0": 1743667200,
+  "t1": 1743681600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 3, 4:00 PM",
+  "to": "Apr 3, 4:00 PM",
+  "t0": 1743710400,
+  "t1": 1743710400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Apr 3, 5:00 PM",
+  "to": "Apr 3, 7:00 PM",
+  "t0": 1743714000,
+  "t1": 1743721200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "QQQ",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 7:59 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979140,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "book",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 7:59 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979140,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 7:59 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979140,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 7:59 AM",
+  "to": "Oct 14, 9:29 AM",
+  "t0": 1791979140,
+  "t1": 1791984540,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:01 PM",
+  "to": "Oct 14, 7:59 PM",
+  "t0": 1792008060,
+  "t1": 1792022340,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 9, 5:50 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582600,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "book",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 5:50 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582600,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 9, 5:50 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582600,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 9, 5:50 PM",
+  "to": "Oct 9, 7:55 PM",
+  "t0": 1791582600,
+  "t1": 1791590100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:25 AM",
+  "t0": 1791792000,
+  "t1": 1791811500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:05 PM",
+  "to": "Oct 12, 7:55 PM",
+  "t0": 1791835500,
+  "t1": 1791849300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:25 AM",
+  "t0": 1791878400,
+  "t1": 1791897900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:05 PM",
+  "to": "Oct 13, 7:55 PM",
+  "t0": 1791921900,
+  "t1": 1791935700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:25 AM",
+  "t0": 1791964800,
+  "t1": 1791984300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "5m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:05 PM",
+  "to": "Oct 14, 7:55 PM",
+  "t0": 1792008300,
+  "t1": 1792022100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "book",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 8:15 AM",
+  "to": "Oct 7, 9:15 AM",
+  "t0": 1791375300,
+  "t1": 1791378900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:15 PM",
+  "to": "Oct 7, 7:45 PM",
+  "t0": 1791404100,
+  "t1": 1791416700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 9:15 AM",
+  "t0": 1791446400,
+  "t1": 1791465300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:15 PM",
+  "to": "Oct 8, 7:45 PM",
+  "t0": 1791490500,
+  "t1": 1791503100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 9:15 AM",
+  "t0": 1791532800,
+  "t1": 1791551700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:15 PM",
+  "to": "Oct 9, 7:45 PM",
+  "t0": 1791576900,
+  "t1": 1791589500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 9:15 AM",
+  "t0": 1791792000,
+  "t1": 1791810900,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:15 PM",
+  "to": "Oct 12, 7:45 PM",
+  "t0": 1791836100,
+  "t1": 1791848700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 9:15 AM",
+  "t0": 1791878400,
+  "t1": 1791897300,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:15 PM",
+  "to": "Oct 13, 7:45 PM",
+  "t0": 1791922500,
+  "t1": 1791935100,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 9:15 AM",
+  "t0": 1791964800,
+  "t1": 1791983700,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "15m",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:15 PM",
+  "to": "Oct 14, 7:45 PM",
+  "t0": 1792008900,
+  "t1": 1792021500,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "book",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:0dte",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:fri",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 4:00 AM",
+  "to": "Sep 29, 8:00 AM",
+  "t0": 1790668800,
+  "t1": 1790683200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 4:00 PM",
+  "to": "Sep 29, 4:00 PM",
+  "t0": 1790712000,
+  "t1": 1790712000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 29, 5:00 PM",
+  "to": "Sep 29, 7:00 PM",
+  "t0": 1790715600,
+  "t1": 1790722800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 4:00 AM",
+  "to": "Sep 30, 8:00 AM",
+  "t0": 1790755200,
+  "t1": 1790769600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 4:00 PM",
+  "to": "Sep 30, 4:00 PM",
+  "t0": 1790798400,
+  "t1": 1790798400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Sep 30, 5:00 PM",
+  "to": "Sep 30, 7:00 PM",
+  "t0": 1790802000,
+  "t1": 1790809200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 4:00 AM",
+  "to": "Oct 1, 8:00 AM",
+  "t0": 1790841600,
+  "t1": 1790856000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 4:00 PM",
+  "to": "Oct 1, 4:00 PM",
+  "t0": 1790884800,
+  "t1": 1790884800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 1, 5:00 PM",
+  "to": "Oct 1, 7:00 PM",
+  "t0": 1790888400,
+  "t1": 1790895600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 4:00 AM",
+  "to": "Oct 2, 8:00 AM",
+  "t0": 1790928000,
+  "t1": 1790942400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 4:00 PM",
+  "to": "Oct 2, 4:00 PM",
+  "t0": 1790971200,
+  "t1": 1790971200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 2, 5:00 PM",
+  "to": "Oct 2, 7:00 PM",
+  "t0": 1790974800,
+  "t1": 1790982000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 4:00 AM",
+  "to": "Oct 5, 8:00 AM",
+  "t0": 1791187200,
+  "t1": 1791201600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 4:00 PM",
+  "to": "Oct 5, 4:00 PM",
+  "t0": 1791230400,
+  "t1": 1791230400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 5, 5:00 PM",
+  "to": "Oct 5, 7:00 PM",
+  "t0": 1791234000,
+  "t1": 1791241200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 4:00 AM",
+  "to": "Oct 6, 8:00 AM",
+  "t0": 1791273600,
+  "t1": 1791288000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 4:00 PM",
+  "to": "Oct 6, 4:00 PM",
+  "t0": 1791316800,
+  "t1": 1791316800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 6, 5:00 PM",
+  "to": "Oct 6, 7:00 PM",
+  "t0": 1791320400,
+  "t1": 1791327600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 AM",
+  "to": "Oct 7, 8:00 AM",
+  "t0": 1791360000,
+  "t1": 1791374400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 4:00 PM",
+  "to": "Oct 7, 4:00 PM",
+  "t0": 1791403200,
+  "t1": 1791403200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 7, 5:00 PM",
+  "to": "Oct 7, 7:00 PM",
+  "t0": 1791406800,
+  "t1": 1791414000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 AM",
+  "to": "Oct 8, 8:00 AM",
+  "t0": 1791446400,
+  "t1": 1791460800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 4:00 PM",
+  "to": "Oct 8, 4:00 PM",
+  "t0": 1791489600,
+  "t1": 1791489600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 8, 5:00 PM",
+  "to": "Oct 8, 7:00 PM",
+  "t0": 1791493200,
+  "t1": 1791500400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 AM",
+  "to": "Oct 9, 8:00 AM",
+  "t0": 1791532800,
+  "t1": 1791547200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 4:00 PM",
+  "to": "Oct 9, 4:00 PM",
+  "t0": 1791576000,
+  "t1": 1791576000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 9, 5:00 PM",
+  "to": "Oct 9, 7:00 PM",
+  "t0": 1791579600,
+  "t1": 1791586800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 AM",
+  "to": "Oct 12, 8:00 AM",
+  "t0": 1791792000,
+  "t1": 1791806400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 4:00 PM",
+  "to": "Oct 12, 4:00 PM",
+  "t0": 1791835200,
+  "t1": 1791835200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 12, 5:00 PM",
+  "to": "Oct 12, 7:00 PM",
+  "t0": 1791838800,
+  "t1": 1791846000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 AM",
+  "to": "Oct 13, 8:00 AM",
+  "t0": 1791878400,
+  "t1": 1791892800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 4:00 PM",
+  "to": "Oct 13, 4:00 PM",
+  "t0": 1791921600,
+  "t1": 1791921600,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 13, 5:00 PM",
+  "to": "Oct 13, 7:00 PM",
+  "t0": 1791925200,
+  "t1": 1791932400,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 AM",
+  "to": "Oct 14, 8:00 AM",
+  "t0": 1791964800,
+  "t1": 1791979200,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 4:00 PM",
+  "to": "Oct 14, 4:00 PM",
+  "t0": 1792008000,
+  "t1": 1792008000,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ },
+ {
+  "name": "AAPL",
+  "tf": "1h",
+  "cut": "w:opex",
+  "from": "Oct 14, 5:00 PM",
+  "to": "Oct 14, 7:00 PM",
+  "t0": 1792011600,
+  "t1": 1792018800,
+  "words": "outside regular hours · the field is 9:30 am to 4:00 pm"
+ }
+]

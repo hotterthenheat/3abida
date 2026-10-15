@@ -1,0 +1,118 @@
+{
+ "meta": {
+  "at": "2026-10-15T07:54:19.430Z",
+  "base": "http://127.0.0.1:5181",
+  "commit": "521d7de",
+  "viewport": "1440 × 900 unless the row says otherwise",
+  "timezone": "America/Los_Angeles",
+  "runSeconds": 51,
+  "totals": {
+   "pass": 8,
+   "fail": 2,
+   "manual": 0
+  },
+  "note": "Wall-clock timings on a machine shared with two other browser agents — pessimistic. ms runs from the action to the observed result."
+ },
+ "rows": [
+  {
+   "id": "A-200",
+   "item": "Expanded top strip",
+   "action": "press F, look at the strip at rest",
+   "expected": "the strip stands at rest with identity, toolbar and Collapse",
+   "observed": "strip visible: Reads SPY — pick anoth · Link this pane to a gr · Compare symbol · 1m — 1m: between its E · 5m, on this pane — 5m: · 15m — 15m: below its E · 1h — 1h: below its EMA · 1D — 1D: not enough hi · No seconds on the feed · 1m · 5m · 15m · 30m · 1h · 1D · 1W · Replay session history · Indicators and scripts · Alerts · Chart style & price sc · Overlays · Candle theme · Glacier · Collapse SPY",
+   "pass": true,
+   "ms": null,
+   "notes": "not in fullscreen: age chip, window control, jumps, calendar, ? door, pop-out, walls lens, bead basis, floor, Every strike, Legend door"
+  },
+  {
+   "id": "A-201",
+   "item": "\"REPLAY\" button (expanded)",
+   "action": "click it, then click it again",
+   "expected": "the replay badge comes up; the button says it is pressed; then off",
+   "observed": "\"Replay\"; on → badge (aria-pressed true); off → gone; still expanded true",
+   "pass": true,
+   "ms": 346,
+   "notes": ""
+  },
+  {
+   "id": "A-202",
+   "item": "Collapse (minimize icon)",
+   "action": "press F, click Collapse",
+   "expected": "the pane returns to the grid",
+   "observed": "collapsed; .hit no",
+   "pass": true,
+   "ms": 407,
+   "notes": ""
+  },
+  {
+   "id": "A-203",
+   "item": "Second line \"SPY · 5m · $… · %\"",
+   "action": "read it",
+   "expected": "ticker · timeframe · price · change",
+   "observed": "\"SPY·5m·$767.15−0.32%\"",
+   "pass": true,
+   "ms": null,
+   "notes": ""
+  },
+  {
+   "id": "A-204",
+   "item": "Desk bar (floating in fullscreen)",
+   "action": "look at it at rest, then hover it",
+   "expected": "floating at 40% until hovered, then 100%",
+   "observed": "floating, opacity 0.4 at rest → 1 under the pointer",
+   "pass": true,
+   "ms": 1339,
+   "notes": ""
+  },
+  {
+   "id": "A-225",
+   "item": "\"PINE\" (fullscreen only)",
+   "action": "click it",
+   "expected": "the script editor docks at the right for this pane",
+   "observed": "no editor — dock none (expanded true, pine door true)",
+   "pass": false,
+   "ms": 16772,
+   "notes": ""
+  },
+  {
+   "id": "A-227",
+   "item": "\"× ESC\" chip (fullscreen only)",
+   "action": "click it",
+   "expected": "the pane collapses",
+   "observed": "collapsed; accessible name \"Esc\"",
+   "pass": true,
+   "ms": 350,
+   "notes": ""
+  },
+  {
+   "id": "A-234",
+   "item": "`F`",
+   "action": "press f, then f again",
+   "expected": "\"SPY expanded\", then collapsed",
+   "observed": "expand: \"SPY expanded\"; again: collapsed (\"SPY collapsed\")",
+   "pass": true,
+   "ms": 261,
+   "notes": ""
+  },
+  {
+   "id": "A-246",
+   "item": "Esc (fullscreen)",
+   "action": "press F, then Esc",
+   "expected": "the pane collapses",
+   "observed": "collapsed",
+   "pass": true,
+   "ms": 22,
+   "notes": ""
+  },
+  {
+   "id": "A-248",
+   "item": "Esc closes the open menu, not the pane",
+   "action": "in fullscreen open Overlays, press Esc",
+   "expected": "the menu closes; the pane stays expanded",
+   "observed": "Overlays: menu closed, pane still expanded; layouts shelf (focus on its button): Esc left the shelf open and collapsed the pane",
+   "pass": false,
+   "ms": 34,
+   "notes": ""
+  }
+ ]
+}
