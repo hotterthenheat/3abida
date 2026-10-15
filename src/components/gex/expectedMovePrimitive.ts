@@ -409,7 +409,9 @@ function drawPriced(target: DrawTarget, chart: IChartApi, series: ISeriesApi<'Ca
         const yy = y(d.spot + Math.max(...d.cone.map(p => p.half[2])));
         ty = yy === null ? null : yy - boxH;
       } else {
-        const right = (logicalToX(last + 0.5) ?? W) - 4 * hr;
+        /* never past the plot's own edge (the audit's after-run: with the newest bar beyond the view's right edge the words
+           ran off it, "−1.(") */
+        const right = Math.min(W, logicalToX(last + 0.5) ?? W) - 4 * hr;
         tx = Math.max(padX, right - tw - 2 * padX);
         /* the bars under the text: from its left edge to the last bar */
         let hi = -Infinity;

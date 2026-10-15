@@ -1039,6 +1039,9 @@ await group('view', async () => {
       if (items.includes('level-alert-on')) {
         await page.locator('[data-chart-menu-item="level-alert-on"]').first().click();
         await page.waitForTimeout(450);
+        /* the locator's click may have scrolled the page (Playwright scrolls an element into view when its first hit test
+           misses): the right-click goes where the level is, with the page put back */
+        await unscroll(page);
         await page.mouse.click(cx, cy, { button: 'right' });
         await until(page, () => !!document.querySelector('[data-chart-menu-item="level-alert-off"], [data-chart-menu-item="level-alert-on"]'), null, 2000);
         await page.waitForTimeout(150);
@@ -1047,6 +1050,7 @@ await group('view', async () => {
         if (items2.includes('level-alert-off')) {
           await page.locator('[data-chart-menu-item="level-alert-off"]').first().click();
           await page.waitForTimeout(450);
+          await unscroll(page);
           await page.mouse.click(cx, cy, { button: 'right' });
           await until(page, () => !!document.querySelector('[data-chart-menu="level-alert"]'), null, 2000);
         }

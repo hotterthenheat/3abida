@@ -140,8 +140,16 @@ export function useFocusTrap(active: boolean, ref: RefObject<HTMLElement | null>
 
       /* a control inside that took focus itself (autoFocus) keeps it, unless a given element asks for it */
       const initial = opts.current.initialFocus ?? 'first';
-      if (typeof initial === 'object' && initial.current) initial.current.focus();
-      else if (!box.contains(document.activeElement)) (initial === 'container' ? box : inside()[0] ?? box).focus();
+      /* A BOX PLACED AFTER ITS FIRST FRAME (the audit, 2026-10-15: the level card stands hidden until it is measured, and a
+         hidden control cannot take focus — the keys stayed outside the card): where focus did not land, try again a frame
+         later, a few frames at most */
+      let landing = 0;
+      const land = () => {
+        if (typeof initial === 'object' && initial.current) initial.current.focus();
+        else if (!box.contains(document.activeElement)) (initial === 'container' ? box : inside()[0] ?? box).focus();
+        if (!box.contains(document.activeElement) && box.isConnected && landing++ < 10) frame = requestAnimationFrame(land);
+      };
+      land();
 
       onKey = (e: KeyboardEvent) => {
         if (e.key !== 'Tab') return;

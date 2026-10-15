@@ -1585,6 +1585,92 @@ check('day panel: no "No modeled column" flash while the day\'s columns load', a
   }
 });
 
+/* ─── THE LEVEL CARD TAKES THE KEYS, AND KNOWS ITS WATCH (the audit's A-193…A-198, B-47) ─────────────────────────────────
+   Before: the card stood hidden until measured and the house trap's one try at focus fell on a hidden control, so the keys
+   stayed outside it; the after-run's second right-click missed because the test's own click had scrolled the page. */
+check('level card: the keys go into it; on, then a second right-click on the level offers Stop', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    await page.evaluate(() => localStorage.removeItem('slayer_level_watch'));
+    const at = await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.host.isConnected && x.trails);
+      const r = e.host.getBoundingClientRect();
+      const ph = e.chart.paneSize(0).height;
+      const lv = [...document.querySelectorAll('[data-axis-chip]')].map(c => ({ k: c.dataset.axisChip, s: Number(c.dataset.strike), y: e.candles.priceToCoordinate(Number(c.dataset.strike)) })).filter(o => o.y != null && o.y > 60 && o.y < ph - 40);
+      const L = lv.find(o => ['pw', 'cw', 'flip'].includes(o.k)) ?? lv[0];
+      return L ? { k: L.k, x: r.left + e.chart.paneSize(0).width * 0.5, y: r.top + L.y } : null;
+    });
+    if (!at) return { pass: false, notes: ['no level inside the plot'] };
+    const notes = [];
+    let pass = true;
+    await page.mouse.click(at.x, at.y, { button: 'right' });
+    await page.waitForSelector('[data-chart-menu="level-alert"]', { timeout: 3000 });
+    await page.waitForTimeout(250);
+    const inside = await page.evaluate(() => !!document.activeElement?.closest('[data-chart-menu="level-alert"]'));
+    notes.push(`${at.k}: the keys ${inside ? 'went into the card' : 'stayed outside it'}`);
+    if (!inside) pass = false;
+    const on = await page.locator('[data-chart-menu-item="level-alert-on"]').first().boundingBox();
+    const top0 = await page.evaluate(() => document.querySelector('main')?.scrollTop ?? 0);
+    await page.mouse.click(on.x + on.width / 2, on.y + on.height / 2);
+    await page.waitForTimeout(450);
+    const top1 = await page.evaluate(() => document.querySelector('main')?.scrollTop ?? 0);
+    await page.mouse.click(at.x, at.y, { button: 'right' });
+    const off = await page.waitForSelector('[data-chart-menu-item="level-alert-off"]', { timeout: 3000 }).then(() => true).catch(() => false);
+    notes.push(`the page ${top1 === top0 ? 'stayed put' : `moved ${top1 - top0} px`}; the second right-click ${off ? 'offers Stop' : 'offers no Stop'}`);
+    if (!off || top1 !== top0) pass = false;
+    if (off) await page.locator('[data-chart-menu-item="level-alert-off"]').first().click();
+    await page.keyboard.press('Escape');
+    if (errors.length) {
+      pass = false;
+      notes.push(...errors);
+    }
+    return { pass, notes };
+  } finally {
+    await page.evaluate(() => localStorage.removeItem('slayer_level_watch')).catch(() => {});
+    await done();
+  }
+});
+
+/* ─── THE MOVE'S READOUT STANDS INSIDE THE PLOT (the after-run's shot: with the newest bar past the view's right edge
+   the words "−1.6σ · 100% of the day's variance used" ran off it, cut to "−1.(") ─────────────────────────────────── */
+check('cone readout: in a session (the clock held at 3:30 pm) the words stay inside the plot', async () => {
+  const recordWidths = () => {
+    window.__ro = [];
+    const f = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
+      if (/variance used/.test(String(t))) {
+        window.__ro.push({ t: String(t), x, w: this.measureText(String(t)).width, cw: this.canvas.width, a: this.getTransform().a });
+        if (window.__ro.length > 200) window.__ro.splice(0, 100);
+      }
+      return f.call(this, t, x, y, ...r);
+    };
+  };
+  /* the after-run's own scene: the page's clock held at 3:30 pm New York on Oct 14 (a session in progress, the cone
+     drawn), the view on the session's last two hours, then taken to the newest bar */
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '1m', overlays: { trails: true, cone: true }, ladder: true }], { init: recordWidths, at: '2026-10-14T19:30:00Z' });
+  try {
+    await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.host.isConnected && x.trails);
+      const sn = e.trails.snapshots;
+      const last = sn[sn.length - 1].time;
+      e.chart.timeScale().setVisibleRange({ from: last - 120 * 60, to: last + 5 * 60 });
+    });
+    await page.mouse.move(110, 640);
+    await page.waitForTimeout(1000);
+    await page.evaluate(() => {
+      [...window.__charts].find(x => x.host.isConnected && x.trails).chart.timeScale().scrollToRealTime();
+      window.__ro = [];
+    });
+    await page.waitForTimeout(1500);
+    const ro = await page.evaluate(() => window.__ro.slice(-5));
+    if (!ro.length) return { pass: false, notes: ['no readout drawn (the priced move not in on this machine?)'] };
+    const worst = ro.reduce((m, o) => Math.max(m, o.x * o.a + o.w * o.a - o.cw), -Infinity);
+    return { pass: worst <= 0 && !errors.length, notes: [`"${ro[ro.length - 1].t}" ends ${worst <= 0 ? `${Math.round(-worst)} px inside` : `${Math.round(worst)} px past`} the plot's edge`] };
+  } finally {
+    await done();
+  }
+});
+
 let failed = 0;
 for (const { name, fn } of results) {
   let r;

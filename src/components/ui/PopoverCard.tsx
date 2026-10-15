@@ -44,6 +44,8 @@ const PopoverCard = ({ trigger, title, meta, children, width = 360, align = 'end
         className={`${CARD} p-0 outline-none overflow-y-auto overscroll-contain`}
         style={{ width, maxHeight: 'var(--radix-popover-content-available-height)' }}
         data-popover-card={testId ?? title}
+        /* the dialog's name (the audit: a reader's screen reader met an unnamed dialog) */
+        aria-label={title}
       >
         {title && (
           <div className="flex items-baseline gap-2 px-3 pt-2.5 pb-2 border-b border-borderSubtle/70">

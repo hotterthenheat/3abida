@@ -444,7 +444,7 @@ const groupB = async () => {
     const netHead = await page.evaluate(() => window.__ex.texts(0).filter(t => /NET GAMMA|puts · calls|STRIKE|Δ SPOT/.test(t.t)).map(t => t.t).join(' | '));
     /* direction: in Net, where do positive (puts) figures stand vs the centre */
     const dir = await page.evaluate(() => {
-      const t = window.__ex.texts(0).filter(t => /^−?\$/.test(t.t) && /bold|700/.test(t.font));
+      const t = window.__ex.texts(0).filter(t => /^[+−]?\$/.test(t.t) && /bold|700/.test(t.font));
       const pos = t.filter(x => !x.t.startsWith('−'));
       const neg = t.filter(x => x.t.startsWith('−'));
       return { posAlign: pos[0]?.al, negAlign: neg[0]?.al, posX: pos[0]?.x, negX: neg[0]?.x };
@@ -475,12 +475,13 @@ const groupB = async () => {
     const hasDeltaHead = heads.some(h => h.startsWith('Δ SPOT'));
     return { observed: `heads: ${heads.join(' | ')}; Δ% figures drawn: ${deltas}; 'Δ SPOT' head: ${hasDeltaHead}`, pass: heads.some(h => h.startsWith('NET GAMMA')) && heads.some(h => h.startsWith('STRIKE')) && (deltas === 0 || hasDeltaHead), ms: null, notes: hasDeltaHead ? '' : "Δ/σ figures print in Net view under no head ('Δ SPOT' is drawn in Sides only, ProfilePanel.tsx:950-953); heads are 9 px caps" };
   });
-  await item('C-17', 'Net bars and figures', 'read the Net figures', "positive unsigned '$1.2M', negative '−$1.2M' (true minus), via usdCompact", async () => {
+  /* signed since 9115af0, as the peek, the bead card and the day panel print them: '+$1.2M', '−$1.2M' (the audit's signs row) */
+  await item('C-17', 'Net bars and figures', 'read the Net figures', "positive '+$1.2M', negative '−$1.2M' (true minus, never a hyphen), via the house formatter", async () => {
     const figs = netTexts.filter(t => /^[−+-]?\$/.test(t.t) && /bold|700/.test(t.font));
     const plus = figs.filter(t => t.t.startsWith('+')).length;
     const hy = figs.filter(t => t.t.startsWith('-')).length;
     const neg = figs.filter(t => t.t.startsWith('−')).length;
-    return { observed: `${figs.length} figures (${neg} negative with U+2212, ${plus} with '+', ${hy} with hyphen); sample ${figs.slice(0, 6).map(t => t.t).join(' ')}; font ${figs[0]?.font}`, pass: figs.length > 0 && hy === 0 && plus === 0, ms: null, notes: "unsigned positives here vs '+$X' in the peek, the bead card and the day panel (inventory C-17/§3.10)" };
+    return { observed: `${figs.length} figures (${neg} negative with U+2212, ${plus} with '+', ${hy} with hyphen); sample ${figs.slice(0, 6).map(t => t.t).join(' ')}; font ${figs[0]?.font}`, pass: figs.length > 0 && hy === 0 && plus + neg === figs.length, ms: null, notes: "unsigned positives here vs '+$X' in the peek, the bead card and the day panel (inventory C-17/§3.10)" };
   });
   await item('C-22', 'Strike labels', 'read the strike column', 'a label every stride rows, levels in their ink', async () => {
     const labs = netTexts.filter(t => /^[\d,]+(\.\d+)?$/.test(t.t));
@@ -637,12 +638,16 @@ const groupB = async () => {
       r = await timed(page, () => page.focus('[data-lane-head="size"] [role="button"]').catch(() => {}), () => [...document.querySelectorAll('[role="tooltip"]')].some(e => window.__ex.vis(e)), null, 3000);
     }
     const tip = await page.evaluate(() => [...document.querySelectorAll('[role="tooltip"]')].filter(e => window.__ex.vis(e)).map(e => e.innerText).join(' / '));
+    /* THE NAMES WHERE THEY FIT (9115af0 — at the rest widths they were laid out 0–28 px, never read): from a 640 px ladder;
+       under it the column heads on the rows name the lanes and How to read defines them, and no name stands at all */
+    const panelW = await page.evaluate(() => Math.round(document.querySelector('[data-profile-panel]')?.getBoundingClientRect().width ?? 0));
     await away(page);
     if (expanded) {
       await blur(page);
       await page.keyboard.press('f');
       await page.waitForTimeout(800);
     }
+    if (panelW < 640) return { observed: `the ladder is ${panelW} px (names from 640 px): ${head ? `a name stands, "${clip(head, 60)}", ${tb?.w ?? 0} px wide` : 'no lane name laid out; the column heads name the lanes'}`, pass: !head, ms: null, notes: 'the lanes are defined in How to read at this width' };
     return { observed: `head "${clip(head, 80)}" in the DOM, drawn ${tb?.w ?? 0} px wide (head row: ${tb?.kids}); tooltip by ${how} ${r.ok ? `"${clip(tip, 300)}"` : '(none)'}; under the pointer: ${tb?.onTop ? 'the Term' : tb?.top}`, pass: !!head && (tb?.w ?? 0) >= 40 && byPointer, ms: r.ms, notes: ((tb?.w ?? 0) < 40 ? `THE LANE WORDS HAVE NO ROOM: on the full tier the head row gives the view tabs, the Expiry card and the tools their width and the lane head (min-w-0 flex-1) what is left — ${tb?.w ?? 0} px at the 476 px rest, 28 px at the 520 px expanded width (measured) — so the words truncate to nothing and cannot be hovered (ProfilePanel.tsx head row ~1950-1975). ` : '') + (tb && !tb.onTop ? `At its point the pointer hits ${tb.top}. ` : '') + (/dash|Orange|blue|capsule/i.test(tip) ? 'STALE TEXT: the tooltip still speaks of dashes / orange-blue, the view is a gold/violet diverging bar (data/terms.ts:70-76)' : '') };
   });
   await item('C-10', 'Lanes menu', 'Lanes → Flow, Both, Size', "data-lane follows; stored as the pane's lane; head 'A MOVE FORCES' in Flow", async () => {
@@ -667,6 +672,8 @@ const groupB = async () => {
     const g = await page.evaluate(() => window.__ex.box(document.querySelector('[data-profile-split-grip]')));
     if (!g) return { observed: 'no sash rendered', pass: false, ms: null, notes: '' };
     const s0 = await page.evaluate(() => localStorage.getItem('slayer_profile_split'));
+    /* the strike the chart keeps BEFORE the gestures — a strike kept by an earlier step is not the sash's */
+    SIX._sashKept0 = await page.evaluate(() => window.__ex.props(0)?.focusPrice ?? null);
     const t = Date.now();
     await page.mouse.move(g.x + g.w / 2, g.y + g.h / 2);
     await page.mouse.down();
@@ -685,7 +692,7 @@ const groupB = async () => {
     SIX._sashKept = kept;
     return { observed: `split ${s0} → ${s1} (sash x ${g.x}→${g2.x}) → dblclick ${s2}`, pass: s1 !== s0 && Number(s2) === 0.5, ms, notes: 'pointer only' };
   });
-  await item('C-29b', 'A sash drag keeps no strike', 'the C-06 sash drag and double-click', 'the chart’s focus stays empty (a drag is not a click)', async () => ({ observed: `strike kept after the sash gestures: ${SIX._sashKept}`, pass: SIX._sashKept == null, ms: null, notes: SIX._sashKept != null ? 'the root’s onClick fires after a sash drag/double-click that ends over the panel (stopPropagation on pointerdown does not stop click) — ProfilePanel.tsx root onClick (~1905) and the sash (~1931)' : '' }));
+  await item('C-29b', 'A sash drag keeps no strike', 'the C-06 sash drag and double-click', 'the chart’s focus stays as it was (a drag is not a click)', async () => ({ observed: `strike kept before the sash gestures: ${SIX._sashKept0 ?? 'none'}, after: ${SIX._sashKept ?? 'none'}`, pass: SIX._sashKept === SIX._sashKept0, ms: null, notes: SIX._sashKept !== SIX._sashKept0 ? 'the root’s onClick fires after a sash drag/double-click that ends over the panel (stopPropagation on pointerdown does not stop click) — ProfilePanel.tsx root onClick (~1905) and the sash (~1931)' : '' }));
   await page.click('[data-dropdown="lanes"]').catch(() => {});
   await page.getByRole('menuitemradio', { name: /^Size/ }).first().click().catch(() => {});
   await page.waitForTimeout(500);
@@ -778,7 +785,7 @@ const groupB = async () => {
 
   /* C-03 Colours */
   await item('C-03', 'Desk Colours → Thermal', 'Colours → Thermal; back to House', 'ladder ink changes; chart ovals, strip tones stay gold/violet', async () => {
-    const figInk = () => page.evaluate(() => window.__ex.texts(0).filter(t => /^−?\$/.test(t.t) && /bold|700/.test(t.font)).map(t => t.fs).slice(0, 4).join(','));
+    const figInk = () => page.evaluate(() => window.__ex.texts(0).filter(t => /^[+−]?\$/.test(t.t) && /bold|700/.test(t.font)).map(t => t.fs).slice(0, 4).join(','));
     const ink0 = await figInk();
     const ov0 = await page.evaluate(() => JSON.stringify(window.__ex.chart(0)?.trails?.legend?.()?.inks ?? null));
     const st0 = await page.evaluate(() => getComputedStyle(document.querySelector('[data-decision-box="regime"] [data-decision-words]') || document.body).color);
@@ -788,7 +795,7 @@ const groupB = async () => {
         await page.click('[data-dropdown="terrain-colours"]');
         await page.getByRole('menuitemradio', { name: /^Thermal/ }).first().click();
       },
-      i0 => window.__ex.texts(0).filter(t => /^−?\$/.test(t.t) && /bold|700/.test(t.font)).map(t => t.fs).slice(0, 4).join(',') !== i0,
+      i0 => window.__ex.texts(0).filter(t => /^[+−]?\$/.test(t.t) && /bold|700/.test(t.font)).map(t => t.fs).slice(0, 4).join(',') !== i0,
       ink0,
       5000
     );

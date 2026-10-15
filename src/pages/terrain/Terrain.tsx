@@ -4563,7 +4563,7 @@ const Terrain = () => {
                       onClick={() => removeNamedLayout(name)}
                       aria-label={`Delete the layout ${name}`}
                       title={`Delete the layout ${name}`}
-                      className="hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 hover:text-textPrimary hover:bg-ink/[0.08] transition-all"
+                      className="hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(pointer:coarse)]:opacity-100 hover:text-textPrimary hover:bg-ink/[0.08] transition-all"
                       data-layout-delete={name}
                     >
                       <X className="w-3 h-3" aria-hidden />

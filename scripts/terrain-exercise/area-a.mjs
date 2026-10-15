@@ -1039,7 +1039,11 @@ await group('plot', async () => {
     /* ── the right-click on a level ── */
     const levels = async () => ev(page, () => [...window.__A.pane(0).querySelectorAll('[data-axis-chip]')].map(c => ({ key: c.dataset.axisChip, strike: +c.dataset.strike, text: c.textContent.replace(/\s+/g, ' ').trim() })));
     const spotOf = async () => ev(page, () => { const d = window.__A.chart(0)?.candles.data() ?? []; return d.length ? d[d.length - 1].close : null; });
+    /* A LOCATOR'S CLICK MAY SCROLL THE PAGE (Playwright scrolls an element into view when its first hit test misses; the
+       footer art stands one scroll below the desk): a level's place is read, and clicked, with the page put back first */
+    const unscroll = () => ev(page, () => { for (const el of document.querySelectorAll('main, [data-terrain-desk]')) if (el.scrollTop) el.scrollTop = 0; if (document.scrollingElement) document.scrollingElement.scrollTop = 0; });
     const lvAt = async want => {
+      await unscroll();
       const lv = await levels();
       for (const l of lv.filter(l => (want ? want(l) : true))) {
         const g = await ev(page, ([p]) => window.__A.priceY(0, p), [l.strike]);
@@ -1050,6 +1054,7 @@ await group('plot', async () => {
     const rightClick = async l => {
       await page.keyboard.press('Escape').catch(() => {});
       await sleep(150);
+      await unscroll();
       const x = Math.round(l.left + l.width * 0.3);
       await page.mouse.click(x, l.y, { button: 'right' });
       if (!(await until(page, () => !!document.querySelector('[data-chart-menu]'), null, 1500))) {
@@ -1615,6 +1620,8 @@ await group('link', async () => {
       const r = await measure(page, () => chip.click(), () => window.__A.vis(document.querySelector('[data-link-menu]')));
       const items = await ev(page, () => [...document.querySelectorAll('[data-link-menu] [role=menuitemradio]')].map(x => x.textContent.replace(/\s+/g, ' ').trim().slice(0, 34)));
       await page.keyboard.press('Escape');
+      /* the menu gone before the next step presses its chip (a press while it was still closing toggled it shut) */
+      await page.locator('[data-link-menu]').waitFor({ state: 'detached', timeout: 2000 }).catch(() => {});
       return { observed: `${items.length} items: ${items.join(' | ')}`, pass: r.ok && items.length === 5, ms: r.ms, notes: 'the chip stands only where the compare + has room, the pane is linked, or it is expanded: at 1440 × 900 with two or more panes an unlinked pane shows no link chip, so it can be linked only from fullscreen' };
     });
     await item('A-07', 'Link option "Group A"', 'pane 1 → A, pane 2 → A, then pick NVDA on pane 1', 'both read group A; pane 2 follows to NVDA', async () => {
@@ -1961,7 +1968,8 @@ await group('desk', async () => {
     });
     await item('A-218', 'Shelf header "NAMED LAYOUTS · 2/12"', 'read it after two saves', 'the count against the cap', async () => {
       const t = await ev(page, () => document.querySelector('[role=dialog][aria-label="Named layouts"]')?.firstElementChild?.textContent?.trim());
-      return { observed: `"${t}"`, pass: /2\s*\/\s*12/.test(t ?? ''), ms: null };
+      /* the house card prints its count as "2 of 12" (PopoverCard's meta, since 9115af0) */
+      return { observed: `"${t}"`, pass: /2\s*(\/|of)\s*12/.test(t ?? ''), ms: null };
     });
     await item('A-219', 'Saved entry "morning 1× SPY"', 'go to 3 charts, open the shelf, click "morning"', 'the layout and panes come back; the shelf closes', async () => {
       await page.keyboard.press('Escape');
