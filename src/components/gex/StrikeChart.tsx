@@ -33,9 +33,10 @@ import {
 } from 'lightweight-charts';
 import Simulator from '../../core/simulator';
 import { onGlide, promisedWidth } from '../../core/glide';
-import { compile, explain, run as runScript, type Compiled } from '../../core/pine';
+import { compile, explain, run as runScript, type Compiled, type RunResult } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
+import { barTints, candleTintForm, NO_TINT, retint, tintPoint, type TintForm } from './barTints';
 import { INDICATOR_INKS, MACD_HIST_INK, MACD_SIGNAL_INK, faintInk, paperInk, paperInksWith, parseInk } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
@@ -1383,6 +1384,26 @@ const StrikeChart = ({
   styleRef.current = chartStyle;
   const styleBuiltRef = useRef<ChartStyle | null>(null);
   const [mainNonce, setMainNonce] = useState(0);
+  /* THE BARS' COLOURS (Pine's barcolor(), the owner's approval 13): the pane's scripts merged into one ink a bar time —
+     every write of the main series dresses its bars from it (toMain), and the scripts effect moves the series from the
+     last set to the next (barTints.ts retint). `barTintFormRef` is the form the series' tinted bars were last dressed in,
+     so a change of form (a hollow theme, the Hollow candles style, the page's ground under it) dresses them all again */
+  const barTintRef = useRef<Map<number, string>>(new Map());
+  const barTintFormRef = useRef('');
+  /** The bars the candles were last handed (the candles' effect) — the scripts run over exactly these */
+  const candleWindowRef = useRef<Candle[]>([]);
+  /** How the main series takes a bar's colour in its style and theme (the theme's own hollow rising bodies kept) */
+  const tintForm = (): TintForm => {
+    const style = styleRef.current;
+    if (style === 'bars') return { kind: 'bar', hollowUp: null };
+    if (style !== 'candles' && style !== 'hollow') return NO_TINT;
+    const t = themeRef.current;
+    const o = candleSeriesOptions(t);
+    if (style === 'candles') return candleTintForm(o.upColor, o.borderUpColor);
+    const surface = chartSurface(t).bg;
+    return candleTintForm(surface === 'transparent' ? 'rgba(0,0,0,0)' : surface, o.borderUpColor);
+  };
+  const tintKey = (f: TintForm) => `${f.kind}|${f.hollowUp}`;
   /* T-14: the sub-minute tape starts at connect, and the pane SAYS SO —
      0 = connected but no prints yet, a time = the first live quarter,
      null = not a sub-minute view. */
@@ -2302,13 +2323,13 @@ const StrikeChart = ({
      bars, value styles get closes. Typed `never` so the same call sites
      feed whichever series the style built (the ref stays nominally
      'Candlestick'; the payload is always correct for the REAL series). */
-  const toMain = useCallback(
-    (b: Candle) =>
-      (OHLC_STYLES.has(styleRef.current)
-        ? toCandle(b)
-        : { time: b.time as UTCTimestamp, value: b.close }) as never,
-    []
-  );
+  const toMain = useCallback((b: Candle) => {
+    if (!OHLC_STYLES.has(styleRef.current)) return { time: b.time as UTCTimestamp, value: b.close } as never;
+    /* a script's colour for the bar, never in the chart's own replay (its frozen scripts ran on the whole tape) */
+    const ink = replayRef.current ? undefined : barTintRef.current.get(b.time);
+    return (ink ? tintPoint(b, ink, tintForm()) : toCandle(b)) as never;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Widen the visible price range to always include the walls/supreme so several
   // strike-node bands are on screen, not just the couple around spot — and
@@ -3608,144 +3629,6 @@ const StrikeChart = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, themeKey, fitCandles]);
 
-  /*
-    THE SCRIPTS ON THIS PANE — the Pine runtime (2026-09-10). Every script the
-    reader placed here runs over the same window of bars the candles and the
-    built-in indicators draw from, with the reader's inputs and the pane's
-    levels handed in through `slayer.*`. Overlay scripts ride the tape; an
-    own-pane script takes a pane after the built-in sub-panes, under the same
-    cap (MAX_SUB_PANES), refused in the library with the reason. A tick re-runs
-    the scripts (the runtime is streaming, so a run is milliseconds on a pane's
-    bars) and redraws each handle in place; a new set, a new input, a new
-    shape or a new world rebuilds. The bars are left with the pane store so the
-    editor can run a draft over exactly these.
-  */
-  useEffect(() => {
-    const chart = chartRef.current;
-    const handles = scriptHandlesRef.current;
-    const tearDown = () => {
-      for (const h of handles.values()) h.destroy();
-      handles.clear();
-      scriptSigRef.current = '';
-    };
-    if (!chart || !paneId) {
-      tearDown();
-      return;
-    }
-    if (replayRef.current) return;
-    const mins = tfMinutes(timeframe);
-    const full = fullWorldRef.current === `${ticker}|${timeframe}|${barClock}`;
-    const bars = windowOf(barsFor(mins, altSpec), full).map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume }));
-    setPaneBars(paneId, bars, ticker, String(timeframe));
-    if (bars.length === 0) {
-      tearDown();
-      return;
-    }
-    const subsActive = SUB_PANE_ORDER.filter(k => indicators?.[k]).slice(0, MAX_SUB_PANES);
-    const paneCompareOn = compares.some(c => c.mode === 'pane');
-    const subBase = paneCompareOn ? 2 : 1;
-    const live = paneScripts.filter(p => p.chart.visible && p.script.status === 'ok');
-    /* ON A LIGHT TAPE a script's inks are the paper's (the owner's approval 4, 2026-10-15): the shipped family's pairs and
-       the house's own inks — a wall, the flip, the supreme, the direction pair — read off the tape's tokens, as the field
-       reads them. The ground and the reader's colour vision are in the signature, so a change of either redraws. */
-    const lightTape = chartGround(themeKey) === 'light';
-    let paperOf: ReturnType<typeof paperInksWith> | undefined;
-    const inkFor = () => {
-      if (!lightTape) return undefined;
-      /* THE TAPE'S OWN TOKENS, READ INSIDE THE BOX: the chart's container stands in the box and inherits its light set,
-         and its ref is filled before any effect runs. The box's own ref is state, null when a load's first commit runs
-         its effects — the root's tokens were read then (on a dark page the flip, the supreme and the direction pair in
-         their dark values, 1.1 to 1.9:1 on a Stone tape), and nothing redrew once the box was up. */
-      const box = containerRef.current ?? boxElRef.current;
-      if (!box) return undefined;
-      /* the walls as the field's ovals take them on a light ground (heatmap.ts: the light ground's gold and violet — the
-         box is a dark island whose light set leaves the pair alone); the flip, the supreme, the direction pair and the
-         silver as the tape's own chrome reads them, off its box — in the reader's colour vision (index.css: the light set
-         again under data-cvd; the dark island's colour-vision set had beaten it, and a blue-and-orange Stone tape drew
-         its direction lines in the dark ground's pair at 1.3 and 1.4:1) */
-      paperOf ??= paperInksWith(name => (name === '--absorb' || name === '--amplify' ? groundRgb(name, 'light') : (parseInk(readToken(name, undefined, box))?.rgb ?? null)));
-      return paperOf;
-    };
-    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${lightTape ? 'light' : 'dark'}|${appTheme}|${live.map(p => `${p.chart.id}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
-    const rebuild = scriptSigRef.current !== sig;
-    if (rebuild) tearDown();
-    const slayer = { callWall: levels.callWall, putWall: levels.putWall, flip: levels.flip, supreme: levels.supreme };
-    let ownPanes = 0;
-    const ownPaneOf: number[] = [];
-    const faults = new Map(scriptFaultsRef.current);
-    for (const ps of live) {
-      const own = ps.script.meta?.pane === 'own';
-      /* past the cap of own panes it waits, and its legend says why (the round-3 audit, D: the editor's Add and the legend's
-         eye could put one past the cap, and the chart skipped it without a word) */
-      if (own && subsActive.length + ownPanes >= MAX_SUB_PANES) {
-        const stale = handles.get(ps.chart.id);
-        if (stale) {
-          stale.destroy();
-          handles.delete(ps.chart.id);
-        }
-        faults.set(ps.chart.id, SCRIPT_CAP_NOTE);
-        continue;
-      }
-      let compiled = compiledRef.current.get(ps.script.sourceHash);
-      if (!compiled) {
-        try {
-          compiled = compile(ps.script.source);
-          compiledRef.current.set(ps.script.sourceHash, compiled);
-        } catch {
-          continue;
-        }
-      }
-      let result;
-      try {
-        result = runScript(compiled, bars, { inputs: ps.chart.inputs, ticker, timeframe: String(timeframe), slayer });
-      } catch (e) {
-        /* A RUN THAT FAILS DRAWS NOTHING AND SAYS WHY (the round-3 audit, D §3: the last good lines stayed drawn, frozen,
-           and the legend showed a normal row — a script over its budget or asking request.* looked like it worked) */
-        const why = explain(e).message;
-        if (rebuild) console.warn(`[scripts] ${ps.script.title}: ${why}`);
-        const stale = handles.get(ps.chart.id);
-        if (stale) {
-          stale.destroy();
-          handles.delete(ps.chart.id);
-        }
-        faults.set(ps.chart.id, why);
-        continue;
-      }
-      faults.delete(ps.chart.id);
-      const have = handles.get(ps.chart.id);
-      if (have && have.update(result, bars)) {
-        if (own) ownPanes++;
-        continue;
-      }
-      if (have) {
-        have.destroy();
-        handles.delete(ps.chart.id);
-      }
-      /* an own-pane script is APPENDED after every pane held (the round-3 audit, D(h): a fixed index put it inside the
-         regime strip's or the flow band's pane) */
-      const paneIndex = own ? chart.panes().length : 0;
-      if (own) ownPanes++;
-      const made = drawRun(chart, result, bars, paneIndex, { fitCandles: !!fitCandles, ink: inkFor() });
-      handles.set(ps.chart.id, made);
-      if (own) ownPaneOf.push(paneIndex);
-    }
-    /* its own panes' share against the tape's (PRICE_STRETCH), never another feature's pane rewritten */
-    if (rebuild && ownPaneOf.length > 0) {
-      const panes = chart.panes();
-      panes[0]?.setStretchFactor(PRICE_STRETCH);
-      const each = (PRICE_STRETCH * 36) / 64 / Math.max(1, subsActive.length + ownPaneOf.length);
-      for (const i of ownPaneOf) panes[i]?.setStretchFactor(each);
-    }
-    scriptSigRef.current = sig;
-    /* the legend hears a change of the faults alone */
-    const was = scriptFaultsRef.current;
-    if (faults.size !== was.size || [...faults].some(([k, v]) => was.get(k) !== v)) {
-      scriptFaultsRef.current = faults;
-      setScriptFaults(faults);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paneId, paneScripts, indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, levels, themeKey, appTheme]);
-
   /* the handles go with the chart */
   useEffect(
     () => () => {
@@ -3943,6 +3826,7 @@ const StrikeChart = ({
     worldKeyRef.current = key;
     const full = fullWorldRef.current === key;
     const bars = windowOf(all, full);
+    candleWindowRef.current = bars;
     const held = bars.length < all.length;
     barCountRef.current = bars.length;
     /* A rule clock reads the seconds tape, so it wears T-14's chip too — a host's tape is minutes with their history,
@@ -4039,6 +3923,7 @@ const StrikeChart = ({
          holds through that because the library anchors the scroll to the
          right edge, not to a bar index. */
       candleSeries.setData(bars.map(toMain));
+      barTintFormRef.current = tintKey(tintForm());
       volumeSeries.setData(bars.map(b => toVolume(b, theme)));
       if (reopen) showRecent();
       if (keepAt) {
@@ -4121,6 +4006,7 @@ const StrikeChart = ({
          reloads the whole (small, capped by the seconds ring) array; the
          in-between ticks stay on the cheap update path below. */
       candleSeries.setData(bars.map(toMain));
+      barTintFormRef.current = tintKey(tintForm());
       volumeSeries.setData(bars.map(b => toVolume(b, theme)));
     } else {
       const last = bars[bars.length - 1];
@@ -4184,6 +4070,171 @@ const StrikeChart = ({
     handTrails();
     return () => cancelAnimationFrame(armTimer);
   }, [ticker, revision, timeframe, themeTag, overlays.trails, showRecent, reloadNonce, mainNonce, toMain, compact, altSpec, barClock, fullNonce, trailsGreek]);
+
+  /*
+    THE SCRIPTS ON THIS PANE — the Pine runtime (2026-09-10). Every script the
+    reader placed here runs over the same window of bars the candles and the
+    built-in indicators draw from, with the reader's inputs and the pane's
+    levels handed in through `slayer.*`. Overlay scripts ride the tape; an
+    own-pane script takes a pane after the built-in sub-panes, under the same
+    cap (MAX_SUB_PANES), refused in the library with the reason. A tick re-runs
+    the scripts (the runtime is streaming, so a run is milliseconds on a pane's
+    bars) and redraws each handle in place; a new set, a new input, a new
+    shape or a new world rebuilds. The bars are left with the pane store so the
+    editor can run a draft over exactly these.
+    AFTER THE CANDLES (2026-10-15): declared below the candles' effect, so a
+    pass reads the bars the candles were handed in this same commit, and a
+    script's colours (barcolor) dress them at once.
+  */
+  useEffect(() => {
+    const chart = chartRef.current;
+    const handles = scriptHandlesRef.current;
+    const tearDown = () => {
+      for (const h of handles.values()) h.destroy();
+      handles.clear();
+      scriptSigRef.current = '';
+    };
+    /* THE BARS' COLOURS (barcolor, the owner's approval 13): the candles move from the colours they wear to these — a
+       script turned off or taken away gives its bars back their own */
+    const applyTints = (next: Map<number, string>) => {
+      const prev = barTintRef.current;
+      barTintRef.current = next;
+      const series = candleSeriesRef.current;
+      if (!chart || !series || (prev.size === 0 && next.size === 0)) return;
+      const form = tintForm();
+      const key = tintKey(form);
+      retint(series, chart.timeScale(), prev, next, form, barTintFormRef.current !== key);
+      barTintFormRef.current = key;
+    };
+    if (!chart || !paneId) {
+      tearDown();
+      applyTints(new Map());
+      return;
+    }
+    if (replayRef.current) return;
+    const full = fullWorldRef.current === `${ticker}|${timeframe}|${barClock}`;
+    /* THE BARS THE CANDLES HOLD, never the tape read afresh (2026-10-15, found wiring barcolor): a pass this effect ran
+       without the candles' — the levels moving as a replay's cut tape came in, its revision not yet — read the cut tape's
+       window while the candles still held the live one, and the library's crosshair, hit-testing the candles with the
+       script's series 56 bars further left, found no bar at their shifted indices ("Value is null") and took the chart
+       down on the pick */
+    const bars = candleWindowRef.current.map(c => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume }));
+    setPaneBars(paneId, bars, ticker, String(timeframe));
+    if (bars.length === 0) {
+      tearDown();
+      applyTints(new Map());
+      return;
+    }
+    const subsActive = SUB_PANE_ORDER.filter(k => indicators?.[k]).slice(0, MAX_SUB_PANES);
+    const paneCompareOn = compares.some(c => c.mode === 'pane');
+    const subBase = paneCompareOn ? 2 : 1;
+    const live = paneScripts.filter(p => p.chart.visible && p.script.status === 'ok');
+    /* ON A LIGHT TAPE a script's inks are the paper's (the owner's approval 4, 2026-10-15): the shipped family's pairs and
+       the house's own inks — a wall, the flip, the supreme, the direction pair — read off the tape's tokens, as the field
+       reads them. The ground and the reader's colour vision are in the signature, so a change of either redraws. */
+    const lightTape = chartGround(themeKey) === 'light';
+    let paperOf: ReturnType<typeof paperInksWith> | undefined;
+    const inkFor = () => {
+      if (!lightTape) return undefined;
+      /* THE TAPE'S OWN TOKENS, READ INSIDE THE BOX: the chart's container stands in the box and inherits its light set,
+         and its ref is filled before any effect runs. The box's own ref is state, null when a load's first commit runs
+         its effects — the root's tokens were read then (on a dark page the flip, the supreme and the direction pair in
+         their dark values, 1.1 to 1.9:1 on a Stone tape), and nothing redrew once the box was up. */
+      const box = containerRef.current ?? boxElRef.current;
+      if (!box) return undefined;
+      /* the walls as the field's ovals take them on a light ground (heatmap.ts: the light ground's gold and violet — the
+         box is a dark island whose light set leaves the pair alone); the flip, the supreme, the direction pair and the
+         silver as the tape's own chrome reads them, off its box — in the reader's colour vision (index.css: the light set
+         again under data-cvd; the dark island's colour-vision set had beaten it, and a blue-and-orange Stone tape drew
+         its direction lines in the dark ground's pair at 1.3 and 1.4:1) */
+      paperOf ??= paperInksWith(name => (name === '--absorb' || name === '--amplify' ? groundRgb(name, 'light') : (parseInk(readToken(name, undefined, box))?.rgb ?? null)));
+      return paperOf;
+    };
+    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${lightTape ? 'light' : 'dark'}|${appTheme}|${live.map(p => `${p.chart.id}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
+    const rebuild = scriptSigRef.current !== sig;
+    if (rebuild) tearDown();
+    const slayer = { callWall: levels.callWall, putWall: levels.putWall, flip: levels.flip, supreme: levels.supreme };
+    let ownPanes = 0;
+    const ownPaneOf: number[] = [];
+    const faults = new Map(scriptFaultsRef.current);
+    /* the runs in the order they are drawn — the last to colour a bar wins it, as TradingView lays its scripts */
+    const tintRuns: RunResult[] = [];
+    for (const ps of live) {
+      const own = ps.script.meta?.pane === 'own';
+      /* past the cap of own panes it waits, and its legend says why (the round-3 audit, D: the editor's Add and the legend's
+         eye could put one past the cap, and the chart skipped it without a word) */
+      if (own && subsActive.length + ownPanes >= MAX_SUB_PANES) {
+        const stale = handles.get(ps.chart.id);
+        if (stale) {
+          stale.destroy();
+          handles.delete(ps.chart.id);
+        }
+        faults.set(ps.chart.id, SCRIPT_CAP_NOTE);
+        continue;
+      }
+      let compiled = compiledRef.current.get(ps.script.sourceHash);
+      if (!compiled) {
+        try {
+          compiled = compile(ps.script.source);
+          compiledRef.current.set(ps.script.sourceHash, compiled);
+        } catch {
+          continue;
+        }
+      }
+      let result;
+      try {
+        result = runScript(compiled, bars, { inputs: ps.chart.inputs, ticker, timeframe: String(timeframe), slayer });
+      } catch (e) {
+        /* A RUN THAT FAILS DRAWS NOTHING AND SAYS WHY (the round-3 audit, D §3: the last good lines stayed drawn, frozen,
+           and the legend showed a normal row — a script over its budget or asking request.* looked like it worked) */
+        const why = explain(e).message;
+        if (rebuild) console.warn(`[scripts] ${ps.script.title}: ${why}`);
+        const stale = handles.get(ps.chart.id);
+        if (stale) {
+          stale.destroy();
+          handles.delete(ps.chart.id);
+        }
+        faults.set(ps.chart.id, why);
+        continue;
+      }
+      faults.delete(ps.chart.id);
+      /* a script in its own pane colours the price pane's candles too (TradingView's barcolor) */
+      tintRuns.push(result);
+      const have = handles.get(ps.chart.id);
+      if (have && have.update(result, bars)) {
+        if (own) ownPanes++;
+        continue;
+      }
+      if (have) {
+        have.destroy();
+        handles.delete(ps.chart.id);
+      }
+      /* an own-pane script is APPENDED after every pane held (the round-3 audit, D(h): a fixed index put it inside the
+         regime strip's or the flow band's pane) */
+      const paneIndex = own ? chart.panes().length : 0;
+      if (own) ownPanes++;
+      const made = drawRun(chart, result, bars, paneIndex, { fitCandles: !!fitCandles, ink: inkFor() });
+      handles.set(ps.chart.id, made);
+      if (own) ownPaneOf.push(paneIndex);
+    }
+    /* its own panes' share against the tape's (PRICE_STRETCH), never another feature's pane rewritten */
+    if (rebuild && ownPaneOf.length > 0) {
+      const panes = chart.panes();
+      panes[0]?.setStretchFactor(PRICE_STRETCH);
+      const each = (PRICE_STRETCH * 36) / 64 / Math.max(1, subsActive.length + ownPaneOf.length);
+      for (const i of ownPaneOf) panes[i]?.setStretchFactor(each);
+    }
+    scriptSigRef.current = sig;
+    /* the candles' colours: through the same inks as the scripts' lines (a light tape's paper pairs) */
+    applyTints(barTints(tintRuns, bars, inkFor()));
+    /* the legend hears a change of the faults alone */
+    const was = scriptFaultsRef.current;
+    if (faults.size !== was.size || [...faults].some(([k, v]) => was.get(k) !== v)) {
+      scriptFaultsRef.current = faults;
+      setScriptFaults(faults);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paneId, paneScripts, indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, levels, themeKey, appTheme]);
 
   /* `compact` can change without the chart being rebuilt — a desktop window
      dragged across the phone line, a handset rotated. The mount effect read it

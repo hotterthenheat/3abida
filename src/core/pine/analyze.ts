@@ -41,6 +41,8 @@ export interface OutputPlan {
   shapes: number[];
   hlines: number[];
   fills: number[];
+  /** `barcolor()` call node ids in the script's order — the later call wins a bar both colour (interpreter.ts) */
+  barcolors: number[];
   alerts: number[];
   /** alert call node id → the id the run hands it: "alert1", "alert2" … for the alertcondition() calls counted alone —
       the ids the library's switches are armed by — and "call1", "call2" … for the alert() calls (2026-10-15: one count
@@ -50,7 +52,7 @@ export interface OutputPlan {
   inputIds: Map<number, string>;
 }
 
-const OUTPUT_CALLS = new Set(['plot', 'plotshape', 'plotchar', 'hline', 'fill', 'alertcondition', 'alert']);
+const OUTPUT_CALLS = new Set(['plot', 'plotshape', 'plotchar', 'hline', 'fill', 'barcolor', 'alertcondition', 'alert']);
 const isInputCall = (callee: string) => callee === 'input' || callee.startsWith('input.');
 
 /* ---- walking ------------------------------------------------------------------- */
@@ -137,7 +139,7 @@ function walkStmt(s: Stmt, visit: (e: Expr, owner?: Stmt) => void): void {
 /* ---- the plan --------------------------------------------------------------------- */
 
 export function planOutputs(program: Program): OutputPlan {
-  const plan: OutputPlan = { plots: [], shapes: [], hlines: [], fills: [], alerts: [], alertIds: new Map(), inputIds: new Map() };
+  const plan: OutputPlan = { plots: [], shapes: [], hlines: [], fills: [], barcolors: [], alerts: [], alertIds: new Map(), inputIds: new Map() };
   let inputN = 0;
   let conditionN = 0;
   let callN = 0;
@@ -158,6 +160,7 @@ export function planOutputs(program: Program): OutputPlan {
       else if (e.callee === 'plotshape' || e.callee === 'plotchar') plan.shapes.push(e.id);
       else if (e.callee === 'hline') plan.hlines.push(e.id);
       else if (e.callee === 'fill') plan.fills.push(e.id);
+      else if (e.callee === 'barcolor') plan.barcolors.push(e.id);
       else {
         plan.alerts.push(e.id);
         plan.alertIds.set(e.id, e.callee === 'alertcondition' ? `alert${++conditionN}` : `call${++callN}`);

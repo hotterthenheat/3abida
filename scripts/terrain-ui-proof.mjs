@@ -1206,6 +1206,137 @@ check('scripts: an overlay script far off the candles leaves the fitted axis whe
   }
 });
 
+/* ─── PINE'S barcolor() COLOURS THE CANDLES (the owner's approval 13, 2026-10-15: "barcolor(): implement it") ─────────────
+   Before: the runtime ran barcolor() and kept its colours, and nothing read them — every candle kept its theme's colours.
+   A script with `barcolor(close > open ? color.blue : na)` on a pane: every rising candle wears one blue on its body,
+   border and wick (a hollow theme's rising body stays hollow), every other candle none, and lifting the script gives the
+   candles back their own. In a replay the candles wear it up to the cursor and none past it. */
+const BARCOLOR_SRC = '//@version=6\nindicator("Blue rises", overlay=true)\nbarcolor(close > open ? color.blue : na)\n';
+/** The pane's candles read for their colours: the rising ones coloured, the others not, and the one ink they share */
+const readBarColours = page =>
+  page.evaluate(() => {
+    /* the pane's own chart — on screen (the Journal's recap draws an off-screen chart of its own, on a rewound clock), the
+       replaying one in a replay */
+    const onScreen = el => {
+      const r = el?.getBoundingClientRect();
+      return !!r && el.isConnected && r.width > 0 && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
+    };
+    const box = [...document.querySelectorAll('[data-as-of]')].find(onScreen) ?? null;
+    const e = [...window.__charts].find(x => (box ? x.box() === box : onScreen(x.box())) && x.candles.data().length);
+    if (!e) return { bars: 0, rising: 0, risingOk: 0, hollowRising: 0, other: 0, otherBare: 0, coloured: 0, inks: [], last: null, cursor: null, past: 0 };
+    const rows = e.candles.data().filter(d => 'open' in d);
+    const inks = new Set();
+    let rising = 0;
+    let risingOk = 0;
+    let hollowRising = 0;
+    let other = 0;
+    let otherBare = 0;
+    let coloured = 0;
+    for (const d of rows) {
+      const any = d.color !== undefined || d.borderColor !== undefined || d.wickColor !== undefined;
+      if (any) coloured++;
+      if (d.close > d.open) {
+        rising++;
+        if (d.wickColor && d.borderColor === d.wickColor && d.color !== undefined) {
+          risingOk++;
+          inks.add(d.wickColor);
+          if (d.color !== d.wickColor) hollowRising++;
+        }
+      } else {
+        other++;
+        /* a flat or falling candle wears nothing */
+        if (!any) otherBare++;
+      }
+    }
+    const cursor = box ? Number(box.getAttribute('data-as-of')) / 1000 - 60 : null;
+    return { bars: rows.length, rising, risingOk, hollowRising, other, otherBare, coloured, inks: [...inks], last: rows.at(-1)?.time ?? null, cursor, past: cursor == null ? 0 : rows.filter(d => d.time > cursor).length };
+  });
+const placeBarScript = page =>
+  page.evaluate(async src => {
+    const api = window.__paneScripts;
+    if (!api) return null;
+    const s = await api.save({ title: 'Blue rises', source: src });
+    const cs = await api.place('terrain:1', s.id);
+    return { chartId: cs.id, status: s.status };
+  }, BARCOLOR_SRC);
+/** A blue ink (its blue channel the largest) — Pine's color.blue, or its light tape's cut */
+const isBlue = css => {
+  const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(css ?? '');
+  const fn = /^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(css ?? '');
+  const c = hex ? hex.slice(1, 4).map(v => parseInt(v, 16)) : fn ? fn.slice(1, 4).map(Number) : null;
+  return !!c && c[2] > c[0] && c[2] > c[1];
+};
+
+check('scripts: barcolor() colours the rising candles and lifting the script gives them back', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const placed = await placeBarScript(page);
+    if (!placed) return { pass: false, notes: ['the development hook window.__paneScripts is missing'] };
+    await page.waitForTimeout(2500);
+    const on = await readBarColours(page);
+    await page.evaluate(async p => { await window.__paneScripts.lift('terrain:1', p.chartId); }, placed);
+    await page.waitForTimeout(2000);
+    const off = await readBarColours(page);
+    const onOk = on.rising > 0 && on.risingOk === on.rising && on.otherBare === on.other && on.inks.length === 1 && isBlue(on.inks[0]) && on.hollowRising === 0;
+    const offOk = off.coloured === 0;
+    return {
+      pass: onOk && offOk && !errors.length,
+      ms: Date.now() - t0,
+      notes: [
+        `saved with status "${placed.status}"; on: ${on.risingOk} of ${on.rising} rising candles in ${on.inks.join(', ') || 'no ink'} (body, border and wick), ${on.other - on.otherBare} of ${on.other} others coloured, over ${on.bars} candles`,
+        `lifted: ${off.coloured} of ${off.bars} candles still coloured`,
+        ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : []),
+      ],
+    };
+  } finally {
+    await done();
+  }
+});
+
+check('scripts: barcolor() keeps a hollow theme\'s rising bodies hollow (Neon under the blue-orange pair)', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'classic', overlays: { trails: true }, ladder: true }], { cvd: 'blue-orange' });
+  try {
+    const t0 = Date.now();
+    const placed = await placeBarScript(page);
+    if (!placed) return { pass: false, notes: ['the development hook window.__paneScripts is missing'] };
+    await page.waitForTimeout(2500);
+    const on = await readBarColours(page);
+    await page.evaluate(async p => { await window.__paneScripts.lift('terrain:1', p.chartId); }, placed);
+    const pass = on.rising > 0 && on.risingOk === on.rising && on.hollowRising === on.rising && on.otherBare === on.other && on.inks.length === 1 && isBlue(on.inks[0]) && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`${on.hollowRising} of ${on.rising} rising candles hollow with a ${on.inks.join(', ') || 'missing'} border and wick; ${on.other - on.otherBare} of ${on.other} others coloured`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+check('replay: a barcolor() script colours the candles up to the cursor, none past it', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const placed = await placeBarScript(page);
+    if (!placed) return { pass: false, notes: ['the development hook window.__paneScripts is missing'] };
+    await page.waitForTimeout(1500);
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    const head = await page.locator('[data-pane-head]').first().boundingBox();
+    await page.mouse.click(head.x + head.width * 0.6, head.y + head.height / 2);
+    await page.keyboard.press('p');
+    await page.waitForTimeout(600);
+    await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+    await page.waitForFunction(() => !!document.querySelector('[data-as-of]'), null, { timeout: 8000 });
+    await page.waitForTimeout(2000);
+    const got = await readBarColours(page);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
+    await page.evaluate(async p => { await window.__paneScripts.lift('terrain:1', p.chartId); }, placed);
+    const ny = t => (t == null ? '—' : new Date(t * 1000).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+    const pass = got.cursor != null && got.past === 0 && got.rising > 0 && got.risingOk === got.rising && got.otherBare === got.other && got.inks.length === 1 && isBlue(got.inks[0]) && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`cursor ${ny(got.cursor)} New York, last candle ${ny(got.last)}, ${got.past} candles past it; ${got.risingOk} of ${got.rising} rising candles in ${got.inks.join(', ') || 'no ink'}, ${got.other - got.otherBare} of ${got.other} others coloured`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
 check('replay pick: the line stands at the pointer with the drawing rail docked left', async () => {
   const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
   try {

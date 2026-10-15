@@ -67,7 +67,8 @@ export interface OutputSink {
   fill: (nodeId: number, a: PlotRef, b: PlotRef, color: PineColor | null, title: string) => void;
   shape: (nodeId: number, on: boolean | number, color: PineColor | null, opts: { title: string; style: string; location: string; size: string; text: string; ink: PineColor | null }) => void;
   bgcolor: (color: PineColor | null) => void;
-  barcolor: (color: PineColor | null) => void;
+  /** `barcolor()` — the colour this call gives the bar (na: none), and the call's offset, show_last and display */
+  barcolor: (nodeId: number, color: PineColor | null, opts: { offset: number; showLast: number; hidden: boolean }) => void;
   alertcondition: (nodeId: number, cond: boolean, title: string, message: string) => void;
   alert: (nodeId: number, message: string) => void;
 }
@@ -561,7 +562,11 @@ export function callBuiltin(ctx: Ctx, callee: string, args: CallArg[], state: St
       ctx.output.bgcolor(asColor(need(a, 'color', callee, line)));
       return null;
     case 'barcolor':
-      ctx.output.barcolor(asColor(need(a, 'color', callee, line)));
+      ctx.output.barcolor(nodeId, asColor(need(a, 'color', callee, line)), {
+        offset: num(a, 'offset', 0),
+        showLast: num(a, 'show_last', NaN),
+        hidden: str(a, 'display', 'all') === 'none',
+      });
       return null;
     case 'alertcondition':
       ctx.output.alertcondition(nodeId, asBool(need(a, 'condition', callee, line)), str(a, 'title', ''), str(a, 'message', ''));

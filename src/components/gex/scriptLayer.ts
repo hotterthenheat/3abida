@@ -19,6 +19,11 @@
   paperInksWith): the shipped family's paper pairs
   and the house's inks read off the tape's tokens —
   the dark set read 1.0 to 2:1 on the Stone tape.
+
+  THE BARS' COLOURS (barcolor, the owner's approval
+  13) are not a series of the script's own but the
+  host's candles, coloured point by point — see
+  components/gex/barTints.ts.
 ==================================================
 */
 
@@ -247,6 +252,7 @@ function inkRun(run: RunResult, ink: (css: string, kind: InkKind) => string): Ru
     shapes: run.shapes.map(sh => ({ ...sh, ink: ink(sh.ink, 'line'), colors: each(sh.colors, 'line') })),
     fills: run.fills.map(f => ({ ...f, ink: ink(f.ink, 'wash'), colors: each(f.colors, 'wash') })),
     bgcolors: each(run.bgcolors, 'wash'),
+    barcolors: each(run.barcolors, 'line'),
   };
 }
 

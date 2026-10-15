@@ -178,7 +178,9 @@ export class Runner {
   /** Each alert's fallback title — an alertcondition's number among the conditions, as the library counts them */
   private alertNames: string[] = [];
   private bgcolors: (string | null)[] | null = null;
-  private barcolors: (string | null)[] | null = null;
+  /** Each `barcolor()` call's colours by the bar it ran on, in the script's order (OutputPlan.barcolors) */
+  private barLayers: { colors: (string | null)[]; offset: number; showLast: number; hidden: boolean; seen: boolean }[] = [];
+  private barIndex = new Map<number, number>();
 
   private ctx: Ctx;
 
@@ -208,6 +210,10 @@ export class Runner {
     plan.hlines.forEach((id, i) => {
       this.hlineIndex.set(id, i);
       this.hlines.push({ id: `hline${i + 1}`, title: '', price: NA, ink: '#787B86', style: 'solid', width: 1, seen: false });
+    });
+    plan.barcolors.forEach((id, i) => {
+      this.barIndex.set(id, i);
+      this.barLayers.push({ colors: new Array(this.n).fill(null), offset: 0, showLast: NaN, hidden: false, seen: false });
     });
     plan.fills.forEach((id, i) => {
       this.fillIndex.set(id, i);
@@ -290,9 +296,17 @@ export class Runner {
         if (!self.bgcolors) self.bgcolors = new Array(self.n).fill(null);
         self.bgcolors[self.b] = color ? toCss(color) : null;
       },
-      barcolor(color) {
-        if (!self.barcolors) self.barcolors = new Array(self.n).fill(null);
-        self.barcolors[self.b] = color ? toCss(color) : null;
+      barcolor(nodeId, color, o) {
+        const i = self.barIndex.get(nodeId);
+        if (i === undefined) return;
+        const l = self.barLayers[i];
+        if (!l.seen) {
+          l.seen = true;
+          l.offset = Number.isFinite(o.offset) ? Math.trunc(o.offset) : 0;
+          l.showLast = o.showLast;
+          l.hidden = o.hidden;
+        }
+        l.colors[self.b] = color ? toCss(color) : null;
       },
       alertcondition(nodeId, cond, title, message) {
         const i = self.alertIndex.get(nodeId)!;
@@ -398,10 +412,35 @@ export class Runner {
         return { ...s, ink: c.ink, colors: c.colors };
       }),
       bgcolors: this.bgcolors,
-      barcolors: this.barcolors,
+      barcolors: this.barcolorsOut(),
       alerts: this.alerts,
       stats: { bars: this.n, ms: now() - this.t0 },
     };
+  }
+
+  /**
+   * THE BARS' COLOURS (the owner's approval 13, 2026-10-15: "barcolor(): implement it") — Pine's rules: a call's colour on
+   * bar i lands on bar i + offset (off either end, nowhere); `show_last` keeps the last N bars of the chart; a call with
+   * `display = display.none` colours nothing; na leaves the bar to the calls before it and to its own colour; where two
+   * calls colour one bar the later one in the script wins. Null when no barcolor() call ran.
+   */
+  private barcolorsOut(): (string | null)[] | null {
+    const n = this.n;
+    let out: (string | null)[] | null = null;
+    for (const l of this.barLayers) {
+      if (!l.seen) continue;
+      out ??= new Array<string | null>(n).fill(null);
+      if (l.hidden) continue;
+      const keepFrom = Number.isFinite(l.showLast) && l.showLast >= 0 ? n - Math.floor(l.showLast) : 0;
+      for (let i = 0; i < n; i++) {
+        const c = l.colors[i];
+        if (c === null) continue;
+        const j = i + l.offset;
+        if (j < 0 || j >= n || j < keepFrom) continue;
+        out[j] = c;
+      }
+    }
+    return out;
   }
 
   /** `var` series keep their value into the new bar until the script says otherwise */

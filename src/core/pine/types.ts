@@ -144,8 +144,11 @@ export interface RunResult {
   hlines: HLineOut[];
   fills: FillOut[];
   shapes: ShapeOut[];
-  /** `bgcolor()` and `barcolor()` — one CSS colour or null per bar, or null when the script never called them */
+  /** `bgcolor()` — one CSS colour or null per bar, or null when the script never called it */
   bgcolors: (string | null)[] | null;
+  /** `barcolor()` — the colour each bar's candle takes, or null where it keeps its own: every call's offset, show_last
+      and display applied, the later call winning a bar two colour (interpreter.ts barcolorsOut); null when the script
+      never called it. The chart lays it on the candles (components/gex/barTints.ts) */
   barcolors: (string | null)[] | null;
   alerts: AlertOut[];
   stats: {

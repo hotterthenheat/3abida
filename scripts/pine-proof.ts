@@ -10,6 +10,9 @@
 // price, the shipped scripts' inks and words, the editor's chords — each one
 // written to fail on the code before the fix; then every shipped script over
 // 5,000 bars with its run time. In `npm test` since the same day.
+// barcolor() (section 19, the owner's approval 13): its colours bar by bar, na,
+// offset either way, show_last, display.none, two calls in one script and two
+// scripts on one pane, and the candle a colour dresses.
 //   npx tsx scripts/pine-proof.ts
 import { readFileSync } from 'node:fs';
 import { compile, run, runSource, explain } from '../src/core/pine';
@@ -18,6 +21,9 @@ import { builtinScripts, retiredBuiltin } from '../src/data/builtinScripts';
 import { BEAR, BULL, CALL_WALL, PUT_WALL } from '../src/components/gex/palette';
 import { markersFor } from '../src/components/gex/scriptMarkers';
 import { SCRIPT_CAPS } from '../src/types/scripts';
+import { named, toCss } from '../src/core/pine/colors';
+/* the chart's side of barcolor, read where it exists — the engine's cases below run either way */
+const layer: Partial<typeof import('../src/components/gex/barTints')> = await import('../src/components/gex/barTints').catch(() => ({}));
 
 /* ---- synthetic bars: a seeded random walk ---------------------------------------- */
 let seed = 20260910;
@@ -733,6 +739,74 @@ plot(close)`);
   console.log(`\n  every shipped script over 5,000 one-minute bars:\n  ${rows.join('\n  ')}\n`);
   check(`all ${builtinScripts().length} shipped scripts compile, run and draw over 5,000 bars`, broken.length === 0, broken.join('; '));
   check(`each shipped script runs inside the terminal's ${SCRIPT_CAPS.budgetMs} ms budget over 5,000 bars`, slow.length === 0, slow.join('; '));
+}
+
+/* ---- 19. barcolor(): the bars' colours, as Pine lays them (approval 13) ------------------------- */
+{
+  const BLUE = toCss(named('blue')!);
+  const ORANGE = toCss(named('orange')!);
+  const up = (i: number) => bars[i].close > bars[i].open;
+  const n = bars.length;
+  const first = (got: (string | null)[] | null, want: (i: number) => string | null) => {
+    if (!got) return 'no barcolors';
+    if (got.length !== n) return `${got.length} bars, want ${n}`;
+    for (let i = 0; i < n; i++) if (got[i] !== want(i)) return `bar ${i}: got ${got[i]} want ${want(i)}`;
+    return '';
+  };
+  const runOf = (body: string) => tryRun(`//@version=6\nindicator("Bars", overlay=true)\n${body}\n`);
+  const plain = runOf('barcolor(close > open ? color.blue : na)');
+  const wantPlain = (i: number) => (up(i) ? BLUE : null);
+  check('barcolor: a colour on the bars it returns one, none where it returns na', !plain.err && first(plain.r!.barcolors, wantPlain) === '', plain.err || first(plain.r!.barcolors, wantPlain));
+  const none = runOf('barcolor(na)');
+  const noneOk = !none.err && !!none.r!.barcolors && none.r!.barcolors.every(c => c === null);
+  check('barcolor: na on every bar leaves every bar its own colour', noneOk, noneOk ? '' : none.err || (none.r!.barcolors ? `a colour: ${none.r!.barcolors.find(c => c !== null)}` : 'no barcolors'));
+  const never = runOf('plot(close)');
+  check('barcolor: a script that never calls it hands back no colours', !never.err && never.r!.barcolors === null, never.err || (never.r!.barcolors === null ? '' : 'colours handed back'));
+  const right = runOf('barcolor(close > open ? color.blue : na, offset = 2)');
+  const wantRight = (i: number) => (i >= 2 && up(i - 2) ? BLUE : null);
+  check('barcolor: offset = 2 lays bar i\'s colour on bar i + 2 (the first two bars none)', !right.err && first(right.r!.barcolors, wantRight) === '', right.err || first(right.r!.barcolors, wantRight));
+  const left = runOf('barcolor(close > open ? color.blue : na, offset = -1)');
+  const wantLeft = (i: number) => (i + 1 < n && up(i + 1) ? BLUE : null);
+  check('barcolor: offset = -1 lays bar i\'s colour on bar i − 1 (the last bar none)', !left.err && first(left.r!.barcolors, wantLeft) === '', left.err || first(left.r!.barcolors, wantLeft));
+  const two = runOf('barcolor(close > open ? color.blue : na)\nbarcolor(bar_index % 3 == 0 ? color.orange : na)');
+  const wantTwo = (i: number) => (i % 3 === 0 ? ORANGE : up(i) ? BLUE : null);
+  check('barcolor: two calls — the later one wins a bar both colour, and its na leaves the earlier one\'s', !two.err && first(two.r!.barcolors, wantTwo) === '', two.err || first(two.r!.barcolors, wantTwo));
+  const last = runOf('barcolor(color.blue, show_last = 10)');
+  const wantLast = (i: number) => (i >= n - 10 ? BLUE : null);
+  check('barcolor: show_last = 10 colours the last ten bars alone', !last.err && first(last.r!.barcolors, wantLast) === '', last.err || first(last.r!.barcolors, wantLast));
+  const hidden = runOf('barcolor(color.blue, display = display.none)');
+  const hiddenOk = !hidden.err && !!hidden.r!.barcolors && hidden.r!.barcolors.every(c => c === null);
+  check('barcolor: display = display.none colours nothing', hiddenOk, hiddenOk ? '' : hidden.err || (hidden.r!.barcolors ? `a colour: ${hidden.r!.barcolors.find(c => c !== null)}` : 'no barcolors'));
+
+  /* the chart's side: the pane's runs merged, the light tape's inks, the candle a colour dresses */
+  const { barTints, tintPoint, candleTintForm } = layer;
+  const hasLayer = !!barTints && !!tintPoint && !!candleTintForm;
+  check('barcolor: the chart lays a run\'s colours on the candles (components/gex/barTints)', hasLayer, hasLayer ? '' : 'no components/gex/barTints module');
+  if (barTints && tintPoint && candleTintForm) {
+    const odd = runOf('barcolor(bar_index % 2 == 1 ? color.orange : na)');
+    const tints = barTints([plain.r!, odd.r!], bars);
+    const wantTint = (i: number) => (i % 2 === 1 ? ORANGE : up(i) ? BLUE : undefined);
+    const off = bars.findIndex((b, i) => tints.get(b.time) !== wantTint(i));
+    check('barcolor: two scripts on one pane — the last drawn wins a bar, its na leaves the one before', off === -1, off === -1 ? '' : `bar ${off}: ${tints.get(bars[off].time)} want ${wantTint(off)}`);
+    const inked = barTints([plain.r!], bars, (css, kind) => `${kind}:${css}`);
+    const firstUp = bars.findIndex((_, i) => up(i));
+    check('barcolor: every colour passes through the host\'s ink as a line\'s (a light tape\'s paper inks)', inked.get(bars[firstUp].time) === `line:${BLUE}`, inked.get(bars[firstUp].time) === `line:${BLUE}` ? '' : String(inked.get(bars[firstUp].time)));
+    const rise = { time: 1, open: 10, high: 12, low: 9, close: 11 };
+    const fall = { time: 2, open: 11, high: 12, low: 9, close: 10 };
+    const solid = candleTintForm('#93C9F2', '#93C9F2');
+    const hollow = candleTintForm('rgba(0,0,0,0)', '#50A4FF');
+    const s1 = tintPoint(rise, BLUE, solid) as unknown as Record<string, unknown>;
+    const h1 = tintPoint(rise, BLUE, hollow) as unknown as Record<string, unknown>;
+    const h2 = tintPoint(fall, BLUE, hollow) as unknown as Record<string, unknown>;
+    const bar = tintPoint(fall, BLUE, { kind: 'bar', hollowUp: null }) as unknown as Record<string, unknown>;
+    const bare = tintPoint(rise, undefined, solid) as unknown as Record<string, unknown>;
+    const okSolid = s1.color === BLUE && s1.borderColor === BLUE && s1.wickColor === BLUE;
+    const okHollow = h1.color === 'rgba(0,0,0,0)' && h1.borderColor === BLUE && h1.wickColor === BLUE && h2.color === BLUE;
+    const okBar = bar.color === BLUE && !('wickColor' in bar) && !('color' in bare) && !('borderColor' in bare) && !('wickColor' in bare);
+    check('barcolor: a solid candle takes the colour on its body, border and wick', okSolid, okSolid ? '' : JSON.stringify(s1));
+    check('barcolor: a hollow theme\'s rising candle stays hollow (border and wick coloured), a falling one fills', okHollow, okHollow ? '' : `${JSON.stringify(h1)} ${JSON.stringify(h2)}`);
+    check('barcolor: a bar takes the colour as its one stroke; na leaves a candle its theme\'s colours', okBar, okBar ? '' : `${JSON.stringify(bar)} ${JSON.stringify(bare)}`);
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
