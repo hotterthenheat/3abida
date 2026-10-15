@@ -3650,7 +3650,12 @@ const StrikeChart = ({
     let paperOf: ((css: string) => string) | undefined;
     const inkFor = () => {
       if (!lightTape) return undefined;
-      const box = boxElRef.current;
+      /* THE TAPE'S OWN TOKENS, READ INSIDE THE BOX: the chart's container stands in the box and inherits its light set,
+         and its ref is filled before any effect runs. The box's own ref is state, null when a load's first commit runs
+         its effects — the root's tokens were read then (on a dark page the flip, the supreme and the direction pair in
+         their dark values, 1.1 to 1.9:1 on a Stone tape), and nothing redrew once the box was up. */
+      const box = containerRef.current ?? boxElRef.current;
+      if (!box) return undefined;
       /* the walls as the field's ovals take them on a light ground (heatmap.ts: the light ground's gold and violet — the
          box is a dark island whose light set leaves the pair alone); the flip, the supreme, the direction pair and the
          silver as the tape's own chrome reads them, off its box */

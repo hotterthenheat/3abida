@@ -1792,7 +1792,7 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
       /* the series on the chart now, and the house's inks off the tape's own box */
       const snap = () =>
         page.evaluate(() => {
-          const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+          const e = [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
           window.__inkSeen ??= new WeakSet();
           const all = e.chart.panes().flatMap((p, i) => p.getSeries().map(s => ({ s, i })));
           const fresh = all.filter(o => !window.__inkSeen.has(o.s));
@@ -1806,13 +1806,13 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
           return { n: all.length, inks };
         });
       const seenAll = () => page.evaluate(() => {
-        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
         window.__inkSeen ??= new WeakSet();
         for (const p of e.chart.panes()) for (const s of p.getSeries()) window.__inkSeen.add(s);
         return e.chart.panes().reduce((n, p) => n + p.getSeries().length, 0);
       });
       const tokens = await page.evaluate(() => {
-        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
         const box = e.box();
         const css = getComputedStyle(box);
         const t = n => css.getPropertyValue(n).trim().split(/\s+/).map(Number);
@@ -1882,7 +1882,7 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
       for (const id of shelf) {
         const n0 = await seenAll();
         const placed = await page.evaluate(async id => (await window.__paneScripts.place('terrain:1', id)).id, id);
-        await page.waitForFunction(n0 => [...window.__charts].find(x => x.trails && x.host.isConnected).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) > n0, n0, { timeout: 5000 }).catch(() => {});
+        await page.waitForFunction(n0 => [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]')).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) > n0, n0, { timeout: 5000 }).catch(() => {});
         await page.waitForTimeout(300);
         take(id.replace('builtin:', 'script:'), await snap());
         await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), placed);
@@ -1935,6 +1935,115 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
         const keptOk = legend.includes('builtin:rsi') && mine.some(m => m.startsWith('builtin:rsi '));
         notes.push(`  the RSI script placed before, after a reload: legend ${legend.join(', ') || 'empty'}; My scripts ${mine.join(' | ') || 'empty'}`);
         if (!keptOk) pass = false;
+      }
+      if (errors.length) {
+        pass = false;
+        notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── A LIGHT TAPE'S HOUSE INKS THROUGH A LOAD (the review of approvals 4, 5 and 11, 2026-10-15) ───────────────────────
+   Before: the scripts effect read a light tape's tokens off the chart's box through a ref that the box's ref callback
+   fills by state — still null when the effects of the first commit run — so after any load a script's flip, supreme,
+   direction pair and silver were read off the document's root, and nothing redrew once the box was there. On a dark
+   page a Stone tape drew them in their dark values (the flip #9CA3AF at 1.35:1, the up line #30D158 at 1.07:1); on a
+   light page in the page's own (the flip #4B5563, not the tape's #6B7280). Placed live they were right, so this check
+   places them, reloads twice and reads the series' colours each time against the tape's own tokens. */
+check('inks: a light tape keeps the house inks of a placed script through a reload, on a dark page and a light one', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const hexOf = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return `#${m[1].toUpperCase()}`;
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(s);
+    if (!m) m = /^([\d.]+)\s+([\d.]+)\s+([\d.]+)$/.exec(s);
+    return m ? `#${[m[1], m[2], m[3]].map(v => Math.round(+v).toString(16).padStart(2, '0')).join('').toUpperCase()}` : null;
+  };
+  const IDS = ['builtin:walls', 'builtin:flip', 'builtin:supreme', 'builtin:supertrend'];
+  /* the palette's dark values (gex/palette.ts) — a script's house ink in one of these on a light tape is the bug */
+  const DARK = ['#9CA3AF', '#EA00FF', '#30D158', '#FF3B30', '#E8B94A', '#8064F7'];
+  for (const theme of ['dark', 'light']) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', overlays: { trails: true }, ladder: true }], { theme });
+    try {
+      /* every ink the chart's series draw, the tape's own tokens, the root's, and the light ground's gold and violet */
+      const read = () =>
+        page.evaluate(() => {
+          const e = [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
+          const inks = new Set();
+          let n = 0;
+          for (const p of e.chart.panes())
+            for (const s of p.getSeries()) {
+              n++;
+              const o = s.options();
+              for (const c of [o.color, o.lineColor]) if (typeof c === 'string') inks.add(c);
+              for (const d of s.data()) if (typeof d.color === 'string') inks.add(d.color);
+            }
+          const box = e.host.closest('[data-chart-ground]');
+          const of = (el, names) => Object.fromEntries(names.map(k => [k, getComputedStyle(el).getPropertyValue(k).trim()]));
+          const probe = document.createElement('span');
+          probe.setAttribute('data-theme', 'light');
+          probe.style.display = 'none';
+          document.body.appendChild(probe);
+          const walls = of(probe, ['--absorb', '--amplify']);
+          probe.remove();
+          const names = ['--flip', '--supreme', '--bull', '--bear'];
+          return { n, inks: [...inks], ground: box.getAttribute('data-chart-ground'), tape: of(box, names), root: of(document.documentElement, names), walls };
+        });
+      const reloaded = async want => {
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('[data-chart-ink]', { timeout: 60_000 });
+        await page
+          .waitForFunction(
+            want => {
+              const e = [...(window.__charts ?? [])].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
+              return !!e && e.chart.panes().reduce((n, p) => n + p.getSeries().length, 0) >= want;
+            },
+            want,
+            { timeout: 30_000 }
+          )
+          .catch(() => {});
+        await page.waitForTimeout(1500);
+        return read();
+      };
+      const base = await read();
+      if (base.ground !== 'light') {
+        pass = false;
+        notes.push(`${theme} page: the Stone pane's tape is ${base.ground}, not light`);
+        continue;
+      }
+      const baseInks = new Set(base.inks.map(hexOf));
+      for (const id of IDS) await page.evaluate(async id => window.__paneScripts.place('terrain:1', id), id);
+      await page
+        .waitForFunction(n0 => [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) >= n0 + 4, base.n, { timeout: 10_000 })
+        .catch(() => {});
+      await page.waitForTimeout(1200);
+      const live = await read();
+      const stages = [['placed live', live], ['after a reload', await reloaded(live.n)], ['after a second reload', await reloaded(live.n)]];
+      const want = {
+        flip: hexOf(live.tape['--flip']),
+        supreme: hexOf(live.tape['--supreme']),
+        up: hexOf(live.tape['--bull']),
+        down: hexOf(live.tape['--bear']),
+        'call wall': hexOf(live.walls['--absorb']),
+        'put wall': hexOf(live.walls['--amplify']),
+      };
+      const wantSet = new Set(Object.values(want));
+      /* a wrong ink: the palette's dark value, or the root's own token where the tape's differs */
+      const wrong = new Set([...DARK, ...Object.values(live.root).map(hexOf)].filter(h => h && !wantSet.has(h)));
+      notes.push(`${theme} page, Stone tape — the tape's: ${Object.entries(want).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+      for (const [label, got] of stages) {
+        const drawn = [...new Set(got.inks.map(hexOf))].filter(h => h && !baseInks.has(h));
+        const missing = Object.entries(want).filter(([, v]) => !drawn.includes(v)).map(([k, v]) => `${k} ${v}`);
+        const bad = drawn.filter(h => wrong.has(h));
+        notes.push(`  ${label}: the scripts drew ${drawn.join(' ') || 'nothing'}${missing.length ? ` — missing ${missing.join(', ')}` : ''}${bad.length ? ` — wrong ${bad.join(' ')}` : ''}`);
+        if (missing.length || bad.length) pass = false;
       }
       if (errors.length) {
         pass = false;
