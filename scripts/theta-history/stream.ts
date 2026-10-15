@@ -45,11 +45,13 @@ export class ClockGate {
 }
 /* THE RECORDER'S HOURS (the owner, 2026-10-14: "The downloader's 8 in flight outside market hours is Theta's whole
    account limit, so the recorder's pre-market reads (the 7:00 am ET OI switch) get starved. Cap it at 7 outside market
-   hours, and treat 6:00 am–4:30 pm ET as recorder hours (3 in flight)"): a weekday from 06:00 to 16:30 New York — the
-   recorder's chain reads from before the open's count is published to past the close's last reads. The probe keeps its
-   own heavy-probe window (theta-probe/lib inSession, 09:25–16:15). */
+   hours"; 2026-10-15: "3 in flight 6:00 am–5:00 pm ET, 7 at all other times. 8 is Theta's whole account limit, and the
+   recorder now reads SPX through the curb and overnight, so it needs a slot around the clock"): a weekday from 06:00 to
+   17:00 New York — the recorder's chain reads from before the open's count is published through SPX's curb — and one of
+   Theta's eight always left to the recorder outside them. The probe keeps its own heavy-probe window (theta-probe/lib
+   inSession, 09:25–16:15). */
 export const RECORDER_FROM_MIN = 6 * 60;
-export const RECORDER_TO_MIN = 16 * 60 + 30;
+export const RECORDER_TO_MIN = 17 * 60;
 export const inRecorderHours = (minute: number, weekday: number): boolean => weekday >= 1 && weekday <= 5 && minute >= RECORDER_FROM_MIN && minute < RECORDER_TO_MIN;
 export const inSessionNow = (): boolean => {
   const n = nyNow();

@@ -12,12 +12,13 @@
   · 127.0.0.1 only; it never starts or signs into a
     terminal — the terminal must already be CONNECTED
     (npm run theta:terminal, as ever), else it stops.
-  · In the recorder's hours (06:00–16:30 New York,
-    weekdays — the 7:00 am open-interest switch and the
-    close's last reads inside them) it keeps THREE
-    requests in flight; outside them SEVEN, so one of
-    Theta's eight is always the recorder's. Nothing is
-    asked in Theta's own gap (00:00–01:45 New York).
+  · In the recorder's hours (06:00–17:00 New York,
+    weekdays — the 7:00 am open-interest switch, the
+    session's reads and SPX's curb inside them) it keeps
+    THREE requests in flight; outside them SEVEN, so one
+    of Theta's eight is always the recorder's (SPX's
+    overnight reads among them). Nothing is asked in
+    Theta's own gap (00:00–01:45 New York).
   · Resumable, checkpointed PER TICKER PER DAY
     (<root>/<T>/manifest.json): a day held is never
     asked again; a file is written whole and renamed
@@ -100,6 +101,8 @@ export interface HistoryOptions {
   log: (line: string) => void;
   /** The clock (a test moves it) */
   now?: () => number;
+  /** The New York clock the in-flight gate reads (a test holds it outside Theta's gap; the real one by default) */
+  gateAt?: () => { minute: number; weekday: number };
 }
 
 const DEFAULT_STOCKS = [...new Set([...UNIVERSE.map(u => u.ticker), 'SPY', 'QQQ', 'IWM', 'DIA'])];
@@ -188,7 +191,7 @@ export async function runHistory(opts: HistoryOptions): Promise<{ sessions: stri
   const { root, log } = opts;
   mkdirSync(root, { recursive: true });
   const clock = opts.now ?? Date.now;
-  const gate = new ClockGate(limitByClock(opts.sessionLimit, opts.fullLimit));
+  const gate = new ClockGate(limitByClock(opts.sessionLimit, opts.fullLimit, opts.gateAt));
   const logFile = join(root, 'log.ndjson');
   const note = (o: Record<string, unknown>) => appendFileSync(logFile, JSON.stringify({ at: new Date(clock()).toISOString(), ...o }) + '\n');
   const tallies: Record<string, Tally> = {};

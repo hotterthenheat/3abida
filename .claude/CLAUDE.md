@@ -1221,9 +1221,9 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   14 years at Theta. Build it."; docs/data-feed.md "The Theta history"; the report docs/terrain-build-2026-10-14/README.md
   section C). `npm run theta:history` (scripts/theta-history/, scripts/theta-history.cmd its loop) runs ON THE OWNER'S
   MACHINE against the terminal already CONNECTED there — 127.0.0.1 only, never starting or signing into one; 3
-  requests in flight in the RECORDER'S HOURS (6:00 am–4:30 pm New York, weekdays — the 7:00 am open-interest switch
-  and the session's reads), 7 outside (Theta's 8 is the account's whole limit; one is the recorder's — the owner,
-  2026-10-15), none in Theta's gap; the environment may lower these, never raise them; resumable per ticker per day (manifest.json, a
+  requests in flight in the RECORDER'S HOURS (6:00 am–5:00 pm New York, weekdays — the 7:00 am open-interest switch,
+  the session's reads and SPX's curb), 7 at all other times (Theta's 8 is the account's whole limit; one is the
+  recorder's around the clock, SPX's overnight reads among them — the owner, 2026-10-15), none in Theta's gap; the environment may lower these, never raise them; resumable per ticker per day (manifest.json, a
   .part renamed whole); newest first to each feed's first served date; RAW ROWS ONLY (gzipped NDJSON under
   .feed-cache/history/<T>/<day>/ — the 4a/4b choices are the rebuild's); every empty or denied answer logged with its
   URL; report.md after five sessions, PAUSED (exit 3) when the projection exceeds the free disk. `npm run theta:rebuild`

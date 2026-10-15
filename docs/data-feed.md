@@ -1375,9 +1375,10 @@ the always-on machine, neither run against Theta from the workspace (no terminal
 
 - **`npm run theta:history`** (scripts/theta-history; `scripts/theta-history.cmd` keeps it running under Task
   Scheduler). 127.0.0.1 only; it stops unless /terminal/mdds/status answers CONNECTED and never starts or signs into a
-  terminal. A clock gate keeps 3 requests in flight in the recorder's hours (06:00–16:30 New York, weekdays — the
-  7:00 am open-interest switch and the session's reads), 7 outside (Theta's eight is the whole account; one is left
-  for the recorder's pre-market reads — the owner, 2026-10-15), none in Theta's gap (00:00–01:45); the environment's
+  terminal. A clock gate keeps 3 requests in flight in the recorder's hours (06:00–17:00 New York, weekdays — the
+  7:00 am open-interest switch, the session's reads and SPX's curb), 7 at all other times (Theta's eight is the whole
+  account; one is the recorder's around the clock, SPX's overnight reads among them — the owner, 2026-10-15), none in
+  Theta's gap (00:00–01:45); the environment's
   HISTORY_IN_SESSION_CONCURRENCY and HISTORY_CONCURRENCY can lower these, never raise them. Resumable per ticker per day
   (`<root>/<T>/manifest.json`; a file written to `.part` and renamed whole; a day held never asked again). Newest
   first, back to the first date each feed serves (the terminal's date lists). Raw rows only, gzipped NDJSON. Scope:
