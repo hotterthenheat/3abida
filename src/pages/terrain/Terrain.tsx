@@ -3962,6 +3962,29 @@ const Terrain = () => {
      also said out loud, or the whole layer is silent to a screen reader. */
   const [announce, setAnnounce] = useState('');
   const paneRefs = useRef<(HTMLDivElement | null)[]>([]);
+  /* THE DESK BAR OVER A REPLAY (the full check of 2026-10-15: in full screen the floating desk bar rides the pane's foot,
+     where a replay's strip stands — the bar's chips took the pointer over the pace and the transport, which could not be
+     clicked): while the expanded pane replays, the bar stands clear above the strip, measured off the strip itself */
+  const [deskOverStrip, setDeskOverStrip] = useState<number | null>(null);
+  const expandedReplaying = expanded !== null && !!replaying[expanded];
+  useEffect(() => {
+    if (!expandedReplaying || expanded === null) {
+      setDeskOverStrip(null);
+      return;
+    }
+    const measure = () => {
+      const strip = paneRefs.current[expanded]?.querySelector<HTMLElement>('[data-replay-strip]');
+      const top = strip?.getBoundingClientRect().top;
+      setDeskOverStrip(top != null && top > 0 ? Math.round(window.innerHeight - top + 8) : null);
+    };
+    measure();
+    const id = window.setInterval(measure, 300);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('resize', measure);
+    };
+  }, [expandedReplaying, expanded]);
 
   /*
     THE KEYS.
@@ -4346,7 +4369,7 @@ const Terrain = () => {
           expanded !== null
             ? {
                 right: (panes[expanded]?.ladder && !belowLg ? panes[expanded]?.ladderW ?? profileRestWidth(cfg.layout, true) : 0) + PRICE_GUTTER_PX + 8,
-                bottom: TIME_AXIS_PX + 12,
+                bottom: Math.max(TIME_AXIS_PX + 12, deskOverStrip ?? 0),
               }
             : undefined
         }

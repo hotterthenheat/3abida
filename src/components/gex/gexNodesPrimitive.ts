@@ -509,7 +509,14 @@ class TrailsPaneRenderer {
     }
     const col0 = src.columnAt(first);
     const barSpacing = ts.options().barSpacing ?? 6;
-    if (src.ref <= 0) return;
+    /* NO NODE TO SIZE (the full check of 2026-10-15: AAPL's 0DTE window on a Thursday — every column in view stands
+       and holds no strike, so the session's largest node is 0): the view is all gap, and its words are found again.
+       A bare return here left the words of an earlier frame, drawn before the columns came — "not recorded" over
+       columns that stood. */
+    if (src.ref <= 0) {
+      this.drawGapsAlone(target, src, series, ts);
+      return;
+    }
     if (import.meta.env?.DEV && src.published != null && src.published > 0 && last === snaps.length) {
       const drawn = src.columnAt(last - 1).ref;
       if (Math.abs(drawn - src.published) > src.published * 1e-12) console.error(`bead legend out of step: the legend says ${src.published}, the newest column was drawn against ${drawn}`);

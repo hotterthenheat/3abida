@@ -1824,6 +1824,50 @@ const CARD_WINDOWS = [
   ['book', 'All 60 days', "The field: every expiry within 60 days. The ladder keeps Unusual Whales' book on every expiry."],
 ];
 const PACES = ['1×', '5×', '20×', '60×'];
+/* THE DESK BAR OVER A REPLAY (the full check of 2026-10-15): in full screen the floating desk bar rode the pane's foot,
+   over a replay's strip — the pace and the transport could not be clicked. Every control of the strip must be the
+   topmost thing under its own centre. */
+check('full screen: a replay\'s strip is not under the desk bar — every control on it takes the pointer', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    /* the pane takes the keys from its header; where the click lands on a level's chip and focuses a strike, Esc lets
+       the strike go (its card would stand over the plot's middle, where the pick's click goes) */
+    const hb = await page.locator('[data-pane-head]').first().boundingBox();
+    await page.mouse.click(hb.x + hb.width * 0.6, hb.y + hb.height / 2);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('f');
+    await page.waitForSelector('[data-expanded-extras]', { timeout: 4000 });
+    await page.keyboard.press('p');
+    await page.waitForTimeout(600);
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+    await page.waitForSelector('[data-dropdown="replay-pace"]', { timeout: 8000 });
+    /* the pointer over the strip, as a reader's would be on the way to a button (the desk bar comes up under a hover) */
+    const pace = await page.locator('[data-dropdown="replay-pace"]').boundingBox();
+    await page.mouse.move(pace.x + pace.width / 2, pace.y + pace.height / 2);
+    await page.waitForTimeout(700);
+    const got = await page.evaluate(() => {
+      const strip = document.querySelector('[data-replay-strip]');
+      const ctrls = strip ? [...strip.querySelectorAll('button, [role="slider"], input')] : [];
+      const bad = [];
+      for (const c of ctrls) {
+        const r = c.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) continue;
+        const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        if (!(top && (top === c || c.contains(top)))) bad.push(`${c.getAttribute('aria-label') ?? c.textContent?.trim().slice(0, 20)} under ${top?.closest('[data-terrain-desk-bar]') ? 'the desk bar' : top?.tagName}`);
+      }
+      const bar = document.querySelector('[data-terrain-desk-bar="floating"]')?.getBoundingClientRect();
+      const sr = strip?.getBoundingClientRect();
+      return { n: ctrls.length, bad, gap: bar && sr ? Math.round(sr.top - bar.bottom) : null };
+    });
+    return { pass: got.n > 0 && got.bad.length === 0 && !errors.length, ms: Date.now() - t0, notes: [`${got.n} controls on the strip; ${got.bad.length ? `under something else: ${got.bad.join('; ')}` : 'each the topmost thing at its centre'}; the desk bar ${got.gap == null ? '—' : `${got.gap} px above the strip`}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
 check('lists: the expiry windows and the replay paces offered on screen are the ones they were, from one list each', async () => {
   const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
   try {
@@ -1844,8 +1888,10 @@ check('lists: the expiry windows and the replay paces offered on screen are the 
     await page.keyboard.press('f');
     await page.waitForSelector('[data-expanded-extras]', { timeout: 4000 });
     const head = await page.locator('[data-expanded-extras] [data-window-pick]').evaluateAll(els => els.map(e => [e.getAttribute('data-window-pick'), (e.textContent ?? '').trim(), e.getAttribute('title')]));
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(600);
+    /* out of full screen by its own door (an Esc may first let go of a strike the header click focused) */
+    await page.click('[data-collapse-pane]');
+    await page.waitForSelector('[data-expanded-extras]', { state: 'detached', timeout: 4000 });
+    await page.waitForTimeout(400);
     same("the header's windows", head, HEAD_WINDOWS);
     /* the Expiry card's foot: every choice that is not a day */
     await page.click('[data-dropdown="terrain-expiry"]');

@@ -1841,8 +1841,12 @@ const StrikeChart = ({
 
     const pts = [];
     for (let i = 1; i <= want; i++) pts.push({ time: (lastTime + i * bucketSec) as UTCTimestamp });
-    series.setData(pts);
+    /* NOTED BEFORE THE WRITE (the full check of 2026-10-15: "Replay this day" on a session just closed threw "Maximum
+       call stack size exceeded"): setData moves the visible range at once, the range handler calls back in here, and
+       with the runway noted only after the write it read the old one, wrote again — for ever. Noted first, the call
+       back in finds the runway it asked for and returns. */
     runwayRef.current = { from: lastTime, slots: want };
+    series.setData(pts);
   }, []);
 
   const resetView = useCallback(() => {
