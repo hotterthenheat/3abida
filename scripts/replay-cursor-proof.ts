@@ -46,6 +46,7 @@ import { columnSummary, modelColumn, pastInputs, setPitProbe, stickyWalls, strad
 import { columnMax, stepOf, strengthOf, minuteRefs } from '../src/data/feed/beadScale';
 import { rng } from '../src/data/feed/trackRecord';
 import { nyIsoDate, nyWallTime } from '../src/core/nyTime';
+import { fieldSessionAt } from '../src/core/sessions';
 import type { Candle, GexSnapshot } from '../src/types/market';
 
 let pass = 0;
@@ -247,6 +248,7 @@ function auditFrame(g: PitGuard, day: string, inp: ServerInputs, u: Universe, ta
   const off: Record<string, number> = { cells: 0, walls: 0, flip: 0, top: 0, net: 0, price: 0, straddle: 0, reference: 0 };
   const notes: string[] = [];
   const perSession = new Map<string, number>();
+  const revised: { key: string; cents: number }[] = [];
   for (const name of existsSync(root) ? readdirSync(root).filter(n => /^[A-Z]/.test(n)) : [])
     for (const day of readdirSync(join(root, name)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))) {
       const dir = join(root, name, day);
@@ -272,13 +274,31 @@ function auditFrame(g: PitGuard, day: string, inp: ServerInputs, u: Universe, ta
         seen.add(r.m);
       }
       const once = new Set<number>();
-      const rows = all.filter(r => r.m < firstDup && !once.has(r.m) && (once.add(r.m), true)).sort((a, b) => a.m - b.m);
+      /* A MINUTE OUTSIDE THE NAME'S SESSIONS (core/sessions.ts, 2026-10-15 — SPY and QQQ draw 9:30 to 4:00 alone): a row
+         the recorder wrote there before the rule is no frame the replay draws today, and is set aside, counted */
+      const outside = all.filter(r => r.m < firstDup && !fieldSessionAt(name, r.m)).length;
+      if (outside) notes.push(`${name} ${day}: ${outside} row${outside === 1 ? '' : 's'} written outside the name's sessions before 2026-10-15's rule, set aside`);
+      const rows = all.filter(r => r.m < firstDup && fieldSessionAt(name, r.m) && !once.has(r.m) && (once.add(r.m), true)).sort((a, b) => a.m - b.m);
       /* the reads the recorder held then: those before the first minute two recorders wrote */
       const uniq = new Map<number, { receivedAt: number; rows: ChainRow[] }>();
       for (const c of chains) if (!uniq.has(c.receivedAt) && c.receivedAt < firstDup) uniq.set(c.receivedAt, c);
       const inp: ServerInputs = { chains: [...uniq.values()].sort((a, b) => a.receivedAt - b.receivedAt), seed: JSON.parse(seedT), total: null };
       if (inp.seed && inp.seed.receivedAt >= firstDup) continue;
-      const tape = (JSON.parse(barsT) as Candle[]).map(b => ({ ...b, volume: 0 })).sort((a, b) => a.time - b.time);
+      /* THE BARS AS THE RECORDER DREW THEM (2026-10-15: on SPY's Oct 14, 10 of 167 recorded minutes stood on a minute bar
+         UW revised a minute or three later — closes 0.5 to 3.4 cents apart — and the column priced on the revised close
+         differed while the code was the same): the replay is compared on the inputs the live frame had, the drawn close
+         at each minute it drew; the revisions are counted and said beside the check */
+      const drawnAt = new Map(rows.map(r => [r.m / 1000, r.spot]));
+      const tape = (JSON.parse(barsT) as Candle[])
+        .map(b => {
+          const drawn = drawnAt.get(b.time);
+          if (drawn != null && Math.abs(drawn - b.close) > 1e-9) {
+            revised.push({ key: `${name} ${day}`, cents: Math.abs(drawn - b.close) * 100 });
+            return { ...b, close: drawn, high: Math.max(b.high, drawn), low: Math.min(b.low, drawn), volume: 0 };
+          }
+          return { ...b, volume: 0 };
+        })
+        .sort((a, b) => a.time - b.time);
       const u = universeOf(name, day, inp);
       const exps = straddleExpiries(u.expiry, day);
       if (Number.isFinite(firstDup)) notes.push(`${name} ${day}: read to ${nyClockText(firstDup)} New York (${rows.length} minutes), where two recorders wrote the same minutes`);
@@ -328,6 +348,10 @@ function auditFrame(g: PitGuard, day: string, inp: ServerInputs, u: Universe, ta
     }
   for (const n of notes) console.log(`NOTE  ${n}`);
   for (const [k, n] of perSession) console.log(`NOTE  ${k}: ${n} minute${n === 1 ? '' : 's'} whose cells differ`);
+  for (const k of [...new Set(revised.map(r => r.key))]) {
+    const xs = revised.filter(r => r.key === k).map(r => r.cents);
+    console.log(`NOTE  ${k}: ${xs.length} recorded minute${xs.length === 1 ? '' : 's'} UW revised after the recorder drew ${xs.length === 1 ? 'it' : 'them'} (the close ${Math.min(...xs).toFixed(1)}–${Math.max(...xs).toFixed(1)} cents apart) — compared on the close drawn; a replay of a session not kept whole draws the revised bar there`);
+  }
   if (!sessions) console.log('SKIP  (ii) replay against live: no recorder session on this machine');
   else {
     const bad = Object.entries(off).filter(([, n]) => n > 0);

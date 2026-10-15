@@ -13,6 +13,7 @@
 */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
 import { BEAD_STEPS, RunningScale, columnGross, minuteMaxRefs, minuteRefs, pooledRef, stepOf, stepT, strengthOf } from '../src/data/feed/beadScale';
 import { DARK_MARK_INKS, GexTrailsPrimitive, STRENGTH_STEPS, markInk, type MarkInks } from '../src/components/gex/gexNodesPrimitive';
 import { heatRampColorFor, HEAT_MODE } from '../src/components/gex/heatmap';
@@ -226,12 +227,18 @@ const maximaG = base.map(s => columnGross(s.levels));
   if (existsSync(root))
     for (const name of readdirSync(root))
       for (const day of existsSync(join(root, name)) && /^[A-Z]/.test(name) ? readdirSync(join(root, name)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)) : [])
-        if (existsSync(join(root, name, day, 'shown.jsonl'))) sessions.push({ name, day, file: join(root, name, day, 'shown.jsonl') });
+        /* a day before today is kept gzipped (the recorder's prune): read either — on the plain name alone, the proof read
+           nothing between midnight and the first minute recorded (2026-10-15) */
+        for (const f of ['shown.jsonl', 'shown.jsonl.gz'])
+          if (existsSync(join(root, name, day, f))) {
+            sessions.push({ name, day, file: join(root, name, day, f) });
+            break;
+          }
   /* EVERY SKIPPED SESSION IS NAMED WITH ITS REASON, AND A PROOF THAT READ NOTHING FAILS (2026-10-14 — the owner: "print
      every skipped session with its reason; fail if all are skipped"): a machine with no recorder session, or none five
      minutes long, cannot stand on this check */
   const skipped: string[] = [];
-  if (!sessions.length) check('replay against live: a recorder session on this machine to read (none — .feed-cache/field holds no shown.jsonl)', false);
+  if (!sessions.length) check('replay against live: a recorder session on this machine to read (none — .feed-cache/field holds no shown.jsonl or shown.jsonl.gz)', false);
   else {
     let minutes = 0;
     let beads = 0;
@@ -240,7 +247,7 @@ const maximaG = base.map(s => columnGross(s.levels));
     const cut: string[] = [];
     for (const s of sessions) {
       type Row = { f?: number; m: number; max: number; ref: number; maxG?: number; refG?: number; cells: [number, number, number?][] };
-      const all = readFileSync(s.file, 'utf8')
+      const all = (s.file.endsWith('.gz') ? gunzipSync(readFileSync(s.file)).toString('utf8') : readFileSync(s.file, 'utf8'))
         .split('\n')
         .filter(Boolean)
         .map(l => {
