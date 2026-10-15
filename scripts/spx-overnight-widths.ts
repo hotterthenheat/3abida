@@ -145,7 +145,7 @@ for (const day of pick) {
   const inputs: ServerInputs = { chains: allChains.map(c => ({ receivedAt: c.receivedAt, rows: c.rows })), seed: seed ?? null, total: null } as ServerInputs;
   /* the cutoff moved: the same rows with the eighth figure read against another threshold (WIDE_VOL is the model's) */
   const at = (thr: number): ServerInputs =>
-    thr === WIDE_VOL ? inputs : ({ ...inputs, chains: inputs.chains.map(c => ({ ...c, rows: c.rows.map(r => (r[7] == null ? r : ([...r.slice(0, 7), (r[7] as number) > thr ? WIDE_VOL * 10 : 0] as ChainRow))) })) } as ServerInputs);
+    thr === WIDE_VOL ? inputs : ({ ...inputs, chains: inputs.chains.map(c => ({ ...c, rows: c.rows.map(r => (r[7] == null ? r : ([r[0], r[1], r[2], r[3], r[4], r[5], r[6], (r[7] as number) > thr ? WIDE_VOL * 10 : 0] as ChainRow))) })) } as ServerInputs);
   const minutes = [...new Set(fwd.map(f => Math.floor(f.receivedAt / 60_000) * 60))];
   const cellsBy = (thr: number) => {
     const u = universeOf('SPX', day, at(thr));
