@@ -72,7 +72,7 @@ import ProfileGuide from '../../components/gex/ProfileGuide';
 import GuideFocus from '../../components/ui/GuideFocus';
 import { buildFlowFromRows } from '../../data/hedgeFlow';
 import useFocusTrap from '../../components/ui/useFocusTrap';
-import { useEscapeLayer } from '../../components/ui/layers';
+import { layerOpen, useEscapeLayer } from '../../components/ui/layers';
 import { useIsBelowLg, useIsPhone } from '../../components/ui/useMediaQuery';
 import ScopeChip from '../../components/ui/ScopeChip';
 import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
@@ -997,7 +997,11 @@ const ConfluenceStrip = ({ rows, form, current, onPick }: { rows: ConfluenceRow[
 
 /* ONE TOOLBAR, THREE MOUNTS (the UI pass): the header carries Replay, Alerts and the layers; its timeframe trigger stands
    alone where the tabs have no room; the hover row carries the rest */
-const HEAD_PARTS: Partial<Record<ToolbarPart, boolean>> = { timeframes: false, indicators: false, candles: false, theme: false, fullscreen: false };
+/* `replay: true` keeps the Replay door in a compact mount (ChartToolbar drops it there otherwise): without it a docked pane
+   showed no Replay button at any width (the audit's A-56) */
+const HEAD_PARTS: Partial<Record<ToolbarPart, boolean>> = { timeframes: false, indicators: false, candles: false, theme: false, fullscreen: false, replay: true };
+/* the hover row when the header holds no tools: every part, Replay kept in its compact form */
+const HOVER_ALL_PARTS: Partial<Record<ToolbarPart, boolean>> = { replay: true };
 const HOVER_PARTS: Partial<Record<ToolbarPart, boolean>> = { replay: false, alerts: false, overlays: false };
 
 interface PaneProps {
@@ -1032,7 +1036,9 @@ interface PaneProps {
   onToggleReplay: () => void;
   onExitReplay: () => void;
   /** THE REPLAY'S KEYS (item 8): the pane hands the desk its play-and-pause and its step, for Shift ↓ and Shift → */
-  registerReplayKeys?: (k: { toggle: () => void; step: () => void; playing: () => boolean } | null) => void;
+  registerReplayKeys?: (k: { toggle: () => void; step: () => void; playing: () => boolean; picking: () => boolean } | null) => void;
+  /** Whether this pane shows the Compare door now — the C key asks it (the audit's A-236) */
+  registerCompareRoom?: (room: boolean | null) => void;
   /*
     DRAW MODE, and it sits beside replay for the same two reasons.
 
@@ -1084,7 +1090,7 @@ interface PaneProps {
 
 const Pane = ({
   cfg, onCfg, revision, expanded, onToggleExpand, index, tall,
-  onCrosshair, registerSync, replay, onToggleReplay, onExitReplay, registerReplayKeys,
+  onCrosshair, registerSync, replay, onToggleReplay, onExitReplay, registerReplayKeys, registerCompareRoom,
   drawing, onToggleDrawing, onExitDraw,
   isActive, onActivate, paneCount, closing = false, menuOpen, onMenu,
   boxRef, cell = '', palette, railCut, onRailCut, onPopOut, bare = false, openDateNonce = 0,
@@ -1402,6 +1408,11 @@ const Pane = ({
      is asked once; the house's tape and field are held as they stood when the replay began. An index has no bars on
      these plans: nothing to replay. */
   const replayable = replay && !(onFeed && isCashIndex(ticker));
+  /* an index on the feed has no minute bars on this plan, so no replay: a P or a door that asked for one is let go at
+     once rather than leaving a badge with no transport that only P took down (the audit's A-02) */
+  useEffect(() => {
+    if (replay && !replayable) onExitReplay?.();
+  }, [replay, replayable, onExitReplay]);
   const fTrailRec = useFeedTrailField(onFeed && replayable, ticker, fBars.bars, fFieldRead, trailCut, win, true);
   const replayPast = useMemo(() => (onFeed && replayable ? pastSessionsOf(fBars.bars) : []), [onFeed, replayable, fBars.bars]);
   const replayDays = useMemo(() => [...replayPast, nyIsoDate()], [replayPast]);
@@ -1572,12 +1583,36 @@ const Pane = ({
   const mtfForm = headPlan.tabsForm;
   const showBadge = headPlan.badge;
   const showCompareAdd = headPlan.compare;
+  /* the C key opens Compare only where its door stands (the audit's A-236: with the door shed the key left a menu flag
+     set with nothing to clear it, and ↑ ↓ j k stood still until another menu was opened and closed) */
+  const compareRoom = showCompareAdd || expanded;
+  useEffect(() => {
+    registerCompareRoom?.(compareRoom);
+  }, [compareRoom, registerCompareRoom]);
+  useEffect(() => () => registerCompareRoom?.(null), [registerCompareRoom]);
   /* THE REPLAY'S TAPE: the live tape's kind, cut at the cursor — the house's held as it stood (item 8) */
   const replayTape = useMemo<ChartTape | undefined>(() => {
     if (!rp.active || !rp.cut) return undefined;
     const base: ChartTape = chartTape ?? { bars: [], iv: Simulator.TICKERS[Simulator.ensureTicker(ticker)]?.iv ?? 0, key: ticker };
-    return { ...base, bars: rp.cut.bars, book: rp.cut.cols, daily: rp.cut.daily, compareBars: rp.cut.compareBars ?? base.compareBars };
-  }, [rp.active, rp.cut, chartTape, ticker]);
+    /* THE SERVER'S TILED SESSIONS CUT AT THE CURSOR TOO (2026-10-15, the audit): `pre` came uncut — with the cursor on a
+       tiled day the chart drew that day's later bars and the field's later columns past the cursor. The sessions before
+       stand whole; the cursor's day stands to the bar holding its minute; a wall's later move is not said; a day's
+       per-minute peaks (the next session's prior basis) are kept only for days before the cursor's */
+    const pre = base.pre;
+    const cur = rp.cursor;
+    const cutPre: ChartTape['pre'] = pre
+      ? {
+          tf: pre.tf,
+          /* whole buckets only: the tile's bar and column for the cursor's bucket hold its later minutes — that bucket
+             comes from the cut's own minutes */
+          bars: pre.bars.filter(b => b.time + pre.tf * 60 - 60 <= cur),
+          cols: pre.cols.filter(c => c.time + pre.tf * 60 - 60 <= cur),
+          events: pre.events.filter(e => e[4] <= cur),
+          maxima: new Map([...pre.maxima].filter(([d]) => d < nyIsoDate(cur * 1000))),
+        }
+      : undefined;
+    return { ...base, bars: rp.cut.bars, book: rp.cut.cols, daily: rp.cut.daily, compareBars: rp.cut.compareBars ?? base.compareBars, pre: cutPre };
+  }, [rp.active, rp.cut, rp.cursor, chartTape, ticker]);
   const replayRev = useMemo(() => (feedRev += 1), [replayTape]); // eslint-disable-line react-hooks/exhaustive-deps
   /* THE PRICED MOVE AT THE CURSOR: the cursor's day's budget and profile, and the 1σ left to the close off the straddle at
      the cursor's minute (the store's own rule — trailModel straddleOfMinute); never its calibration or its official
@@ -2051,12 +2086,13 @@ const Pane = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rp.ctl]);
   /* Esc ends the replay — the top layer, as every overlay on the terminal (ui/layers.ts) */
-  useEscapeLayer(replayable, onExitReplay);
+  /* a mode, not an overlay: Esc ends it, and the shell's ?, / and g keep working through it (the audit's A-247) */
+  useEscapeLayer(replayable, onExitReplay, { mode: true });
   /* the keys reach the transport through refs, so the desk's handler (installed once) always plays the newest */
   const rpRef = useRef(rp);
   rpRef.current = rp;
   useEffect(() => {
-    registerReplayKeys?.({ toggle: () => rpRef.current.togglePlay(), step: () => rpRef.current.stepBy(1), playing: () => !!rpRef.current.ctl?.playing });
+    registerReplayKeys?.({ toggle: () => rpRef.current.togglePlay(), step: () => rpRef.current.stepBy(1), playing: () => !!rpRef.current.ctl?.playing, picking: () => rpRef.current.ctl?.phase === 'pick' });
     return () => registerReplayKeys?.(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -2138,7 +2174,15 @@ const Pane = ({
     const past = fPast;
     const full = fTrail.full;
     const allSessions = tradesAllSessions(ticker);
-    return (fromSec: number, toSec: number): string | null => {
+    return (fromSec: number, toSec: number, empty: boolean): string | null => {
+      /* COLUMNS THAT HOLD NO STRIKE (round 3, the gap sweep: AAPL's 0DTE window on a Tuesday or a Thursday — AAPL lists no
+         contract settling those days, so every column of the window stood empty and the chart was blank with no reason) */
+      if (empty) {
+        if (win === '0dte') return `no ${ticker} expiry settles this day · the 0DTE window is empty`;
+        if (win === 'fri') return 'no expiry to Friday · the window is empty';
+        if (win === 'opex') return 'no expiry to the monthly · the window is empty';
+        return 'no strike with gamma in these columns';
+      }
       /* OUTSIDE THE NAME'S SESSIONS (core/sessions.ts — the owner, 2026-10-15: "SPY and QQQ: regular hours by default,
          with the gap outside them labelled"): an equity's field is its regular hours; SPX's its three sessions */
       const ses = fieldSessionAt(ticker, fromSec * 1000);
@@ -2334,7 +2378,7 @@ const Pane = ({
         shed at any width: everything else here is a convenience; this one
         says which world you are looking at.
       */}
-      {replay && (
+      {replayable && (
         <span
           title="This pane is replaying history — it is not live"
           className="shrink-0 inline-flex items-center gap-1 px-1.5 h-4 rounded-[3px] bg-silverFill text-[#0a0a0a] font-mono text-[11px] font-bold"
@@ -3112,7 +3156,7 @@ const Pane = ({
                    pointer or the keys are on the pane — so the chrome band the chart keeps clear of is the header, the
                    strip and the legend alone, and a hover moves nothing (the band's height is what fits the scale) */
                 <div className={isPhone ? 'relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 flex items-center gap-2 flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 flex-wrap'} style={!isPhone && ownScale ? { left: PRICE_GUTTER_PX + 6 } : undefined} data-toolbar-row>
-                  {paneToolbar(false, headPlan.tools ? HOVER_PARTS : undefined)}
+                  {paneToolbar(false, headPlan.tools ? HOVER_PARTS : HOVER_ALL_PARTS)}
                   {!headPlan.popOut && popOutDoor}
                   {overlays.walls && wallsLens}
                   {overlays.trails && beadLegend && beadControls}
@@ -3623,7 +3667,21 @@ const Terrain = () => {
   */
   const [replaying, setReplaying] = useState<boolean[]>(() => [false, false, false, false]);
   /* each replaying pane's play-and-pause and step, for Shift ↓ and Shift → (item 8) */
-  const replayKeys = useRef(new Map<number, { toggle: () => void; step: () => void; playing: () => boolean }>());
+  const replayKeys = useRef(new Map<number, { toggle: () => void; step: () => void; playing: () => boolean; picking: () => boolean }>());
+  const compareRoom = useRef(new Map<number, boolean>());
+  /* one function a pane for the life of the page, so the pane's effect does not re-run each render */
+  const compareRoomSetters = useRef(new Map<number, (room: boolean | null) => void>());
+  const compareRoomOf = (i: number) => {
+    let f = compareRoomSetters.current.get(i);
+    if (!f) {
+      f = room => {
+        if (room === null) compareRoom.current.delete(i);
+        else compareRoom.current.set(i, room);
+      };
+      compareRoomSetters.current.set(i, f);
+    }
+    return f;
+  };
   const replayingRef = useRef<boolean[]>(replaying);
   replayingRef.current = replaying;
   const setPaneReplay = (i: number, on: boolean) =>
@@ -3693,9 +3751,16 @@ const Terrain = () => {
       const n = el as HTMLElement | null;
       return !!n && (n.tagName === 'INPUT' || n.tagName === 'TEXTAREA' || n.tagName === 'SELECT' || n.isContentEditable);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.isComposing || e.repeat) return;
-      if (editable(e.target) || editable(document.activeElement)) return;
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.isComposing || ev.repeat) return;
+      if (editable(ev.target) || editable(document.activeElement)) return;
+      /* a house layer open over the desk (the keys sheet, a guide, the alerts drawer) takes the keys: none acts on the
+         desk behind it (the audit's A-257 — `2` changed the layout behind the sheet) */
+      if (layerOpen()) return;
+      /* CAPS LOCK reads the letters as typed without it (the audit's A-256: P, D, T … matched nothing and r became R) */
+      const caps = ev.key.length === 1 && ev.getModifierState?.('CapsLock') === true;
+      const key = caps ? (ev.key === ev.key.toUpperCase() ? ev.key.toLowerCase() : ev.key.toUpperCase()) : ev.key;
+      const e = { key, shiftKey: ev.shiftKey, preventDefault: () => ev.preventDefault() };
       const i = activeRef.current;
       /* Read the config, compute the delta, then set — rather than doing any
          of it inside the updater. An updater that also calls setState is not
@@ -3719,6 +3784,11 @@ const Terrain = () => {
         const k = replayKeys.current.get(i);
         if (k) {
           e.preventDefault();
+          /* before a bar is picked nothing can play or step: say so (the audit's A-240/241 — it said "Replay playing") */
+          if (k.picking()) {
+            setAnnounce('Pick a bar to replay from first');
+            return;
+          }
           if (e.key === 'ArrowDown') {
             const was = k.playing();
             k.toggle();
@@ -3813,6 +3883,10 @@ const Terrain = () => {
         case 'p': {
           e.preventDefault();
           const on = !(replayingRef.current[i] ?? false);
+          if (on && deskOnFeedRef.current && isCashIndex(cur.panes[i]?.ticker ?? '')) {
+            setAnnounce(`No replay for ${cur.panes[i]?.ticker ?? 'an index'}: its minute bars are not on this plan`);
+            return;
+          }
           setPaneReplay(i, on);
           setAnnounce(`${cur.panes[i]?.ticker ?? ''} replay ${on ? 'on' : 'off'}`);
           return;
@@ -3857,6 +3931,10 @@ const Terrain = () => {
           return;
         case 'c':
           e.preventDefault();
+          if (compareRoom.current.get(i) === false) {
+            setAnnounce('No room for Compare in this chart — F opens it full size');
+            return;
+          }
           setMenu({ pane: i, which: 'compare' });
           return;
       }
@@ -4346,6 +4424,7 @@ const Terrain = () => {
               if (k) replayKeys.current.set(i, k);
               else replayKeys.current.delete(i);
             }}
+            registerCompareRoom={compareRoomOf(i)}
             replay={replaying[i] ?? false}
             onToggleReplay={() => setPaneReplay(i, !(replaying[i] ?? false))}
             /* The chart calls this itself on a ticker or timeframe change —

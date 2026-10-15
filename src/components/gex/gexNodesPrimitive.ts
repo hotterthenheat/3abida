@@ -346,10 +346,10 @@ function findGaps(src: GexTrailsPrimitive, series: ISeriesApi<'Candlestick'>, ts
   const r = ts.getVisibleLogicalRange();
   if (!cause || !r) return [];
   const out: GapRun[] = [];
-  let run: { i0: number; i1: number; t0: number; t1: number } | null = null;
+  let run: { i0: number; i1: number; t0: number; t1: number; empty: boolean } | null = null;
   const close = () => {
     if (!run) return;
-    const words = cause(run.t0, run.t1 + barSec);
+    const words = cause(run.t0, run.t1 + barSec, run.empty);
     if (words) out.push({ t0: run.t0, t1: run.t1, words });
     run = null;
   };
@@ -367,17 +367,21 @@ function findGaps(src: GexTrailsPrimitive, series: ISeriesApi<'Candlestick'>, ts
   for (let i = from; i <= to && i - from < 4000; i++) {
     const d = series.dataByIndex(i) as { time?: unknown } | null;
     const t = d && typeof d.time === 'number' ? d.time : null;
-    if (t == null || src.hasColumnAt(t)) {
+    const has = t == null ? 'full' : src.columnKindAt(t);
+    if (has === 'full') {
       close();
       continue;
     }
-    const ses = sessionOf(t);
-    if (run && run.i1 === i - 1 && ses === runSession) {
+    /* a bar whose columns stand but hold no strike (a window with no expiry that day — AAPL's 0DTE on a Tuesday) is a
+       gap of its own kind, never run together with bars that have no column */
+    const empty = has === 'empty';
+    const ses = sessionOf(t as number);
+    if (run && run.i1 === i - 1 && ses === runSession && run.empty === empty) {
       run.i1 = i;
-      run.t1 = t;
+      run.t1 = t as number;
     } else {
       close();
-      run = { i0: i, i1: i, t0: t, t1: t };
+      run = { i0: i, i1: i, t0: t as number, t1: t as number, empty };
       runSession = ses;
     }
   }
@@ -1120,13 +1124,18 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   globalDim = 1;
   /** THE GAPS' REASONS (B1): the host's words for a run of bars with no column, [from, to) in epoch seconds — null for
       none to say. Set by the chart from its host (Terrain reads the store's state, the session's hours and the clock). */
-  gapCause: ((fromSec: number, toSec: number) => string | null) | null = null;
+  gapCause: ((fromSec: number, toSec: number, empty: boolean) => string | null) | null = null;
   /** The session a bar stands in, for the gaps' runs (core/sessions.ts gapSessionKey) — null: New York's regular hours */
   gapSession: ((timeSec: number) => string) | null = null;
   /** Bumped by the host when the reasons may have changed without the columns — the bitmap (and the runs) are rebuilt */
   gapRev = 0;
   /** Whether a column of the field stands inside the bar at `barTime` (this chart's barSec) */
   hasColumnAt(barTime: number): boolean {
+    return this.columnKindAt(barTime) !== 'none';
+  }
+  /** What stands inside the bar at `barTime`: no column, columns that hold no strike with any gamma (a window with no
+      expiry that day), or a column to draw */
+  columnKindAt(barTime: number): 'none' | 'empty' | 'full' {
     const s = this.snapshots;
     const b0 = Math.floor(barTime / this.barSec) * this.barSec;
     let lo = 0;
@@ -1136,7 +1145,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
       if (s[m].time < b0) lo = m + 1;
       else hi = m;
     }
-    return lo < s.length && s[lo].time < b0 + this.barSec;
+    if (!(lo < s.length && s[lo].time < b0 + this.barSec)) return 'none';
+    for (let i = lo; i < s.length && s[i].time < b0 + this.barSec; i++)
+      for (const l of s[i].levels) if (l.value || l.gross) return 'full';
+    return 'empty';
   }
   /** Its ink: the silver accent, or magenta while the focused strike is the supreme. The
       focus never follows the supreme — the strike you clicked is the strike

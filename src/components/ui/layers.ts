@@ -44,6 +44,9 @@ import { useFocusTrap, type FocusTrapOptions } from './useFocusTrap';
 interface Layer {
   id: number;
   close: RefObject<() => void>;
+  /** A MODE, not an overlay (Terrain's replay): Esc ends it when it is on top, but it hides nothing and takes no keys,
+      so it never counts as open for layerOpen() — the shell's ?, / and g keys work through it (the audit's A-247) */
+  mode?: boolean;
 }
 
 const stack: Layer[] = [];
@@ -76,19 +79,20 @@ function listen() {
 }
 
 /** Is a house layer open? (For a page-level Escape handler that should stand still while one is.) */
-export const layerOpen = (): boolean => stack.length > 0;
+export const layerOpen = (): boolean => stack.some(l => !l.mode);
 
 /** Esc closes this layer while it is open and on top of every other layer on the stack. It returns a reader of
     "is this layer on top now?" — for a layer that also stops the key itself in the capture phase (GuideFocus), so it
     acts only when nothing was opened over it. */
-export function useEscapeLayer(open: boolean, onClose: () => void): () => boolean {
+export function useEscapeLayer(open: boolean, onClose: () => void, opts?: { mode?: boolean }): () => boolean {
   const close = useRef(onClose);
   close.current = onClose;
   const mine = useRef<Layer | null>(null);
+  const mode = !!opts?.mode;
   useEffect(() => {
     if (!open) return undefined;
     listen();
-    const layer: Layer = { id: nextId++, close };
+    const layer: Layer = { id: nextId++, close, mode };
     stack.push(layer);
     mine.current = layer;
     return () => {
@@ -96,7 +100,7 @@ export function useEscapeLayer(open: boolean, onClose: () => void): () => boolea
       if (i >= 0) stack.splice(i, 1);
       if (mine.current === layer) mine.current = null;
     };
-  }, [open]);
+  }, [open, mode]);
   return () => mine.current != null && stack[stack.length - 1] === mine.current;
 }
 

@@ -4,7 +4,7 @@
   heaviest strikes opens a card that turns that level's watch on or off for the name — the watch follows the level's
   identity as it moves (data/levelAlerts.ts). Anywhere else the chart's own card opens, as before.
 */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { num } from '../../core/format';
 import type { ChartLayerApi } from '../gex/StrikeChart';
 import { LEVEL_NAMES, setConfirmBars, setLevelWatch, useLevelWatches, type LevelId } from '../../data/levelAlerts';
@@ -24,7 +24,10 @@ const fmt = (k: number) => (Math.abs(k % 1) < 1e-9 ? num(k, 0) : num(k, 2));
 
 const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
   const watches = useLevelWatches();
-  const [open, setOpen] = useState<{ x: number; y: number; id: LevelId; price: number; label: string } | null>(null);
+  /* the click in the viewport's coordinates: the card is placed against its own container, which starts left of the
+     chart's box when the drawing rail is docked left (2026-10-15, the audit — it stood 56 px left of the click) */
+  const [open, setOpen] = useState<{ cx: number; cy: number; id: LevelId; price: number; label: string } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const inputs = useRef({ levels, top, sigma });
   inputs.current = { levels, top, sigma };
@@ -59,7 +62,7 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
       e.preventDefault();
       /* ONE CARD: the chart's reset card is this card's last line */
       e.stopPropagation();
-      setOpen({ x: e.clientX - box.left, y, ...best });
+      setOpen({ cx: e.clientX, cy: e.clientY, ...best });
     };
     host.addEventListener('contextmenu', onMenu);
     return () => host.removeEventListener('contextmenu', onMenu);
@@ -87,11 +90,17 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
     };
   }, [open]);
 
+  useLayoutEffect(() => {
+    const parent = cardRef.current?.offsetParent as HTMLElement | null;
+    if (!open || !parent) {
+      setPos(null);
+      return;
+    }
+    const r = parent.getBoundingClientRect();
+    setPos({ left: Math.max(8, Math.min(open.cx - r.left + 4, r.width - 280)), top: Math.max(8, Math.min(open.cy - r.top + 4, r.height - 200)) });
+  }, [open]);
+
   if (!open) return null;
-  const host = api.host();
-  const w = host?.clientWidth ?? 800;
-  const h = host?.clientHeight ?? 500;
-  const pos = { left: Math.max(8, Math.min(open.x + 4, w - 280)), top: Math.max(8, Math.min(open.y + 4, h - 200)) };
   const t = ticker.toUpperCase();
   const watch = watches[t];
   const on = !!watch?.ids.includes(open.id);
@@ -112,7 +121,7 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
     </button>
   );
   return (
-    <div ref={cardRef} className="absolute z-[60] w-[272px] rounded-md border border-borderMuted bg-panel p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.5)] animate-soft-in" style={pos} onContextMenu={e => e.preventDefault()} data-chart-menu="level-alert" data-theme="dark">
+    <div ref={cardRef} className="absolute z-[60] w-[272px] rounded-md border border-borderMuted bg-panel p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.5)] animate-soft-in" style={pos ?? { left: 0, top: 0, visibility: 'hidden' }} onContextMenu={e => e.preventDefault()} data-chart-menu="level-alert" data-theme="dark">
       <div className="px-2 pt-1 pb-1.5 text-[12px] font-semibold text-textPrimary">{open.label}</div>
       {on
         ? item(`Stop the alert on ${LEVEL_NAMES[open.id]}`, `${t}'s watch lets ${LEVEL_NAMES[open.id]} go`, () => setLevelWatch(t, open.id, false), 'level-alert-off')

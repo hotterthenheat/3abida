@@ -809,7 +809,7 @@ interface StrikeChartProps {
   onBeadLegend?: (l: BeadLegend | null) => void;
   /** THE GAPS' REASONS (the owner's B1, 2026-10-14): the host's words for a run of bars with no column of the field,
       [from, to) in epoch seconds, drawn on the plot over the run — null for a run with nothing to say */
-  fieldGapCause?: ((fromSec: number, toSec: number) => string | null) | null;
+  fieldGapCause?: ((fromSec: number, toSec: number, empty: boolean) => string | null) | null;
   /** The call wall, the put wall and the flip, and two more, pinned on the price axis as their prices (item 5 (h)) */
   axisLevels?: boolean;
   /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
@@ -1550,6 +1550,8 @@ const StrikeChart = ({
      one opened" (reload — update() cannot rewrite an older time). */
   const altCountRef = useRef(0);
   const indAltCountRef = useRef(0);
+  /* the window the built-in indicators last wrote — an update only when it is the same window, one bar on at most */
+  const indWindowRef = useRef<{ first: number; last: number; count: number } | null>(null);
   const loadedRef = useRef<{ ticker: string; timeframe: Timeframe; theme: string; clock: string; full: boolean }>({
     ticker: '',
     timeframe: '1m',
@@ -2566,6 +2568,9 @@ const StrikeChart = ({
       state: () => ({ held: recentHeldRef.current, full: fullWorldRef.current, world: worldKeyRef.current }),
       /* the field's labelled gaps in view, as the last frame drew them */
       gaps: () => trails.lastGapRuns,
+      /* the field's renderer (its hit test, beadAt, in the chart's own coordinates) and the chart's box */
+      trails,
+      box: () => containerRef.current,
     };
     devCharts?.add(devEntry);
     const drawingsPrim = new DrawingsPrimitive();
@@ -3514,6 +3519,14 @@ const StrikeChart = ({
           return { line: emaSeries(bars, key === 'ema9' ? 9 : key === 'ema21' ? 21 : 50) };
       }
     };
+    const was = indWindowRef.current;
+    const lastNow = bars[bars.length - 1].time;
+    const onlyLast =
+      !!was &&
+      was.first === bars[0].time &&
+      lastNow >= was.last &&
+      (bars.length === was.count || bars.length === was.count + 1) &&
+      !(altSpec && indAltCountRef.current !== bars.length);
     for (const key of active) {
       const values = seriesFor(key);
       for (const [part, vals] of Object.entries(values)) {
@@ -3523,13 +3536,17 @@ const StrikeChart = ({
           vals[i] === null ? { time: b.time as UTCTimestamp } : { time: b.time as UTCTimestamp, value: vals[i] as number }
         );
         /* Same completed-bar rule as the candles: update() cannot rewrite
-           an older time, so a rule-clock pass that changed the bar count
-           reloads the series instead. */
-        if (rebuild || (altSpec && indAltCountRef.current !== bars.length)) s.setData(pts);
+           an older time, so a pass whose window is not the last one with at
+           most one bar added — a rule-clock pass that changed the bar count,
+           a replay's cut stepping back, or several bars at once — reloads the
+           series instead (an update threw "Cannot update oldest data" and
+           blanked the page; several bars at once left the line short). */
+        if (rebuild || !onlyLast) s.setData(pts);
         else s.update(pts[pts.length - 1]);
       }
     }
     indAltCountRef.current = bars.length;
+    indWindowRef.current = { first: bars[0].time, last: bars[bars.length - 1].time, count: bars.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce]);
 
@@ -5630,12 +5647,14 @@ const StrikeChart = ({
              cannot be hovered and the card wants real type. Cheap: one hit
              test per move, state written only when the answer changes. */
           const prim = eventsPrimRef.current;
-          const rect = e.currentTarget.getBoundingClientRect();
+          /* THE CHART'S OWN BOX, NOT THIS ONE (2026-10-15, the audit): with the drawing rail docked left and open the chart
+             starts 56 px in (railLeftInset), so a pointer measured from this box named the node 56 px to its right */
+          const rect = containerRef.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
           /* the field's bead under the pointer — written only when the bead changes */
           const tr = trailsRef.current;
           const plotW = chartRef.current?.paneSize(0).width ?? rect.width;
           const px = e.clientX - rect.left;
-          const bead = tr && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
+          const bead = tr && px >= 0 && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
           /* THE HOVER RING AND THE CHAIN (the orbs message, item 9): the primitive brightens the strike's chain and dims the
              rest, over its cached bitmap */
           tr?.setHover(bead);
@@ -5663,10 +5682,11 @@ const StrikeChart = ({
           if (picking || drawing) return;
           if ((e.target as HTMLElement).closest('[data-bead-card], [data-axis-chips], [data-chart-chrome]')) return;
           const tr = trailsRef.current;
-          const rect = e.currentTarget.getBoundingClientRect();
+          /* the chart's own box, as the hover's (the rail's inset) */
+          const rect = containerRef.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
           const plotW = chartRef.current?.paneSize(0).width ?? rect.width;
           const px = e.clientX - rect.left;
-          const bead = tr && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
+          const bead = tr && px >= 0 && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
           setPinnedBead(bead);
           /* THE PIN (the orbs message, item 10): a click on a node pins its strike — the chain stays bright, the rest dims
              to 40% — until the strike is clicked again or Esc; the ladder's click-to-keep is the same pin (Terrain's focus) */
@@ -5683,7 +5703,7 @@ const StrikeChart = ({
             </div>
           </>
         )}
-        <div ref={containerRef} className={`absolute inset-0 ${picking ? 'cursor-crosshair' : ''}`} style={railLeftInset ? { left: railLeftInset } : undefined} onPointerDownCapture={onSleepingMarkDown} data-pick-time={picking ? '' : undefined} data-replay-idx={replay ? replayIdx : undefined} data-replay-len={replay ? (replayDataRef.current?.bars.length ?? 0) : undefined} data-replay-time={replay && replayTime != null ? replayTime : undefined} data-replay-debug={replay ? replayDebug : undefined} />
+        <div ref={containerRef} className={`absolute inset-0 ${picking ? 'cursor-crosshair' : ''}`} style={railLeftInset ? { left: railLeftInset } : undefined} onPointerDownCapture={onSleepingMarkDown} data-pick-time={picking ? '' : undefined} data-replay-idx={replay ? replayIdx : undefined} data-replay-len={replay ? (replayDataRef.current?.bars.length ?? 0) : undefined} data-replay-time={replay && replayTime != null ? replayTime : undefined} data-replay-debug={replay ? replayDebug : undefined} data-as-of={asOf ?? undefined} />
         {/* THE HOST'S LAYER (Review's position, target and stop) — over the plot, under the chrome */}
         {layer?.({ chart: () => chartRef.current, series: () => candleSeriesRef.current as ISeriesApi<SeriesType> | null, host: () => containerRef.current, room: layerRoom, reset: resetView })}
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
@@ -6353,7 +6373,7 @@ const StrikeChart = ({
           return (
             <div
               className={`absolute z-30 border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[320px] ${expanded ? 'pointer-events-auto' : 'pointer-events-none'}`}
-              style={{ top: Math.max(4, card.y - 72), ...(card.x > w - 330 ? { right: Math.max(4, w - card.x + 10) } : { left: card.x + 10 }) }}
+              style={{ top: Math.max(4, card.y - 72), ...(card.x > w - 330 ? { right: Math.max(4, w - card.x + 10) } : { left: railLeftInset + card.x + 10 }) }}
               data-bead-card={expanded ? 'pinned' : 'hover'}
             >
               <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
@@ -6441,7 +6461,7 @@ const StrikeChart = ({
             style={
               eventCard.x > (containerRef.current?.clientWidth ?? 400) - 270
                 ? { right: Math.max(4, (containerRef.current?.clientWidth ?? 400) - eventCard.x + 6) }
-                : { left: Math.max(4, eventCard.x + 6) }
+                : { left: Math.max(4, railLeftInset + eventCard.x + 6) }
             }
           >
             <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-textPrimary whitespace-nowrap">
