@@ -302,7 +302,9 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setHighlight(h => Math.max(0, h - 1));
-      } else if (e.key === 'Enter' && rows[highlight]) {
+      } else if (e.key === 'Enter' && rows[highlight] && !t?.closest('button, a, [role="checkbox"]')) {
+        /* a focused button (a star, a gear, a toggle) takes its own Enter — the highlighted row toggled under it (the
+           round-3 audit, D) */
         e.preventDefault();
         void toggle(rows[highlight]);
       }
@@ -451,34 +453,37 @@ const ScriptLibrary = ({ open, onClose, paneId, indicators, onIndicators, fullsc
                             <span className="font-semibold text-[12px] text-textPrimary whitespace-nowrap">{r.title}</span>
                           )}
                           <span className="text-[11px] text-textMuted truncate">{r.description}</span>
-                          {r.script?.status === 'error' && <span className="font-mono text-[11px] uppercase tracking-widest text-bear">does not read</span>}
+                          {/* a state in the warn ink, sentence case (red and green are the direction pair alone) */}
+                          {r.script?.status === 'error' && <span className="font-mono text-[11px] text-warn">does not read</span>}
                         </span>
                         <span className="font-mono text-[11px] text-textMuted whitespace-nowrap" title={r.pane === 'own' ? 'Takes its own pane under the tape — two at most' : 'Draws on the tape itself'}>
                           {r.pane === 'own' ? 'own pane' : 'on the tape'}
                         </span>
                         <span>
                           {r.on && r.placed && (r.inputs.length > 0 || (r.script?.meta?.alerts.length ?? 0) > 0) && paneId && (
-                            <button onClick={() => setExpanded(x => (x === r.key ? null : r.key))} aria-pressed={expanded === r.key} title={r.inputs.length > 0 ? 'Its inputs and alerts' : 'Its alerts'} className={`p-1 rounded transition-colors ${expanded === r.key ? 'text-textPrimary bg-ink/[0.06]' : 'text-textMuted hover:text-textPrimary'}`} data-library-gear>
+                            <button onClick={() => setExpanded(x => (x === r.key ? null : r.key))} aria-pressed={expanded === r.key} title={r.inputs.length > 0 ? 'Its inputs and alerts' : 'Its alerts'} className={`hit p-1 rounded transition-colors ${expanded === r.key ? 'text-textPrimary bg-ink/[0.06]' : 'text-textMuted hover:text-textPrimary'}`} data-library-gear>
                               <Settings2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </span>
-                        <button onClick={() => void star(r)} aria-pressed={fav} title={fav ? 'Take it off your favourites' : 'Keep it in your favourites'} className={`p-1 rounded transition-colors ${fav ? 'text-silver' : 'text-textMuted hover:text-textPrimary'}`} data-library-star>
+                        <button onClick={() => void star(r)} aria-pressed={fav} title={fav ? 'Take it off your favourites' : 'Keep it in your favourites'} className={`hit p-1 rounded transition-colors ${fav ? 'text-silver' : 'text-textMuted hover:text-textPrimary'}`} data-library-star>
                           <Star className="w-3.5 h-3.5" fill={fav ? 'currentColor' : 'none'} />
                         </button>
                         <span className="flex justify-end">
                           <button
                             role="checkbox"
                             aria-checked={r.on}
-                            disabled={held}
+                            disabled={held || (!r.on && r.script?.status === 'error' && !fullscreen)}
                             onClick={() => void toggle(r)}
-                            title={held ? 'Two own panes are the cap — turn one off first, or the tape shrinks past its floor' : r.on ? 'Take it off this pane' : 'Draw it on this pane'}
-                            className={`inline-flex w-[14px] h-[14px] items-center justify-center rounded-[3px] border transition-colors ${r.on ? 'bg-silverFill border-silverFill' : 'border-borderMuted hover:border-textSecondary'} ${held ? 'opacity-40 cursor-default' : ''}`}
+                            /* a script that does not read cannot be drawn, and its editor opens only full screen: said, not a silent
+                               click (the round-3 audit, D) */
+                            title={held ? 'Two own panes are the cap — turn one off first, or the tape shrinks past its floor' : !r.on && r.script?.status === 'error' && !fullscreen ? `It does not read. ${EDITOR_SHUT}` : r.on ? 'Take it off this pane' : 'Draw it on this pane'}
+                            className={`hit inline-flex w-[14px] h-[14px] items-center justify-center rounded-[3px] border transition-colors ${r.on ? 'bg-silverFill border-silverFill' : 'border-borderMuted hover:border-textSecondary'} ${held || (!r.on && r.script?.status === 'error' && !fullscreen) ? 'opacity-40 cursor-default' : ''}`}
                             data-library-toggle
                           >
                             {r.on && (
                               <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" aria-hidden>
-                                <path d="M2 5.2 4.2 7.4 8 3" fill="none" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M2 5.2 4.2 7.4 8 3" fill="none" stroke="rgb(var(--on-silver))" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
                             )}
                           </button>

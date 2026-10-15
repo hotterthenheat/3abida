@@ -30,6 +30,9 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, X } from 'lucide-react';
 import { liftFromPane, updateOnPane, type PaneScript } from '../../data/paneScripts';
 
+/** The legend's words for an own-pane script past the cap of own panes (StrikeChart's script effect hands it) */
+export const SCRIPT_CAP_NOTE = 'Two own panes are the cap: turn one off and this one takes its place';
+
 const summary = (ps: PaneScript): string =>
   (ps.script.meta?.inputs ?? [])
     .map(i => ps.chart.inputs[i.id] ?? i.default)
@@ -55,7 +58,9 @@ const clearance = (root: HTMLElement): { top: number; chrome: HTMLElement[] } =>
   return { top: Math.max(8, Math.round(low) + 4), chrome };
 };
 
-const ScriptLegend = ({ paneId, scripts }: { paneId: string; scripts: PaneScript[] }) => {
+/** `faults`: the scripts whose last run on this pane failed, and why (StrikeChart); `left`: past the drawing rail where it
+    is docked left and open, as the legend and the readout stand (the round-3 audit, D: it sat at 12 px under the rail) */
+const ScriptLegend = ({ paneId, scripts, faults, left = 12 }: { paneId: string; scripts: PaneScript[]; faults?: ReadonlyMap<string, string>; left?: number }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [top, setTop] = useState(8);
   /* Measured after every render (the chrome can appear later — a compare
@@ -79,10 +84,11 @@ const ScriptLegend = ({ paneId, scripts }: { paneId: string; scripts: PaneScript
     return () => ro.disconnect();
   });
   return (
-    <div ref={rootRef} style={{ top }} className="absolute left-3 z-10 flex flex-col items-start gap-[3px] pointer-events-none select-none" aria-label="Scripts on this pane" data-script-legend>
+    <div ref={rootRef} style={{ top, left }} className="absolute z-10 flex flex-col items-start gap-[3px] pointer-events-none select-none" aria-label="Scripts on this pane" data-script-legend>
       {scripts.map(ps => {
         const on = ps.chart.visible;
-        const broken = ps.script.status !== 'ok';
+        const fault = faults?.get(ps.chart.id) ?? null;
+        const broken = ps.script.status !== 'ok' || !!fault;
         return (
           <div
             key={ps.chart.id}
@@ -92,18 +98,24 @@ const ScriptLegend = ({ paneId, scripts }: { paneId: string; scripts: PaneScript
           >
             <span className={`whitespace-nowrap ${on && !broken ? 'text-textPrimary' : 'text-textMuted'}`}>{ps.script.title}</span>
             {summary(ps) && <span className="text-textMuted whitespace-nowrap tnum">{summary(ps)}</span>}
-            {broken && <span className="text-bear text-[11px] uppercase tracking-wider">does not read</span>}
-            <span className={`inline-flex items-center gap-0.5 ${on ? 'opacity-0 group-hover:opacity-100' : ''} transition-opacity`}>
+            {/* a state, in the warn ink (red and green are the direction pair alone), sentence case; the reason in its title */}
+            {broken && (
+              <span className="text-warn text-[11px]" title={fault ?? ps.script.error?.message ?? undefined} data-legend-fault>
+                {fault === SCRIPT_CAP_NOTE ? 'no pane free' : fault ? 'does not run' : 'does not read'}
+              </span>
+            )}
+            {/* the eye and the × come up under the pointer AND under the keys or a touch (focus-within), never hidden from them */}
+            <span className={`inline-flex items-center gap-0.5 ${on ? 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100' : ''} transition-opacity`}>
               <button
                 onClick={() => void updateOnPane(paneId, { ...ps.chart, visible: !on })}
                 aria-pressed={!on}
                 title={on ? 'Hide it — it stays on the pane' : 'Show it'}
-                className="p-0.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors"
+                className="hit p-0.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors"
                 data-legend-eye
               >
                 {on ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
               </button>
-              <button onClick={() => void liftFromPane(paneId, ps.chart.id)} title="Take it off this pane" className="p-0.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors" data-legend-remove>
+              <button onClick={() => void liftFromPane(paneId, ps.chart.id)} title="Take it off this pane" aria-label="Take it off this pane" className="hit p-0.5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors" data-legend-remove>
                 <X className="w-3 h-3" />
               </button>
             </span>

@@ -322,10 +322,12 @@ const ScriptEditorPanel = ({ script, paneId, onClose, onOpenLibrary }: ScriptEdi
         const restored = await scriptStore.restore(current.id, v);
         setCurrent(restored);
         setSource(restored.source);
-        setDirty(false);
         clearDraft(current);
         const view = viewRef.current;
         if (view) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: restored.source } });
+        /* clean AFTER the text goes in: the dispatch's update listener marks the editor dirty, so a restore said "unsaved"
+           (the round-3 audit, D) */
+        setDirty(false);
         setNote(`Version ${v} restored as version ${restored.version}`);
         setVersions(await scriptStore.versions(restored.id));
         bumpLibrary();

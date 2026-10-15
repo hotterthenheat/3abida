@@ -458,7 +458,8 @@ class TrailsPaneRenderer {
       const full = (px11 + 5) * vr;
       const boxes: { l: number; r: number; t: number; b: number }[] = [{ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr }];
       const cx = (wCss + RESET_SCALE_CSS) / 2;
-      boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30) * vr, b: (paneHCss - 2) * vr });
+      boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30 - src.footKeep) * vr, b: (paneHCss - 2 - src.footKeep) * vr });
+      if (src.footKeep > 0) boxes.push({ l: 0, r: wCss * hr, t: (paneHCss - src.footKeep) * vr, b: paneHCss * vr });
       const collides = (l: number, rr: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && rr > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
       ctx.font = `${Math.round(px11 * vr)}px ${FONT_SANS}`;
       ctx.textBaseline = 'middle';
@@ -554,7 +555,7 @@ class TrailsPaneRenderer {
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? col0.spot) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? col0.spot) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}`;
+      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}|${src.footKeep}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
       const yCache = new Map<number, number | null>();
@@ -841,8 +842,11 @@ class TrailsPaneRenderer {
          tall, its foot 4 px over the plot's) — a keep-out box a little wider than the pill */
       {
         const cx = (wCss + RESET_SCALE_CSS) / 2;
-        boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30) * vr, b: (paneHCss - 2) * vr });
+        boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30 - src.footKeep) * vr, b: (paneHCss - 2 - src.footKeep) * vr });
       }
+      /* the host's foot row (Terrain's Building chip, the stale banner, Back to live, the phone's peek): a keep-out band
+         at the plot's foot, the Reset pill a row above it (the round-3 shots: a wall-move chip stood on the Building chip) */
+      if (src.footKeep > 0) boxes.push({ l: 0, r: wCss * hr, t: (paneHCss - src.footKeep) * vr, b: paneHCss * vr });
       const collides = (l: number, r: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && r > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
       /** a box slid down (then up) until it stands clear, or null when the plot has no room for it */
       const settle = (l: number, r: number, t: number, h: number): number | null => {
@@ -1136,6 +1140,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   gapSession: ((timeSec: number) => string) | null = null;
   /** Bumped by the host when the reasons may have changed without the columns — the bitmap (and the runs) are rebuilt */
   gapRev = 0;
+  /** The host's foot row over the plot's foot, CSS px tall (0 none): no word of the field is placed there, and the Reset
+      pill's keep-out stands that much higher (the host lifts the pill by the same) */
+  footKeep = 0;
   /** Whether a column of the field stands inside the bar at `barTime` (this chart's barSec) */
   hasColumnAt(barTime: number): boolean {
     return this.columnKindAt(barTime) !== 'none';

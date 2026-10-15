@@ -1924,11 +1924,12 @@ const Pane = ({
     out.push({ key: 'levels', label: 'Nearest', words: have ? `${side(above, '▲', false)} · ${side(below, '▼', false)}` : '—', short: have ? `${side(above, '▲', true)} ${side(below, '▼', true)}` : '—', title: "The nearest named level each side of the price — one of the chips on the price axis: a wall, the flip, the supreme (the book's heaviest strike) or Top (the field's largest node now) — its distance in dollars and in σ to the close", tone: null });
     if (sigmaRem && moveNow && sessionMinute != null) {
       const r = readoutOf(price, moveNow.prevClose, moveNow.sigma, sessionMinute, moveNow.profile);
-      out.push({ key: 'move', label: 'Move', words: `±${usd(sigmaRem.sigma)} to close · ${sigmaRem.src === 'straddle' ? 'market' : 'budget'}${r ? ` · ${r.sigmas >= 0 ? '+' : '−'}${num(Math.abs(r.sigmas), 1)}σ day` : ''}`, short: `±${usd(sigmaRem.sigma)} ${sigmaRem.src === 'straddle' ? 'mkt' : 'bgt'}`, title: `${sigmaRem.src === 'straddle' ? "1σ to the close off the straddle on today's expiry, live" : '1σ to the close as the budget leaves it: σ_day × √(1 − the variance used)'} — and where the price stands on the day's budget`, tone: null });
+      out.push({ key: 'move', label: 'Move', words: `±${usd(sigmaRem.sigma)} to close · ${sigmaRem.src === 'straddle' ? 'market' : 'budget'}${r ? ` · ${r.sigmas >= 0 ? '+' : '−'}${num(Math.abs(r.sigmas), 1)}σ day` : ''}`, short: `±${usd(sigmaRem.sigma)} ${sigmaRem.src === 'straddle' ? 'market' : 'budget'}`, title: `${sigmaRem.src === 'straddle' ? "1σ to the close off the straddle on today's expiry, live" : '1σ to the close as the budget leaves it: σ_day × √(1 − the variance used)'} — and where the price stands on the day's budget`, tone: null });
     } else out.push({ key: 'move', label: 'Move', words: '—', short: '—', title: onFeed ? (sessionMinute != null && sessionMinute >= SESSION_MINUTES ? 'The session is over: nothing left to the close' : 'No priced move yet') : "No priced move off the house's tape", tone: null });
     if (fRecord) {
       const thin = fRecord.main.touches < 500 || fRecord.main.months < 12;
-      out.push({ key: 'record', label: 'Record', words: `${fRecord.main.sessions} sessions · ${fRecord.main.touches} touches${thin ? ' · thin' : ''}`, short: `${fRecord.main.sessions}s · ${fRecord.main.touches}t${thin ? ' · thin' : ''}`, title: `${thin ? 'Insufficient data (under 500 touches or 12 months) — ' : ''}${fRecord.lines['call wall']}`, tone: thin ? 'warn' : null });
+      out.push({ key: 'record', label: 'Record', words: `${fRecord.main.sessions} sessions · ${fRecord.main.touches} touches${thin ? ' · thin' : ''}`, /* plain words even short (the round-3 shots: "2s · 153t · thin" read as a code) */
+      short: `${fRecord.main.sessions} sessions · ${thin ? 'thin' : `${fRecord.main.touches} touches`}`, title: `${thin ? 'Insufficient data (under 500 touches or 12 months) — ' : ''}${fRecord.lines['call wall']}`, tone: thin ? 'warn' : null });
     } else out.push({ key: 'record', label: 'Record', words: '—', short: '—', title: onFeed ? 'No scorecard for this name yet' : "No track record off the house's tape", tone: null });
     if (onFeed) {
       const col = fTrail.snaps.length ? fTrail.snaps[fTrail.snaps.length - 1] : null;
@@ -2310,6 +2311,17 @@ const Pane = ({
   const [readout, setReadout] = useState<CrosshairBar | null>(null);
   /* the hovered bar's moment: a day or a week bar names its New York session, an intraday bar its time on the reader's
      clock (the readout had no time — its `when` was never handed) */
+  const [footW, setFootW] = useState(0);
+  const footRo = useRef<ResizeObserver | null>(null);
+  const footRef = useCallback((el: HTMLDivElement | null) => {
+    footRo.current?.disconnect();
+    footRo.current = null;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setFootW(w => (Math.abs(w - el.clientWidth) > 1 ? el.clientWidth : w)));
+    ro.observe(el);
+    footRo.current = ro;
+    setFootW(el.clientWidth);
+  }, []);
   /* THE FOOT ROW's parts (the JSX below): the field filling, the way back to live, the phone's peek, the stale banner */
   const buildingOn = onFeed && overlays.trails && !noBars && (!fTrail.full || (tilesOn ? (preTape?.days.length ?? 0) < tileDays.length : !!fPast && fPast.ready < fPast.asked));
   /* before the recorder's first read of the day (it reads from 4:00 am New York) nothing is being read: the words say when
@@ -2319,19 +2331,37 @@ const Pane = ({
   const caught = tilesOn ? `${preTape?.days.length ?? 0} of ${tileDays.length}` : `${fPast?.ready ?? 0} of ${fPast?.asked ?? 0}`;
   const buildingLong = !buildingOn ? null : !fTrail.full ? (beforeFirstRead ? `Today's field starts with the first chain read, ${marketClock(4, 0)}` : 'Building · the chain is being read') : `Catching up · earlier sessions ${caught} in`;
   const buildingShort = !buildingOn ? null : !fTrail.full ? (beforeFirstRead ? `Field from ${marketClock(4, 0)}` : 'Building') : `Catching up ${caught}`;
-  const backLive = !atLive && !rp.active && !noBars;
+  /* the least that is still words, for the narrowest pane (never cut mid-word): the hatch alone, its words its title */
+  const buildingLeast = !buildingOn ? null : !fTrail.full ? (beforeFirstRead ? marketClock(4, 0) : 'Building') : caught;
+  /* not while the pane replays at all — its transport's own way back is the one (the audit's A-164: in the pick phase both
+     stood, the same words with two meanings) */
+  const backLive = !atLive && !replayable && !noBars;
   /* the long words where the foot row holds them (about 6 px a letter at 11 px), else the short — never cut mid-word; where
      the words and "Back to live" do not fit one line, "Back to live" takes the line above (footWrap) */
-  const footRoom = stripW - (belowLg ? 12 : 56) - PRICE_GUTTER_PX - 8;
+  /* the row's own width, measured (the estimate off the strip read the pane's whole width, the ladder's included — the
+     round-3 shots: "Fiel…" beside "Back to live" in two panes) */
+  const footRoom = footW > 0 ? footW : stripW - (belowLg ? 12 : 56) - PRICE_GUTTER_PX - 8;
   const wordsW = (w: string | null) => (w ? w.length * 6 + 16 : 0);
   const fitsBeside = (w: string | null) => !backLive || wordsW(w) + 108 <= footRoom;
-  const buildingWords = buildingLong && wordsW(buildingLong) <= footRoom && fitsBeside(buildingLong) ? buildingLong : buildingShort && !fitsBeside(buildingShort) && wordsW(buildingLong) <= footRoom ? buildingLong : buildingShort;
+  const buildingWords =
+    buildingLong && wordsW(buildingLong) <= footRoom && fitsBeside(buildingLong)
+      ? buildingLong
+      : buildingShort && !fitsBeside(buildingShort) && wordsW(buildingLong) <= footRoom
+        ? buildingLong
+        : buildingShort && wordsW(buildingShort) <= footRoom
+          ? buildingShort
+          : buildingLeast;
   const footWrap = backLive && !!buildingWords && !fitsBeside(buildingWords);
   const footBusy = !!buildingWords || backLive || (stale && !!age) || (belowLg && !narrowLadder && peek.length > 0);
   /* the Reset pill a row above the foot row's tallest stack (each row about 1.75rem) */
   const leftRows = (buildingWords ? 1 : 0) + (stale && age ? 1 : 0) + (belowLg && !narrowLadder && peek.length > 0 ? 1 : 0);
   const footRows = Math.min(4, footWrap ? leftRows + 1 : Math.max(backLive ? 1 : 0, leftRows));
   const resetPillClass = footRows === 0 ? undefined : (['', 'left-1/2 -translate-x-1/2 bottom-[4.5rem]', 'left-1/2 -translate-x-1/2 bottom-[6.5rem]', 'left-1/2 -translate-x-1/2 bottom-[8.5rem]', 'left-1/2 -translate-x-1/2 bottom-[10.5rem]'] as const)[footRows];
+  const legendDoor = (
+    <button type="button" aria-pressed={legendOn} onClick={() => onCfg({ legend: legendOn ? false : undefined })} title="The bead legend's line — L" className={`hit h-[18px] px-1.5 rounded-[2px] text-[11px] transition-colors ${legendOn ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`} data-legend-door>
+      Legend
+    </button>
+  );
   const readoutWhen = readout ? (tfMinutes(tf) >= 1440 ? fmtSession(readout.time) : printClock(readout.time * 1000)) : undefined;
   useEffect(() => setReadout(null), [ticker, timeframe]);
 
@@ -2577,7 +2607,9 @@ const Pane = ({
       minimal
       candles
       compact={compact ?? toolbarCompactShown}
-      parts={parts}
+      /* IN A REPLAY NO LIVE ALERT is armed (the round-3 audit, A-60: the Alerts menu stood, its price the cursor's, so an
+         alert took its side from history — "never a read past the cursor; no live alerts in a replay") */
+      parts={replayable ? { ...(parts ?? {}), alerts: false } : parts}
       /* Docked, the menus are the small ones, and every menu stays inside this pane (Noah, 2026-09-13) */
       dense={!expanded}
       menuBounds={paneBoxRef}
@@ -2856,6 +2888,7 @@ const Pane = ({
               onBeadLegend={onBeadLegend}
               fieldGapCause={gapCause}
               resetPillClass={resetPillClass}
+              footReservePx={footRows > 0 ? 8 + footRows * 32 : 0}
               axisLevels
               historyShare={0.88}
               /* the price axis fits the candles (the owner, 2026-10-13) — a wall far from the price no longer flattens the
@@ -2929,7 +2962,7 @@ const Pane = ({
                 the left (stacked, each cut to its width with its whole words as its title), the way back on the right; the
                 Reset pill steps up a row while it is in use (StrikeChart resetPillClass) */}
             {footBusy && (
-              <div className={`absolute bottom-8 z-20 flex ${footWrap ? 'flex-col-reverse items-stretch' : 'items-end'} gap-2 pointer-events-none`} style={{ left: (belowLg ? 12 : 56) + railInset, right: PRICE_GUTTER_PX + 8 }} data-foot-row>
+              <div className={`absolute bottom-8 z-20 flex ${footWrap ? 'flex-col-reverse items-stretch' : 'items-end'} gap-2 pointer-events-none`} style={{ left: (belowLg ? 12 : 56) + railInset, right: PRICE_GUTTER_PX + 8 }} ref={footRef} data-foot-row>
                 <div className="min-w-0 flex flex-col items-start gap-1">
                   {stale && age && (
                     <div className="pointer-events-auto max-w-full flex items-center gap-2 rounded-md border border-warn/40 bg-warn/[0.10] backdrop-blur-[3px] px-2 py-1 text-[11px] text-warn tnum" role="status" data-stale-banner>
@@ -3044,6 +3077,28 @@ const Pane = ({
                 )}
                 <span className="shrink-0 w-px h-4 bg-borderSubtle" aria-hidden />
                 <div className="flex-1 min-w-0">{paneToolbar(true)}</div>
+                {/* WHAT THE DOCKED HEADER AND ITS HOVER ROW HOLD, IN FULL SCREEN TOO (the audit's A-200: the age chip, the
+                    expiry window, the jumps and their calendar — so T did nothing —, the keys door, the walls lens, the bead
+                    basis and floor, Every strike and the Legend door were all gone in full screen) */}
+                <div className="order-last basis-full flex flex-wrap items-center gap-2 pointer-events-auto" data-expanded-extras>
+                  <PaneHead
+                    identity={null}
+                    facts={null}
+                    age={age}
+                    ageForm="words"
+                    timeframes={<></>}
+                    tf={{ value: tf, onChange: next => onCfg({ timeframe: next }), held: offHouse ? FEED_HELD : undefined }}
+                    window={onFeed && fieldName ? { value: isWindowCut(railCut) ? railCut : 'book', onChange: (v: WindowValue) => onRailCut(v), form: 'full', date: typeof railCut === 'number' ? (feedCutChoices(fListed).find(c => c.value === railCut)?.label ?? null) : null } : null}
+                    jump={{ onSpan: jumpSpan, onDate: jumpDate, minDate: jumpMin, maxDate: nyIsoDate(), form: 'full' }}
+                    tools={null}
+                    keys
+                    doors={null}
+                    openDateNonce={openDateNonce}
+                  />
+                  {overlays.walls && wallsLens}
+                  {overlays.trails && beadLegend && beadControls}
+                  {overlays.trails && legendDoor}
+                </div>
                 {/* The way back out, at the far right end of the strip — the
                     mirror of the docked corner chip. */}
                 <button
@@ -3226,16 +3281,12 @@ const Pane = ({
                 /* OUT OF THE FLOW (the UI pass, 2026-10-14): it stands under the strip, over the plot, and only while the
                    pointer or the keys are on the pane — so the chrome band the chart keeps clear of is the header, the
                    strip and the legend alone, and a hover moves nothing (the band's height is what fits the scale) */
-                <div className={isPhone ? 'relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 flex items-center gap-2 flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 flex-wrap'} style={!isPhone && ownScale ? { left: PRICE_GUTTER_PX + 6 } : undefined} data-toolbar-row>
+                <div className={isPhone ? 'relative z-10 pointer-events-auto max-w-full rounded-md bg-canvas/25 backdrop-blur-[3px] px-2 py-1 flex items-center gap-2 flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'chrome-hover chrome-tap touch-reveal absolute left-1.5 top-full mt-0.5 z-10 pointer-events-none max-w-[calc(100%-12px)] rounded-md bg-canvas/70 backdrop-blur-[3px] px-2 py-1 hidden group-hover:flex group-focus-within:flex group-hover:pointer-events-auto group-focus-within:pointer-events-auto items-center gap-2 ' + (stripW > 0 && stripW < 560 ? 'flex-nowrap overflow-x-auto overscroll-x-contain [&>*]:shrink-0' : 'flex-wrap')} style={!isPhone && ownScale ? { left: PRICE_GUTTER_PX + 6 } : undefined} data-toolbar-row>
                   {paneToolbar(false, headPlan.tools ? HOVER_PARTS : HOVER_ALL_PARTS)}
                   {!headPlan.popOut && popOutDoor}
                   {overlays.walls && wallsLens}
                   {overlays.trails && beadLegend && beadControls}
-                  {overlays.trails && (
-                    <button type="button" aria-pressed={legendOn} onClick={() => onCfg({ legend: legendOn ? false : undefined })} title="The bead legend's line — L" className={`hit h-[18px] px-1.5 rounded-[2px] text-[11px] transition-colors ${legendOn ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`} data-legend-door>
-                      Legend
-                    </button>
-                  )}
+                  {overlays.trails && legendDoor}
                 </div>
               )}
             </div>

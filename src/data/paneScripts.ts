@@ -124,3 +124,13 @@ export function useLibraryVersion(): number {
     () => 0
   );
 }
+
+/* DEVELOPMENT ONLY: the store's doors for the browser checks (scripts/terrain-ui-proof.mjs places a script that fails at
+   run time and reads the legend) — nothing of it ships */
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
+  (window as Window & { __paneScripts?: unknown }).__paneScripts = {
+    save: (s: { title: string; source: string }) => scriptStore.save(s),
+    place: placeOnPane,
+    lift: liftFromPane,
+  };
+}

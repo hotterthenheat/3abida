@@ -709,6 +709,92 @@ check('indicators: a pane of their own beside the regime strip, the fitted axis 
   return { pass, ms: Date.now() - t0, notes };
 });
 
+/* ─── A SCRIPT THAT FAILS AT RUN TIME (the audit's D §3) ──────────────────────────────────────────────────────────────
+   Before: a run that failed (over its budget, or asking request.*, which compiles) left its last lines drawn and the
+   legend showed a normal row. */
+check('scripts: a script that fails when it runs draws nothing and its legend says so', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const placed = await page.evaluate(async () => {
+      const api = window.__paneScripts;
+      if (!api) return null;
+      const s = await api.save({ title: 'Fails at run', source: '//@version=6\nindicator("Fails at run", overlay=true)\nx = request.security(syminfo.tickerid, "D", close)\nplot(x)\n' });
+      const cs = await api.place('terrain:1', s.id);
+      return { scriptId: s.id, status: s.status, chartId: cs.id };
+    });
+    if (!placed) return { pass: false, notes: ['the development hook window.__paneScripts is missing'] };
+    await page.waitForTimeout(2500);
+    const got = await page.evaluate(() => {
+      const row = document.querySelector('[data-script-legend] [data-legend-row]');
+      return { legend: row?.textContent ?? null, fault: row?.querySelector('[data-legend-fault]')?.getAttribute('title') ?? null };
+    });
+    await page.evaluate(async p => { await window.__paneScripts.lift('terrain:1', p.chartId); }, placed);
+    const pass = !!got.legend && /does not run/.test(got.legend) && !!got.fault && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`saved with status "${placed.status}"; legend: "${got.legend}"; reason: "${got.fault}"`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── IN A REPLAY: ONE WAY BACK, NO LIVE ALERTS (the audit's A-164, A-60) ─────────────────────────────────────────────── */
+check('replay: before a bar is picked one way back stands, and no live alert can be armed', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    /* the view off the last bar first, so the view's "Back to live" would stand */
+    await page.mouse.move(b.x + b.width * 0.3, b.y + b.height * 0.55);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.7, b.y + b.height * 0.55, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(600);
+    await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.55);
+    await page.waitForTimeout(400);
+    const before = { backLive: await page.locator('[data-back-to-live]').count(), alerts: await page.locator('button[title="Alerts"]').count() };
+    await page.mouse.click(b.x + b.width * 0.3, b.y + 20);
+    await page.keyboard.press('p');
+    await page.waitForSelector('[data-replay-badge]', { timeout: 4000 });
+    await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.55);
+    await page.waitForTimeout(600);
+    const during = { backLive: await page.locator('[data-back-to-live]').count(), alerts: await page.locator('button[title="Alerts"]').count() };
+    await page.keyboard.press('Escape');
+    return { pass: before.backLive === 1 && before.alerts >= 1 && during.backLive === 0 && during.alerts === 0 && !errors.length, ms: Date.now() - t0, notes: [`live, off the last bar: "Back to live" ${before.backLive}, Alerts doors ${before.alerts}; replaying before a pick: "Back to live" ${during.backLive}, Alerts doors ${during.alerts}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── FULL SCREEN KEEPS THE HEADER'S CONTROLS (the audit's A-200) ──────────────────────────────────────────────────────
+   Before: F opened a strip with the identity and the toolbar alone — no age chip, no expiry window, no jumps or their
+   calendar (so T did nothing), no keys door, no walls lens, bead basis or floor, no Legend door. */
+check('full screen: the age, the window, the jumps, T and the legend stand there too', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const t0 = Date.now();
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    await page.mouse.click(b.x + b.width * 0.3, b.y + 20);
+    await page.keyboard.press('f');
+    await page.waitForTimeout(800);
+    const extras = page.locator('[data-expanded-extras]');
+    const got = {
+      extras: await extras.count(),
+      age: await extras.locator('[data-pane-age]').count(),
+      window: await extras.locator('[data-window-pick]').count(),
+      jumps: await extras.locator('[data-jump]').count(),
+      legend: await extras.locator('[data-legend-door]').count(),
+    };
+    await page.keyboard.press('t');
+    const cal = await page.waitForSelector('[data-jump-date-input]', { timeout: 3000 }).then(() => true).catch(() => false);
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    const pass = got.extras === 1 && got.age === 1 && got.window >= 4 && got.jumps >= 5 && got.legend === 1 && cal && !errors.length;
+    return { pass, ms: Date.now() - t0, notes: [`full screen: age chip ${got.age}, window choices ${got.window}, jumps ${got.jumps}, Legend door ${got.legend}; T ${cal ? 'opens the calendar' : 'does nothing'}`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+  } finally {
+    await done();
+  }
+});
+
 let failed = 0;
 for (const { name, fn } of results) {
   let r;

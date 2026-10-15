@@ -36,7 +36,7 @@ import { onGlide, promisedWidth } from '../../core/glide';
 import { compile, explain, run as runScript, type Compiled } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
 import { drawRun, type ScriptHandle } from './scriptLayer';
-import ScriptLegend from './ScriptLegend';
+import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
 import { LOCAL_TIME, NY_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, nyTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
 
@@ -829,6 +829,8 @@ interface StrikeChartProps {
   fieldGapCause?: ((fromSec: number, toSec: number, empty: boolean) => string | null) | null;
   /** Where the Reset pill stands (ResetViewControl `pillClass`) — a host whose own foot row takes the plot's foot lifts it */
   resetPillClass?: string;
+  /** The host's foot row's height over the plot's foot, CSS px — the field places none of its words there */
+  footReservePx?: number;
   /** The call wall, the put wall and the flip, and two more, pinned on the price axis as their prices (item 5 (h)) */
   axisLevels?: boolean;
   /** The scorecard's next-range by tercile (the gate for the chip's "X times median") */
@@ -1220,7 +1222,7 @@ const StrikeChart = ({
   barCountdown = 'measured',
   asOf = null,
   futureBars = null,
-  footBar = null, onRegime, onTopNode, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null, resetPillClass,
+  footBar = null, onRegime, onTopNode, jumpTo = null, axisChips = false, wallStates = null, sigmaRem = null, legsNow = null, oiDate = null, beadDensity = true, onReplayFrom, onPinStrike, fieldGapCause = null, resetPillClass, footReservePx = 0,
   onJumpResult, onViewEdge, onViewFrom, onBarClick, stale = false,
 }: StrikeChartProps) => {
   /* THE CHART'S NOW: the host's rewound clock in a replay, else the wall's (item 8) */
@@ -1629,6 +1631,9 @@ const StrikeChart = ({
   const selectedIdxRef = useRef<number | null>(null);
   /** Where the last press on the chart came down — a click after a drag is a pan, not a pick */
   const downAtRef = useRef<{ x: number; y: number } | null>(null);
+  /** The scripts on this pane whose last run failed, and why — the legend names them */
+  const scriptFaultsRef = useRef(new Map<string, string>());
+  const [scriptFaults, setScriptFaults] = useState<ReadonlyMap<string, string>>(scriptFaultsRef.current);
   selectedIdxRef.current = selectedIdx;
   /** A drag in progress on the SELECTED mark: one anchor, or the whole body. */
   const editRef = useRef<{
@@ -2904,6 +2909,7 @@ const StrikeChart = ({
     const trails = trailsRef.current;
     if (!trails) return;
     trails.gapCause = fieldGapCause;
+    trails.footKeep = footReservePx;
     /* a name with sessions of its own splits its gaps at their edges (core/sessions.ts) — cached by the quarter hour */
     if (tradesAllSessions(ticker)) {
       const keys = new Map<number, string>();
@@ -2919,7 +2925,7 @@ const StrikeChart = ({
     } else trails.gapSession = null;
     trails.gapRev++;
     trails.requestUpdate?.();
-  }, [fieldGapCause, mainNonce, ticker]);
+  }, [fieldGapCause, mainNonce, ticker, footReservePx]);
 
   /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) — and the axis labels (item 5 (h)) */
   useEffect(() => {
@@ -3655,9 +3661,20 @@ const StrikeChart = ({
     const slayer = { callWall: levels.callWall, putWall: levels.putWall, flip: levels.flip, supreme: levels.supreme };
     let ownPanes = 0;
     const ownPaneOf: number[] = [];
+    const faults = new Map(scriptFaultsRef.current);
     for (const ps of live) {
       const own = ps.script.meta?.pane === 'own';
-      if (own && subsActive.length + ownPanes >= MAX_SUB_PANES) continue;
+      /* past the cap of own panes it waits, and its legend says why (the round-3 audit, D: the editor's Add and the legend's
+         eye could put one past the cap, and the chart skipped it without a word) */
+      if (own && subsActive.length + ownPanes >= MAX_SUB_PANES) {
+        const stale = handles.get(ps.chart.id);
+        if (stale) {
+          stale.destroy();
+          handles.delete(ps.chart.id);
+        }
+        faults.set(ps.chart.id, SCRIPT_CAP_NOTE);
+        continue;
+      }
       let compiled = compiledRef.current.get(ps.script.sourceHash);
       if (!compiled) {
         try {
@@ -3671,9 +3688,19 @@ const StrikeChart = ({
       try {
         result = runScript(compiled, bars, { inputs: ps.chart.inputs, ticker, timeframe: String(timeframe), slayer });
       } catch (e) {
-        if (rebuild) console.warn(`[scripts] ${ps.script.title}: ${explain(e).message}`);
+        /* A RUN THAT FAILS DRAWS NOTHING AND SAYS WHY (the round-3 audit, D §3: the last good lines stayed drawn, frozen,
+           and the legend showed a normal row — a script over its budget or asking request.* looked like it worked) */
+        const why = explain(e).message;
+        if (rebuild) console.warn(`[scripts] ${ps.script.title}: ${why}`);
+        const stale = handles.get(ps.chart.id);
+        if (stale) {
+          stale.destroy();
+          handles.delete(ps.chart.id);
+        }
+        faults.set(ps.chart.id, why);
         continue;
       }
+      faults.delete(ps.chart.id);
       const have = handles.get(ps.chart.id);
       if (have && have.update(result, bars)) {
         if (own) ownPanes++;
@@ -3699,6 +3726,12 @@ const StrikeChart = ({
       for (const i of ownPaneOf) panes[i]?.setStretchFactor(each);
     }
     scriptSigRef.current = sig;
+    /* the legend hears a change of the faults alone */
+    const was = scriptFaultsRef.current;
+    if (faults.size !== was.size || [...faults].some(([k, v]) => was.get(k) !== v)) {
+      scriptFaultsRef.current = faults;
+      setScriptFaults(faults);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paneId, paneScripts, indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, levels]);
 
@@ -5817,7 +5850,7 @@ const StrikeChart = ({
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
         <ResetViewControl onReset={resetView} {...(resetPillClass ? { pillClass: resetPillClass } : {})} />
         {/* The scripts on this pane, named at the top left with hide and remove (2026-09-10) */}
-        {paneId && paneScripts.length > 0 && !replay && <ScriptLegend paneId={paneId} scripts={paneScripts} />}
+        {paneId && paneScripts.length > 0 && !replay && <ScriptLegend paneId={paneId} scripts={paneScripts} faults={scriptFaults} left={12 + railLeftInset} />}
         {/* Every band says its own name, the way the reference does. An
             unlabelled strip under a chart is a puzzle; `pointer-events-none` so
             the tape still pans straight through them. Positions are measured
@@ -6481,10 +6514,20 @@ const StrikeChart = ({
           const legsHere = isNewest ? legsNow?.get(card.strike) ?? null : null;
           const side = card.value >= 0 ? 'puts amplify' : 'calls absorb';
           const oiLine = !feedCell ? null : pastDay ? `OI the count dated that session` : oiDate ? `OI dated ${isoDayLabel(oiDate)}${nyMinuteOf(card.time * 1000) < 7 * 60 ? " (before 7:00 am the session before's count)" : ''}` : null;
+          /* INSIDE THE CHART'S BOX, BELOW ITS CHROME (the round-3 shots: in a narrow pane the card stood past the box's left
+             edge and lost its first words; the audit's B-09: near the top it slid under the header strip) — beside the node
+             where it fits, else on its other side, else as far in as it goes; never wider than the box, its lines wrapping
+             where the box is narrow */
+          const outerW = w + railLeftInset;
+          const cardW = Math.min(320, outerW - 8);
+          let cardLeft = railLeftInset + card.x + 10;
+          if (cardLeft + cardW > outerW - 4) cardLeft = railLeftInset + card.x - 10 - cardW;
+          cardLeft = Math.max(4, Math.min(cardLeft, outerW - 4 - cardW));
+          const cardNarrow = cardW < 300;
           return (
             <div
-              className={`absolute z-30 border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 max-w-[320px] ${expanded ? 'pointer-events-auto' : 'pointer-events-none'}`}
-              style={{ top: Math.max(4, card.y - 72), ...(card.x > w - 330 ? { right: Math.max(4, w - card.x + 10) } : { left: railLeftInset + card.x + 10 }) }}
+              className={`absolute z-30 border border-borderMuted bg-panel/95 rounded px-2 py-1.5 shadow-xl shadow-black/50 ${cardNarrow ? 'break-words [&_*]:!whitespace-normal' : ''} ${expanded ? 'pointer-events-auto' : 'pointer-events-none'}`}
+              style={{ top: Math.max(chromeInsetRef.current + 4, card.y - 72), left: cardLeft, maxWidth: cardW }}
               data-bead-card={expanded ? 'pinned' : 'hover'}
             >
               <div className="font-mono text-[11px] font-semibold text-textPrimary whitespace-nowrap tnum">
