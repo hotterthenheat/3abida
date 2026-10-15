@@ -21,10 +21,11 @@ const exe = process.env.PW_CHROMIUM ?? (existsSync('/opt/pw-browsers/chromium') 
 const browser = await chromium.launch(exe ? { executablePath: exe } : {});
 const results = [];
 
-/** A page on Terrain with the panes asked, the desk put back by `done` */
-async function terrain(panes, { width = 1440, height = 900, layout = 1 } = {}) {
+/** A page on Terrain with the panes asked, the desk put back by `done`; `at` holds the page's clock from that instant */
+async function terrain(panes, { width = 1440, height = 900, layout = 1, at = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Los_Angeles' });
   const page = await ctx.newPage();
+  if (at) await page.clock.install({ time: new Date(at) });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
   await page.goto(`${base}/terrain`, { waitUntil: 'domcontentloaded' });
@@ -127,6 +128,31 @@ check('axis: a pan and a wheel keep the candles in view; an axis drag is the rea
     await done();
   }
 });
+
+/* ─── A TILED TIMEFRAME WITH NO MINUTES TODAY (round 3, found by the gap sweep) ─────────────────────────────────────
+   From midnight New York to the first pre-market minute, and all weekend, every minute the vendor returns falls on a
+   session the server tiled, so today's minutes were none and the chart returned before it merged the tiles' bars: SPY at
+   15 minutes drew a blank pane, QQQ at 1 minute too, and at 5 minutes the bars came without a column. The page's clock is
+   held on a Saturday so the case stands whatever the hour the proof runs. */
+for (const tf of ['15m', '5m', '1m']) {
+  check(`no minutes today (a Saturday): SPY at ${tf} draws its sessions' bars and the field`, async () => {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: tf, overlays: { trails: true }, ladder: true }], { at: '2026-10-17T16:00:00Z' });
+    try {
+      const t0 = Date.now();
+      await page.waitForFunction(() => [...document.querySelectorAll('[data-chart-state]')].some(e => /\|f[1-9]\d*\|/.test(e.getAttribute('data-chart-state') ?? '')), null, { timeout: 30_000 }).catch(() => null);
+      const st = await page.evaluate(want => [...document.querySelectorAll('[data-chart-state]')].map(e => e.getAttribute('data-chart-state')).filter(x => x?.startsWith(want)), `SPY|${tf}|`);
+      /* the pane's chart: the one holding the most bars (a chart from the open before the desk was set can linger a frame) */
+      const s0 = ([...st].sort((a, b) => Number(b.split('|')[2]) - Number(a.split('|')[2]))[0] ?? '').split('|');
+      const bars = Number(s0[2] ?? 0);
+      const cols = Number((s0[5] ?? 'f0').slice(1)) || 0;
+      /* at least two sessions' bars: under the old code a 5-minute pane held one session (78 bars) of the many tiled */
+      const twoSessions = { '1m': 780, '5m': 156, '15m': 52 }[tf];
+      return { pass: bars >= twoSessions && cols > 0 && !errors.length, ms: Date.now() - t0, notes: [`chart state: ${st.join(' ; ') || 'none (no chart drawn)'} — needs ${twoSessions} bars or more (two sessions)`, ...(errors.length ? [`page errors: ${errors.join(' | ')}`] : [])] };
+    } finally {
+      await done();
+    }
+  });
+}
 
 let failed = 0;
 for (const { name, fn } of results) {

@@ -433,6 +433,7 @@ class TrailsPaneRenderer {
     if (key !== this.aloneKey) {
       this.aloneKey = key;
       this.gapRuns = findGaps(src, series, ts, src.barSec);
+      src.lastGapRuns = this.gapRuns;
     }
     if (!this.gapRuns.length) return;
     const paper = src.paper;
@@ -737,6 +738,7 @@ class TrailsPaneRenderer {
           this.cacheKey = key;
           /* THE GAPS (B1), found while the cache is built */
           this.gapRuns = src.gapCause ? findGaps(src, series, ts, barSec) : [];
+          src.lastGapRuns = this.gapRuns;
         }
       }
       if (this.bmp) ctx.drawImage(this.bmp, 0, 0);
@@ -1070,6 +1072,9 @@ class AxisLabel implements ISeriesPrimitiveAxisView {
 }
 
 export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
+  /** The gap runs the last frame labelled (bar times, epoch s, and their words) — read by the development probes
+      (StrikeChart's `window.__charts` entry, scripts/terrain-ui-proof.mjs) */
+  lastGapRuns: readonly GapRun[] = [];
   chart: IChartApi | null = null;
   series: ISeriesApi<'Candlestick'> | null = null;
   requestUpdate?: () => void;

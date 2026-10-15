@@ -2564,6 +2564,8 @@ const StrikeChart = ({
       candles,
       host: container,
       state: () => ({ held: recentHeldRef.current, full: fullWorldRef.current, world: worldKeyRef.current }),
+      /* the field's labelled gaps in view, as the last frame drew them */
+      gaps: () => trails.lastGapRuns,
     };
     devCharts?.add(devEntry);
     const drawingsPrim = new DrawingsPrimitive();
@@ -3793,11 +3795,16 @@ const StrikeChart = ({
     if (!chart || !candleSeries || !volumeSeries || !trails) return;
 
     const base = baseBars();
-    if (!base || base.length === 0) return;
-
     const theme = themeRef.current;
     const mins = tfMinutes(timeframe);
     const all = barsFor(mins, altSpec);
+    /* NOTHING TO DRAW is no bar at this timeframe, the server's folded sessions with today's — never today's minutes
+       alone (2026-10-15: from midnight to the first pre-market minute, and all weekend, every minute the vendor returns is
+       on a session the server tiled, so today's were none and a tiled timeframe drew a blank chart) */
+    if (!all.length) return;
+    /* today's minutes where there are any, else the newest bars drawn (the server's sessions) — every read of "the
+       tape's last bar" below stands on this */
+    const tapeNow = base.length ? base : all;
     /* This world's key, and whether the reader has asked for its whole
        history (onRange sets it); the recent window otherwise */
     const key = `${ticker}|${timeframe}|${barClock}`;
@@ -3819,8 +3826,8 @@ const StrikeChart = ({
     /* T-19's rulers ride the same load — one ATR fold per data pass, so the
        measure box and the flip strip cannot disagree about the day's range. */
     drawingsRef.current?.setDistanceScales({
-      atr: sessionAtr(base),
-      sigma: impliedDaySigma(base.length ? base[base.length - 1].close : 0, nameIv() ?? 0),
+      atr: sessionAtr(tapeNow),
+      sigma: impliedDaySigma(tapeNow[tapeNow.length - 1].close, nameIv() ?? 0),
     });
 
     const loaded = loadedRef.current;
@@ -3832,7 +3839,7 @@ const StrikeChart = ({
        backtest's clock is dragged half an hour on, or sent to the next day's open, and every bar between has to land — and
        the bucket that was forming when it left has to be finished. More than a minute on (or any way back) reloads the
        series; the view holds, as it does for a theme. */
-    const baseLast = base[base.length - 1].time;
+    const baseLast = tapeNow[tapeNow.length - 1].time;
     /* the source changing kind — the house's tape to a host's (a replay on the house's market cuts its tape), a live clock
        to a rewound one, and back — is a jump whatever the times say: the series is loaded afresh */
     const srcKind = `${tapeRef.current ? 'tape' : 'house'}|${asOfRef.current != null ? 'rewound' : 'live'}`;
