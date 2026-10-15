@@ -1,0 +1,258 @@
+{
+ "base": "http://127.0.0.1:5183",
+ "layouts": [
+  1,
+  4
+ ],
+ "names": [
+  "SPY",
+  "QQQ",
+  "IWM",
+  "SPX"
+ ],
+ "tf": "1m",
+ "runs": 3,
+ "minutes": 10,
+ "results": [
+  {
+   "layout": 1,
+   "kind": "cold",
+   "panes": [
+    {
+     "name": "SPY",
+     "candles": 2238.10000000149,
+     "ovals": 2238.10000000149
+    }
+   ]
+  },
+  {
+   "layout": 1,
+   "kind": "warm",
+   "panes": [
+    {
+     "name": "SPY",
+     "candles": 743.6000000014901,
+     "ovals": 1227.6000000014901
+    }
+   ]
+  },
+  {
+   "layout": 1,
+   "kind": "warm",
+   "panes": [
+    {
+     "name": "SPY",
+     "candles": 794.6999999992549,
+     "ovals": 1224.2999999970198
+    }
+   ]
+  },
+  {
+   "layout": 1,
+   "kind": "memory",
+   "mem": [
+    {
+     "minute": 0,
+     "heapMB": 93.4,
+     "nodes": 2005,
+     "listeners": 452
+    },
+    {
+     "minute": 1,
+     "heapMB": 124.6,
+     "nodes": 1189,
+     "listeners": 507
+    },
+    {
+     "minute": 2,
+     "heapMB": 125.1,
+     "nodes": 1186,
+     "listeners": 491
+    },
+    {
+     "minute": 3,
+     "heapMB": 129.8,
+     "nodes": 1186,
+     "listeners": 513
+    },
+    {
+     "minute": 4,
+     "heapMB": 133.3,
+     "nodes": 1186,
+     "listeners": 493
+    },
+    {
+     "minute": 5,
+     "heapMB": 129.9,
+     "nodes": 1186,
+     "listeners": 527
+    },
+    {
+     "minute": 6,
+     "heapMB": 136.8,
+     "nodes": 1186,
+     "listeners": 537
+    },
+    {
+     "minute": 7,
+     "heapMB": 133.1,
+     "nodes": 1186,
+     "listeners": 497
+    },
+    {
+     "minute": 8,
+     "heapMB": 142.8,
+     "nodes": 1186,
+     "listeners": 511
+    },
+    {
+     "minute": 9,
+     "heapMB": 151.4,
+     "nodes": 1209,
+     "listeners": 523
+    },
+    {
+     "minute": 10,
+     "heapMB": 127.3,
+     "nodes": 1186,
+     "listeners": 547
+    }
+   ]
+  },
+  {
+   "layout": 4,
+   "kind": "cold",
+   "panes": [
+    {
+     "name": "SPY",
+     "candles": 2768.199999999255,
+     "ovals": 4258.5
+    },
+    {
+     "name": "QQQ",
+     "candles": 3155.199999999255,
+     "ovals": 4258.5
+    },
+    {
+     "name": "IWM",
+     "candles": 3778.699999999255,
+     "ovals": 4258.5
+    }
+   ]
+  },
+  {
+   "layout": 4,
+   "kind": "warm",
+   "panes": [
+    {
+     "name": "SPY",
+     "candles": 1975.300000000745,
+     "ovals": 2850.599999997765
+    },
+    {
+     "name": "QQQ",
+     "candles": 2850.599999997765,
+     "ovals": 2850.599999997765
+    },
+    {
+     "name": "IWM",
+     "candles": 3534.599999997765,
+     "ovals": 3534.599999997765
+    }
+   ]
+  },
+  {
+   "layout": 4,
+   "kind": "warm",
+   "panes": [
+    {
+     "name": "QQQ",
+     "candles": 1575.5999999977648,
+     "ovals": 2268.5
+    },
+    {
+     "name": "SPY",
+     "candles": 2268.5,
+     "ovals": 2494.599999997765
+    },
+    {
+     "name": "IWM",
+     "candles": 2629.699999999255,
+     "ovals": 2629.699999999255
+    }
+   ]
+  },
+  {
+   "layout": 4,
+   "kind": "memory",
+   "mem": [
+    {
+     "minute": 0,
+     "heapMB": 225.7,
+     "nodes": 2168,
+     "listeners": 700
+    },
+    {
+     "minute": 1,
+     "heapMB": 228.9,
+     "nodes": 2150,
+     "listeners": 703
+    },
+    {
+     "minute": 2,
+     "heapMB": 233.4,
+     "nodes": 2168,
+     "listeners": 705
+    },
+    {
+     "minute": 3,
+     "heapMB": 244.3,
+     "nodes": 2154,
+     "listeners": 675
+    },
+    {
+     "minute": 4,
+     "heapMB": 247.1,
+     "nodes": 2150,
+     "listeners": 741
+    },
+    {
+     "minute": 5,
+     "heapMB": 233.8,
+     "nodes": 2150,
+     "listeners": 706
+    },
+    {
+     "minute": 6,
+     "heapMB": 222.2,
+     "nodes": 2150,
+     "listeners": 625
+    },
+    {
+     "minute": 7,
+     "heapMB": 224.8,
+     "nodes": 2150,
+     "listeners": 645
+    },
+    {
+     "minute": 8,
+     "heapMB": 238.5,
+     "nodes": 2150,
+     "listeners": 714
+    },
+    {
+     "minute": 9,
+     "heapMB": 231.1,
+     "nodes": 2150,
+     "listeners": 643
+    },
+    {
+     "minute": 10,
+     "heapMB": 247.8,
+     "nodes": 2150,
+     "listeners": 734
+    }
+   ]
+  }
+ ]
+}

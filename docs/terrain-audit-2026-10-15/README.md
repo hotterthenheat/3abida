@@ -129,6 +129,73 @@ the field's overnight cells the 2-point cutoff marks stale (by count and by gros
 Theta terminal, so it has recorded no night. **Found on the way**: with no seed file the overnight minutes from 8:15 pm to
 midnight had no open interest (the prior count was dated from the trading day's midnight); fixed and tested.
 
+## 6a–6b · The inventory and the table
+
+Four read-only inventories (area A the header, toolbar, desk bar and keys; B the chart surface; C the panels and states;
+D the indicators and Pine) listed every control, menu option, setting, key, chip, label, card, panel, state and layout
+from the source. Three recorded browser runs then exercised every item that a browser can (Playwright, Chromium, at
+1440 × 900 unless a row says otherwise, commit 521d7de, 3–4 am New York with the market shut, a shared 4-core machine —
+every time is an upper bound): **area A 257 items, 236 pass, 17 fail, 4 manual; area B 144 rows, 107 pass, 16 fail, 21
+manual; area C 90 items, 74 pass, 14 fail, 2 manual.** Every fail that was a bug is fixed (da5b42f, 9115af0, 646b2ff)
+and each fix has a check in `npm run terrain:check` (scripts/terrain-ui-proof.mjs — 45 checks, 45 pass at 646b2ff) or a
+unit proof in `npm test`.
+**The full table, one row per item, is [TABLE.md](TABLE.md)**; the runs' own rows, observations and timings are in
+[exercise/](exercise/) (area-a.md, area-b.md, area-c.md) with their scripts in scripts/terrain-exercise/.
+
+## 6c · The Strikes tab against the chart — they do not match, and why
+
+**The Strikes tab is the ladder.** The desk bar's Strikes button shows or hides the ladder beside every chart; there is
+no separate table, so there are no columns to sort or filter. Its controls — the Expiry card (desk-wide), Lanes, Net |
+Sides, Vol, the Colours menu, the width grip and the lane sash — are all exercised (TABLE.md, area C); the grip and the
+sash no longer pin a strike after a drag (9115af0).
+
+**The numbers do not match.** SPY, the ten strikes round the price, read at night (area C's run): the ladder against the
+chart's newest field column agree on the **sign at 10 of 10** strikes and on the **size within 1% at 0 of 10** (1m) and
+**1 of 10** (5m). Split by cause on the recorder's stored reads of Oct 14, all at 3:34 pm where both exist:
+
+| strike | UW every expiry | UW 60 days | universe | field | model (UW 60d ÷ field) | field 3:59 pm | ladder now (UW, 4:15 pm) | ladder ÷ field 3:59 |
+|---|---|---|---|---|---|---|---|---|
+| 771 | $917M | $918M | 1.00× | $1.03B | 0.89× | $193M | $885M | 4.58× |
+| 770 | $2.13B | $2.13B | 1.00× | $2.42B | 0.88× | $2.67B | $2.29B | 0.86× |
+| 769 | $1.15B | $1.15B | 1.00× | $1.27B | 0.90× | $377M | $1.43B | 3.80× |
+| 768 | $1.12B | $1.11B | 1.00× | $1.00B | 1.11× | $502M | $1.23B | 2.44× |
+| 767 | $566M | $560M | 1.01× | $419M | 1.34× | $335M | $547M | 1.63× |
+| 765 | $1.46B | $1.42B | 1.03× | $1.24B | 1.14× | $1.24B | $1.46B | 1.18× |
+| 763 | $301M | $295M | 1.02× | $259M | 1.14× | $258M | $301M | 1.17× |
+
+1. **Time — most of the gap near the money.** The ladder holds Unusual Whales' book as UW last figured it (4:15 pm,
+   after the bell); the field's newest column is the 3:59 pm minute. The field reprices today's expiring contracts on the
+   minute's clock, so in the last half hour their gamma leaves the strikes beside the money (771: $1.03B at 3:34 pm,
+   $193M at 3:59 pm), while UW's figure barely moved ($917M → $885M).
+2. **Model — −12% to +44% a strike** at the same minute: UW sums its own per-contract gamma; the field prices each
+   contract at one spot and clock (How sure's "Model agreement" states this residual).
+3. **Universe — 3% or less.** The ladder reads UW's every-expiry book under an Expiry card that says "All 60 days"; the
+   expiries past 60 days carry almost no gamma near the money. It makes the label untrue, not the figures different.
+4. On 5m and longer the field's cell is the bar's **peak** minute (769 reads $4.4B at 5m, $377M at 1m).
+
+**What I recommend — your decision, since it changes what the ladder shows.** The ladder reads the field's column at the
+minute the chart shows (the newest, the cursor's in a replay), so one strike reads one number on both surfaces, and Unusual
+Whales' figure stands beside it — in the read line, the hover card and How sure — as the measured reference. That also
+makes "All 60 days" true for both. The other way (the field moved onto UW's figures) would be a calibration, which the
+model's rules forbid. Until you choose, the ladder stays UW's book; it is item 1 on the approval list (6j).
+
+## 6d · Indicators
+
+**Built-ins** (the Indicators menu; no settings — the periods are fixed): EMA 9, EMA 21, EMA 50, SMA 200, VWAP and VWAP
+bands and Bollinger draw on the price pane; RSI 14, MACD and ATR 14 in a pane of their own. Draw time after a toggle
+(area B, 1,000 bars): 3–25 ms. Since 521d7de an overlay never widens the fitted axis, a sub-pane is added after the
+regime and flow panes (two own panes at most; a third is refused with words), and on a paper tape each ink is its light
+pair. **Shipped Pine scripts** (23; the library's): draw 7–113 ms, engine 1.5–80 ms (Ichimoku the slowest); their
+overlays no longer widen the fitted axis either (9115af0, check "scripts: an overlay script far off the candles…").
+
+**Clashes, for you** (area B measured the hue distance to the field's pair): EMA 9, SMA 200, RSI, MACD, Moving average,
+EMA ribbon, Ichimoku, Keltner, RSI (Pine), MACD (Pine), Stochastic, ATR and Williams %R wear a hue within ΔE 0.15 of the
+ovals' gold or violet; "The walls" and "Distance to the walls" use the gold and violet themselves (they name the walls,
+which wear that pair — consistent, not a clash). Several share an ink with each other and with the compare lines (EMA 9
+with the Pine averages, VWAP with the Pine VWAP, Donchian, MFI). The six Pine scripts that repeat a built-in draw the same
+line twice with a different seed (6i). Proposed: the indicator inks off the gold–violet axis and one ink each — item 4
+on the approval list.
+
 ## 6f · Spacing and proportions — the proposal, waiting for your OK
 
 **There is no spacing or type scale in the global tokens.** src/theme/tokens.css holds colours only (its one size token
@@ -182,6 +249,66 @@ before-and-after shots at the same sizes.**
 | ladder rows vs the chart's strike rows | the ladder draws each row at the chart's own `priceToCoordinate` | — | measured: a pointer on the ladder at the chart's own y for a strike (centre, and ±40% of a row) names that strike in 57 of 60 hovers at 1, 2 and 4 panes; the 3 misses are one strike (766, one pane) on the ladder's lowest drawn row, which named 767 |
 | the foot row | the reasons on the left, the way back on the right, Reset a row above | overlapped in 2–4 panes at 1280 and 1440 and on the phone (measured) | fixed, 0 overlaps measured |
 
+## 6g · Load time and memory
+
+**How it is measured.** `npm run terrain:load` (scripts/terrain-load.mjs), one script for this workspace and your machine.
+It opens Terrain in Chromium and times, inside the page from the navigation's start, the first frame whose chart says it
+holds bars (**candles**) and the first frame whose chart says the field's columns are handed (**ovals** — drawn the next
+frame, so at most one frame short). On a desk of several panes every pane's own times are kept; the slowest is the
+desk's. **Cold** is a fresh browser profile (nothing cached in the browser; the server's caches as they stand); **warm**
+the next opens in the same profile. Memory is Chrome's own counters (JS heap in use, DOM nodes, event listeners) at the
+open and every minute for ten minutes, the page live and in view.
+
+**Here** (2026-10-15 09:57 UTC, the built page under `vite preview`, 1 m panes SPY, QQQ, IWM — SPX draws no candles on
+this plan — on this container's 4 shared CPUs and 16 GB; [the report](load/terrain-load-202610150934.md)):
+
+| desk | open | candles | ovals | target (1 s / 2 s) |
+|---|---|---|---|---|
+| 1 pane | cold | 2,238 ms | 2,238 ms | **both over** |
+| 1 pane | warm (2 opens) | 744 · 795 ms | 1,228 · 1,224 ms | both met |
+| 4 panes | cold | 2,768–3,779 ms | 4,259 ms | **both over** |
+| 4 panes | warm (2 opens) | 1,576–3,535 ms | 2,269–3,535 ms | **both over** |
+
+| desk | JS heap, open → minutes 1–10 | DOM nodes | listeners |
+|---|---|---|---|
+| 1 pane | 93 MB → 125–151 MB (minute 10: 127 MB) | 2,005 at the open, then 1,186–1,209 | 452–547 |
+| 4 panes | 226 MB → 222–248 MB (minute 10: 248 MB) | 2,150–2,168 | 625–741 |
+
+**What it says.** One pane opened a second time meets both targets. A first open, and any desk of four, does not: four
+panes ask for four names' minutes, books and tiles at once, and the slowest pane is 2–4 s. Memory does not climb over ten
+minutes on either desk (the heap moves with the garbage collector, the DOM is flat), so no leak shows in this window; a
+longer watch is `--minutes=60`. These are this container's figures — a shared machine — and an upper bound for yours.
+**The misses are Section I's work** (I-3: the next panes' data asked ahead, a name swapped without a remount, finished
+columns kept as a bitmap), measured again by this script when it lands.
+
+**On your machine** (the dev server on 5173; Playwright's own Chromium on Windows — `npx playwright install chromium`
+once):
+
+    npm run terrain:load                                        1 and 4 panes, 3 opens, 10 minutes of memory
+    npm run terrain:load -- --url=http://127.0.0.1:4173         the built page (npm run build, then npx vite preview)
+    npm run terrain:load -- --minutes=2 --runs=5 --layouts=1    shorter, more opens, one desk
+
+It writes docs/terrain-audit-2026-10-15/load/terrain-load-<time>.md and .json with the machine it ran on.
+
+## 6h · The fixes, each with its check
+
+Every fail that was a bug, by commit. A check is a named check in `npm run terrain:check` (scripts/terrain-ui-proof.mjs,
+the browser) or a unit proof in `npm test`.
+
+| commit | fixed | checks |
+|---|---|---|
+| 2bb97d5 | a replay with an indicator on threw "Cannot update oldest data"; the hover named the wrong node with the rail docked left; the level card opened 56 px off; empty windows (AAPL 0DTE) drew blank columns unlabelled; the Replay door in four panes; the desk's keys (Caps Lock, C with no room, Shift before a pick) | "replay: an indicator on…", "hover:…", "level card:…", "gaps:…", "replay door:…", "keys:…" |
+| 521d7de | colour vision (the ovals and the ladder kept the standard pair under blue-orange); the ladder's key named marks it did not draw, the Δ figures wore no direction ink, the card printed "++"; the foot row (Building, stale, Back to live, the peek) overlapped in 2–4 panes and on the phone; indicator panes landed inside the regime pane and widened the fitted axis; a day jump past the minutes held; line alerts were off on the feed | "colour vision:…", "ladder:…", "indicators:…", "jump: a day a week back…"; the looks sweep (0 overlaps) |
+| da5b42f | full screen lost the age chip, window, jumps, T and the legend; a script that fails at run left its last lines drawn; a replay before a pick showed two "Back to live"; narrow panes | "full screen:…", "scripts: a script that fails…", "replay: before a bar is picked…" |
+| 9115af0 | range jumps (1W, 1M, 6M) and the 1D opening view; Replay this day; the layouts shelf (Esc, delete, undo); the phone ladder, its focus, its guide, the drawing sheet; the hover row over the readout and legends; a pin re-fitting the axis; the regime at night; T on a narrow pane; the rail's minus; − into a held 15 s; the pane chips; the field's words under the candles; the cone tag; the phase words and VPOC under 11 px; script overlays widening the axis; the pick line and note input 56 px off; minute volume missing on tiled sessions; Next session onto a holiday; the Move box's σ with no price; the Net view's sides; a grip drag pinning; the guide's orange and blue | "jump: 1W and 6M…", "1D view:…", "day panel:…", "layouts:…", "phone:…", "hover row:…", "pin:…", "regime at night:…", "T key:…", "rail:…", "pane chips:…", "canvas words:…", "Net view:…", "ladder: a drag of the width grip…", "Move box:…", "scripts: an overlay script far off…", "replay pick:…", "field words:…", "volume:…", "guide:…", "pop-out:…"; terrain-setups-proof (held timeframes), sessions-proof (holidays), alerts-proof (a stopped watch's undo) |
+| 646b2ff | **the first trend line after a pick from the drawing sheet was lost (B-59)**: the sheet stands inside the chart's box, so a tap on a tab or tile bubbled to the chart's own click and pinned the oval under it, and that card took the next drag — the chart's click, hover and double-click now act only on the plot itself; **one-off Escape handlers onto the house's layer stack and focus contract** (ui/layers `useOverlay` / `useEscapeLayer`): the toolbar's menus (Overlays, Alerts, Indicators, Candles, Style, Timeframe), the compare and symbol pickers, the drawing sheet and the rail's family lists, the level-alert card and the chart's right-click card — a menu's Esc no longer lets a pinned strike go, the keys go in and come back, and Esc from the alerts' price field closes its menu; the pin's Esc a mode on the stack; the flip's confirmation offers 1 to 5 in both pickers (A-196…A-198: they offered 1–3); the flow lane's figures and the pane's index price on core/format (it printed "$7715.00"); an index on the feed with no quote says it shows the book's price and when; `.hit` on the Vol switch, the ladder's close and the Reset pill; a race that built a session's tiles without volume (two asks for one session's bars at once; tiles format 5) | "drawings: a press in the sheet pins no node, and the first drag after a pick draws", "menus: Esc closes the drawing sheet, the right-click card and the alerts field's menu…", level-alerts-proof (1 to 5, both pickers); and the checks 9115af0's fixes waited for: "ladder: a drag of the lanes' sash pins no strike; the Net view heads its Δ column; a lane name stands only where it fits", "note: the words field opens at the click…", "day panel: no "No modeled column" flash…", orbs-proof (the ladder's terms speak gold and violet) |
+
+**Not bugs.** A-59, A-204, A-227 (that run's expand failed under load; the expand is exercised by "layouts:" and "full
+screen:"); A-225 (the Pine door: two dev servers shared one node_modules/.vite cache, CodeMirror loaded twice — it opens
+on a clean server); the readout naming only the single-line overlays (by design: a band or a sub-pane's value is in its
+own units — D-06…D-10; each pane naming its own value under the crosshair is a proposal on the approval list); 1M
+showing four sessions (this machine's hourly tiles hold four).
+
 ## 6i · Redundancies and dead code — for your approval (nothing removed)
 
 Each found by reading the code and confirmed with a search; file:line at commit 521d7de's parent unless said. **Keep**
@@ -224,9 +351,9 @@ Each found by reading the code and confirmed with a search; file:line at commit 
 | StrikeChart `usd` import; Terrain's `onBarClick` double guard | unused / redundant | delete |
 | setups.ts / ChartToolbar `dexStrike` | stored and listed, excluded from Terrain's menu, never drawn | delete |
 | PaneHead `className` prop | never passed | delete |
-| The pop-out (`/out/terrain`) | its keys and the `?` door do nothing (no desk key handler outside AppShell) | keep the pop-out; wire its keys or drop the key hints there |
+| The pop-out (`/out/terrain`) | its keys and the `?` door did nothing (no desk key handler outside AppShell) | keep the pop-out; the `?` door is gone from it (9115af0); its keys stay unwired |
 | core/pine `runSource`, `RunResult.warnings`, `barcolors` (so `barcolor()` never shows), `forceOverlay`, `ChartScript.inks`/`version`, `SlayerFeed.netGex`, `setVisibility` and the community shelf, five unreachable "must sit at the top level" throws, `OPS3`, the `xloc`/`yloc`/`extend`/`barmerge` constants | no reader | delete, or wire `barcolor()` (it is a common Pine call) |
-| PK "pure enough for npm test" and LY "the proof stages its own validator" headers | no proof imports either module | fix the headers or add the proofs |
+| LY "the proof stages its own validator" header | no proof imports the module | fix the header or add the proof (PK's is now true: terrain-setups-proof imports `stepTf`, 9115af0) |
 
 ## 6e · Pine Script — what works, what does not, the shipped scripts
 
@@ -258,3 +385,30 @@ flow index 28 · On-balance volume 11. How each draws: the three wall scripts an
 Ichimoku and the three channels on the price pane; RSI, MACD, Stochastic, ATR, ADX, CCI, %R, MFI, OBV and Distance to the
 walls in their own pane. **Open for you**: "The flip" washes the pane red under the flip (a direction ink used as a
 region, over the ovals); six shipped scripts repeat the built-in indicators in the same inks (see 6i).
+
+## 6j · For your approval — nothing here is changed until you say
+
+Each is a change to what a reader sees or a removal, so it waits for you. My recommendation is first; the other way is
+named.
+
+| # | what | where it was found | I recommend | the other way |
+|---|---|---|---|---|
+| 1 | **The ladder's source.** The ladder shows Unusual Whales' book by strike; the ovals beside it are the modeled field. For one strike at one minute they differ by −12% to +44% (the model), more near the close (UW's book is figured after the bell) | 6c | the ladder reads the field's column at the minute the chart shows; UW's figure stands beside it as the measured reference (read line, hover card, How sure) — one strike, one number | keep UW's book on the ladder, and say on the ladder's head that it is UW's, figured at its time |
+| 2 | **A spacing and type scale** (none exists in the tokens): a 4 px grid and six sizes, the casing in sentence case (the desk bar's and chips' tracked capitals), the ladder's 9–10 px heads and figures to 11 | 6f | apply the proposal as written in 6f | keep the sizes as they are and fix only the words under 11 px |
+| 3 | **Deletions and merges** — every row of 6i | 6i | each row as proposed there (delete the dead code; merge the duplicate lists) | row by row: tell me which to keep |
+| 4 | **Indicator inks** on the field's gold–violet axis (EMA 9, SMA 200, RSI, MACD, ATR and nine Pine scripts within ΔE 0.15), and inks shared between indicators and compare lines | 6d, area D | move every indicator ink off the gold–violet axis, one ink each, none shared with a compare line | keep the inks; the ovals and the lines differ by form |
+| 5 | **The six Pine scripts that repeat a built-in** (EMA ribbon, VWAP, Bollinger, RSI, MACD, ATR) in the same inks, seeded differently, so two lines disagree on the left edge | 6d, 6i | keep the built-ins and take the six off the shelf | keep the Pine ones and drop the built-ins |
+| 6 | **"Key levels"** in the Layers menu changes nothing on the plot (B-41) | B-41 | make it hide and show the wall lines, the flip's rule and the axis chips — the menu's own promise | delete the row |
+| 7 | **Two level-alert systems** — the toolbar's level chips (gex/alertStore) and the right-click tiered watches (data/levelAlerts) — on the same levels, with two lists, two logs and two cooldowns | 6i | one: the tiered watches, the toolbar's chips arming a watch | keep both and say in each which one fires |
+| 8 | **One "heaviest"**: the Top chip and pills by gross, the bead card's rank and the right-click top-3 by \|net\|, the level card and day panel by the raw walls | 6i | gross everywhere (the size the ovals draw) | \|net\| everywhere |
+| 9 | **The session chip** on the desk bar names the CME futures week ("GLOBEX · EUROPE") on an options desk, and is not reachable by the keys | A-226 | show the options session (pre-market, regular, after hours) and make it a focusable chip with its title | remove it (the strip's phase already says it) |
+| 10 | **Toasts** stand over the ladder's head and, in full screen, over Overlays, Theme and Collapse for 5 s | A-200 | toasts at the foot of the screen, clear of every pane's chrome | leave them; they go in 5 s |
+| 11 | **"The flip"** Pine script washes the pane red under the flip: a direction ink used as a region, over the ovals | 6e | a quiet neutral band, or the flip's own line alone | keep the wash |
+| 12 | **Drawings are kept per tape**: a line drawn on SPY with the keys in is not on SPY's house tape, and back | area B | one set of drawings per name, whichever tape draws it | keep them apart (a price on one tape is not the other's) |
+| 13 | **`barcolor()`** runs in Pine but never colours a candle | 6e, 6i | wire it (a common Pine call) | delete it from the engine and refuse it with words |
+| 14 | **The pop-out's keys** (/out/terrain): none of the desk's keys work there | 6i | wire the pane's own keys (P, R, T, W, L, timeframes) in the pop-out | leave the pop-out mouse-only |
+| 15 | **The crosshair readout** names the price pane's single lines only; RSI, MACD, ATR, the bands and Bollinger say nothing under the crosshair | D-06…D-10 | each pane's legend prints its own value at the crosshair (TradingView's way) | leave the readout as it is |
+
+**Outside Terrain, found on the way, not changed:** Pinpoint's Compare (CompareAxis) and the exposure field on Pinpoint's
+Map and Pulse (ExposureField) still keep a capture-phase Escape of their own — the pattern 646b2ff took off Terrain; they
+belong to those rooms' audits.
