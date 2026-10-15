@@ -7,7 +7,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { num } from '../../core/format';
 import type { ChartLayerApi } from '../gex/StrikeChart';
-import { LEVEL_NAMES, setConfirmBars, setLevelWatch, useLevelWatches, type LevelId } from '../../data/levelAlerts';
+import { useOverlay } from '../ui/layers';
+import { CONFIRM_CHOICES, LEVEL_NAMES, setConfirmBars, setLevelWatch, useLevelWatches, type LevelId } from '../../data/levelAlerts';
 
 interface Props {
   api: ChartLayerApi;
@@ -74,21 +75,16 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
       if (cardRef.current && e.target instanceof Node && cardRef.current.contains(e.target)) return;
       setOpen(null);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setOpen(null);
-      }
-    };
     window.addEventListener('pointerdown', away, true);
     window.addEventListener('wheel', away, true);
-    window.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('pointerdown', away, true);
       window.removeEventListener('wheel', away, true);
-      window.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
+  /* THE HOUSE'S OVERLAY CONTRACT (ui/layers.ts — the audit: its own capture-phase Escape closed the card AND let the key
+     on to the layer stack, so a pinned strike went with it): the keys go into the card, Esc closes it when it is on top */
+  useOverlay({ open: !!open, ref: cardRef, onClose: () => setOpen(null) });
 
   useLayoutEffect(() => {
     const parent = cardRef.current?.offsetParent as HTMLElement | null;
@@ -121,7 +117,7 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
     </button>
   );
   return (
-    <div ref={cardRef} className="absolute z-[60] w-[272px] rounded-md border border-borderMuted bg-panel p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.5)] animate-soft-in" style={pos ?? { left: 0, top: 0, visibility: 'hidden' }} onContextMenu={e => e.preventDefault()} data-chart-menu="level-alert" data-theme="dark">
+    <div ref={cardRef} role="menu" aria-label={open.label} tabIndex={-1} className="absolute z-[60] w-[272px] outline-none rounded-md border border-borderMuted bg-panel p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.5)] animate-soft-in" style={pos ?? { left: 0, top: 0, visibility: 'hidden' }} onContextMenu={e => e.preventDefault()} data-chart-menu="level-alert" data-theme="dark">
       <div className="px-2 pt-1 pb-1.5 text-[12px] font-semibold text-textPrimary">{open.label}</div>
       {on
         ? item(`Stop the alert on ${LEVEL_NAMES[open.id]}`, `${t}'s watch lets ${LEVEL_NAMES[open.id]} go`, () => setLevelWatch(t, open.id, false), 'level-alert-off')
@@ -141,7 +137,7 @@ const LevelAlertMenu = ({ api, ticker, levels, top, sigma }: Props) => {
         <div className="mt-1 pt-1 border-t border-borderSubtle px-2 py-1.5 flex items-center gap-2">
           <span className="text-[11px] text-textMuted">Closed minutes beyond it</span>
           <span role="group" aria-label="Closed minutes beyond the flip before its notice" className="inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px">
-            {[1, 2, 3].map(n => (
+            {CONFIRM_CHOICES.map(n => (
               <button key={n} type="button" aria-pressed={watch?.confirmBars === n} onClick={() => setConfirmBars(t, n)} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] ${watch?.confirmBars === n ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
                 {n}
               </button>

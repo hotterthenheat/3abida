@@ -953,6 +953,7 @@ export type CrosshairReadout = (bar: CrosshairBar | null) => void;
 // Wall / flip / supreme overlay colors (independent of candle theme)
 import { defaultStop } from './drawingKinds';
 import { undoable } from '../ui/undo';
+import { useEscapeLayer } from '../ui/layers';
 import { BULL, BEAR, CALL_WALL, PUT_WALL, FLIP, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
 import { FONT_SANS } from '../../theme/fonts';
 
@@ -1481,18 +1482,20 @@ const StrikeChart = ({
      lets it go. The hover card is the collapsed three lines. */
   const [pinnedBead, setPinnedBead] = useState<BeadHit | null>(null);
   useEffect(() => setPinnedBead(null), [ticker, timeframe, replay]);
-  useEffect(() => {
-    if (!pinnedBead && focusPrice == null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+  /* Esc lets the pinned card and the pinned strike go (item 10) — a MODE on the house layer stack (ui/layers.ts), so a
+     menu over the chart takes the Esc first and the pin stays (the audit's B-08: a raw window listener of its own let the
+     pin go with the menu's Esc) */
+  const pinRef = useRef({ pinnedBead, focusPrice, onPinStrike });
+  pinRef.current = { pinnedBead, focusPrice, onPinStrike };
+  useEscapeLayer(
+    !!pinnedBead || (focusPrice != null && !!onPinStrike),
+    () => {
+      const p = pinRef.current;
       setPinnedBead(null);
-      /* Esc lets the pinned strike go as well (item 10) */
-      if (focusPrice != null && onPinStrike) onPinStrike(focusPrice);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pinnedBead, focusPrice]);
+      if (p.focusPrice != null && p.onPinStrike) p.onPinStrike(p.focusPrice);
+    },
+    { mode: true }
+  );
   /* THE LEVEL CHIP'S HOVER CARD: the level's moves today, how long it has stood, its touches today, the record's line */
   const [levelCard, setLevelCard] = useState<{ key: AxisChipKey; price: number; y: number; lines: string[] } | null>(null);
   const levelChipsRef = useRef<HTMLDivElement | null>(null);
@@ -5843,6 +5846,13 @@ const StrikeChart = ({
     commitDrawing(d);
   };
 
+  /* THE CHART'S OWN SURFACE (the audit's B-59): the rail, the drawing sheet, the cards and the chips stand INSIDE the box
+     below (the sheet portalled into it), so their clicks, moves and double-clicks bubble to its handlers — a tile picked in
+     the sheet pinned the node under the tile, and that pinned card took the next drag, the trend line lost. Only the plot
+     itself (the library's host) and the drawing surface over it hover, pin and reset the view. */
+  const onSurface = (t: EventTarget | null) =>
+    t instanceof Node && (!!containerRef.current?.contains(t) || (t instanceof Element && !!t.closest('[data-draw-surface]')));
+
   return (
     <div className="flex flex-col h-full">
       {/* No legend row — the chart owns the whole widget; inks are taught by
@@ -5863,7 +5873,9 @@ const StrikeChart = ({
         data-theme="dark"
         data-chart-ink
         data-chart-ground={chartGround(themeKey)}
-        onDoubleClick={resetView}
+        onDoubleClick={e => {
+          if (onSurface(e.target)) resetView();
+        }}
         onPointerDownCapture={e => {
           downAtRef.current = { x: e.clientX, y: e.clientY };
         }}
@@ -5872,6 +5884,14 @@ const StrikeChart = ({
              cannot be hovered and the card wants real type. Cheap: one hit
              test per move, state written only when the answer changes. */
           const prim = eventsPrimRef.current;
+          /* over a control in the box (the rail, the sheet, a card) no node or event is under the pointer */
+          if (!onSurface(e.target)) {
+            prim?.setHovered(null);
+            trailsRef.current?.setHover(null);
+            setEventCard(prev => (prev === null ? prev : null));
+            setBeadCard(prev => (prev === null ? prev : null));
+            return;
+          }
           /* THE CHART'S OWN BOX, NOT THIS ONE (2026-10-15, the audit): with the drawing rail docked left and open the chart
              starts 56 px in (railLeftInset), so a pointer measured from this box named the node 56 px to its right */
           const rect = containerRef.current?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
@@ -5905,6 +5925,7 @@ const StrikeChart = ({
           /* A BEAD PINNED (the UI pass): a click on a bead keeps its card up with its doors; one elsewhere lets it go.
              Not while picking a replay bar or drawing — those own the click. */
           if (picking || drawing) return;
+          if (!onSurface(e.target)) return;
           if ((e.target as HTMLElement).closest('[data-bead-card], [data-axis-chips], [data-chart-chrome]')) return;
           /* A PAN IS NOT A CLICK (the round-3 audit: a drag across the chart ended on a node and pinned it, its card up) —
              a press that moved more than a few pixels before it let go pins nothing */
@@ -6040,6 +6061,7 @@ const StrikeChart = ({
         {drawing && (
           <div
             className="absolute inset-0 z-20 cursor-crosshair touch-none"
+            data-draw-surface
             onPointerDown={onDrawDown}
             onDoubleClick={onDrawDblClick}
             onPointerMove={onDrawMove}

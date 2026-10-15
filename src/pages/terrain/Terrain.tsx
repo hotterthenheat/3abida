@@ -2631,6 +2631,13 @@ const Pane = ({
       {printClock(fQuote.at)} print{fQuote.stale ? ' · stale' : ''}
     </span>
   );
+  /* AN INDEX WITH NO PRINT AND NO OPTIONS PRICE stands on its book's price — said, as the other two sources are (the
+     audit's A-20: SPX printed a price with nothing saying where it came from) */
+  const bookChip = onFeed && isCashIndex(ticker) && !fQuote && fBook && Number.isFinite(fBook.spot) && (
+    <span className="shrink-0 font-mono text-[11px] tnum text-textMuted" data-pane-print="book" title={`No index value on this plan outside its option prints: the price is the one Unusual Whales figured the book at, ${printClock(fBook.at)}`}>
+      book's price · {printClock(fBook.at)}
+    </span>
+  );
   const facts = (
     <>
       <span className={`shrink-0 ${stale ? 'text-warn [&_*]:!text-warn' : ''}`} data-price-stale={stale ? '' : undefined} title={stale ? 'The price is as old as the data' : undefined}>
@@ -2638,6 +2645,7 @@ const Pane = ({
       </span>
       {printChip}
       {optionsChip}
+      {bookChip}
       {/* under lg the ladder's door is the peek over the chart's foot (the UI pass); the Strikes button stands only
           where the peek has nothing to show */}
       {belowLg && rail.rows.length > 0 && peek.length === 0 && (

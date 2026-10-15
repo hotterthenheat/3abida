@@ -582,7 +582,19 @@ export function createFieldBackfill(client: FeedClient, opts: { now?: () => numb
   /** A session's minute bars: the file kept beside it, else one call (kept then) — null where the vendor has none */
   /** the kept sessions asked again for their volume in this process — once each, answered or not */
   const noVolume = new Set<string>();
-  async function bars(name: string, day: string): Promise<MinuteBar[] | null> {
+  /* ONE ASK A SESSION AT A TIME: the tiles, the priced move, the scale and the scorecard read a session's bars together —
+     a second reader arriving while the first asked again for the volume took the kept bars without it (the tiles of Oct
+     14 were built so, their volume pane empty); it waits on the first's answer now */
+  const barsAsking = new Map<string, Promise<MinuteBar[] | null>>();
+  function bars(name: string, day: string): Promise<MinuteBar[] | null> {
+    const k = `${name}|${day}`;
+    const had = barsAsking.get(k);
+    if (had) return had;
+    const p = barsOnce(name, day).finally(() => barsAsking.delete(k));
+    barsAsking.set(k, p);
+    return p;
+  }
+  async function barsOnce(name: string, day: string): Promise<MinuteBar[] | null> {
     const file = join(root, name, day, BARS);
     let kept: MinuteBar[] | null = null;
     try {

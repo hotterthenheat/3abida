@@ -20,6 +20,7 @@
 */
 import { armLine, armPrice, condHolds, evaluateAlert, evaluateAll, evaluateLine, getAlerts, getFiredLog, lineAt, markFired, removeAlert, syncLineAlerts, type AlertContext, type AllAlert, type AllContext, type LineAlert, type LineBar } from '../src/components/gex/alertStore';
 import { noteRealPrice, realPrice, REAL_PRICE_STALE_MS, resetAlertMarket, setAlertMarket } from '../src/components/gex/alertMarket';
+import { levelWatches, putLevelWatch, setConfirmBars, setLevelWatch } from '../src/data/levelAlerts';
 
 let pass = 0, fail = 0;
 const check = (name: string, ok: boolean, extra = '') => {
@@ -193,6 +194,19 @@ const line = (over: Partial<LineAlert> = {}): LineAlert => ({
   check('the feed set moving its line moves its alert', moved?.kind === 'line' && moved.p1.price === 101 && moved.side === 0);
   syncLineAlerts('LNS', [], 'feed:LNS');
   check('the feed set saved empty takes its alert off', getAlerts('LNS').length === 0);
+}
+
+// a level watch stopped from the drawer comes back exactly as it was — its confirmation kept (the Terrain audit's A-255)
+{
+  setLevelWatch('ZZZ', 'flip', true);
+  setConfirmBars('ZZZ', 4);
+  const was = levelWatches().ZZZ;
+  setLevelWatch('ZZZ', 'flip', false);
+  const gone = levelWatches().ZZZ;
+  putLevelWatch('ZZZ', was);
+  const back = levelWatches().ZZZ;
+  check('a stopped level watch is put back whole by the undo', !gone && !!back && back.ids.join() === 'flip' && back.confirmBars === 4, JSON.stringify({ was, gone, back }));
+  putLevelWatch('ZZZ', undefined);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

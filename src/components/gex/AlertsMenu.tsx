@@ -144,9 +144,8 @@ const AlertsMenu = ({ ticker, spot, tf }: AlertsMenuProps) => {
               e.preventDefault();
               submit();
             }
-            /* The desk listens for Escape too — the innermost open thing
-               takes the key and nothing else sees it. */
-            if (e.key === 'Escape') e.stopPropagation();
+            /* Escape is the house layer stack's (the toolbar menu's useOverlay): it closes the menu this field is in and
+               marks the key, so nothing under it (a pinned strike, the full screen) goes with it */
           }}
           inputMode="decimal"
           placeholder={spot > 0 ? spot.toFixed(2) : 'Price'}

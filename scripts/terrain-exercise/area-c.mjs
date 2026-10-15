@@ -2,15 +2,21 @@
 // button, the decision strip, How sure, the day panel, the phone's peek and overlay ladder, Read this / Glossary, the
 // states (building, catching up, stale, no data, denied/blocked feed, gaps) and the layouts (1–4 panes at 1440×900 and
 // 1280×720, F, the phone). Plus the owner's item 6c: the ladder's net against the chart's field, strike by strike.
-// Read-only against the dev server at 127.0.0.1:5181; writes docs/terrain-audit-2026-10-15/exercise/area-c.{json,md,*.png}.
+// Read-only against the dev server (EXERCISE_URL, 127.0.0.1:5180 by default); writes area-c.{json,md,*.png} to EXERCISE_OUT
+// (docs/terrain-audit-2026-10-15/exercise by default).
 // Run: no_proxy=127.0.0.1,localhost NO_PROXY=127.0.0.1,localhost node scripts/terrain-exercise/area-c.mjs
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { execSync } from 'node:child_process';
+/* the commit the run is against (EXERCISE_COMMIT, else the working tree's HEAD) */
+const COMMIT = process.env.EXERCISE_COMMIT || (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 
-const BASE = 'http://127.0.0.1:5181';
-const OUT = 'docs/terrain-audit-2026-10-15/exercise';
+
+/* the address and the folder: EXERCISE_URL and EXERCISE_OUT (the dev server on 5180, the audit's exercise folder) */
+const BASE = process.env.EXERCISE_URL ?? 'http://127.0.0.1:5180';
+const OUT = process.env.EXERCISE_OUT ?? 'docs/terrain-audit-2026-10-15/exercise';
 const TZ = 'America/New_York';
 fs.mkdirSync(OUT, { recursive: true });
 const T0 = Date.now();
@@ -1547,9 +1553,9 @@ if (MERGE) {
 }
 const suffix = process.env.ONLY && !MERGE ? `-${process.env.ONLY.replace(/,/g, '_')}` : '';
 const tot = { pass: R.filter(r => r.pass === true).length, fail: R.filter(r => r.pass === false).length, manual: R.filter(r => r.pass === 'manual').length, all: R.length };
-fs.writeFileSync(path.join(OUT, `area-c${suffix}.json`), JSON.stringify({ at: new Date().toISOString(), server: BASE, commit: '521d7de', viewerTz: TZ, totals: tot, runSeconds: Math.round((Date.now() - T0) / 1000), items: R, sixC: SIX, log: LOG }, null, 1));
+fs.writeFileSync(path.join(OUT, `area-c${suffix}.json`), JSON.stringify({ at: new Date().toISOString(), server: BASE, commit: COMMIT, viewerTz: TZ, totals: tot, runSeconds: Math.round((Date.now() - T0) / 1000), items: R, sixC: SIX, log: LOG }, null, 1));
 const esc_ = s => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
-let md = `# Terrain audit 2026-10-15 — area C exercised\n\nRun ${new Date().toISOString()} against ${BASE} (commit 521d7de), Chromium headless at 1x, viewer zone ${TZ}, dark theme. ` +
+let md = `# Terrain audit 2026-10-15 — area C exercised\n\nRun ${new Date().toISOString()} against ${BASE} (commit ${COMMIT}), Chromium headless at 1x, viewer zone ${TZ}, dark theme. ` +
   `Night in New York (market closed). The machine is shared with two other agents' browsers, so every timing is pessimistic. ` +
   `${tot.all} items: **${tot.pass} pass, ${tot.fail} fail, ${tot.manual} manual**.${MERGE ? '' : ` Run took ${Math.round((Date.now() - T0) / 1000)} s.`}\n\n` +
   `ms = from the action to the observed result (polled every 25 ms). Screenshots: area-c-*.png beside this file.\n\n` +

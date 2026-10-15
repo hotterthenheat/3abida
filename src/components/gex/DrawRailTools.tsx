@@ -45,6 +45,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronRight, Search, Star, X } from 'lucide-react';
 import type { DrawingKind } from './drawingsPrimitive';
 import { DRAW_FAMILIES, drawToolDef, familyFace, searchDrawTools, toggleDrawFavourite, useDrawToolPrefs, type DrawToolDef } from './drawTools';
+import { useOverlay } from '../ui/layers';
 
 type Dock = 'left' | 'top';
 type OpenList = { id: string; anchor: DOMRect } | null;
@@ -171,6 +172,9 @@ const ToolList = ({ title, tools, anchor, dock, host, drawTool, favs, onPick, on
     const top = dock === 'left' ? anchor.top - h.top - 8 : anchor.bottom - h.top + 8;
     setPos({ left: Math.max(6, Math.min(left, h.width - bw - 6)), top: Math.max(6, Math.min(top, h.height - bh - 6)), maxH });
   }, [anchor, dock, host, tools.length]);
+  /* THE HOUSE'S OVERLAY CONTRACT (ui/layers.ts — the audit: a capture-phase Escape of its own took the key from every
+     other layer): the keys go into the list, Tab stays in it, Esc closes it when it is on top, and back to its button */
+  useOverlay({ open: true, ref: box, onClose });
   useEffect(() => {
     const down = (e: PointerEvent) => {
       const t = e.target as Node | null;
@@ -178,17 +182,8 @@ const ToolList = ({ title, tools, anchor, dock, host, drawTool, favs, onPick, on
       if (t instanceof Element && t.closest('[data-draw-family]')) return;
       onClose();
     };
-    const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      onClose();
-    };
     document.addEventListener('pointerdown', down, true);
-    document.addEventListener('keydown', key, true);
-    return () => {
-      document.removeEventListener('pointerdown', down, true);
-      document.removeEventListener('keydown', key, true);
-    };
+    return () => document.removeEventListener('pointerdown', down, true);
   }, [onClose]);
   let lastSub: string | null = null;
   return createPortal(
@@ -246,12 +241,16 @@ export const DrawSheet = ({ host, dock, drawTool, onPick, onClose }: SheetProps)
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<string>(prefs.favs.length ? 'favs' : DRAW_FAMILIES[0].id);
   const box = useRef<HTMLDivElement | null>(null);
+  const search = useRef<HTMLInputElement | null>(null);
   const [narrow, setNarrow] = useState(() => host.clientWidth < 560);
   useLayoutEffect(() => {
     const ro = new ResizeObserver(() => setNarrow(host.clientWidth < 560));
     ro.observe(host);
     return () => ro.disconnect();
   }, [host]);
+  /* THE HOUSE'S OVERLAY CONTRACT (ui/layers.ts — the audit): the search takes the keys (the sheet itself on a narrow pane,
+     so a phone's keyboard does not jump up), Tab stays inside, Esc closes it when it is on top, and back to its door */
+  useOverlay({ open: true, ref: box, onClose, initialFocus: narrow ? 'container' : search });
   useEffect(() => {
     const down = (e: PointerEvent) => {
       const t = e.target as Node | null;
@@ -259,17 +258,8 @@ export const DrawSheet = ({ host, dock, drawTool, onPick, onClose }: SheetProps)
       if (t instanceof Element && t.closest('[data-draw-sheet-door]')) return;
       onClose();
     };
-    const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      onClose();
-    };
     document.addEventListener('pointerdown', down, true);
-    document.addEventListener('keydown', key, true);
-    return () => {
-      document.removeEventListener('pointerdown', down, true);
-      document.removeEventListener('keydown', key, true);
-    };
+    return () => document.removeEventListener('pointerdown', down, true);
   }, [onClose]);
 
   const searching = query.trim().length > 0;
@@ -285,9 +275,10 @@ export const DrawSheet = ({ host, dock, drawTool, onPick, onClose }: SheetProps)
       ref={box}
       role="dialog"
       aria-label="Drawings"
+      tabIndex={-1}
       data-chart-rail
       data-draw-sheet={narrow ? 'bottom' : 'side'}
-      className={`absolute z-50 flex flex-col border border-borderMuted bg-panel/95 backdrop-blur-md shadow-2xl shadow-black/60 select-none ${
+      className={`absolute z-50 flex flex-col border border-borderMuted bg-panel/95 backdrop-blur-md shadow-2xl shadow-black/60 select-none outline-none ${
         narrow ? 'inset-x-0 bottom-0 max-h-[86%] rounded-t-xl border-b-0 animate-fade-in' : `w-[392px] max-h-[calc(100%-16px)] rounded-lg animate-fade-in ${dock === 'left' ? 'left-[56px] top-2' : 'left-1/2 -translate-x-1/2 top-[46px]'}`
       }`}
     >
@@ -301,13 +292,13 @@ export const DrawSheet = ({ host, dock, drawTool, onPick, onClose }: SheetProps)
       <label className="shrink-0 mx-3 flex items-center gap-2 h-8 px-2.5 rounded-md border border-borderSubtle bg-chip focus-within:border-silver/50">
         <Search className="w-3.5 h-3.5 text-textMuted shrink-0" />
         <input
-          autoFocus={!narrow}
+          ref={search}
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => {
-            /* the desk's own keys must not fire while a name is typed */
+            /* Esc is the layer stack's (it closes the sheet); the desk's own keys must not fire while a name is typed */
+            if (e.key === 'Escape') return;
             e.stopPropagation();
-            if (e.key === 'Escape') onClose();
             if (e.key === 'Enter' && shown[0]) {
               onPick(shown[0].tool);
               onClose();

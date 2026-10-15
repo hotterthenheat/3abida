@@ -1,4 +1,5 @@
 import AnimatedNumber from '../ui/AnimatedNumber';
+import { usd } from '../../core/format';
 
 /** Live spot readout with the house change stamp (Noah, 2026-08-17: red on
     a drop, green on a rise — and "back to white after the change"): the
@@ -11,6 +12,7 @@ const SpotPrice = ({
 }: {
   value: number;
   className?: string;
-}) => <AnimatedNumber value={value} format={v => `$${v.toFixed(2)}`} flash className={className} />;
+  /* ONE WAY TO SAY A FIGURE (core/format): "$7,715.00", never a toFixed of its own ("$7715.00" — the audit's A-20) */
+}) => <AnimatedNumber value={value} format={v => usd(v)} flash className={className} />;
 
 export default SpotPrice;

@@ -22,9 +22,13 @@ const browser = await chromium.launch(exe ? { executablePath: exe } : {});
 const results = [];
 
 /** A page on Terrain with the panes asked, the desk put back by `done`; `at` holds the page's clock from that instant */
-async function terrain(panes, { width = 1440, height = 900, layout = 1, at = null, railCut = undefined, cvd = null, theme = null } = {}) {
+async function terrain(panes, { width = 1440, height = 900, layout = 1, at = null, railCut = undefined, cvd = null, theme = null, init = null, block = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Los_Angeles' });
   const page = await ctx.newPage();
+  /* a script run before the page's own (a recorder of the canvas's words), and requests refused (a feed route, by regex —
+     a glob on "feed" also caught the page's own src/data/feed modules) */
+  if (init) await page.addInitScript(init);
+  if (block) await page.route(block, r => r.abort());
   /* the reader's colour vision and theme, set before the first paint as Settings leaves them (index.html reads them) */
   if (cvd || theme)
     await page.addInitScript(([cvd, theme]) => {
@@ -1080,6 +1084,502 @@ check('rail: the change wears the true minus', async () => {
     const t = await page.evaluate(() => [...document.querySelectorAll('[data-subject]')].map(e => e.textContent + ' ' + (e.getAttribute('data-tip') ?? '') + ' ' + (e.getAttribute('aria-label') ?? '')).join(' | '));
     const hyphen = /(^|\s)-\d/.test(t);
     return { pass: !hyphen && !errors.length, notes: [`the rail's subject: "${t.slice(0, 160)}"`] };
+  } finally {
+    await done();
+  }
+});
+
+/* ---- batch 4, the checks for the fixes with no check above -------------------------------------------------------- */
+/* every word a canvas writes, with its font — the cone tag, the session phases, the VPOC (B-29, B-31, C-11) */
+const recordCanvasWords = () => {
+  const words = [];
+  window.__canvasWords = words;
+  const f = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function (text, x, y, w) {
+    if (words.length < 40000) words.push({ text: String(text), font: this.font, h: this.canvas.height / Math.max(1, this.canvas.clientHeight || this.canvas.height) });
+    return f.call(this, text, x, y, w);
+  };
+};
+const cssPx = w => {
+  const m = /(\d+(?:\.\d+)?)px/.exec(w.font);
+  return m ? Number(m[1]) / (w.h || 1) : null;
+};
+
+check('canvas words: the cone tag, the session phases and the VPOC at 11 px, the tag through the house formatter', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true, cone: true, phases: true }, ladder: true }], { init: recordCanvasWords, block: u => u.pathname.startsWith('/feed/') });
+  try {
+    await page.locator('[data-profile-panel] button[title^="Volume profile"]').first().click().catch(() => {});
+    await page.waitForTimeout(2500);
+    const words = await page.evaluate(() => window.__canvasWords.slice(-6000));
+    const pick = re => words.filter(w => re.test(w.text));
+    const em = pick(/^EM ±/);
+    const phases = pick(/^(lunch|power hour|after hours|the open|pre-market|open)$/i);
+    const vpoc = pick(/^VPOC$/);
+    const sizes = list => [...new Set(list.map(cssPx).filter(v => v != null).map(v => Math.round(v * 10) / 10))];
+    const okSize = list => list.length > 0 && list.every(w => (cssPx(w) ?? 0) >= 10.9);
+    const emFormat = em.every(w => /^EM ±\$\d{1,3}(,\d{3})*\.\d{2}$/.test(w.text));
+    const pass = okSize(em) && emFormat && okSize(phases) && okSize(vpoc) && !errors.length;
+    return { pass, notes: [`cone tag "${em[0]?.text ?? '—'}" at ${sizes(em).join(', ') || '—'} px; phase words ${[...new Set(phases.map(w => w.text))].join(', ') || '—'} at ${sizes(phases).join(', ') || '—'} px; VPOC at ${sizes(vpoc).join(', ') || '—'} px`] };
+  } finally {
+    await done();
+  }
+});
+
+check('Net view: the puts lean left of the centre line, as the Sides view and the spine keep them', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    await page.locator('[data-profile-view="net"]').first().click().catch(() => {});
+    await page.waitForTimeout(800);
+    const r = await page.evaluate(() => {
+      const c = document.querySelector('[data-profile-panel] canvas');
+      const g = c.getContext('2d');
+      const { width: W, height: H } = c;
+      const d = g.getImageData(0, 0, W, H).data;
+      let vx = 0, vn = 0, gx = 0, gn = 0;
+      for (let y = Math.round(H * 0.15); y < H * 0.95; y += 2)
+        for (let x = 0; x < W; x += 2) {
+          const k = (y * W + x) * 4;
+          const [R, G, B] = [d[k], d[k + 1], d[k + 2]];
+          if (B > R + 40 && B > G + 60) { vx += x; vn++; }
+          else if (R > 170 && G > 130 && B < 110 && R - B > 90) { gx += x; gn++; }
+        }
+      return { violet: vn ? vx / vn / W : null, gold: gn ? gx / gn / W : null, vn, gn };
+    });
+    const pass = r.violet != null && r.gold != null && r.violet < r.gold && !errors.length;
+    return { pass, notes: [`violet (the puts, amplify) at ${r.violet?.toFixed(2)} of the width (${r.vn} px), gold (the calls, absorb) at ${r.gold?.toFixed(2)} (${r.gn} px)`] };
+  } finally {
+    await done();
+  }
+});
+
+check('ladder: a drag of the width grip pins no strike', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], { layout: 3 });
+  try {
+    const before = await page.evaluate(() => [...window.__charts].find(x => x.trails && x.host.isConnected)?.trails.focusStrike ?? null);
+    const grip = await page.locator('[data-profile-grip]').first().boundingBox();
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(grip.x - 30, grip.y + grip.height / 2, { steps: 6 });
+    await page.mouse.move(grip.x - 60, grip.y + grip.height * 0.6, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => [...window.__charts].find(x => x.trails && x.host.isConnected)?.trails.focusStrike ?? null);
+    return { pass: before == null && after == null && !errors.length, notes: [`the chart's kept strike: before ${before ?? 'none'}, after the grip drag ${after ?? 'none'}`] };
+  } finally {
+    await done();
+  }
+});
+
+check('Move box: with no book yet no σ is measured from a price the pane does not hold', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], { block: /\/spot-exposures\/strike/ });
+  try {
+    const move = await page.evaluate(() => document.querySelector('[data-decision-box="move"]')?.textContent ?? null);
+    return { pass: move != null && !/σ day/.test(move) && !errors.length, notes: [`Move box: "${move}"`] };
+  } finally {
+    await done();
+  }
+});
+
+check('scripts: an overlay script far off the candles leaves the fitted axis where the candles put it', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const span = () => page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+      const h = e.host.getBoundingClientRect().height;
+      return Math.abs(e.candles.coordinateToPrice(h * 0.2) - e.candles.coordinateToPrice(h * 0.8));
+    });
+    const s0 = await span();
+    const placed = await page.evaluate(async () => {
+      const api = window.__paneScripts;
+      const s = await api.save({ title: 'Far off', source: '//@version=6\nindicator("Far off", overlay=true)\nplot(close * 1.25)\n' });
+      const cs = await api.place('terrain:1', s.id);
+      return { chartId: cs.id };
+    });
+    await page.waitForTimeout(2500);
+    const s1 = await span();
+    await page.evaluate(async p => { await window.__paneScripts.lift('terrain:1', p.chartId); }, placed);
+    return { pass: s1 <= s0 * 1.05 && !errors.length, notes: [`the axis over 60% of the height: ${s0.toFixed(2)} before, ${s1.toFixed(2)} with the script plotting 25% above the price`] };
+  } finally {
+    await done();
+  }
+});
+
+check('replay pick: the line stands at the pointer with the drawing rail docked left', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    /* the pane made active on its time axis (no node, no chrome there), then P — its replay's pick */
+    await page.mouse.click(b.x + b.width * 0.4, b.y + b.height - 12);
+    await page.keyboard.press('p');
+    await page.waitForSelector('[data-pick-time]', { timeout: 5000 }).catch(() => {});
+    const x = b.x + b.width * 0.45;
+    await page.mouse.move(x, b.y + b.height * 0.5);
+    await page.waitForTimeout(300);
+    const line = await page.locator('[data-pick-line]').first().boundingBox({ timeout: 3000 }).catch(() => null);
+    const off = line ? line.x - x : null;
+    await page.keyboard.press('Escape');
+    return { pass: off != null && Math.abs(off) <= 2 && !errors.length, notes: [`the pick line ${off == null ? 'not drawn' : `${off.toFixed(1)} px from the pointer`}`] };
+  } finally {
+    await done();
+  }
+});
+
+check('field words: the chips, pills and gap notes are painted by a view over the candles', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const r = await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected);
+      return { orders: e.trails.paneViews().map(v => v.zOrder()), words: typeof e.trails.pendingWords };
+    });
+    return { pass: r.orders.includes('bottom') && r.orders.includes('top') && r.words === 'function' && !errors.length, notes: [`the field's views: ${r.orders.join(', ')}; this frame's words ${r.words === 'function' ? 'handed to the top view' : 'none'}`] };
+  } finally {
+    await done();
+  }
+});
+
+check('volume: the sessions before today carry their volume', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true, volume: true }, ladder: true }]);
+  try {
+    await page.waitForTimeout(8000);
+    const r = await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+      const vol = e.chart.panes()[0].getSeries().find(s => s.seriesType() === 'Histogram' && s.data().length > 50);
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const past = (vol?.data() ?? []).filter(p => new Date(p.time * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) < today);
+      return { n: past.length, withVol: past.filter(p => (p.value ?? 0) > 0).length };
+    });
+    return { pass: r.n > 0 && r.withVol / r.n > 0.9 && !errors.length, notes: [`${r.withVol} of ${r.n} bars of the sessions before today carry volume`] };
+  } finally {
+    await done();
+  }
+});
+
+check('guide: How to read speaks gold and violet, never orange and blue', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    await page.locator('[data-profile-guide]').first().click();
+    const card = await page.waitForSelector('[data-popover-card="profile-guide"]', { timeout: 3000 }).catch(() => null);
+    const text = card ? await card.textContent() : '';
+    await page.keyboard.press('Escape');
+    const pass = !!card && /violet/i.test(text) && /gold/i.test(text) && !/\borange\b|\bblue\b/i.test(text) && !errors.length;
+    return { pass, notes: [`guide ${card ? 'open' : 'missing'}; violet ${/violet/i.test(text)}, gold ${/gold/i.test(text)}, orange/blue ${/\borange\b|\bblue\b/i.test(text)}`] };
+  } finally {
+    await done();
+  }
+});
+
+check('pop-out: a pane in its own window shows no keys door; the Overlays door has a name', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const name = await page.locator('button[title="Overlays"]').first().getAttribute('aria-label');
+    await page.goto(`${base}/out/terrain`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-chart-ink]', { timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    const keys = await page.locator('[data-pane-keys]').count();
+    return { pass: keys === 0 && (name === null || /Overlays/.test(name)) && !errors.length, notes: [`pop-out keys doors: ${keys}; the Overlays door's name: ${name ?? '(its words)'}`] };
+  } finally {
+    await done();
+  }
+});
+
+/* the house's overlay contract on the toolbar's menus (A-54/A-55) and the pin's Esc a mode on the layer stack (B-08) */
+check('menus: Esc closes the toolbar menu and keeps the pin; the keys go into the menu and back to its door', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const at = await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+      const r = e.host.getBoundingClientRect();
+      for (let y = Math.round(r.height * 0.35); y < r.height * 0.85; y += 3)
+        for (let x = Math.round(r.width * 0.5); x < r.width * 0.85; x += 4) {
+          const b = e.trails.beadAt(x, y);
+          if (b) return { x: r.left + x, y: r.top + y, strike: b.strike };
+        }
+      return null;
+    });
+    if (!at) return { pass: false, notes: ['no node to pin'] };
+    await page.mouse.click(at.x, at.y);
+    await page.waitForTimeout(400);
+    const pin = () => page.evaluate(() => [...window.__charts].find(x => x.trails && x.host.isConnected)?.trails.focusStrike ?? null);
+    const pinned = await pin();
+    const door = page.locator('button[title="Overlays"]').first();
+    await door.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-toolbar-menu]', { timeout: 3000 });
+    await page.waitForTimeout(200);
+    const inMenu = await page.evaluate(() => !!document.activeElement?.closest('[data-toolbar-menu]'));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    const after = await page.evaluate(() => ({ menu: !!document.querySelector('[data-toolbar-menu]'), onDoor: document.activeElement?.getAttribute('title') === 'Overlays' }));
+    const stillPinned = await pin();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    const released = await pin();
+    const pass = pinned === at.strike && inMenu && !after.menu && after.onDoor && stillPinned === at.strike && released == null && !errors.length;
+    return { pass, notes: [`pinned ${pinned}; the keys ${inMenu ? 'in the menu' : 'not in the menu'} on open; Esc: menu ${after.menu ? 'still open' : 'closed'}, keys ${after.onDoor ? 'back on its door' : 'elsewhere'}, pin ${stillPinned ?? 'gone'}; a second Esc: pin ${released ?? 'let go'}`] };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── A PRESS IN THE DRAWING SHEET IS NOT A PRESS ON THE CHART (the audit's B-59) ────────────────────────────────────
+   Before: the sheet is portalled into the chart's box, so a tab or a tile pressed over a node bubbled to the chart's
+   click and pinned that node; its card (which takes the pointer) then stood where the first trend line began, and the
+   drag was lost. */
+check('drawings: a press in the sheet pins no node, and the first drag after a pick draws', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '1m', overlays: { trails: true }, ladder: true }]);
+  try {
+    await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+      const s = e.trails.snapshots;
+      const last = s[s.length - 1].time;
+      e.chart.timeScale().setVisibleRange({ from: last - 80 * 60, to: last + 5 * 60 });
+    });
+    await page.waitForTimeout(600);
+    await page.locator('[data-chart-rail]').first().hover();
+    await page.locator('[data-draw-sheet-door]').first().click();
+    await page.waitForSelector('[data-draw-sheet]', { timeout: 3000 });
+    /* a tab of the sheet with a node under its middle (tabs leave the sheet open) */
+    const over = await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected);
+      const r = e.host.getBoundingClientRect();
+      for (const el of document.querySelectorAll('[data-draw-sheet] [data-draw-tab], [data-draw-sheet] [data-draw-tile]')) {
+        const b = el.getBoundingClientRect();
+        for (const [fx, fy] of [[0.5, 0.5], [0.25, 0.5], [0.75, 0.5], [0.5, 0.25], [0.5, 0.75]]) {
+          const x = b.left + b.width * fx;
+          const y = b.top + b.height * fy;
+          const n = e.trails.beadAt(x - r.left, y - r.top);
+          if (n) return { x, y, strike: n.strike, what: el.getAttribute('data-draw-tab') ? 'tab' : 'tile' };
+        }
+      }
+      return null;
+    });
+    const notes = [];
+    let pass = true;
+    if (over) {
+      if (over.what === 'tab') await page.mouse.click(over.x, over.y);
+      else await page.mouse.move(over.x, over.y);
+      await page.waitForTimeout(350);
+      const st = await page.evaluate(() => ({
+        card: document.querySelector('[data-bead-card]')?.getAttribute('data-bead-card') ?? null,
+        pin: [...window.__charts].find(x => x.trails && x.host.isConnected)?.trails.focusStrike ?? null,
+      }));
+      notes.push(`a ${over.what} over the ${over.strike} node ${over.what === 'tab' ? 'pressed' : 'hovered'}: card ${st.card ?? 'none'}, pin ${st.pin ?? 'none'}`);
+      if (st.card || st.pin != null) pass = false;
+    } else notes.push('no node under the sheet in this view (the press-through part not exercised)');
+    if (!(await page.locator('[data-draw-sheet]').count())) await page.locator('[data-draw-sheet-door]').first().click();
+    await page.locator('[data-draw-search]').fill('');
+    await page.locator('[data-draw-search]').fill('trend');
+    await page.locator('[data-draw-tile="trend"]').first().click();
+    await page.waitForTimeout(350);
+    const count = () => page.evaluate(() => {
+      let n = 0;
+      for (const k of Object.keys(localStorage)) if (k.startsWith('slayer_chart_drawings_')) n += JSON.parse(localStorage.getItem(k) || '[]').length;
+      return n;
+    });
+    const n0 = await count();
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    const a = { x: b.x + b.width * 0.32, y: b.y + b.height * 0.42 };
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 140, a.y + 60, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(600);
+    const n1 = await count();
+    notes.push(`the first drag after the pick: drawings ${n0} → ${n1}`);
+    if (n1 !== n0 + 1) pass = false;
+    if (errors.length) {
+      pass = false;
+      notes.push(...errors);
+    }
+    return { pass, notes };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── EVERY CARD ON THE CHART CLOSES ON ITS OWN ESC (the audit's h: the house's overlay contract, ui/layers.ts) ─────────
+   Before: the drawing sheet, the rail's family list, the level-alert card and the chart's right-click card each had a
+   capture-phase Escape of their own, and the alerts field stopped the key — so the field's Esc did nothing once the
+   toolbar menu joined the layer stack, and the level-alert card's Esc let the pin go with it. */
+check('menus: Esc closes the drawing sheet, the right-click card and the alerts field\'s menu, one at a time, and keeps the pin', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    const at = await page.evaluate(() => {
+      const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+      const r = e.host.getBoundingClientRect();
+      for (let y = Math.round(r.height * 0.35); y < r.height * 0.85; y += 3)
+        for (let x = Math.round(r.width * 0.5); x < r.width * 0.85; x += 4) {
+          const b = e.trails.beadAt(x, y);
+          if (b) return { x: r.left + x, y: r.top + y, strike: b.strike };
+        }
+      return null;
+    });
+    if (!at) return { pass: false, notes: ['no node to pin'] };
+    await page.mouse.click(at.x, at.y);
+    await page.waitForTimeout(400);
+    const pin = () => page.evaluate(() => [...window.__charts].find(x => x.trails && x.host.isConnected)?.trails.focusStrike ?? null);
+    const notes = [`pinned ${await pin()}`];
+    let pass = (await pin()) === at.strike;
+    const step = async (what, open, sel) => {
+      await open();
+      const shown = await page.waitForSelector(sel, { timeout: 3000 }).then(() => true).catch(() => false);
+      await page.waitForTimeout(200);
+      const inside = await page.evaluate(sel => !!document.activeElement?.closest(sel), sel);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      const still = await page.locator(sel).count();
+      const p = await pin();
+      notes.push(`${what}: ${shown ? 'open' : 'never opened'}, keys ${inside ? 'inside' : 'outside'}; Esc → ${still ? 'still open' : 'closed'}, pin ${p ?? 'gone'}`);
+      if (!shown || !inside || still || p !== at.strike) pass = false;
+    };
+    await step(
+      'the drawing sheet',
+      async () => {
+        await page.locator('[data-chart-rail]').first().hover();
+        await page.locator('[data-draw-sheet-door]').first().click();
+      },
+      '[data-draw-sheet]'
+    );
+    /* a right-click: the level-alert card near a level, the chart's own card elsewhere */
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    await step('the right-click card', () => page.mouse.click(b.x + b.width * 0.45, b.y + b.height * 0.3, { button: 'right' }), '[data-chart-menu="level-alert"], [role="menu"][aria-label="Chart"]');
+    await step(
+      'the alerts menu, Esc from its price field',
+      async () => {
+        await page.locator('button[title="Alerts"]').first().click();
+        await page.waitForSelector('[data-toolbar-menu] input[aria-label^="Alert price"]', { timeout: 3000 });
+        await page.locator('[data-toolbar-menu] input[aria-label^="Alert price"]').first().focus();
+      },
+      '[data-toolbar-menu]'
+    );
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    const released = await pin();
+    notes.push(`a last Esc: pin ${released ?? 'let go'}`);
+    if (released != null) pass = false;
+    if (errors.length) {
+      pass = false;
+      notes.push(...errors);
+    }
+    return { pass, notes };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── THE LADDER'S SASH, ITS NET HEAD AND ITS LANE NAMES (the audit's C-29b, C-16, C-09) ───────────────────────────────
+   Before: a drag of the lanes' sash ended as a click and pinned the strike under it; the Net view drew its Δ figures under
+   no head; at the rest widths the lane names were laid out 0–28 px wide (in the DOM, never read). */
+check('ladder: a drag of the lanes\' sash pins no strike; the Net view heads its Δ column; a lane name stands only where it fits', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true, lane: 'both' }], { init: recordCanvasWords });
+  try {
+    const notes = [];
+    let pass = true;
+    const kept = () => page.evaluate(() => [...window.__charts].find(x => x.trails && x.host.isConnected)?.trails.focusStrike ?? null);
+    const sash = await page.locator('[data-profile-split-grip]').first().boundingBox({ timeout: 3000 }).catch(() => null);
+    if (!sash) {
+      pass = false;
+      notes.push('no sash between the lanes');
+    } else {
+      /* area C's own gestures: a drag right toward the strike column, then a double-click on the sash (its reset) */
+      const y = sash.y + sash.height * 0.55;
+      await page.mouse.move(sash.x + sash.width / 2, y);
+      await page.mouse.down();
+      await page.mouse.move(sash.x + sash.width / 2 + 30, y, { steps: 4 });
+      await page.mouse.move(sash.x + sash.width / 2 + 60, y, { steps: 4 });
+      await page.mouse.up();
+      await page.waitForTimeout(400);
+      const k1 = await kept();
+      const g2 = await page.locator('[data-profile-split-grip]').first().boundingBox();
+      await page.mouse.dblclick(g2.x + g2.width / 2, g2.y + g2.height * 0.55);
+      await page.waitForTimeout(400);
+      const k2 = await kept();
+      notes.push(`the chart keeps ${k1 ?? 'no strike'} after the sash drag, ${k2 ?? 'no strike'} after its double-click`);
+      if (k1 != null || k2 != null) pass = false;
+    }
+    const heads = await page.$$eval('[data-lane-head]', es => es.map(e => ({ lane: e.getAttribute('data-lane-head'), w: Math.round(e.getBoundingClientRect().width) })));
+    notes.push(`lane names: ${heads.length ? heads.map(h => `${h.lane} ${h.w} px`).join(', ') : 'none drawn (the column heads name the lanes)'}`);
+    if (heads.some(h => h.w < 40)) pass = false;
+    await page.locator('[data-profile-view="net"]').first().click().catch(() => {});
+    await page.evaluate(() => window.__canvasWords.splice(0));
+    await page.waitForTimeout(1200);
+    const words = await page.evaluate(() => window.__canvasWords.map(w => w.text));
+    const deltaHead = words.some(t => /^Δ SPOT/.test(t));
+    notes.push(`the Net view's Δ head ${deltaHead ? 'drawn' : 'missing'}`);
+    if (!deltaHead) pass = false;
+    if (errors.length) {
+      pass = false;
+      notes.push(...errors);
+    }
+    return { pass, notes };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── THE NOTE'S WORDS FIELD STANDS AT THE CLICK (the audit's B-63) ────────────────────────────────────────────────────
+   Before: with the drawing rail docked left the field stood 56 px left of the click. */
+check('note: the words field opens at the click with the drawing rail docked left', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
+  try {
+    await page.locator('[data-chart-rail]').first().hover();
+    await page.locator('[data-draw-sheet-door]').first().click();
+    await page.waitForSelector('[data-draw-sheet]', { timeout: 3000 });
+    await page.locator('[data-draw-search]').fill('note');
+    await page.locator('[data-draw-tile="note"]').first().click();
+    await page.waitForTimeout(350);
+    const b = await page.locator('[data-chart-ink]').first().boundingBox();
+    const at = { x: b.x + b.width * 0.4, y: b.y + b.height * 0.5 };
+    await page.mouse.click(at.x, at.y);
+    const field = await page.waitForSelector('input[aria-label^="The mark\'s words"]', { timeout: 3000 }).catch(() => null);
+    const box = field ? await field.boundingBox() : null;
+    const off = box ? box.x - at.x : null;
+    await page.keyboard.press('Escape');
+    return { pass: off != null && Math.abs(off) <= 16 && !errors.length, notes: [`the words field ${off == null ? 'never opened' : `${off.toFixed(1)} px from the click`}`] };
+  } finally {
+    await done();
+  }
+});
+
+/* ─── THE DAY PANEL SAYS IT IS READING, NEVER "NO MODELED COLUMN" ON ITS WAY IN (the audit's C-55) ────────────────────
+   Before: for 0.1–0.35 s while the day's tile came, the panel said the day had no modeled column, then showed it. */
+check('day panel: no "No modeled column" flash while the day\'s columns load', async () => {
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '1D', overlays: { trails: true }, ladder: true }]);
+  try {
+    const notes = [];
+    let flashes = 0;
+    let opened = 0;
+    for (let back = 1; back <= 4; back++) {
+      const g = await page.evaluate(back => {
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
+        const d = e.candles.data().filter(x => 'close' in x);
+        const b = d[d.length - 1 - back];
+        const r = e.host.getBoundingClientRect();
+        return { x: r.left + e.chart.timeScale().timeToCoordinate(b.time), y: r.top + e.candles.priceToCoordinate((b.high + b.low) / 2) };
+      }, back);
+      /* every word the panel shows from the click on, sampled each frame */
+      await page.evaluate(() => {
+        window.__dayWords = [];
+        const tick = () => {
+          const el = document.querySelector('[data-day-panel]');
+          if (el) window.__dayWords.push(el.textContent ?? '');
+          if (window.__dayWords.length < 120) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      await page.mouse.click(g.x, g.y);
+      await page.waitForTimeout(2200);
+      const seen = await page.evaluate(() => window.__dayWords);
+      if (!seen.length) continue;
+      opened++;
+      const last = seen[seen.length - 1];
+      const flashed = seen.some(t => /No modeled column/i.test(t)) && !/No modeled column/i.test(last);
+      if (flashed) flashes++;
+      notes.push(`${await page.getAttribute('[data-day-panel]', 'data-day-panel').catch(() => '?')}: ${seen.length} frames, ${flashed ? 'FLASHED "No modeled column"' : /No modeled column/i.test(last) ? 'no modeled column (said once, stays)' : 'no flash'}`);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+    }
+    return { pass: opened > 0 && flashes === 0 && !errors.length, notes };
   } finally {
     await done();
   }

@@ -4,7 +4,8 @@
   against the dev server, with what it did and how long it took from the action to the result.
 
   Run:  no_proxy=127.0.0.1,localhost NO_PROXY=127.0.0.1,localhost node scripts/terrain-exercise/area-a.mjs
-  Env:  AREA_A_BASE (default http://127.0.0.1:5181) · ONLY=header,hover,… to run some groups
+  Env:  EXERCISE_URL (default http://127.0.0.1:5180) · EXERCISE_OUT (default docs/terrain-audit-2026-10-15/exercise) ·
+        ONLY=header,hover,… to run some groups
   Out:  docs/terrain-audit-2026-10-15/exercise/area-a.json and area-a.md
 
   It reads the app and never changes it: a fresh browser context per group (its own localStorage), the desk seeded
@@ -13,9 +14,13 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
+/* the commit the run is against (EXERCISE_COMMIT, else the working tree's HEAD) */
+const COMMIT = process.env.EXERCISE_COMMIT || (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 
-const BASE = process.env.AREA_A_BASE || 'http://127.0.0.1:5181';
-const OUT = path.resolve(process.cwd(), 'docs/terrain-audit-2026-10-15/exercise');
+
+const BASE = process.env.EXERCISE_URL || process.env.AREA_A_BASE || 'http://127.0.0.1:5180';
+const OUT = path.resolve(process.cwd(), process.env.EXERCISE_OUT || 'docs/terrain-audit-2026-10-15/exercise');
 const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(',')) : null;
 const T_START = Date.now();
 const rows = [];
@@ -2176,7 +2181,7 @@ const DIAG = {
 for (const r of rows) if (r.pass === false && DIAG[r.id]) r.notes = r.notes ? `${r.notes}; DIAGNOSIS: ${DIAG[r.id]}` : `DIAGNOSIS: ${DIAG[r.id]}`;
 rows.sort((a, b) => parseInt(a.id.slice(2), 10) - parseInt(b.id.slice(2), 10));
 const totals = { pass: rows.filter(r => r.pass === true).length, fail: rows.filter(r => r.pass === false).length, manual: rows.filter(r => r.pass === 'manual').length };
-const meta = { at: new Date().toISOString(), base: BASE, commit: '521d7de', viewport: '1440 × 900 unless the row says otherwise', timezone: 'America/Los_Angeles', runSeconds: Math.round((Date.now() - T_START) / 1000), totals, note: 'Wall-clock timings on a machine shared with two other browser agents — pessimistic. ms runs from the action to the observed result.' };
+const meta = { at: new Date().toISOString(), base: BASE, commit: COMMIT, viewport: '1440 × 900 unless the row says otherwise', timezone: 'America/Los_Angeles', runSeconds: Math.round((Date.now() - T_START) / 1000), totals, note: 'Wall-clock timings on a machine shared with two other browser agents — pessimistic. ms runs from the action to the observed result.' };
 fs.mkdirSync(OUT, { recursive: true });
 const suffix = ONLY ? `-${[...ONLY].join('-')}` : '';
 fs.writeFileSync(path.join(OUT, `area-a${suffix}.json`), JSON.stringify({ meta, rows }, null, 1));

@@ -16,7 +16,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join } from 'node:path';
-import { LEVEL_ALERT_DEFAULTS, LevelAlertEngine, LEVEL_IDS, outcomesOf, type LevelBar, type LevelEvent, type LevelInputs, type TierCap } from '../src/data/levelAlerts';
+import { CONFIRM_CHOICES, LEVEL_ALERT_DEFAULTS, LevelAlertEngine, LEVEL_IDS, outcomesOf, type LevelBar, type LevelEvent, type LevelInputs, type TierCap } from '../src/data/levelAlerts';
 import { createFieldStore } from '../server/fieldStore';
 import type { PastDay } from '../server/fieldBackfill';
 
@@ -235,6 +235,15 @@ const run = (e: LevelAlertEngine, closes: number[], inputs: (i: number) => Level
     check(`(ii) a three-minute gap before a Tier-1 alert drops it to Tier 2, said stale: ${gapDowngraded} of the ${gapTier1} replayed after a gap`, gapTier1 > 0 && gapDowngraded === gapTier1);
     check(`(iii) every alert with half an hour of its session after it joins its +15 and +30 outcomes: ${joined} of ${joinable}`, joinable > 0 && joined === joinable);
   }
+}
+
+/* THE FLIP'S COUNT, OFFERED WHOLE (the audit's A-196…A-198: the right-click card and the drawer offered 1–3 where the store
+   and the rule allow 1–5): one list, and both pickers draw it */
+{
+  check(`the flip's confirmation offers 1 to 5 closed minutes (${CONFIRM_CHOICES.join(', ')})`, CONFIRM_CHOICES.join(',') === '1,2,3,4,5');
+  const pickers = ['src/components/terrain/LevelAlertMenu.tsx', 'src/components/alerts/AlertsDrawer.tsx'];
+  const drawn = pickers.filter(f => /CONFIRM_CHOICES\.map\(/.test(readFileSync(f, 'utf8')) && !/\[1, 2, 3\]\.map\(/.test(readFileSync(f, 'utf8')));
+  check(`both pickers draw that one list (${drawn.length} of ${pickers.length})`, drawn.length === pickers.length);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

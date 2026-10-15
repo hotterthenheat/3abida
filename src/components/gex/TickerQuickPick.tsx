@@ -23,6 +23,7 @@ const MENU_W = 288;
 import { ChevronDown } from 'lucide-react';
 import TickerLookup from '../ui/TickerLookup';
 import useFocusTrap from '../ui/useFocusTrap';
+import { useEscapeLayer } from '../ui/layers';
 
 interface TickerQuickPickProps {
   /* The chain card wears the SLIM cut (Noah, 2026-08-26: "make it blend in
@@ -93,26 +94,14 @@ const TickerQuickPick = ({ ticker, onPick, open: openProp, onOpenChange, slim, l
       if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setOpen(false);
     };
-    /* CAPTURE, and it stops the key going any further.
-
-       Escape is not owned by one component: the desk behind this menu closes
-       an expanded pane on the same key, and both listeners are on `window`.
-       Bubble-phase, both fire — measured: one Escape with this open inside an
-       expanded pane closed the menu AND collapsed the pane. Window-capture
-       runs before window-bubble, so the innermost thing open gets the key and
-       nothing else sees it. Same pattern as the date picker. */
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      setOpen(false);
-    };
+    /* Escape is the house layer stack's (ui/layers.ts, below): it closes the top layer and marks the key, so the
+       expanded pane behind the picker stands still (the audit's area A: a capture-phase handler of its own) */
     window.addEventListener('pointerdown', onDown);
-    window.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('pointerdown', onDown);
-      window.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
+  useEscapeLayer(open, () => setOpen(false));
 
   const pick = (sym: string) => {
     setOpen(false);

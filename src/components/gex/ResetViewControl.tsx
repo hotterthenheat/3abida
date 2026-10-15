@@ -33,6 +33,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw } from 'lucide-react';
+import { useOverlay } from '../ui/layers';
 
 const ResetViewControl = ({
   onReset,
@@ -85,18 +86,13 @@ const ResetViewControl = ({
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      close();
-    };
     window.addEventListener('mousedown', close);
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      window.removeEventListener('mousedown', close);
-      window.removeEventListener('keydown', onKey, true);
-    };
+    return () => window.removeEventListener('mousedown', close);
   }, [menu]);
+  /* THE HOUSE'S OVERLAY CONTRACT (ui/layers.ts — the audit): Esc closes the card when it is the top layer, the keys go
+     into it and back where they were */
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useOverlay({ open: !!menu, ref: cardRef, onClose: () => setMenu(null) });
 
   return (
     <>
@@ -104,7 +100,7 @@ const ResetViewControl = ({
       <button
         onClick={() => cb.current()}
         title="Reset chart view (Alt+R) — or right-click the chart"
-        className={`absolute z-20 inline-flex items-center gap-1 px-2 h-6 rounded-full border border-borderSubtle bg-panel/70 backdrop-blur-md font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary opacity-35 hover:opacity-100 transition-opacity ${pillClass}`}
+        className={`hit absolute z-20 inline-flex items-center gap-1 px-2 h-6 rounded-full border border-borderSubtle bg-panel/70 backdrop-blur-md font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary focus-visible:opacity-100 opacity-35 hover:opacity-100 transition-opacity ${pillClass}`}
       >
         <RotateCcw className="w-3 h-3" />
         Reset
@@ -112,6 +108,9 @@ const ResetViewControl = ({
       {menu &&
         createPortal(
           <div
+            ref={cardRef}
+            role="menu"
+            aria-label="Chart"
             className="fixed z-[200] min-w-[230px] border border-borderSubtle bg-panel/90 backdrop-blur-xl backdrop-saturate-150 rounded-md shadow-2xl shadow-black/60 p-1 animate-slide-in"
             style={{
               left: Math.min(menu.x, window.innerWidth - 246),
@@ -121,6 +120,8 @@ const ResetViewControl = ({
             onContextMenu={e => e.preventDefault()}
           >
             <button
+              type="button"
+              role="menuitem"
               onClick={() => {
                 cb.current();
                 setMenu(null);

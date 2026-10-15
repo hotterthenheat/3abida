@@ -13,6 +13,7 @@ import Simulator from '../../core/simulator';
 import ThemePreview from './ThemePreview';
 import { createPortal } from 'react-dom';
 import { useAnchoredMenu } from '../ui/useAnchoredMenu';
+import { useOverlay } from '../ui/layers';
 import { motion } from 'framer-motion';
 import { Activity, CandlestickChart, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Fullscreen, Layers, Maximize2, Minimize2, Palette, Play } from 'lucide-react';
 import { TIMEFRAMES, type Timeframe } from '../../data/timeframe';
@@ -379,6 +380,10 @@ const Dropdown = ({
      quick-pick and the compare '+' need the same thing, and this was the only
      copy that had it. */
   const { anchorRef, placed, menuRef } = useAnchoredMenu<HTMLButtonElement>(open, menuSide, undefined, 'end', bounds);
+  /* THE HOUSE'S OVERLAY CONTRACT (ui/layers.ts — the audit's A-54/A-55: this menu had its own capture-phase Escape, no
+     focus management and no place on the layer stack): Esc closes it when it is the top layer, the keys go into it on
+     open, Tab stays in it, and they come back to the trigger on close; while it is open the desk's keys stand still */
+  useOverlay({ open: open && !!placed, ref: menuRef, onClose: onToggle });
 
   const Caret = MENU_SIDE_CARET[placed?.side ?? menuSide];
   return (
@@ -553,17 +558,11 @@ const ChartToolbar = ({
       `window` — plain `stopPropagation` does not stop a second listener
       already attached to the same node.
     */
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      setOpenMenu(null);
-    };
+    /* Escape is the layer stack's now (Dropdown's useOverlay): it closes the top layer and marks the key, so a
+       full-screen pane listening behind it stands still */
     window.addEventListener('pointerdown', onDown);
-    window.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('pointerdown', onDown);
-      window.removeEventListener('keydown', onKey, true);
     };
   }, [openMenu]);
 

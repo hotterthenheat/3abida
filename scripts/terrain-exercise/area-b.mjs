@@ -1,7 +1,7 @@
 /*
   TERRAIN AUDIT 2026-10-15 — AREA B (the plot) AND AREA D (built-in indicators, shipped Pine scripts), EXERCISED.
 
-  Drives the real Terrain page on the dev server (127.0.0.1:5181 only) and records, per inventoried item, what was done,
+  Drives the real Terrain page on the dev server (EXERCISE_URL, 127.0.0.1:5180 by default) and records, per inventoried item, what was done,
   what was expected, what was seen, whether it passed and how long the action took to show its result.
 
     no_proxy=127.0.0.1,localhost NO_PROXY=127.0.0.1,localhost node scripts/terrain-exercise/area-b.mjs
@@ -13,12 +13,18 @@
 */
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { execSync } from 'node:child_process';
+/* the commit the run is against (EXERCISE_COMMIT, else the working tree's HEAD) */
+const COMMIT = process.env.EXERCISE_COMMIT || (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 
-const BASE = 'http://127.0.0.1:5181';
-const ROOT = '/home/user/3abida';
-const OUT = `${ROOT}/docs/terrain-audit-2026-10-15/exercise`;
-/* pictures for a reader's own look go to the session's scratch folder, never into the repo */
-const SHOTS = process.env.EXB_SHOTS ?? '/tmp/claude-0/-home-user-3abida/3f13cba1-d81b-5e53-bbee-8bc889ed9a96/scratchpad/exb/shots';
+
+/* the address and the folder: EXERCISE_URL and EXERCISE_OUT (the dev server on 5180, the audit's exercise folder) */
+const BASE = process.env.EXERCISE_URL ?? 'http://127.0.0.1:5180';
+const OUT = resolve(process.env.EXERCISE_OUT ?? 'docs/terrain-audit-2026-10-15/exercise');
+/* pictures for a reader's own look go to a scratch folder, never into the repo */
+const SHOTS = process.env.EXB_SHOTS ?? join(tmpdir(), 'terrain-exercise-b-shots');
 mkdirSync(SHOTS, { recursive: true });
 const ONLY = (process.argv.find(a => a.startsWith('--only=')) ?? '').slice(7).split(',').filter(Boolean);
 mkdirSync(OUT, { recursive: true });
@@ -44,7 +50,7 @@ const OLD = MERGE ? JSON.parse((await import('node:fs')).readFileSync(`${OUT}/ar
 let FINAL = false;
 function flush() {
   if (MERGE && !FINAL) return;
-  writeFileSync(`${OUT}/area-b.json`, JSON.stringify({ server: BASE, commit: '521d7de', ranAt: new Date(T_START).toISOString(), seconds: Math.round((Date.now() - T_START) / 1000), groups: groupsRun, results }, null, 1));
+  writeFileSync(`${OUT}/area-b.json`, JSON.stringify({ server: BASE, commit: COMMIT, ranAt: new Date(T_START).toISOString(), seconds: Math.round((Date.now() - T_START) / 1000), groups: groupsRun, results }, null, 1));
 }
 const ms = t0 => Date.now() - t0;
 const sleep = n => new Promise(r => setTimeout(r, n));
@@ -2478,7 +2484,7 @@ const esc = s => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const passWord = p => (p === true ? 'PASS' : p === false ? '**FAIL**' : 'manual');
 const tally = { pass: results.filter(r => r.pass === true).length, fail: results.filter(r => r.pass === false).length, manual: results.filter(r => r.pass === 'manual').length };
 let md = `# Terrain audit 2026-10-15 — area B and area D, exercised\n\n`;
-md += `Server ${BASE} (commit 521d7de), Chromium headless 1440 × 900 at 1 dpr unless a row says otherwise, run ${new Date(T_START).toISOString()} (New York ${new Date(T_START).toLocaleString('en-US', { timeZone: 'America/New_York' })} — the market shut), ${Math.round((Date.now() - T_START) / 1000)} s.\n`;
+md += `Server ${BASE} (commit ${COMMIT}), Chromium headless 1440 × 900 at 1 dpr unless a row says otherwise, run ${new Date(T_START).toISOString()} (New York ${new Date(T_START).toLocaleString('en-US', { timeZone: 'America/New_York' })} — the market shut), ${Math.round((Date.now() - T_START) / 1000)} s.\n`;
 md += `Script: scripts/terrain-exercise/area-b.mjs. **${tally.pass} pass · ${tally.fail} fail · ${tally.manual} manual** of ${results.length} rows.\n\n`;
 md += `Timings (ms) are from the action to the observed result, polled every 50 ms, on a shared 4-core machine with two other agents running browsers: read them as pessimistic upper bounds.\n\n`;
 md += `Groups: ${groupsRun.map(g => `${g.name} ${g.seconds}s`).join(' · ')}\n\n`;
@@ -2498,5 +2504,5 @@ for (const r of indRows) {
 md += `\n## Indicators and shipped Pine scripts\n\n| id | name | kind | pane | settings (defaults) | draw ms | engine ms | inks | near gold/violet | same ink as | widens fitted axis |\n|---|---|---|---|---|---|---|---|---|---|---|\n`;
 for (const r of indRows) md += `| ${r.id} | ${esc(r.name)} | ${esc(r.kind)} | ${esc(r.pane)} | ${esc(r.settings === r.defaults ? r.settings : `${r.settings}; ${r.defaults}`)} | ${r.drawMs ?? '—'} | ${r.runMs ?? '—'} | ${esc(r.inks)} | ${esc(r.clash)} | ${esc(r.sameInk)} | ${r.widened ? 'yes' : 'no'} |\n`;
 writeFileSync(`${OUT}/area-b.md`, md);
-writeFileSync(`${OUT}/area-b.json`, JSON.stringify({ server: BASE, commit: '521d7de', ranAt: new Date(T_START).toISOString(), seconds: Math.round((Date.now() - T_START) / 1000), groups: groupsRun, tally, results, indicators: indRows }, null, 1));
+writeFileSync(`${OUT}/area-b.json`, JSON.stringify({ server: BASE, commit: COMMIT, ranAt: new Date(T_START).toISOString(), seconds: Math.round((Date.now() - T_START) / 1000), groups: groupsRun, tally, results, indicators: indRows }, null, 1));
 console.log(`\n${tally.pass} pass · ${tally.fail} fail · ${tally.manual} manual · ${Math.round((Date.now() - T_START) / 1000)} s`);

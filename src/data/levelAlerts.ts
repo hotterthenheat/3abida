@@ -500,6 +500,9 @@ export function putLevelWatch(ticker: string, entry: LevelWatch | undefined): vo
   writeJson(WATCH_KEY, all);
   ring();
 }
+/** The closed minutes a flip cross may wait for — the reader's pick, 1 to 5 (the rule of 2026-10-14; the pickers offered
+    1–3, the audit's area A) — one list for the right-click menu and the drawer */
+export const CONFIRM_CHOICES = [1, 2, 3, 4, 5] as const;
 export function setConfirmBars(ticker: string, n: number): void {
   const t = ticker.toUpperCase();
   const all = { ...levelWatches() };

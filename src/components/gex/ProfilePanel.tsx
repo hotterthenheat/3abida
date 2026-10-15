@@ -1863,7 +1863,7 @@ const ProfilePanel = ({
           onClick={() => setShowVol(v => !v)}
           aria-pressed={showVol}
           title="Volume profile — the session's traded volume by price, VPOC and value area, under the size lane"
-          className={`shrink-0 h-6 rounded px-1.5 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors ${
+          className={`hit shrink-0 h-6 rounded px-1.5 font-mono text-[11px] font-bold uppercase tracking-widest transition-colors active:bg-ink/[0.18] ${
             showVol ? 'bg-ink/[0.14] text-textPrimary' : 'text-textMuted hover:text-textPrimary hover:bg-ink/[0.08]'
           }`}
           data-profile-vol
@@ -1881,10 +1881,10 @@ const ProfilePanel = ({
       onClick={onClose}
       aria-label={ticker ? `Hide the ${ticker} panel` : 'Hide this panel'}
       title={closeHint}
-      className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] transition-colors"
+      className="hit shrink-0 inline-flex items-center justify-center w-5 h-5 rounded text-textMuted hover:text-textPrimary hover:bg-ink/[0.08] active:bg-ink/[0.14] transition-colors"
       data-profile-close
     >
-      <X className="w-3 h-3" />
+      <X className="w-3 h-3" aria-hidden />
     </button>
   );
   /* THE VIEW TABS in the Expiry card's own clothes — the dropdown trigger's chip, the one in

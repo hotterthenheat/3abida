@@ -60,7 +60,7 @@ import { marketClock, nyClock, nyParts, nyWallTime, viewerDay } from '../../core
 import { SNOOZE_MS } from './AlertToasts';
 import AllComposer from './AllComposer';
 import { usd } from '../../core/format';
-import { LEVEL_NAMES, clearLevelLog, levelLog, levelWatches, putLevelWatch, markLevelAlertsSeen, noteLevelEvents, setConfirmBars, setLevelWatch, useLevelLog, useLevelWatches, type LevelEvent } from '../../data/levelAlerts';
+import { CONFIRM_CHOICES, LEVEL_NAMES, clearLevelLog, levelLog, levelWatches, putLevelWatch, markLevelAlertsSeen, noteLevelEvents, setConfirmBars, setLevelWatch, useLevelLog, useLevelWatches, type LevelEvent } from '../../data/levelAlerts';
 
 /** The kind's icon — a lucide outline, one per thing an alert can watch */
 const KIND_ICON: Record<AlertKind, LucideIcon> = {
@@ -320,7 +320,7 @@ const LevelShelf = ({ pick, go }: { pick: string | null; go: (ticker: string, to
                   <span className="flex-1 min-w-0 text-[12px] text-textPrimary">Follows {LEVEL_NAMES[id]}</span>
                   {id === 'flip' && (
                     <span role="group" aria-label="Closed minutes beyond the flip before its notice" className="inline-flex items-center gap-0.5 rounded-[3px] border border-ink/[0.10] p-px" title="Closed one-minute bars beyond the flip before a cross is called">
-                      {[1, 2, 3].map(n => (
+                      {CONFIRM_CHOICES.map(n => (
                         <button key={n} type="button" aria-pressed={watches[t].confirmBars === n} onClick={() => setConfirmBars(t, n)} className={`hit h-[18px] px-1.5 rounded-[2px] font-mono text-[11px] ${watches[t].confirmBars === n ? 'bg-ink/[0.14] text-textPrimary font-semibold' : 'text-textMuted hover:text-textPrimary'}`}>
                           {n} min
                         </button>

@@ -22,6 +22,7 @@ import { blackScholesGreeks, blackScholesPrice } from '../src/core/greeks';
 import { lastTradeOf, modelColumn, universeOf, uwYears, UW_VOL_CONVENTION, type ChainRow } from '../src/data/feed/trailModel';
 import { modelDay } from '../src/data/feed/tiles';
 import { nyWallTime } from '../src/core/nyTime';
+import { sessionAfter, sessionBefore } from '../src/data/feed/levels';
 import { createFieldRecorder } from '../server/fieldRecorder';
 import { createFieldStore } from '../server/fieldStore';
 import { createFieldBackfill } from '../server/fieldBackfill';
@@ -251,6 +252,12 @@ const legsAt = (F: number, t: number, strikes: number[], half = 0.05, vol = (k: 
     rmSync(root, { recursive: true, force: true });
   }
 }
+
+// the no-data card's doors walk the exchange's sessions, holidays skipped (the Terrain audit's A-162: "Next session ›"
+// from Saturday 2026-09-05 landed on Labor Day)
+check('the session after Saturday 2026-09-05 is Tuesday 2026-09-08 (Labor Day skipped)', sessionAfter('2026-09-05') === '2026-09-08');
+check('the session after Friday 2026-10-09 is Monday 2026-10-12', sessionAfter('2026-10-09') === '2026-10-12');
+check('the session before Tuesday 2026-09-08 is Friday 2026-09-04', sessionBefore('2026-09-08') === '2026-09-04');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

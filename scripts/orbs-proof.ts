@@ -17,6 +17,7 @@ import { WallStick, stickyWallMoves, stickyWalls, wallObsOf, wallObsOfRow, wallS
 import { pickWalls } from '../src/core/walls';
 import { BALANCED_BELOW, DARK_MARK_INKS, HOVER_KEEP, addOval, markInk, NODE_LABELS, OVAL_ALPHA_MIN, OVAL_MERGE_CSS, OVAL_MIN_CSS, OVAL_OUTLINE_MIN_CSS, OVAL_ROW_SHARE, PIN_KEEP, TOP_NODES, mergeBars, optimalCandlestickWidth, ovalAlpha, ovalDiameter } from '../src/components/gex/gexNodesPrimitive';
 import { beadLegendLines } from '../src/components/terrain/beadLegend';
+import { TERMS } from '../src/data/terms';
 import type { StoreRow } from '../server/fieldStore';
 
 let pass = 0;
@@ -224,6 +225,13 @@ const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
 {
   const l = beadLegendLines({ ref: 1e9, ring: 1.2e9, refG: 1.5e9, basis: 'session', at: Date.UTC(2026, 9, 14, 16, 17) / 1000, minutes: 100, sessions: 1, priorDay: null, greek: 'gex', sizeBy: 'gross', inks: { put: [132, 102, 234], call: [240, 196, 70], neutral: [125, 125, 125] }, nodes: 5 }, 'session', 0);
   check(`the legend says "size = total gamma at the strike · gold = absorb · violet = amplify · grey = balanced · soft edge = stale": ${l.tail}`, l.tail.startsWith('size = total gamma at the strike · gold = absorb · violet = amplify · grey = balanced · soft edge = stale'));
+}
+
+/* ---- 5. the ladder's terms (the audit's C-09: they still spoke of orange and blue) ----------------------------------- */
+{
+  const keys = ['Size at a strike', 'Net at a strike', 'What a move forces'] as const;
+  const off = keys.filter(k => !/\bgold\b/i.test(TERMS[k]) || !/\bviolet\b/i.test(TERMS[k]) || /\borange\b|\bblue\b/i.test(TERMS[k]));
+  check(`the ladder's terms teach its colours as gold and violet, never orange and blue (${keys.length - off.length} of ${keys.length}${off.length ? `; off: ${off.join(', ')}` : ''})`, off.length === 0);
 }
 
 console.log(`\n${pass} of ${pass + fail} pass`);

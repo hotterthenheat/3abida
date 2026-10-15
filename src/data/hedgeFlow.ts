@@ -38,6 +38,7 @@
 */
 
 import type { ExposureProfileData } from '../types/gex';
+import { num, usdCompact } from '../core/format';
 
 export interface FlowRung {
   strike: number;
@@ -58,15 +59,13 @@ export interface FlowLadder {
   maxAbs: number;
 }
 
-const fmtStrike = (v: number) => (!Number.isFinite(v) ? '—' : v % 1 === 0 ? v.toFixed(0) : v.toFixed(2));
+/* ONE WAY TO SAY A FIGURE (core/format — the audit's C-28: the flow lane had its own toFixed rounding, "$180M" beside the
+   size lane's "$1.9B" in another rule): the strike as every strike, the flow's size as every big dollar figure */
+const fmtStrike = (v: number) => num(v, v % 1 === 0 ? 0 : 2);
 
-/** "$1.4B" · "$180M" · "$40K" — the flow's own rounding, coarser than fmtUsd's */
+/** "$1.4B" · "$180M" · "$40K" — the flow's size, the house's big dollars (core/format usdCompact), unsigned */
 export function fmtFlow(mag: number): string {
-  const a = Math.abs(mag);
-  if (a >= 1e9) return `$${(a / 1e9).toFixed(1)}B`;
-  if (a >= 1e6) return `$${(a / 1e6).toFixed(0)}M`;
-  if (a >= 1e3) return `$${(a / 1e3).toFixed(0)}K`;
-  return `$${a.toFixed(0)}`;
+  return usdCompact(Math.abs(mag));
 }
 
 export function buildHedgeFlowLadder(profile: ExposureProfileData): FlowLadder {
