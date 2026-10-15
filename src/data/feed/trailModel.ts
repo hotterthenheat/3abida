@@ -8,6 +8,7 @@ import { WIDE_VOL } from './forward';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { blackScholesGreeks, blackScholesPrice } from '../../core/greeks';
 import { nyIsoDate, nyWallTime } from '../../core/nyTime';
+import { fieldSpansOf } from '../../core/sessions';
 import { closeMinuteOn } from '../expiryClass';
 import type { GexLevel, GexSnapshot } from '../../types/market';
 
@@ -342,9 +343,12 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
   const bySym = new Map<string, C>();
   const reads = [...inputs.chains].sort((a, b) => a.receivedAt - b.receivedAt);
   const publish = oiPublishedAt(day);
-  /* the prior count is knowable from the session before's close (the seed's instant); with no seed, from the day's start */
+  /* the prior count is knowable from the session before's close (the seed's instant); with no seed, from the day's start
+     — the trading day's first session's, which for SPX is 8:15 pm the evening before (its overnight session: from
+     midnight, the evening's minutes of a night recorded without a seed had no count at all) */
   const [dy, dm, dd] = day.split('-').map(Number);
-  const priorAt = inputs.seed ? (([y, m, d]) => nyWallTime(y, m, d, 16, 0))(inputs.seed.date.split('-').map(Number)) : nyWallTime(dy, dm, dd, 0, 0);
+  const dayStart = Math.min(nyWallTime(dy, dm, dd, 0, 0), fieldSpansOf(t, day)[0]?.from ?? Infinity);
+  const priorAt = inputs.seed ? (([y, m, d]) => nyWallTime(y, m, d, 16, 0))(inputs.seed.date.split('-').map(Number)) : dayStart;
   let oiTodayFrom = 0;
   const volReads = new Set<number>();
   for (const read of reads) {

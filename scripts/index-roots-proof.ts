@@ -5,7 +5,8 @@
   The field's model .6 and the Theta rebuild .2 are held to:
     1. an index's weekly root is in its universe (SPXW under SPX), a stock's universe never takes another root;
     2. an AM-settled contract (SPX's monthly) counts until its settlement at the expiry date's 9:30 am and not after;
-       a PM weekly to its 4:00 pm close;
+       a PM weekly to its 4:00 pm close; with no seed the prior count stands from the trading day's first session (SPX's
+       8:15 pm the evening before);
     3. a straddle reads the PM root where both list the expiry, the AM one where it stands alone;
     4. a monthly dated a Saturday (OCC before February 2015) is its Friday;
     5. what an older model wrote is known wrong for an index and for a day a Saturday-dated expiry could reach, and
@@ -89,6 +90,15 @@ const at10 = v(modelColumn(u, bar(10, 0)), 7700);
 const at10Pm = v(modelColumn(uPm, bar(10, 0)), 7700);
 check('before its settlement (9:00 am) the AM monthly is in the column', Math.abs(at9) > Math.abs(at9Pm) * 1.5, `7700: ${(at9 / 1e9).toFixed(2)}B with it, ${(at9Pm / 1e9).toFixed(2)}B without`);
 check('after its settlement (10:00 am) it is not: the column equals the PM contracts\' alone', Math.abs(at10 - at10Pm) <= Math.abs(at10Pm) * 1e-9 && at10Pm !== 0, `7700: ${(at10 / 1e9).toFixed(3)}B, PM alone ${(at10Pm / 1e9).toFixed(3)}B`);
+
+/* with no seed, the prior count is knowable from the trading day's first session — SPX's overnight session from 8:15 pm
+   the evening before, not midnight (a night recorded without a seed drew nothing before midnight) */
+{
+  const early: ServerInputs = { chains: [{ receivedAt: nyWallTime(2026, 10, 15, 20, 16), rows: rowsOf(() => true).map(r => [...r.slice(0, 3), nyWallTime(2026, 10, 15, 20, 16), ...r.slice(4)] as ChainRow) }], seed: null, total: null } as ServerInputs;
+  const ue = universeOf('SPX', DAY, early);
+  const evening = modelColumn(ue, { time: nyWallTime(2026, 10, 15, 20, 30) / 1000, close: SPOT });
+  check('with no seed, an overnight minute before midnight stands on the prior count (8:30 pm the evening before has cells)', evening.levels.length > 0, `${evening.levels.length} cells`);
+}
 
 /* ---- 3: the straddle --------------------------------------------------------------------------------------------- */
 const st = straddleAt(u, bar(9, 0), DAY);
