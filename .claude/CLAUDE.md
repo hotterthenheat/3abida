@@ -1162,6 +1162,41 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   index, a recorder on older code: the old path). The series is reloaded whenever its bar count moves by anything
   but the one new bar at the end, the view kept on the bar times it showed. ~1 MB a session on disk (all windows and
   timeframes), ~0.9 s to tile one; scripts/tiles-proof.ts in `npm test`.
+- THE SESSIONS AND SPX OVERNIGHT (2026-10-15 — the owner, "SPX OVERNIGHT FIELD": "'regular hours only' applies to SPY
+  and QQQ. SPX/SPXW options trade nearly 24 hours on Cboe"; docs/data-feed.md "The sessions and SPX overnight"). ONE
+  SCHEDULE, core/sessions.ts: an equity's field is its regular hours (9:30 am–4:00 pm, 1:00 pm on a half day) — SPY and
+  QQQ draw nothing outside them, the gap labelled "outside regular hours · the field is 9:30 am to 4:00 pm" (on the
+  reader's clock); SPX (SPXW folds under it — trailModel WEEKLY_UNDER; the root filter had dropped SPXW from SPX's
+  universe) has three: OVERNIGHT 8:15 pm the evening before to 9:25 am (Monday's from Sunday's 8:15 pm, none into a
+  weekend or a holiday), REGULAR 9:30 am–4:15 pm (1:15 pm on a half day), the CURB to 5:00 pm (none on a half day). A
+  minute's TRADING DAY is its session's (`fieldDayOf` — SPX's from 8:15 pm is the next day's): the recorder's folder, the
+  store's rows (session 'gth' | 'r' | 'curb'), the tiles (modelDay), the page's trail (trailField barDayOf, inSessions)
+  and every gap (gapSessionKey) follow it. THE TRACK RECORD STAYS ON 9:30–4:00 (scorecard.ts `regular` — a variant
+  reading the other sessions is Section D's to register); the live final rows are the regular session's (UW's minute
+  vols), SPX's overnight and curb final rows the Theta rebuild's. THE PRICE WHERE THE INDEX DOES NOT PRINT (9:30–4:00 is
+  the index's own; overnight, 4:00–4:15 and the curb are not): the forward the front SPXW expiry's at-the-money quotes
+  imply by put-call parity, the median of the three strikes nearest parity (data/feed/forward.ts `forwardOf`), and the
+  field stands on the SPOT it implies on UW's carry (forward × e^{−rT}, under 0.01% apart overnight — every vol is solved
+  at it, so the quotes give the forward back exactly); labelled "price from options (overnight)" (or "(after the close)")
+  in the pane head and "price from options" on the rail (price.ts source 'options'). A WIDE QUOTE is over WIDE_VOL, 2 vol
+  points of width ((ask − bid) ÷ vega — measured 2026-10-14, gamma × OI weighted within 5%: SPY's regular-session NBBO
+  p95 0.85, SPX's after the curb p95 2.06, 5.3% of that gamma over 2); a vol solved from one is `wide` (ChainRow's eighth
+  figure, PastDay `wide`), a cell with half its gamma on wide vols wears the stale edge and its card says so (GexLevel
+  `wideShare`, tiles cell 13, TILES_FORMAT 3). THE SOURCE: UW carries none of it (checked live 2026-10-14 10:30 pm: its
+  per-contract minutes stop at 4:14 pm `rth`, its flow carries the curb with no underlying price, nothing overnight);
+  Theta's terminal does — the recorder asks it (server/overnightReader.ts: /v3/option/snapshot/quote, the front
+  expiry's strike_range a minute for the forward, every SPXW and SPX quote within 60 days every ten minutes, each mid
+  solved at the spot; open interest the recorder's own) whenever SPX is in a session and its index does not print, and
+  serves SPX's minutes (`bars`, the options-priced flagged) to the page, which folds them into SPX's tape and models its
+  field on them (Terrain `fieldName`). A server with no terminal says so over the empty minutes ("no Theta terminal runs
+  on this server's machine"). HISTORY: the downloader asks SPX's roots to the curb's end and both halves of the
+  overnight session (chain-quotes-gth1-<E> the evening before, -gth2- the morning, kept under the trading day; the
+  front expiry a minute, the rest every five) and logs the oldest day with overnight rows (manifest `first.gth`,
+  log.ndjson kind 'gth', the report's line); the rebuild prices those minutes off the forward (bars `src: 'options'`)
+  and marks wide ticks; `npm run theta:gth` finds the first date Theta serves overnight rows (sampled twice a month
+  from 2014-12, every weekday between two samples that disagree) and how it dates the evening session. `npm run
+  spx:night` shoots SPX beside SPY over the night just gone (scripts/spx-night-shot.mjs, two panes, 5m, the desk put
+  back). scripts/sessions-proof.ts runs in `npm test`.
 - THE THETA PROBE, PHASE 0 (2026-10-14 — the owner's TASK "Terrain history backfill": "Phase 0 = probes only. Report
   results, then STOP and wait for my 'go'. Do not build anything before 'go'"; docs/data-feed.md "The Theta probe"):
   `npm run theta:probe` (scripts/theta-probe/) is ONE SCRIPT THE OWNER RUNS ON THE ALWAYS-ON MACHINE against its own

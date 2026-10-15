@@ -22,6 +22,8 @@
 ==================================================
 */
 
+import { fieldSessionAt, indexPrintsAt, tradesAllSessions } from '../../core/sessions';
+import { newestOptionsMinute } from './optionsPrice';
 import { isCashIndex } from './levels';
 import { useMemo } from 'react';
 import type { FeedResult } from './client';
@@ -40,7 +42,7 @@ export interface FeedPrice {
   /** 'trade': UW's day state (the latest trade); 'print': an index, priced off the newest option print's underlying
       price (the owner, 2026-10-13: "label the SPX price with its print time; if the newest print is older than 2
       minutes, show it as stale") */
-  source?: 'trade' | 'print';
+  source?: 'trade' | 'print' | 'options';
   /** A print older than PRINT_STALE_MS at the poll */
   stale?: boolean;
 }
@@ -121,6 +123,13 @@ export function useFeedPrice(on: boolean, ticker: string): { price: FeedPrice | 
   const p = useFeedPoll(on && t && index ? `uw:print:${t}` : null, () => loadIndexPrint(t), PERIOD_MS);
   return useMemo(() => {
     if (index) {
+      /* SPX INSIDE A SESSION WHILE ITS INDEX DOES NOT PRINT (overnight, 4:00 to 4:15 pm, the curb — core/sessions.ts): its
+         price is the forward its options imply, the recorder's newest minute (optionsPrice.ts) — "price from options" */
+      const now = Date.now();
+      if (tradesAllSessions(t) && fieldSessionAt(t, now) && !indexPrintsAt(now)) {
+        const m = newestOptionsMinute(t);
+        if (m && now - (m.time + 60) * 1000 < 30 * 60_000) return { price: { spot: m.close, changePct: NaN, at: (m.time + 60) * 1000, source: 'options', stale: now - (m.time + 60) * 1000 > PRINT_STALE_MS }, answered: true };
+      }
       if (!p) return { price: null, answered: false };
       if (!p.ok) return { price: null, answered: true };
       return { price: { spot: p.data.spot, changePct: NaN, at: p.data.at, source: 'print', stale: Date.now() - p.data.at > PRINT_STALE_MS }, answered: true };

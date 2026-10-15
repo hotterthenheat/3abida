@@ -61,6 +61,8 @@ import { createFieldStore, type Bar, type StoreRow } from './fieldStore';
 import { blackScholesPrice } from '../src/core/greeks';
 import { nyIsoDate, nyWallTime } from '../src/core/nyTime';
 import { lastTradeOf, straddleExpiries, uwYears, UW_VOL_CONVENTION } from '../src/data/feed/trailModel';
+import { fieldSessionAt, fieldSpansOf, indexPrintsAt, tradesAllSessions } from '../src/core/sessions';
+import { WIDE_VOL, forwardOf, volWidth, type QuoteLeg } from '../src/data/feed/forward';
 
 /** A minute bar from the history: the store's bar with its whole OHLC and the minute's volume (0 where the feed keeps none) */
 export type HistoryBar = Bar & { open: number; high: number; low: number; volume: number };
@@ -287,6 +289,8 @@ interface QuoteMinute {
   /** the model's minute (start, ms) the quote stands for, and its mid */
   m: number;
   mid: number;
+  bid: number;
+  ask: number;
 }
 /** A chain's quote rows for a day, folded per contract to a mid a minute on the quote clock (4b) */
 function quotesOf(histRoot: string, name: string, day: string, cfg: ThetaRebuildConfig): { byOcc: Map<string, { expiry: string; strike: number; right: 'C' | 'P'; minutes: QuoteMinute[] }>; files: number } {
@@ -296,7 +300,9 @@ function quotesOf(histRoot: string, name: string, day: string, cfg: ThetaRebuild
     const dir = join(histRoot, root, day);
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
-      if (!/^chain-quotes-\d{4}-\d{2}-\d{2}\.ndjson\.gz$/.test(f)) continue;
+      /* the regular session's (to the curb's end on SPX), and SPX's overnight session — the evening before (gth1) and the
+         morning (gth2) — kept under the trading day (scripts/theta-history) */
+      if (!/^chain-quotes-(gth[12]-)?\d{4}-\d{2}-\d{2}\.ndjson\.gz$/.test(f)) continue;
       const rows = readGz(join(dir, f)) ?? [];
       files++;
       for (const r of rows) {
@@ -313,11 +319,18 @@ function quotesOf(histRoot: string, name: string, day: string, cfg: ThetaRebuild
         const occ = occUnder(name, e, right, k);
         let c = byOcc.get(occ);
         if (!c) byOcc.set(occ, (c = { expiry: e, strike: k, right, minutes: [] }));
-        c.minutes.push({ m, mid: (bid + ask) / 2 });
+        c.minutes.push({ m, mid: (bid + ask) / 2, bid, ask });
       }
     }
   }
-  for (const c of byOcc.values()) c.minutes.sort((a, b) => a.m - b.m);
+  for (const c of byOcc.values()) {
+    c.minutes.sort((a, b) => a.m - b.m);
+    /* a minute two files hold is one minute — the later row read stands */
+    const one: QuoteMinute[] = [];
+    for (const x of c.minutes) if (one.length && one[one.length - 1].m === x.m) one[one.length - 1] = x;
+    else one.push(x);
+    c.minutes = one;
+  }
   return { byOcc, files };
 }
 
@@ -358,7 +371,8 @@ export interface ThetaDay {
   bars: HistoryBar[];
   extras: Extra[];
   rate: { r: number; source: string } | null;
-  counts: { contracts: number; quoted: number; minutes: number; files: number };
+  /** fromOptions: SPX's minutes priced off its options' forward; wideMinutes: tick minutes solved from a wide quote */
+  counts: { contracts: number; quoted: number; minutes: number; files: number; fromOptions?: number; wideMinutes?: number };
 }
 export interface Extra {
   m: number;
@@ -381,11 +395,13 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
   if (!oi.length) return { why: `no open interest for ${name} ${day} in the history` };
   const rate = cfg.rate === 'dtb3' ? rateOnDay(histRoot, day) : null;
   const r = rate?.r ?? UW_VOL_CONVENTION.r;
-  const closeOf = new Map<number, number>();
-  for (const b of bars) closeOf.set(b.time * 1000, b.close);
   const [y, mo, d] = day.split('-').map(Number);
   const open = nyWallTime(y, mo, d, 9, 30);
   const close = nyWallTime(y, mo, d, 16, 0);
+  /* THE NAME'S SESSIONS (core/sessions.ts — the owner's SPX overnight field, 2026-10-15): an equity's regular hours; SPX's
+     overnight session, regular hours to 4:15 pm and the curb */
+  const spans = fieldSpansOf(name, day);
+  const inSpans = (ms: number) => spans.some(sp => ms >= sp.from && ms < sp.to);
   /* the band: the day's range widened by the moneyness */
   const lows = bars.filter(b => b.session === 'r').map(b => b.low);
   const highs = bars.filter(b => b.session === 'r').map(b => b.high);
@@ -393,7 +409,40 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
 
   /* the vols: each contract's quote a minute inverted on the day's rate and the model's clock */
   const q = quotesOf(histRoot, name, day, cfg);
+  /* SPX WHERE ITS INDEX DOES NOT PRINT (overnight, 4:00 to 4:15 pm, the curb): the minute's price is the forward the front
+     expiry's quotes imply (data/feed/forward.ts — put-call parity, the three strikes nearest it), a bar "from options" */
+  let fromOptions = 0;
+  if (tradesAllSessions(name)) {
+    const legsAt = new Map<number, Map<string, QuoteLeg[]>>();
+    for (const c of q.byOcc.values())
+      for (const x of c.minutes) {
+        if (!inSpans(x.m) || indexPrintsAt(x.m)) continue;
+        const byExp = legsAt.get(x.m) ?? new Map<string, QuoteLeg[]>();
+        const legs = byExp.get(c.expiry) ?? [];
+        legs.push({ strike: c.strike, right: c.right, bid: x.bid, ask: x.ask });
+        byExp.set(c.expiry, legs);
+        legsAt.set(x.m, byExp);
+      }
+    const have = new Set(bars.map(b => b.time * 1000));
+    for (const [m, byExp] of legsAt) {
+      if (have.has(m)) continue;
+      const day0 = fieldSessionAt(name, m)?.day ?? day;
+      const front = [...byExp.keys()].filter(e => e >= day0).sort()[0];
+      if (!front) continue;
+      const f = forwardOf(byExp.get(front)!, tauAt(m, front, day), r);
+      if (!f) continue;
+      const ses = fieldSessionAt(name, m)?.session;
+      bars.push({ time: m / 1000, open: f.spot, high: f.spot, low: f.spot, close: f.spot, volume: 0, session: ses === 'gth' ? 'gth' : ses === 'curb' ? 'curb' : 'r', src: 'options' });
+      fromOptions++;
+    }
+    bars.sort((a, b) => a.time - b.time);
+  }
+  const closeOf = new Map<number, number>();
+  for (const b of bars) closeOf.set(b.time * 1000, b.close);
   const ticks: Record<string, number[]> = {};
+  /* the tick minutes whose vol came from a wide quote (forward.ts WIDE_VOL) */
+  const wide: Record<string, number[]> = {};
+  let wideMinutes = 0;
   let quoted = 0;
   /* the ATM straddle's vol on the day's own expiry: for each minute, the call and the put at the strike nearest the price */
   const atmByMinute = new Map<number, { call?: { d: number; iv: number }; put?: { d: number; iv: number } }>();
@@ -401,13 +450,16 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
   for (const [occ, c] of q.byOcc) {
     if (band && (c.strike < band.lo || c.strike > band.hi)) continue;
     const rows: { start_time: string; iv_low: string; iv_high: string }[] = [];
-    for (const { m, mid } of c.minutes) {
-      if (m < open || m >= close) continue;
+    const wideAt = new Set<number>();
+    for (const { m, mid, bid, ask } of c.minutes) {
+      if (!inSpans(m)) continue;
       const S = closeOf.get(m);
       if (S == null) continue;
-      const iv = solveVol(mid, S, c.strike, tauAt(m, c.expiry, day), c.right, r);
+      const tau = tauAt(m, c.expiry, day);
+      const iv = solveVol(mid, S, c.strike, tau, c.right, r);
       if (!Number.isFinite(iv)) continue;
       rows.push({ start_time: new Date(m).toISOString(), iv_low: String(iv), iv_high: String(iv) });
+      if (volWidth({ strike: c.strike, right: c.right, bid, ask }, S, tau, iv, r) > WIDE_VOL) wideAt.add(m);
       if (exps.today && c.expiry === exps.today) {
         const d = Math.abs(c.strike - S);
         const a = atmByMinute.get(m) ?? {};
@@ -420,7 +472,13 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
       }
     }
     if (rows.length) {
-      ticks[occ] = compressTicks(rows, day);
+      ticks[occ] = compressTicks(rows, day, tradesAllSessions(name) ? inSpans : undefined);
+      const w: number[] = [];
+      for (let i = 0; i < ticks[occ].length; i += 2) if (wideAt.has(ticks[occ][i])) w.push(ticks[occ][i]);
+      if (w.length) {
+        wide[occ] = w;
+        wideMinutes += w.length;
+      }
       quoted++;
     }
   }
@@ -483,8 +541,8 @@ export function buildThetaDay(histRoot: string, fieldRoot: string, name: string,
     extras.push({ m, spread: n?.spread ?? null, bidSize: n?.bidSize ?? null, askSize: n?.askSize ?? null, volume: b.volume ?? null, vix: vix.get(m) ?? null, atmIv: atm });
   }
 
-  const past: PastDay = { format: PAST_FORMAT, name, day, builtAt: now(), oi, seed, ticks, total, calls: 0, asked: q.byOcc.size, refused: 0, vols: 'theta', ...(rate ? { rate: rate.r } : {}) };
-  return { past, bars, extras, rate, counts: { contracts: oi.length, quoted, minutes: bars.filter(b => b.session === 'r').length, files: q.files } };
+  const past: PastDay = { format: PAST_FORMAT, name, day, builtAt: now(), oi, seed, ticks, ...(Object.keys(wide).length ? { wide } : {}), total, calls: 0, asked: q.byOcc.size, refused: 0, vols: 'theta', ...(rate ? { rate: rate.r } : {}) };
+  return { past, bars, extras, rate, counts: { contracts: oi.length, quoted, minutes: bars.filter(b => b.session === 'r').length, files: q.files, fromOptions, wideMinutes } };
 }
 
 /* ---- the walk: newest first, trusted against the recorder's days -------------------------------------------------- */
@@ -565,7 +623,8 @@ export async function rebuildTheta(opts: RebuildOptions): Promise<Record<string,
       built++;
       trust.reached = day;
       /* the day's tiles — where UW's own rebuild of the day is not there (finalRowsOf's rule: UW's stand over the history's) */
-      if (!existsSync(join(dir, 'past.json.gz'))) opts.onDay?.(name, day, b.past, b.bars);
+      /* SPX's from this rebuild always: UW's rebuild holds its regular session alone, this one its three (core/sessions.ts) */
+      if (!existsSync(join(dir, 'past.json.gz')) || tradesAllSessions(name)) opts.onDay?.(name, day, b.past, b.bars);
       const secs = (now() - t0) / 1000;
       log(`${name} ${day}: ${rows.length} rows from ${b.counts.quoted} quoted contracts of ${b.counts.contracts} (${b.counts.files} quote files)${b.rate ? `, r ${(b.rate.r * 100).toFixed(2)}% (${b.rate.source})` : ', UW\'s rate'}${b.past.seed ? `, seed ${b.past.seed.date}` : ', no seed'} — ${secs.toFixed(1)} s`);
       /* THE TRUST GATE: a day the recorder kept is the rebuild's check; a FAIL stops the walk for the name */

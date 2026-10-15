@@ -81,7 +81,7 @@ const deltaMax = (levels: readonly { dex?: number }[]): number => {
   }
   return m;
 };
-import { nyWallTime } from '../src/core/nyTime';
+import { fieldSessionAt, fieldSpansOf } from '../src/core/sessions';
 import type { MinuteBar, PastDay } from './fieldBackfill';
 
 const ROOT = join(process.cwd(), '.feed-cache', 'field');
@@ -91,6 +91,12 @@ const ROOT = join(process.cwd(), '.feed-cache', 'field');
    3 since 2026-10-15 (the owner's orbs round 2, item 1): refG is the session's largest node so far (beadScale RunningMax),
    no longer the 85th percentile of the minutes' peaks — a row of format 2 keeps the reference it was drawn against */
 export const STORE_FORMAT = 3;
+/** A row's session: SPX's overnight session and curb by name ('gth', 'curb'), the regular session 'r', and an equity's
+    bar's own word outside it (core/sessions.ts) */
+const sessionOfRow = (name: string, ms: number, fallback: Session): Session => {
+  const s = fieldSessionAt(name, ms);
+  return s ? (s.session === 'rth' ? 'r' : s.session) : fallback;
+};
 /** A shown row is written this long after its minute at the latest; later, the minute is a gap */
 export const SHOWN_LATE_MS = 3 * 60_000;
 /** A minute is complete this long after its end (its bar in, its prints reported) */
@@ -98,7 +104,8 @@ export const SHOWN_SETTLE_MS = 5_000;
 /** A final row waits this long past its minute for a print reported late */
 export const FINAL_GRACE_MS = 60_000;
 
-export type Session = 'pre' | 'r' | 'post';
+/** 'gth' and 'curb' since 2026-10-15: SPX's overnight session and its curb (core/sessions.ts) */
+export type Session = 'pre' | 'r' | 'post' | 'gth' | 'curb';
 export type RowKind = 'shown' | 'final';
 export interface StoreRow {
   f: number;
@@ -252,10 +259,13 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     const sorted = [...bars].sort((a, b) => a.time - b.time);
     let u: ReturnType<typeof universeOf> | null = null;
     let exps: { today: string | null; weekly: string | null } | null = null;
+    /* the name's sessions alone (core/sessions.ts): an equity's regular hours, SPX's three — the minutes Terrain draws */
+    const spans = fieldSpansOf(name, day);
     for (const bar of sorted) {
       const m = bar.time * 1000;
       const end = m + 60_000;
       if (end > now - SHOWN_SETTLE_MS) break;
+      if (!spans.some(sp => m >= sp.from && m < sp.to)) continue;
       if (st.written.has(m)) continue;
       if (now - end > SHOWN_LATE_MS || m < st.last) {
         /* the recorder was not here for it: a gap, never filled in */
@@ -292,7 +302,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         m,
         at: now,
         model: TRAIL_MODEL.version,
-        session: bar.session,
+        session: sessionOfRow(name, m, bar.session),
         spot: bar.close,
         flip: sum.flip,
         cw: sum.cw,
@@ -327,15 +337,15 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
    */
   function final(name: string, day: string, past: PastDay & { through: number }, bars: readonly Bar[]): StoreRow[] {
     const st = stateOf(name, day, 'final');
-    const [y, mo, d] = day.split('-').map(Number);
-    const from = nyWallTime(y, mo, d, 9, 30);
-    const to = nyWallTime(y, mo, d, 16, 0);
+    /* the live rebuild path is UW's (fieldBackfill today()): its vols are the regular session's — SPX's overnight and curb
+       final rows are the Theta rebuild's (server/thetaRebuild.ts), never these carried-only columns */
+    const spans = fieldSpansOf(name, day).filter(sp => sp.session === 'rth');
     const u = universeOf(name, day, inputsOf(past));
     const exps = straddleExpiries(u.expiry, day);
     const out: StoreRow[] = [];
     for (const bar of [...bars].sort((a, b) => a.time - b.time)) {
       const m = bar.time * 1000;
-      if (m < from || m >= to) continue;
+      if (!spans.some(sp => m >= sp.from && m < sp.to)) continue;
       const end = m + 60_000;
       if (end > past.through - FINAL_GRACE_MS) break;
       if (st.written.has(m)) continue;
@@ -363,7 +373,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
         m,
         at: clock(),
         model: TRAIL_MODEL.version,
-        session: 'r',
+        session: sessionOfRow(name, m, 'r'),
         spot: bar.close,
         flip: sum.flip,
         cw: sum.cw,
@@ -391,9 +401,7 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
   /** A whole session's rows from a finished rebuild (the agree check, and a past day's final rows): the same code
       as final(), every regular minute, nothing written */
   function rowsOf(past: PastDay, bars: readonly Bar[]): StoreRow[] {
-    const [y, mo, d] = past.day.split('-').map(Number);
-    const from = nyWallTime(y, mo, d, 9, 30);
-    const to = nyWallTime(y, mo, d, 16, 0);
+    const spans = fieldSpansOf(past.name, past.day);
     const u = universeOf(past.name, past.day, inputsOf(past));
     const exps = straddleExpiries(u.expiry, past.day);
     const scale = new RunningScale();
@@ -401,13 +409,13 @@ export function createFieldStore(opts: { root?: string; now?: () => number } = {
     const out: StoreRow[] = [];
     for (const bar of [...bars].sort((a, b) => a.time - b.time)) {
       const m = bar.time * 1000;
-      if (m < from || m >= to) continue;
+      if (!spans.some(sp => m >= sp.from && m < sp.to)) continue;
       const snap = modelColumn(u, bar);
       if (!snap.levels.length) continue;
       const sum = columnSummary(snap, bar.close);
       const max = columnMax(snap.levels);
       const maxG = columnGross(snap.levels);
-      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: 'r', spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), maxG, netP: partNets(snap), ref: scale.push(max), refG: scaleG.push(maxG), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleOfMinute(u, [], past.day, bar, exps.today, 'final') : null, strW: exps.weekly ? straddleOfMinute(u, [], past.day, bar, exps.weekly, 'final') : null, age: null });
+      out.push({ f: STORE_FORMAT, kind: 'final', m, at: 0, model: TRAIL_MODEL.version, session: sessionOfRow(past.name, m, 'r'), spot: bar.close, flip: sum.flip, cw: sum.cw, pw: sum.pw, top: sum.top, net: sum.net, max, maxD: deltaMax(snap.levels), maxG, netP: partNets(snap), ref: scale.push(max), refG: scaleG.push(maxG), cells: sortedCells(snap.levels), carried: sum.carried, str0: exps.today ? straddleOfMinute(u, [], past.day, bar, exps.today, 'final') : null, strW: exps.weekly ? straddleOfMinute(u, [], past.day, bar, exps.weekly, 'final') : null, age: null });
     }
     return out;
   }

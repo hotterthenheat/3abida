@@ -102,7 +102,7 @@ export function optimalCandlestickWidth(barSpacing: number, pixelRatio: number):
    soft — a one-device-pixel border at SOFT_EDGE_ALPHA of the mark's own alpha round a core inset by that pixel. The
    card says which of the two it is. */
 export const SOFT_EDGE_ALPHA = 0.45;
-const staleOf = (l: GexSnapshot['levels'][number]): 0 | 1 | 2 => (l.prov === 'carried' ? 2 : (l.staleShare ?? 0) >= 0.5 || l.readGap ? 1 : 0);
+const staleOf = (l: GexSnapshot['levels'][number]): 0 | 1 | 2 => (l.prov === 'carried' ? 2 : (l.staleShare ?? 0) >= 0.5 || (l.wideShare ?? 0) >= 0.5 || l.readGap ? 1 : 0);
 
 /* THE MARK'S COLOUR, TWO STATES (the orbs' second round, 2026-10-15 — the owner: "Most strikes hold both calls and puts,
    so the grey fade washes nearly everything out … Full hue unless |net| ÷ gross < 0.2; below that, grey. Two states, no
@@ -300,6 +300,45 @@ export function addOval(p: Path2D, cx: number, cy: number, rw: number, rh: numbe
   p.closePath();
 }
 
+/** THE GAP NOTES: one a run, inside it at the plot's foot (or just over the Reset pill's row where the foot is taken),
+    never twice, skipped where the run is too narrow to hold its words — each placed box added to `boxes` */
+function placeGapNotes(
+  ctx: CanvasRenderingContext2D,
+  runs: readonly GapRun[],
+  ts: ReturnType<IChartApi['timeScale']>,
+  barSpacing: number,
+  g: { hr: number; vr: number; paneHCss: number; full: number; padX: number; leftMost: number; rightMost: number; padInk: string; ink: RGB3 },
+  boxes: { l: number; r: number; t: number; b: number }[],
+  collides: (l: number, r: number, t: number, b: number) => boolean
+): void {
+  if (!runs.length) return;
+  ctx.textAlign = 'center';
+  const seen = new Set<string>();
+  const footTop = (g.paneHCss - 4) * g.vr - g.full;
+  const liftTop = (g.paneHCss - 32) * g.vr - g.full;
+  for (const run of runs) {
+    const gx0 = ts.timeToCoordinate(run.t0 as Time);
+    const gx1 = ts.timeToCoordinate(run.t1 as Time);
+    if (gx0 === null || gx1 === null) continue;
+    const l = Math.max(g.leftMost, (gx0 - barSpacing / 2) * g.hr);
+    const r = Math.min(g.rightMost, (gx1 + barSpacing / 2) * g.hr);
+    const key = `${Math.round(l)}|${Math.round(r)}|${run.words}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const w = ctx.measureText(run.words).width;
+    if (w + 2 * g.padX > r - l) continue;
+    const bl = (l + r) / 2 - w / 2 - g.padX;
+    const br = bl + w + 2 * g.padX;
+    const top = !collides(bl, br, footTop, footTop + g.full) ? footTop : !collides(bl, br, liftTop, liftTop + g.full) ? liftTop : null;
+    if (top === null) continue;
+    boxes.push({ l: bl, r: br, t: top, b: top + g.full });
+    ctx.fillStyle = g.padInk;
+    ctx.fillRect(bl, top, br - bl, g.full);
+    ctx.fillStyle = `rgba(${g.ink[0]},${g.ink[1]},${g.ink[2]},0.95)`;
+    ctx.fillText(run.words, (bl + br) / 2, top + g.full / 2);
+  }
+}
+
 /** The bars in the visible range with no column of the field, as runs, each asked its reason of the host (src.gapCause):
     whitespace (no bar) is no gap; a run the host has no words for is left unlabelled */
 function findGaps(src: GexTrailsPrimitive, series: ISeriesApi<'Candlestick'>, ts: ReturnType<IChartApi['timeScale']>, barSec: number): GapRun[] {
@@ -316,11 +355,14 @@ function findGaps(src: GexTrailsPrimitive, series: ISeriesApi<'Candlestick'>, ts
   };
   const from = Math.max(0, Math.ceil(r.from));
   const to = Math.floor(r.to);
-  /* a run never crosses the open or the close (New York's 9:30 and 4:00), nor a day: each has one cause */
-  const sessionOf = (t: number): string => {
-    const m = nyMinuteOf(t);
-    return `${nyDayKey(t)}|${m < 570 ? 'pre' : m > 960 ? 'post' : 'in'}`;
-  };
+  /* a run never crosses the open or the close (New York's 9:30 and 4:00), nor a day: each has one cause — a name with
+     sessions of its own (SPX: overnight, regular to 4:15 pm, the curb) hands its own key (src.gapSession) */
+  const sessionOf =
+    src.gapSession ??
+    ((t: number): string => {
+      const m = nyMinuteOf(t);
+      return `${nyDayKey(t)}|${m < 570 ? 'pre' : m > 960 ? 'post' : 'in'}`;
+    });
   let runSession = '';
   for (let i = from; i <= to && i - from < 4000; i++) {
     const d = series.dataByIndex(i) as { time?: unknown } | null;
@@ -380,9 +422,45 @@ class TrailsPaneRenderer {
     return out;
   }
 
+  /** THE VIEW IS ALL GAP: no column on screen, so nothing but the gaps' words is drawn — found once a view (the runs
+      and their words cached on the view, the field's revision and the host's words) */
+  private aloneKey = '';
+  private drawGapsAlone(target: DrawTarget, src: GexTrailsPrimitive, series: ISeriesApi<'Candlestick'>, ts: ReturnType<IChartApi['timeScale']>): void {
+    if (!src.gapCause) return;
+    const barSpacing = ts.options().barSpacing ?? 6;
+    const r = ts.getVisibleLogicalRange();
+    const key = `${r ? `${Math.round(Number(r.from))}|${Math.round(Number(r.to))}` : ''}|${barSpacing.toFixed(3)}|${src.gapRev}|${src.rev}`;
+    if (key !== this.aloneKey) {
+      this.aloneKey = key;
+      this.gapRuns = findGaps(src, series, ts, src.barSec);
+    }
+    if (!this.gapRuns.length) return;
+    const paper = src.paper;
+    target.useBitmapCoordinateSpace(scope => {
+      const ctx = scope.context;
+      const hr = scope.horizontalPixelRatio;
+      const vr = scope.verticalPixelRatio;
+      const wCss = scope.mediaSize.width;
+      const paneHCss = scope.mediaSize.height;
+      const px11 = Math.max(11, src.labelPx);
+      const full = (px11 + 5) * vr;
+      const boxes: { l: number; r: number; t: number; b: number }[] = [{ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr }];
+      const cx = (wCss + RESET_SCALE_CSS) / 2;
+      boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30) * vr, b: (paneHCss - 2) * vr });
+      const collides = (l: number, rr: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && rr > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
+      ctx.font = `${Math.round(px11 * vr)}px ${FONT_SANS}`;
+      ctx.textBaseline = 'middle';
+      placeGapNotes(ctx, this.gapRuns, ts, barSpacing, { hr, vr, paneHCss, full, padX: 4 * hr, leftMost: CHIP_LEFT * hr, rightMost: (wCss - CHIP_RIGHT) * hr, padInk: paper ? rgba(paper.pad, 0.88) : 'rgba(5,5,5,0.78)', ink: paper ? paper.neutral : NEUTRAL_RGB }, boxes, collides);
+    });
+  }
+
   draw(target: DrawTarget): void {
     const src = this.source;
-    if (!src.enabled || !src.chart || !src.series || src.snapshots.length === 0) return;
+    if (!src.enabled || !src.chart || !src.series) return;
+    if (src.snapshots.length === 0) {
+      this.drawGapsAlone(target, src, src.series, src.chart.timeScale());
+      return;
+    }
     const series = src.series;
     const chart = src.chart;
     const ts = chart.timeScale();
@@ -409,7 +487,12 @@ class TrailsPaneRenderer {
       else hi = m;
     }
     const last = lo; // exclusive
-    if (last <= first) return;
+    /* NO COLUMN IN VIEW: the view is all gap — its words still stand (B1: "never a blank chart without a reason"; the
+       sessions, 2026-10-15: SPY's minutes after its close are all gap at one minute a bar) */
+    if (last <= first) {
+      this.drawGapsAlone(target, src, series, ts);
+      return;
+    }
     const col0 = src.columnAt(first);
     const barSpacing = ts.options().barSpacing ?? 6;
     if (src.ref <= 0) return;
@@ -771,35 +854,7 @@ class TrailsPaneRenderer {
 
       // the gaps, each with its reason (B1: "Never a blank chart without a reason") — ONE small note per gap, INSIDE its gap at
       // the foot of the plot, hidden where the gap is too narrow to hold it (the orbs' second round, 2026-10-15)
-      if (this.gapRuns.length) {
-        ctx.textAlign = 'center';
-        const seen = new Set<string>();
-        const footTop = (paneHCss - 4) * vr - full;
-        const liftTop = (paneHCss - 32) * vr - full;
-        for (const g of this.gapRuns) {
-          const gx0 = ts.timeToCoordinate(g.t0 as Time);
-          const gx1 = ts.timeToCoordinate(g.t1 as Time);
-          if (gx0 === null || gx1 === null) continue;
-          const l = Math.max(leftMost, (gx0 - barSpacing / 2) * hr);
-          const r = Math.min(rightMost, (gx1 + barSpacing / 2) * hr);
-          const key = `${Math.round(l)}|${Math.round(r)}|${g.words}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          const w = ctx.measureText(g.words).width;
-          if (w + 2 * padX > r - l) continue;
-          const bl = (l + r) / 2 - w / 2 - padX;
-          const br = bl + w + 2 * padX;
-          /* at the foot, clear of the library's mark, the Reset pill and the other notes — or just over the pill's row
-             where the foot is taken; never outside the gap */
-          const top = !collides(bl, br, footTop, footTop + full) ? footTop : !collides(bl, br, liftTop, liftTop + full) ? liftTop : null;
-          if (top === null) continue;
-          boxes.push({ l: bl, r: br, t: top, b: top + full });
-          ctx.fillStyle = padInk;
-          ctx.fillRect(bl, top, br - bl, full);
-          ctx.fillStyle = `rgba(${n[0]},${n[1]},${n[2]},0.95)`;
-          ctx.fillText(g.words, (bl + br) / 2, top + full / 2);
-        }
-      }
+      placeGapNotes(ctx, this.gapRuns, ts, barSpacing, { hr, vr, paneHCss, full, padX, leftMost, rightMost, padInk, ink: n }, boxes, collides);
 
       // THE NODE PILLS (item 11): the three largest live nodes, "strike · % of the largest" with an oval swatch, beside
       // the last candle inside the plot, never over one another or the axis chips
@@ -1061,6 +1116,8 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   /** THE GAPS' REASONS (B1): the host's words for a run of bars with no column, [from, to) in epoch seconds — null for
       none to say. Set by the chart from its host (Terrain reads the store's state, the session's hours and the clock). */
   gapCause: ((fromSec: number, toSec: number) => string | null) | null = null;
+  /** The session a bar stands in, for the gaps' runs (core/sessions.ts gapSessionKey) — null: New York's regular hours */
+  gapSession: ((timeSec: number) => string) | null = null;
   /** Bumped by the host when the reasons may have changed without the columns — the bitmap (and the runs) are rebuilt */
   gapRev = 0;
   /** Whether a column of the field stands inside the bar at `barTime` (this chart's barSec) */

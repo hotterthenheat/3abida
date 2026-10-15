@@ -122,6 +122,7 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { nyIsoDate, nyWallTime } from '../../core/nyTime';
+import { fieldDayOf, fieldSpansOf, tradesAllSessions, type SessionSpan } from '../../core/sessions';
 import type { Candle, GexSnapshot } from '../../types/market';
 import type { FeedBook, FeedBook60 } from './levels';
 import { TRAIL_MODEL, oiPublishedAt, universeOf, readAt, modelColumn, fieldResidual, residualFigures, windowView, book60Window, straddleExpiries, straddleOfMinute } from './trailModel';
@@ -289,15 +290,45 @@ function barDay(timeSec: number): string {
   }
   return d;
 }
-/** Every bar of one New York date, oldest first */
-export function dayBars(bars: readonly Candle[], day: string): Candle[] {
+/** THE TRADING DAY A BAR BELONGS TO (core/sessions.ts — the SPX overnight field, 2026-10-15): SPX's minutes from 8:15 pm
+    belong to the next trading day (its overnight session); every other name's to its New York date. Cached by the
+    quarter hour (8:15 pm is on one, New York's offsets are whole hours) */
+const quarterDay = new Map<number, string>();
+export function barDayOf(name: string, timeSec: number): string {
+  if (!tradesAllSessions(name)) return barDay(timeSec);
+  const q = Math.floor(timeSec / 900);
+  let d = quarterDay.get(q);
+  if (!d) {
+    d = fieldDayOf(name, q * 900_000);
+    if (quarterDay.size > 40000) quarterDay.clear();
+    quarterDay.set(q, d);
+  }
+  return d;
+}
+/** Every bar of one trading day, oldest first */
+export function dayBars(bars: readonly Candle[], day: string, name = ''): Candle[] {
   const out: Candle[] = [];
   for (let i = bars.length - 1; i >= 0; i--) {
-    const d = barDay(bars[i].time);
+    const d = barDayOf(name, bars[i].time);
     if (d === day) out.push(bars[i]);
     else if (d < day) break;
   }
   return out.reverse();
+}
+/** Whether a bar stands in one of its name's sessions on its trading day (SPY and QQQ: regular hours alone; SPX: the
+    overnight session, regular hours to 4:15 pm and the curb) — the field is modeled in these minutes and no others */
+const spansCache = new Map<string, SessionSpan[]>();
+function inSessions(name: string, day: string, timeSec: number): boolean {
+  const key = `${name}|${day}`;
+  let spans = spansCache.get(key);
+  if (!spans) {
+    spans = fieldSpansOf(name, day);
+    if (spansCache.size > 4000) spansCache.clear();
+    spansCache.set(key, spans);
+  }
+  const ms = timeSec * 1000;
+  for (const sp of spans) if (ms >= sp.from && ms < sp.to) return true;
+  return false;
 }
 
 function work() {
@@ -325,13 +356,11 @@ function work() {
         s.cost.ms += performance.now() - tS;
       }
       const u = built.u;
-      /* a past session draws its regular minutes alone (09:30–16:00): its hours outside them would hold only the
-         session before's close vols, and ten sessions of every minute weigh too much */
-      const [y, m, d] = day.split('-').map(Number);
-      const from = day === s.day ? -Infinity : nyWallTime(y, m, d, 9, 30) / 1000;
-      const to = day === s.day ? Infinity : nyWallTime(y, m, d, 16, 0) / 1000;
-      for (const b of dayBars(s.bars, day)) {
-        if (b.time < from || b.time >= to) continue;
+      /* A SESSION DRAWS ITS NAME'S SESSIONS ALONE (core/sessions.ts — the owner, 2026-10-15: "'regular hours only'
+         applies to SPY and QQQ … SPY and QQQ: regular hours by default, with the gap outside them labelled"): an equity's
+         regular hours, SPX's overnight session, regular hours to 4:15 pm and the curb — today as every day before it */
+      for (const b of dayBars(s.bars, day, s.t)) {
+        if (!inSessions(s.t, day, b.time)) continue;
         const r = readAt(u, (b.time + 60) * 1000);
         /* a minute is modeled once per set of inputs knowable at it: a new chain read moves only the minutes after it —
            but the day's published count, received late, moves every column from the publication (the owner, 2026-10-13) */
@@ -363,9 +392,9 @@ function publish(s: NameTrail) {
   if (s.rec) {
     /* the recorder's sessions from its own columns, every other session from the live trail's */
     const live = trails.get(s.key.slice(0, -4));
-    const own = new Set([...s.cols.values()].map(c => barDay(c.snap.time)));
+    const own = new Set([...s.cols.values()].map(c => barDayOf(s.t, c.snap.time)));
     const mine = [...s.cols.values()].map(c => c.snap);
-    s.out = [...(live?.out ?? []).filter(c => !own.has(barDay(c.time))), ...mine].sort((a, b) => a.time - b.time);
+    s.out = [...(live?.out ?? []).filter(c => !own.has(barDayOf(s.t, c.time))), ...mine].sort((a, b) => a.time - b.time);
     s.residual = live?.residual ?? null;
     ring(s.key);
     return;
@@ -373,7 +402,7 @@ function publish(s: NameTrail) {
   s.out = [...s.cols.values()].map(c => c.snap).sort((a, b) => a.time - b.time);
   const t0 = performance.now();
   /* the residual is today's: UW's 60-day books read today against today's columns, on the strikes both hold */
-  const todays = s.out.filter(c => barDay(c.time) === s.day);
+  const todays = s.out.filter(c => barDayOf(s.t, c.time) === s.day);
   s.residual = s.cut ? null : fieldResidual(todays, books60Of(s.t));
   s.cost.ms += performance.now() - t0;
   ring(s.key);
@@ -382,7 +411,8 @@ function publish(s: NameTrail) {
 }
 
 function stateOf(t: string, cut: string | null, rec = false): NameTrail {
-  const day = nyIsoDate();
+  /* today is the trading day now: SPX's from 8:15 pm is the next one (its overnight session) */
+  const day = tradesAllSessions(t) ? fieldDayOf(t, Date.now()) : nyIsoDate();
   const key = `${t}|${cut ?? 'all'}${rec ? '|rec' : ''}`;
   let s = trails.get(key);
   if (!s || s.day !== day) {
@@ -439,7 +469,7 @@ export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Ca
   );
   const s = live ? trails.get(key) : undefined;
   const day = s?.day ?? '';
-  const full = snaps.length > 0 && barDay(snaps[snaps.length - 1].time) === day;
+  const full = snaps.length > 0 && barDayOf(t, snaps[snaps.length - 1].time) === day;
   /* THE WINDOW (item 6): every column already carries its sums by expiry partition, so a window is a view of the same
      columns — computed here, asked of no one — and its residual stands against UW's 60-day book seen through the same
      window, from the reads that carry its partitions */
@@ -450,7 +480,7 @@ export function useFeedTrailField(on: boolean, ticker: string, bars: readonly Ca
       .map(b => book60Window(b, window))
       .filter((b): b is FeedBook60 => !!b);
     const named = window === '0dte' ? 'the day\'s own expiry' : window === 'fri' ? 'the expiries to Friday' : 'the expiries to monthly OPEX';
-    return books.length ? fieldResidual(view.filter(c => barDay(c.time) === s.day), books, named) : null;
+    return books.length ? fieldResidual(view.filter(c => barDayOf(s.t, c.time) === s.day), books, named) : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, window, reads]);
   if (view) return { snaps: view, full, residual };
@@ -475,7 +505,7 @@ function windowedOf(src: GexSnapshot[], w: ExpiryWindow): GexSnapshot[] {
  */
 export function straddlesAtMinute(ticker: string, cut: string | null, recorded: boolean, bar: { time: number; close: number }): { today: StraddleRead | null; weekly: StraddleRead | null } | null {
   const t = ticker.toUpperCase();
-  const day = barDay(bar.time);
+  const day = barDayOf(ticker, bar.time);
   const key = `${t}|${cut ?? 'all'}`;
   /* a session the recorder kept whole is priced on the twin's universe; every other on the live trail's */
   const rec = recorded ? recordedByName.get(t)?.get(day) : undefined;
@@ -499,7 +529,7 @@ if (typeof window !== 'undefined')
     /* the residual's figures: per 60-day book, the per-strike gap and the summed ratio on the strikes both hold */
     figures: (t: string) => {
       const s = trails.get(`${t.toUpperCase()}|all`);
-      return s ? residualFigures(s.out.filter(c => barDay(c.time) === s.day), books60Of(s.t)) : null;
+      return s ? residualFigures(s.out.filter(c => barDayOf(s.t, c.time) === s.day), books60Of(s.t)) : null;
     },
     books60: (t: string) => books60Of(t.toUpperCase()).map(b => ({ at: b.at, spot: b.spot, expiries: b.expiries.length, rows: b.rows.length, sum: b.rows.reduce((x, r) => x + r.net, 0) })),
     prov: (t: string) => {

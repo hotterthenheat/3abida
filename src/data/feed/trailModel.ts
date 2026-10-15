@@ -4,6 +4,7 @@
   path)"). No React, no window, no document: the universe, the column, the summary, the straddles, the residual.
   trailField.ts re-exports everything here and adds the browser's state and hook; see its header for the model's rules.
 */
+import { WIDE_VOL } from './forward';
 import { pickFlip, pickWalls } from '../../core/walls';
 import { blackScholesGreeks, blackScholesPrice } from '../../core/greeks';
 import { nyIsoDate, nyWallTime } from '../../core/nyTime';
@@ -96,7 +97,7 @@ export const TRAIL_MODEL = {
   units: 'open interest × greek × price² (dollars per 1%, UW /spot-exposures/strike units)',
   sign: "assumed: the house's — the calls' gamma negative, the puts' positive, delta turned over",
   calibration: 'none — the captured books are a reference, their residual said in How sure',
-  scale: 'each column against the columns at or before it (the 85th percentile of their maxima)',
+  scale: "each column against the session's largest node at or before it",
 } as const;
 
 /* ---- the recorded inputs, as the server hands them ---------------------------------------------------------------- */
@@ -104,8 +105,10 @@ export const TRAIL_MODEL = {
 /** One read of the chain: [OCC symbol, open interest, vol or null, its trade's time (ms) or null] */
 /** One read of the chain: [OCC symbol, open interest, vol of the last trade or null, that trade's time (ms) or null,
     NBBO bid or null, NBBO ask or null, the day's volume] — the last three since 2026-10-13, for the store's straddles
-    (server/fieldStore.ts); a row without them is read as before */
-export type ChainRow = [string, number, number | null, number | null, (number | null)?, (number | null)?, number?];
+    (server/fieldStore.ts); a row without them is read as before. An eighth since 2026-10-15 (the SPX overnight field):
+    where the vol was SOLVED FROM THE QUOTE'S MID (Theta's quotes — overnight, the curb, a rebuilt day), the quote's width
+    in vol ((ask − bid) ÷ vega, data/feed/forward.ts volWidth); over WIDE_VOL the vol is `wide` */
+export type ChainRow = [string, number, number | null, number | null, (number | null)?, (number | null)?, number?, (number | null)?];
 export interface ChainRead {
   receivedAt: number;
   rows: ChainRow[];
@@ -131,6 +134,9 @@ export interface ServerInputs {
   /** A past session's vols as each contract traded (server/fieldBackfill.ts): flattened [minute start (ms), vol, …] —
       a minute's vol knowable at the minute's end */
   ticks?: Record<string, number[]>;
+  /** The tick minutes (ms, as in `ticks`) whose vol was solved from a WIDE quote (data/feed/forward.ts WIDE_VOL — a
+      session rebuilt from Theta's quotes, the SPX overnight field, 2026-10-15) */
+  wide?: Record<string, number[]>;
   /** THE DAY'S RATE (the owner's section C, 2026-10-14): a session rebuilt from Theta's quotes is priced — its vols
       inverted and its greeks figured — on the day's own rate (DTB3-derived, server/thetaRebuild.ts); absent, UW's
       fitted 4.15% (UW_VOL_CONVENTION), the only rate UW's vols are right on */
@@ -167,6 +173,8 @@ interface Obs {
   trade: number;
   bound: boolean;
   carried: boolean;
+  /** solved from a quote wider than WIDE_VOL (data/feed/forward.ts) */
+  wide?: boolean;
 }
 
 /** The universe priced: strikes ascending, each strike's contracts in one packed run, each contract's observations */
@@ -261,6 +269,9 @@ export const PART_STRIDE = 5 * PARTS;
  * the session before's close. So a live day and one rebuilt from history stand on the same positions. And every vol
  * observation with the moment it became knowable.
  */
+/** An index's weekly root reads as the index (SPXW's contracts are SPX's field — the overnight field, 2026-10-15: the
+    root filter took the name's own root alone, so SPX's universe held its AM monthlies and nothing else) */
+const WEEKLY_UNDER: Record<string, string> = { SPXW: 'SPX', NDXP: 'NDX', RUTW: 'RUT', VIXW: 'VIX' };
 export function universeOf(ticker: string, day: string, inputs: ServerInputs, cut: string | null = null): Universe {
   const t = ticker.toUpperCase();
   type C = { strike: number; expiry: string; call: boolean; oiObs: OiObs[]; obs: Obs[] };
@@ -276,16 +287,16 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     const todays = read.receivedAt >= publish;
     if (todays && !oiTodayFrom) oiTodayFrom = read.receivedAt;
     const at = todays ? publish : priorAt;
-    for (const [sym, oi, iv, trade] of read.rows) {
+    for (const [sym, oi, iv, trade, , , , width] of read.rows) {
       const p = parseOcc(sym);
-      if (!p || p.root !== t || p.expiry < day || (cut && p.expiry !== cut) || !(p.strike > 0)) continue;
+      if (!p || (p.root !== t && WEEKLY_UNDER[p.root] !== t) || p.expiry < day || (cut && p.expiry !== cut) || !(p.strike > 0)) continue;
       let c = bySym.get(sym);
       if (!c) bySym.set(sym, (c = { strike: p.strike, expiry: p.expiry, call: p.right === 'C', oiObs: [], obs: [] }));
       /* a count is noted when it changes — the same count read again is the same knowledge; the newest read of a kind
          (prior or published) is the count of that kind */
       if (!c.oiObs.length || c.oiObs[c.oiObs.length - 1].oi !== oi) c.oiObs.push({ at, oi });
       if (iv != null && iv > 0 && lastTradeOf(p.expiry) - read.receivedAt >= LAST_HOUR_MS) {
-        c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false });
+        c.obs.push({ at: read.receivedAt, iv, ...tradeTimeOf(trade, read.receivedAt), carried: false, ...(width != null && width > WIDE_VOL ? { wide: true } : {}) });
         volReads.add(read.receivedAt);
       }
     }
@@ -296,11 +307,12 @@ export function universeOf(ticker: string, day: string, inputs: ServerInputs, cu
     const c = bySym.get(sym);
     if (!c) continue;
     const last = lastTradeOf(c.expiry);
+    const wide = inputs.wide?.[sym] ? new Set(inputs.wide[sym]) : null;
     for (let i = 0; i + 1 < arr.length; i += 2) {
       const at = arr[i] + 60_000;
       const iv = arr[i + 1];
       if (!(iv > 0) || last - at < LAST_HOUR_MS) continue;
-      c.obs.push({ at, iv, trade: arr[i], bound: false, carried: false });
+      c.obs.push({ at, iv, trade: arr[i], bound: false, carried: false, ...(wide?.has(arr[i]) ? { wide: true } : {}) });
       tickEnds.add(at);
     }
   }
@@ -515,6 +527,7 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
     let staleBound = false;
     let newest = 0;
     let old = 0;
+    let wideG = 0;
     for (let j = u.start[i]; j < u.start[i + 1]; j++) {
       if (u.expires[j] <= clock) continue;
       const o = obsAt(u.obs[j], knowBy);
@@ -547,13 +560,15 @@ export function modelColumn(u: Universe, bar: { time: number; close: number }, h
       if (o.trade > newest) newest = o.trade;
       /* on a vol older than an hour at this minute — the hover says how much of the strike stands on one */
       if (clock - o.trade > STALE_MS) old += gw;
+      /* on a vol solved from a wide quote (the SPX overnight field) */
+      if (o.wide) wideG += gw;
     }
     if (all <= 0) continue;
     for (let x = 0; x < PART_STRIDE; x++) parts.push(pv[x]);
     const coverage = fresh / all;
     /* the house's sign (levels.ts feedStrike): the calls' gamma and every delta turned over, the puts' gamma as is */
     /* `gross` (the owner's B3): the calls' and the puts' gamma added without sign — `all`, the strike's size on the map */
-    levels.push({ strike: k, value: -gc + gp, gross: all, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, ...(readGap ? { readGap } : {}), coverage });
+    levels.push({ strike: k, value: -gc + gp, gross: all, dex: -dc - dp, prov: coverage >= 0.5 ? 'modeled' : 'carried', staleSince: Number.isFinite(stale) ? stale : undefined, ...(staleBound && Number.isFinite(stale) ? { staleBound: true } : {}), ...(newest > 0 ? { freshAt: newest } : {}), staleShare: old / all, ...(readGap ? { readGap } : {}), ...(wideG > 0 ? { wideShare: wideG / all } : {}), coverage });
   }
   const drift = driftToClose(u, bar);
   return { time: bar.time, levels, spot, rebuilt: true, parts: Float32Array.from(parts), ...(drift ? { drift } : {}) };
@@ -582,7 +597,7 @@ export function windowView(snap: GexSnapshot, w: ExpiryWindow): GexSnapshot {
     const all = sum(o + 2 * PARTS);
     if (!(all > 0)) return;
     const coverage = sum(o + 3 * PARTS) / all;
-    levels.push({ strike: l.strike, value: sum(o), gross: all, dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, ...(l.readGap ? { readGap: l.readGap } : {}), coverage, ...(l.at != null ? { at: l.at } : {}) });
+    levels.push({ strike: l.strike, value: sum(o), gross: all, dex: sum(o + PARTS), prov: coverage >= 0.5 ? 'modeled' : 'carried', staleShare: sum(o + 4 * PARTS) / all, ...(l.readGap ? { readGap: l.readGap } : {}), ...(l.wideShare ? { wideShare: l.wideShare } : {}), coverage, ...(l.at != null ? { at: l.at } : {}) });
   });
   /* the drift by partition rides along: driftOf sums it through the window it is asked for */
   const view: GexSnapshot = { time: snap.time, levels, spot: snap.spot, rebuilt: snap.rebuilt, ...(snap.drift ? { drift: snap.drift } : {}) };
@@ -599,6 +614,8 @@ export interface PastInputsLike {
   oi: [string, number][];
   seed: SeedRead | null;
   ticks?: Record<string, number[]>;
+  /** The tick minutes whose vol came from a wide quote (ServerInputs `wide`) */
+  wide?: Record<string, number[]>;
   total?: TotalRead | null;
   /** The day's rate (a Theta-rebuilt session); absent, UW's convention */
   rate?: number;
@@ -607,7 +624,7 @@ export interface PastInputsLike {
 export function pastInputs(p: PastInputsLike): ServerInputs {
   const [y, m, d] = p.day.split('-').map(Number);
   const open: ChainRead = { receivedAt: nyWallTime(y, m, d, 9, 30), rows: p.oi.map(([sym, oi]) => [sym, oi, null, null]) };
-  return { chains: [open], seed: p.seed, total: p.total ?? null, ticks: p.ticks ?? {}, ...(p.rate != null ? { rate: p.rate } : {}) };
+  return { chains: [open], seed: p.seed, total: p.total ?? null, ticks: p.ticks ?? {}, ...(p.wide ? { wide: p.wide } : {}), ...(p.rate != null ? { rate: p.rate } : {}) };
 }
 /** A past session's book AT ITS OPEN: the rebuilt field's column on the opening bar — the day's published count, the
     session before's close vols and the first minute's prints, nothing knowable later (the owner, 2026-10-13: UW's

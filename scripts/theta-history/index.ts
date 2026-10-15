@@ -33,7 +33,11 @@
     expirations within 60 calendar days, the strikes
     within ±15% of the day's range) with each day's
     contract list, per-contract open interest and
-    one-minute quotes; SPY and QQQ one-minute NBBO
+    one-minute quotes (SPX and SPXW to the curb's end,
+    5:00 pm, and their overnight session — the evening
+    before from 8:15 pm and the morning to 9:25 am, the
+    front expiry a minute, the rest every five — the
+    first date each serves overnight rows logged); SPY and QQQ one-minute NBBO
     (bid, ask and the top-of-book sizes); VIX, SPX,
     NDX and RUT a minute (the price series) and their
     candles; daily and one-minute candles with volume
@@ -67,6 +71,7 @@ import { statfs } from 'node:fs/promises';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { UNIVERSE } from '../../src/data/universe';
+import { tradesAllSessions } from '../../src/core/sessions';
 import { parseEnv } from '../theta-probe/lib';
 import { ClockGate, GzWriter, compact, daysBetween, fmtBytes, isoAdd, isoOf, limitByClock, num, nyNow, thetaStream, thetaText, weekdayOf, type Row } from './stream';
 
@@ -238,6 +243,23 @@ export async function runHistory(opts: HistoryOptions): Promise<{ sessions: stri
     slot[feed] = e;
     saveManifest(root, m);
     return e;
+  };
+
+  /* ---- THE FIRST DATE THETA SERVES OVERNIGHT ROWS (the owner, 2026-10-15: "Theta's docs say overnight quotes and trades
+     exist for SPX, VIX, DJI and RUT options after January 2022, and 2015–2018, but not 2019–2022. Log the first date Theta
+     actually serves overnight rows"): walking newest first, a root's oldest trading day with any overnight row is kept
+     as `first.gth` and logged each time it moves older; a day with none is logged once (log.ndjson, kind 'gth') ------- */
+  const noteOvernight = (m: Manifest, d: string, rows: number) => {
+    const key = `gth-seen:${d}`;
+    const slot = (m.days[d] ??= {});
+    if (slot[key]) return;
+    slot[key] = { s: rows > 0 ? 'ok' : 'empty', rows, at: clock() };
+    if (rows > 0 && (!m.first.gth || d < m.first.gth)) {
+      m.first.gth = d;
+      log(`overnight rows: ${m.ticker} served on ${d} (${rows} rows) — the oldest so far`);
+    }
+    note({ kind: 'gth', ticker: m.ticker, day: d, rows, oldestServed: m.first.gth ?? null });
+    saveManifest(root, m);
   };
 
   /* ---- the calendar and each feed's first date ------------------------------------------------------------------ */
@@ -495,12 +517,25 @@ export async function runHistory(opts: HistoryOptions): Promise<{ sessions: stri
           }
           if (!band) note({ kind: 'note', ticker: r, day: d, text: 'no eod row for the day: the strikes were not banded' });
           await call(m, slot, 'chain-oi', '/option/history/open_interest', { symbol: r, expiration: '*', date: compact(d) }, join(root, r, d, 'chain-oi.ndjson.gz'), inWindow, 'chain');
+          const inBand = (row: Row) => {
+            if (!band) return true;
+            const k = strikeOf(row);
+            return k != null && k >= band.lo && k <= band.hi;
+          };
+          /* SPX'S THREE SESSIONS (core/sessions.ts — the owner's SPX overnight field, 2026-10-15): its roots read to the
+             curb's end (5:00 pm), and its overnight session into the day — the evening before from 8:15 pm (asked on that
+             calendar date) and the morning to 9:25 am — kept under the trading day; the front expiry a minute (the
+             forward), the others every five */
+          const allSessions = tradesAllSessions(r);
+          const front = [...exps].sort()[0] ?? null;
           for (const e of [...exps].sort()) {
-            await call(m, slot, `quotes:${e}`, '/option/history/quote', { symbol: r, expiration: compact(e), date: compact(d), interval: '1m', start_time: '09:30:00', end_time: '16:15:00' }, join(root, r, d, `chain-quotes-${e}.ndjson.gz`), row => {
-              if (!band) return true;
-              const k = strikeOf(row);
-              return k != null && k >= band.lo && k <= band.hi;
-            }, 'chain');
+            await call(m, slot, `quotes:${e}`, '/option/history/quote', { symbol: r, expiration: compact(e), date: compact(d), interval: '1m', start_time: '09:30:00', end_time: allSessions ? '17:00:00' : '16:15:00' }, join(root, r, d, `chain-quotes-${e}.ndjson.gz`), inBand, 'chain');
+            if (!allSessions) continue;
+            const interval = e === front ? '1m' : '5m';
+            const evening = isoAdd(d, -1);
+            const g1 = await call(m, slot, `quotes-gth1:${e}`, '/option/history/quote', { symbol: r, expiration: compact(e), date: compact(evening), interval, start_time: '20:15:00', end_time: '23:59:59' }, join(root, r, d, `chain-quotes-gth1-${e}.ndjson.gz`), inBand, 'chain');
+            const g2 = await call(m, slot, `quotes-gth2:${e}`, '/option/history/quote', { symbol: r, expiration: compact(e), date: compact(d), interval, start_time: '00:00:00', end_time: '09:25:00' }, join(root, r, d, `chain-quotes-gth2-${e}.ndjson.gz`), inBand, 'chain');
+            noteOvernight(m, d, (g1.rows ?? 0) + (g2.rows ?? 0));
           }
         })()
       );
@@ -541,6 +576,13 @@ export async function runHistory(opts: HistoryOptions): Promise<{ sessions: stri
       }
       lines.push('', `Projected total: ${fmtBytes(projBytes)} and ${(projSecs / 3600).toFixed(1)} h of calls (the gate's width by the clock not counted); free disk here: ${Number.isFinite(free) ? fmtBytes(free) : 'unknown'}.`);
       lines.push(`Per ticker, a chain root costs what the chain row says ÷ ${chainRoots.length || 1}; a stock what the stock row says ÷ ${opts.stocks.length || 1}.`);
+      /* the overnight session: the oldest day each SPX root has served overnight rows on, and its days walked with and without */
+      for (const r of chainRoots.filter(x => tradesAllSessions(x))) {
+        const mm = mf(r);
+        const seen = Object.entries(mm.days).filter(([, sl]) => Object.keys(sl).some(k => k.startsWith('gth-seen:')));
+        const withRows = seen.filter(([, sl]) => Object.entries(sl).some(([k, e]) => k.startsWith('gth-seen:') && (e.rows ?? 0) > 0)).map(([day]) => day).sort();
+        lines.push(`Overnight rows (${r}): ${withRows.length} of ${seen.length} sessions walked hold them; the oldest served ${mm.first.gth ?? '—'}${withRows.length ? `, the newest ${withRows[withRows.length - 1]}` : ''}.`);
+      }
       if (Number.isFinite(free) && projBytes > free && !opts.force) {
         paused = true;
         lines.push('', `**PAUSED**: the projection (${fmtBytes(projBytes)}) exceeds the free disk (${fmtBytes(free)}). Free space or narrow the scope (HISTORY_TICKERS, HISTORY_FROM), then run again; HISTORY_FORCE=1 goes on regardless.`);

@@ -100,7 +100,11 @@ export async function loadSession(backfill: FieldBackfill, store: FieldStore, ro
     .filter(b => b.session === 'r' && b.open != null && b.high != null && b.low != null)
     .map(b => ({ time: b.time, open: b.open!, high: b.high!, low: b.low!, close: b.close }));
   if (trackBars.length < 30) return { why: `Only ${trackBars.length} regular minute bars for the session.`, bars: trackBars };
-  const final = store.readRows(name, day, 'final');
+  /* THE TRACK RECORD'S UNIVERSE STAYS ITS OWN: the regular minutes 9:30 to 4:00 New York alone — SPX's rows from 4:00 to
+     4:15 pm, the curb and the overnight session (core/sessions.ts, 2026-10-15) are the field's, not the pre-registered
+     scorecard's; a variant that reads them is Section D's to register */
+  const regular = (r: StoreRow) => (r.session ?? 'r') === 'r' && nyMinuteOf(r.m) >= 9 * 60 + 30 && nyMinuteOf(r.m) < 16 * 60;
+  const final = store.readRows(name, day, 'final').filter(regular);
   let rows: StoreRow[] = final;
   let source: 'final' | 'rebuilt' = 'final';
   let dir: [number, number][] | undefined;
@@ -109,7 +113,7 @@ export async function loadSession(backfill: FieldBackfill, store: FieldStore, ro
     if (!existsSync(file))
       return { why: `The store holds ${final.length} of the session's ${trackBars.length} minutes as final rows and the session has not been rebuilt — the track record reads a session from 90%.`, bars: trackBars };
     const past = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')) as PastDay;
-    rows = store.rowsOf(past, bars);
+    rows = store.rowsOf(past, bars).filter(regular);
     source = 'rebuilt';
     if (past.total?.rows.some(r => r.length >= 5)) dir = past.total.rows.filter(r => r[4] != null).map(r => [r[0], r[4] as number]);
   }

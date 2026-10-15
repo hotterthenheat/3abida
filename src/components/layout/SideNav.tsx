@@ -78,7 +78,7 @@ import { isCashIndex, useFeedBook } from '../../data/feed/levels';
    being asked it shows nothing. An index has no day state on UW's plan and is never asked (levels.ts isCashIndex): on
    every feed page it is the price its book was figured at, its change left off (2026-10-12 — the rail keeps a real price
    on every feed page; it read "—" off Pinpoint and Terrain). */
-function useRailQuote(ticker: string): { quote: { spot: number; changePct: number; at?: number; source?: 'trade' | 'print'; stale?: boolean } | null; missing: boolean } {
+function useRailQuote(ticker: string): { quote: { spot: number; changePct: number; at?: number; source?: 'trade' | 'print' | 'options'; stale?: boolean } | null; missing: boolean } {
   const path = useLocation().pathname;
   const src = pageSource(path, useFeedStatus());
   const house = useQuote();
@@ -197,6 +197,12 @@ const RailSubject = ({
       <span className="font-mono text-[11px] tnum text-textPrimary" data-subject-price title={missing ? NOT_IN_FEED : undefined}>
         {priceText}
       </span>
+      {quote?.source === 'options' && quote.at != null && (
+        /* SPX outside its index's hours: the forward its options imply (the owner's SPX overnight field) */
+        <span className={`font-mono text-[11px] tnum ${quote.stale ? 'text-warn' : 'text-textMuted'}`} data-subject-print="options" title={`The forward SPX's at-the-money options imply, ${clock(quote.at)} — no index value outside 9:30 am to 4:00 pm New York`}>
+          price from options{quote.stale ? ' · stale' : ''}
+        </span>
+      )}
       {quote?.source === 'print' && quote.at != null && (
         /* THE PRINT'S TIME (the owner, 2026-10-13): an index is priced off its newest option print; older than two
            minutes it is said stale */

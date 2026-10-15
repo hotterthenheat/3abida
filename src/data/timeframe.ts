@@ -139,6 +139,8 @@ interface Peaks {
   share: (number | undefined)[];
   /* the read gap of the peak's minute (GexLevel readGap) — it rides with the peak it belongs to */
   gap: (number | undefined)[];
+  /* the share of the peak's gamma on vols from wide quotes (GexLevel wideShare) */
+  wide: (number | undefined)[];
   /* the minute the peak was taken from (epoch s) — the card names it (the owner's second review, 2026-10-13, item 6) */
   at: (number | undefined)[];
   /* the peak minute's gross gamma at the strike (the owner's B3) — it rides with the peak it belongs to */
@@ -147,7 +149,7 @@ interface Peaks {
   spot?: number;
   rebuilt: boolean;
 }
-const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], fresh: [], share: [], gap: [], at: [], gross: [], rebuilt: true });
+const newPeaks = (): Peaks => ({ strikes: [], values: [], abs: [], dex: [], vex: [], prov: [], stale: [], bound: [], fresh: [], share: [], gap: [], wide: [], at: [], gross: [], rebuilt: true });
 const markPeaks = (p: Peaks, snap: GexSnapshot) => {
   if (snap.spot !== undefined) p.spot = snap.spot;
   if (!snap.rebuilt) p.rebuilt = false;
@@ -178,6 +180,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[], at?: number): void =>
       p.fresh.push(l.freshAt);
       p.share.push(l.staleShare);
       p.gap.push(l.readGap);
+      p.wide.push(l.wideShare);
       p.at.push(at);
       p.gross.push(l.gross);
     }
@@ -202,6 +205,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[], at?: number): void =>
         p.fresh[i] = l.freshAt;
         p.share[i] = l.staleShare;
         p.gap[i] = l.readGap;
+        p.wide[i] = l.wideShare;
         p.at[i] = at;
         p.gross[i] = l.gross;
       }
@@ -221,6 +225,7 @@ const mergePeaks = (p: Peaks, levels: readonly GexLevel[], at?: number): void =>
       p.fresh.splice(i, 0, l.freshAt);
       p.share.splice(i, 0, l.staleShare);
       p.gap.splice(i, 0, l.readGap);
+      p.wide.splice(i, 0, l.wideShare);
       p.at.splice(i, 0, at);
       p.gross.splice(i, 0, l.gross);
     }
@@ -237,6 +242,7 @@ const peakLevels = (p: Peaks) => {
     if (p.fresh[k] !== undefined) l.freshAt = p.fresh[k];
     if (p.share[k] !== undefined) l.staleShare = p.share[k];
     if (p.gap[k] !== undefined) l.readGap = p.gap[k];
+    if (p.wide[k] !== undefined) l.wideShare = p.wide[k];
     if (p.at[k] !== undefined) l.at = p.at[k];
     if (p.gross[k] !== undefined) l.gross = p.gross[k];
     out[k] = l;

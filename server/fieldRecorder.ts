@@ -65,6 +65,8 @@ import { join } from 'node:path';
 import type { FeedClient } from './feed';
 import type { createFieldBackfill, MinuteBar, PastDay } from './fieldBackfill';
 import type { Bar, FieldStore } from './fieldStore';
+import { fieldSessionAt, indexPrintsAt, tradesAllSessions } from '../src/core/sessions';
+import { frontExpiry, lastThetaWhy, readForward, readQuoteChain } from './overnightReader';
 
 type FieldBackfill = ReturnType<typeof createFieldBackfill>;
 
@@ -96,10 +98,26 @@ export interface RecordedBook {
 /** One read of the chain: [OCC symbol, open interest, vol of the last trade or null, that trade's time (ms) or null,
     NBBO bid or null, NBBO ask or null, the day's volume] — the last three since 2026-10-13 (the store's straddles,
     server/fieldStore.ts; the owner: "keep the chain's nbbo_bid/nbbo_ask") */
-export type ChainRow = [string, number, number | null, number | null, (number | null)?, (number | null)?, number?];
+export type ChainRow = [string, number, number | null, number | null, (number | null)?, (number | null)?, number?, (number | null)?];
 export interface RecordedChain {
   receivedAt: number;
   rows: ChainRow[];
+  /** 'theta': SPX's quotes outside its index's hours, each mid solved for its vol at the forward, the eighth figure the
+      quote's width in vol (server/overnightReader.ts); absent: UW's chain */
+  src?: 'theta';
+}
+/** SPX'S PRICE FROM ITS OPTIONS (server/overnightReader.ts): the forward the front expiry's quotes imply, a minute */
+export interface RecordedForward {
+  receivedAt: number;
+  forward: number;
+  /** the spot the forward implies on the model's carry — the minute's bar and the field's price (forward.ts) */
+  spot?: number;
+  expiry: string;
+  strikes: number[];
+  pairs: number;
+  width: number;
+  /** the newest quote's own time */
+  at: number;
 }
 /** The session before's close: [OCC symbol, vol at the close or null, its last trade's time (ms) or null, open interest
     dated that session — the count the pre-market stands on until today's is received (the owner, 2026-10-13)] */
@@ -147,6 +165,10 @@ interface Day {
   seed: RecordedSeed | null;
   total: RecordedTotal | null;
   oiSwitch: OiSwitch | null;
+  /** SPX's forwards read outside its index's hours (fwd.jsonl) */
+  fwd: RecordedForward[];
+  /** The newest Theta answer's outcome for SPX, for the page: 'ok', 'no-terminal', 'empty' */
+  theta: { at: number; state: string } | null;
   /** The day's minute bars as read (UW's /ohlc/1m, the last dozen each minute), by the minute's start (seconds) */
   bars: Map<number, Bar>;
   /** Today's rebuild as it goes (fieldBackfill today()) — the store's final rows */
@@ -187,7 +209,7 @@ const INDEX_NAMES = new Set(['SPX', 'NDX', 'RUT', 'VIX']);
     refreshed in this long, or whose process is gone, is taken. */
 const LOCK_STALE_MS = 3 * 60_000;
 /** The files gzipped in place as the day turns */
-const PRUNED = new Set(['books.jsonl', 'books60.jsonl', 'chain.jsonl', 'total.json', 'seed.json', 'shown.jsonl', 'final.jsonl']);
+const PRUNED = new Set(['books.jsonl', 'books60.jsonl', 'chain.jsonl', 'total.json', 'seed.json', 'shown.jsonl', 'final.jsonl', 'fwd.jsonl']);
 /** Bars are read through the hours Terrain draws: 04:00 to 20:00 New York */
 const barHoursAt = (minute: number) => minute >= 4 * 60 && minute <= 20 * 60;
 
@@ -318,14 +340,86 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         seed: (x => (x && x.rows.length && x.rows[0].length >= 4 ? x : null))(readJson<RecordedSeed>(join(dir, 'seed.json'))),
         total: readJson<RecordedTotal>(join(dir, 'total.json')),
         oiSwitch: readJson<OiSwitch>(join(dir, 'oi.json')),
+        fwd: readLines<RecordedForward>(join(dir, 'fwd.jsonl')),
+        theta: null,
         bars: new Map(),
         today: null,
         finalBusy: false,
         closed: false,
       };
+      /* SPX's minutes priced off its options, as recorded (the forward a minute) */
+      for (const r of d.fwd) putForwardBar(d, r);
       days.set(name, d);
     }
     return d;
+  }
+
+  /** A forward read as the minute's bar: the minute's first, highest, lowest and newest forward — the session it stands
+      in kept, and that its price is the options' (core/sessions.ts indexPrintsAt) */
+  function putForwardBar(d: Day, r: RecordedForward) {
+    const minute = Math.floor(r.receivedAt / 60_000) * 60;
+    const ses = fieldSessionAt(d.name, r.receivedAt);
+    const session: Bar['session'] = ses?.session === 'gth' ? 'gth' : ses?.session === 'curb' ? 'curb' : 'r';
+    const f = r.spot ?? r.forward;
+    const had = d.bars.get(minute);
+    if (!had || had.src !== 'options') d.bars.set(minute, { time: minute, open: f, high: f, low: f, close: f, session, src: 'options' });
+    else {
+      had.high = Math.max(had.high ?? f, f);
+      had.low = Math.min(had.low ?? f, f);
+      had.close = f;
+    }
+  }
+
+  /** THE NAME'S SESSION NOW (core/sessions.ts): SPX's trading day runs from 8:15 pm the evening before (its overnight
+      session) to the curb's end; an equity's is its New York date, its session 9:30 to 4:00 */
+  function sessionNow(name: string, now: number) {
+    const p = nyParts(now);
+    const all = tradesAllSessions(name);
+    const ses = fieldSessionAt(name, now);
+    return {
+      day: all ? (ses?.day ?? p.day) : p.day,
+      ses,
+      /* the book a minute: through the regular session — SPX's to 4:15 pm */
+      inSession: all ? ses?.session === 'rth' : p.minute >= 9 * 60 + 30 && p.minute <= 16 * 60,
+      chainHours: chainHoursAt(p.minute) || (all && ses?.session === 'rth'),
+      barHours: barHoursAt(p.minute),
+      /* a weekend minute is no session — but Sunday's from 8:15 pm is SPX's overnight session into Monday */
+      open: (p.weekday !== 'Sat' && p.weekday !== 'Sun') || !!ses,
+    };
+  }
+
+  /** SPX OUTSIDE ITS INDEX'S HOURS (server/overnightReader.ts — the owner's SPX overnight field): the forward a minute and
+      the chain's quotes solved every ten minutes, through Theta's terminal on this machine */
+  async function readOvernight(name: string, d: Day, now: number) {
+    const newest = [...d.chains].reverse().find(c => c.src !== 'theta') ?? null;
+    const expiries = new Set<string>();
+    for (const r of newest?.rows ?? d.seed?.rows ?? []) {
+      const e = occParts(r[0])?.expiry;
+      if (e) expiries.add(e);
+    }
+    const front = frontExpiry([...expiries], d.day);
+    if (!front) return;
+    const f = await readForward(client, d.day, front, now);
+    if (!f) {
+      d.theta = { at: now, state: lastThetaWhy ?? 'no-answer' };
+      return;
+    }
+    d.theta = { at: now, state: 'ok' };
+    const rec: RecordedForward = { receivedAt: clock(), forward: f.forward, spot: f.spot, expiry: f.expiry, strikes: f.strikes, pairs: f.pairs, width: f.width, at: f.at };
+    d.fwd.push(rec);
+    write(name, d.day, 'fwd.jsonl', JSON.stringify(rec), true);
+    putForwardBar(d, rec);
+    const lastQuotes = [...d.chains].reverse().find(c => c.src === 'theta')?.receivedAt ?? 0;
+    if (clock() - lastQuotes < CHAIN_EVERY_MS) return;
+    /* the counts the recorder holds: the seed's, then UW's newest read over them */
+    const oi = new Map<string, number>();
+    for (const r of d.seed?.rows ?? []) if (Number.isFinite(r[3])) oi.set(r[0], r[3]);
+    for (const r of newest?.rows ?? []) oi.set(r[0], r[1]);
+    const got = await readQuoteChain(client, d.day, f.spot, now, oi);
+    if (!got?.rows.length) return;
+    const read: RecordedChain = { receivedAt: clock(), rows: got.rows, src: 'theta' };
+    d.chains.push(read);
+    write(name, d.day, 'chain.jsonl', JSON.stringify(read), true);
   }
 
   const write = (name: string, day: string, file: string, text: string, append: boolean) => {
@@ -523,12 +617,15 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       const at = Date.parse(String(r.executed_at ?? ''));
       const up = num(r.underlying_price);
       if (!Number.isFinite(at) || up == null || !(up > 0)) continue;
+      /* the index prints its level 9:30 to 4:00 alone — a print after it carries the 4:00 level (SPX's minutes there are
+         the options' forward, readOvernight) */
+      if (!indexPrintsAt(at)) continue;
       const p = nyParts(at);
       if (p.day !== d.day) continue;
       const minute = Math.floor(at / 60_000) * 60;
       const had = d.bars.get(minute);
       const session: Bar['session'] = p.minute >= 9 * 60 + 30 && p.minute < 16 * 60 ? 'r' : p.minute < 9 * 60 + 30 ? 'pre' : 'post';
-      if (!had) d.bars.set(minute, { time: minute, close: up, open: up, high: up, low: up, session });
+      if (!had || had.src === 'options') d.bars.set(minute, { time: minute, close: up, open: up, high: up, low: up, session });
       else {
         had.high = Math.max(had.high ?? up, up);
         had.low = Math.min(had.low ?? up, up);
@@ -574,7 +671,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     if (busy.has(name)) return;
     busy.add(name);
     try {
-      const { day } = nyParts(clock());
+      const now = clock();
+      const { day, ses } = sessionNow(name, now);
       const d = dayOf(name, day);
       const lastChain = d.chains[d.chains.length - 1]?.receivedAt ?? 0;
       let readTheChain = false;
@@ -590,14 +688,17 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
       /* …and once when the day's newest read predates the partitions (a recorder upgraded mid-day — item 6's windows) */
       if (!d.books60.length || !d.books60[d.books60.length - 1].parts || (inSession && clock() - lastBook60 >= BOOK60_EVERY_MS)) await readBook60(name, d);
       if (!d.seed) await readSeed(name, d);
+      /* SPX inside a session while its index does not print (overnight, 4:00 to 4:15 pm, the curb): its price and vols
+         from its options' quotes (Theta) — none where this machine runs no terminal */
+      if (tradesAllSessions(name) && ses && !indexPrintsAt(now) && client.hasKey('theta')) await readOvernight(name, d, now);
       /* THE STORE (server/fieldStore.ts): the shown rows for the minutes ended, from what was received by each */
-      if (opts.store && (barHours || inSession)) {
-        await readBars(name, d);
+      if (opts.store && (barHours || inSession || !!ses)) {
+        if (barHours || inSession) await readBars(name, d);
         opts.store.shown(name, d.day, { chains: d.chains, seed: d.seed, total: d.total }, [...d.bars.values()], d.books);
       }
       if (readTheChain && inSession) void track(finalize(name, d).catch(() => undefined));
-      /* the closing pass: the minutes before 16:00 that no read in the session reached */
-      if (!inSession && d.today && !d.closed && nyParts(clock()).minute > 16 * 60) {
+      /* the closing pass: the minutes before the close that no read in the session reached */
+      if (!inSession && d.today && !d.closed && nyParts(clock()).minute > (tradesAllSessions(name) ? 16 * 60 + 15 : 16 * 60)) {
         d.closed = true;
         void track(finalize(name, d).catch(() => undefined));
       }
@@ -612,12 +713,15 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     if (!client.hasKey('uw') || !watched.size) return;
     /* one recorder a machine: another holds the lock, so this one only serves what it wrote */
     if (!holdLock()) return;
-    const { day, minute, weekday } = nyParts(now);
-    if (weekday === 'Sat' || weekday === 'Sun') return;
+    const { day } = nyParts(now);
     prune(day);
-    const inSession = minute >= 9 * 60 + 30 && minute <= 16 * 60;
-    /* one name after another — the proxy's gate keeps UW at three at once with the pages' own polls */
-    for (const name of watched.keys()) await track(serviceName(name, inSession, chainHoursAt(minute), barHoursAt(minute)).catch(() => undefined));
+    /* one name after another — the proxy's gate keeps UW at three at once with the pages' own polls; each name in its
+       own sessions (core/sessions.ts) */
+    for (const name of watched.keys()) {
+      const n = sessionNow(name, now);
+      if (!n.open) continue;
+      await track(serviceName(name, n.inSession, n.chainHours, n.barHours).catch(() => undefined));
+    }
   }
 
   function watch(name: string) {
@@ -640,8 +744,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     }
     /* a name first watched is read at once — its chain, its seed, one book — whatever the hour — by the lock's holder */
     if (fresh && holdLock()) {
-      const { minute, weekday } = nyParts(clock());
-      if (weekday !== 'Sat' && weekday !== 'Sun') void track(serviceName(name, minute >= 9 * 60 + 30 && minute <= 16 * 60, chainHoursAt(minute), barHoursAt(minute)).catch(() => undefined));
+      const n = sessionNow(name, clock());
+      if (n.open) void track(serviceName(name, n.inSession, n.chainHours, n.barHours).catch(() => undefined));
     }
   }
 
@@ -651,10 +755,19 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
     if (!NAME_OK.test(name)) return { status: 400, body: JSON.stringify({ error: 'bad-name' }) };
     if (!client.hasKey('uw')) return { status: 503, body: JSON.stringify({ error: 'no-key' }) };
     watch(name);
-    const d = dayOf(name, nyParts(clock()).day, !holdLock());
+    const d = dayOf(name, sessionNow(name, clock()).day, !holdLock());
     const newer = <T extends { receivedAt: number }>(x: T | null) => (x && x.receivedAt > since ? x : null);
     let latest = 0;
-    for (const x of [...d.books, ...d.books60, ...d.chains, d.seed, d.total]) if (x) latest = Math.max(latest, x.receivedAt);
+    for (const x of [...d.books, ...d.books60, ...d.chains, ...d.fwd, d.seed, d.total]) if (x) latest = Math.max(latest, x.receivedAt);
+    /* AN INDEX'S MINUTES (UW serves it no bars): its prints' level in its own hours, and SPX's forward from its options
+       outside them — [time, open, high, low, close, session, 1 when priced from options], the last hour again each ask
+       so a minute still forming is handed whole */
+    const bars = INDEX_NAMES.has(name)
+      ? [...d.bars.values()]
+          .filter(b => b.time * 1000 > since - 60 * 60_000)
+          .sort((a, b) => a.time - b.time)
+          .map(b => [b.time, b.open ?? b.close, b.high ?? b.close, b.low ?? b.close, b.close, b.session, b.src === 'options' ? 1 : 0] as const)
+      : undefined;
     return {
       status: 200,
       body: JSON.stringify({
@@ -667,6 +780,8 @@ export function createFieldRecorder(client: FeedClient, opts: { now?: () => numb
         seed: newer(d.seed),
         total: newer(d.total),
         oiSwitch: d.oiSwitch,
+        ...(bars ? { bars } : {}),
+        ...(tradesAllSessions(name) ? { fwd: d.fwd.filter(f => f.receivedAt > since), theta: d.theta, thetaKey: client.hasKey('theta') } : {}),
       }),
     };
   }

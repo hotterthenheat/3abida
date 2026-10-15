@@ -55,6 +55,8 @@
 ==================================================
 */
 
+import { fieldDayOf } from '../../core/sessions';
+import { noteIndexMinute, noteOptionsMinute, noteOvernightSource } from './optionsPrice';
 import { PARTS, pastInputs, sigmaOf, type RegimeReference, type StraddleRead } from './trailModel';
 import type { ScaleRef } from './beadScale';
 import { isoDayLabel } from '../../core/format';
@@ -775,8 +777,12 @@ export function useFeedBars(on: boolean, ticker: string, opts: { history?: boole
     },
     () => bars.get(t) ?? null
   );
-  return { bars: list && list.length ? list : null, failed: on && index ? 'plan' : failOf(rAll) };
+  /* an index has no bars on the plan — but SPX's minutes come from the recorder (its prints in the index's hours, its
+     options' forward outside them: loadServerDay), folded into the same tape */
+  return { bars: list && list.length ? list : null, failed: on && index && !(list && list.length) ? 'plan' : failOf(rAll) };
 }
+
+
 
 /* ---- the strike field: the book kept through the session -------------------------------------------------------- */
 
@@ -956,11 +962,17 @@ interface ServerDay {
   chains: ChainRead[];
   seed: SeedRead | null;
   total: TotalRead | null;
+  /** an index's minutes: [time (s), open, high, low, close, session, 1 when priced from its options] */
+  bars?: [number, number, number, number, number, string, number][];
+  /** SPX: whether the server holds Theta's key, and its newest Theta answer */
+  thetaKey?: boolean;
+  theta?: { at: number; state: string } | null;
 }
 const serverSeen = new Map<string, { day: string; since: number }>();
 async function loadServerDay(t: string): Promise<FeedResult<ServerDay>> {
   const seen = serverSeen.get(t);
-  const since = seen && seen.day === nyIsoDate() ? seen.since : 0;
+  /* the trading day now — SPX's from 8:15 pm is the next one (its overnight session) */
+  const since = seen && seen.day === fieldDayOf(t, Date.now()) ? seen.since : 0;
   const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}?since=${since}`)) as FeedResult<ServerDay>;
   if (r.ok && r.data && Array.isArray(r.data.books)) {
     /* the books: the measured reference (and Pinpoint's field) */
@@ -972,6 +984,12 @@ async function loadServerDay(t: string): Promise<FeedResult<ServerDay>> {
     for (const b of r.data.books60 ?? []) noteMeasured60(t, b);
     /* the chain reads, the seed and UW's whole-book series: the field's inputs (data/feed/trailField.ts) */
     takeServerInputs(t, r.data.day, { chains: r.data.chains ?? [], seed: r.data.seed ?? null, total: r.data.total ?? null });
+    /* an index's minutes (SPX): folded into its tape, the options-priced ones noted for the label */
+    if (r.data.bars?.length) {
+      for (const b of r.data.bars) (b[6] ? noteOptionsMinute(t, { time: b[0], close: b[4] }) : noteIndexMinute(t, b[0]));
+      foldBars(t, r.data.bars.map(b => ({ at: b[0] * 1000, open: b[1], high: b[2], low: b[3], close: b[4], volume: 0 })));
+    }
+    if (r.data.thetaKey !== undefined) noteOvernightSource(t, { thetaKey: r.data.thetaKey, state: r.data.theta?.state ?? null, at: r.data.theta?.at ?? 0 });
     serverSeen.set(t, { day: r.data.day, since: Math.max(since, r.data.latest ?? 0) });
   }
   return r;
@@ -1002,6 +1020,7 @@ interface PastDayAnswer {
   oi: [string, number][];
   seed: SeedRead | null;
   ticks: Record<string, number[]>;
+  wide?: Record<string, number[]>;
   total: TotalRead | null;
 }
 const pastLoaded = new Set<string>();
@@ -1018,7 +1037,7 @@ async function loadPastDay(t: string, day: string): Promise<void> {
     const r = (await feedFetch(`/feed/field/${encodeURIComponent(t)}/day/${day}`)) as FeedResult<PastDayAnswer>;
     if (!r.ok || !r.data || !Array.isArray(r.data.oi)) return;
     /* one mapping for the server's store, this page and Pinpoint (trailModel pastInputs) */
-    takePastSession(t, day, pastInputs({ day, oi: r.data.oi, seed: r.data.seed, total: r.data.total, ticks: r.data.ticks ?? {} }));
+    takePastSession(t, day, pastInputs({ day, oi: r.data.oi, seed: r.data.seed, total: r.data.total, ticks: r.data.ticks ?? {}, ...(r.data.wide ? { wide: r.data.wide } : {}) }));
     pastLoaded.add(key);
     pastLoadedSubs.forEach(f => f());
   } finally {

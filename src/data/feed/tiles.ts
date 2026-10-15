@@ -31,14 +31,17 @@ import { aggregateCandles, aggregateSnapshots } from '../timeframe';
 import { RunningScale, columnGross, columnMax } from './beadScale';
 import { modelColumn, netOf, pastInputs, universeOf, wallObsOf, WallStick, windowView, TRAIL_MODEL, type ExpiryWindow, type PastInputsLike } from './trailModel';
 import { nyWallTime } from '../../core/nyTime';
+import { fieldSpansOf } from '../../core/sessions';
 
-/** 2 (2026-10-15, the orbs' second round): the size reference is the session's largest node so far, not a p85 */
-export const TILES_FORMAT = 2;
+/** 2 (2026-10-15, the orbs' second round): the size reference is the session's largest node so far, not a p85.
+    3 (the same day, the SPX overnight field): a cell carries the missed chain read (12th) and the wide-quote share (13th),
+    and an SPX session its three sessions (overnight, regular to 4:15 pm, the curb) */
+export const TILES_FORMAT = 3;
 export const TILE_TFS = [1, 5, 15, 30, 60, 1440] as const;
 export type TileTf = (typeof TILE_TFS)[number];
 export const TILE_WINDOWS: readonly ExpiryWindow[] = ['all', '0dte', 'fri', 'opex'];
 /** Numbers a cell holds */
-export const CELL_W = 12;
+export const CELL_W = 13;
 
 /** [time (epoch s), open, high, low, close, volume] */
 export type TileBar = [number, number, number, number, number, number];
@@ -68,7 +71,8 @@ export interface TileMinuteBar {
   low?: number;
   close: number;
   volume?: number;
-  session?: 'pre' | 'r' | 'post';
+  session?: 'pre' | 'r' | 'post' | 'gth' | 'curb';
+  src?: 'options';
 }
 
 const sig = (x: number | undefined): number => (x == null || !Number.isFinite(x) || x === 0 ? 0 : Number(x.toPrecision(4)));
@@ -110,6 +114,7 @@ function encodeCells(levels: readonly GexLevel[], t: number, sc: [number, number
     out[o++] = offsetOf(t, l.staleSince != null ? l.staleSince / 1000 : undefined);
     out[o++] = l.staleBound ? 1 : 0;
     out[o++] = offsetOf(t, l.readGap != null ? l.readGap / 1000 : undefined);
+    out[o++] = l.wideShare ? permil(l.wideShare) : 0;
   }
   return out;
 }
@@ -139,6 +144,7 @@ function decodeCells(cells: readonly (number | null)[], t: number, sc: [number, 
     if (num(cells[o + 10])) l.staleBound = true;
     const gap = fromOffset(t, cells[o + 11]);
     if (gap != null) l.readGap = gap * 1000;
+    if (num(cells[o + 12])) l.wideShare = num(cells[o + 12]) / 1000;
     out[i] = l;
   }
   return out;
@@ -199,15 +205,16 @@ export interface DayTileInputs {
   close?: number | null;
 }
 
-/** The day's per-minute columns, modeled as the page models a rebuilt session: every regular minute, 9:30 to 4:00 */
+/** The day's per-minute columns, modeled as the page models a rebuilt session: every minute of the name's sessions
+    (core/sessions.ts — an equity's regular hours, 9:30 to 4:00; SPX's overnight session, regular hours to 4:15 pm and
+    the curb, its price outside the index's own hours the options' forward) */
 export function modelDay(inp: Pick<DayTileInputs, 'name' | 'day' | 'past' | 'bars'>): GexSnapshot[] {
-  const [y, mo, d] = inp.day.split('-').map(Number);
-  const from = nyWallTime(y, mo, d, 9, 30) / 1000;
-  const to = nyWallTime(y, mo, d, 16, 0) / 1000;
+  const spans = fieldSpansOf(inp.name, inp.day).map(sp => [sp.from / 1000, sp.to / 1000] as const);
+  const inSpans = (t: number) => spans.some(([a, b]) => t >= a && t < b);
   const u = universeOf(inp.name, inp.day, pastInputs(inp.past));
   const out: GexSnapshot[] = [];
   for (const b of [...inp.bars].sort((a, c) => a.time - c.time)) {
-    if (b.time < from || b.time >= to || !Number.isFinite(b.close)) continue;
+    if (!inSpans(b.time) || !Number.isFinite(b.close)) continue;
     const snap = modelColumn(u, { time: b.time, close: b.close });
     if (snap.levels.length) out.push(snap);
   }

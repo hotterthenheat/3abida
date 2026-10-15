@@ -55,6 +55,8 @@ import {
 import { GexTrailsPrimitive, axisInksFrom, trailPaperFrom, type BeadHit, type BeadLegend } from './gexNodesPrimitive';
 import type { ScaleBasis, ScaleRef } from '../../data/feed/beadScale';
 import { largestNodeOf } from '../../data/feed/beadScale';
+import { WIDE_VOL } from '../../data/feed/forward';
+import { gapSessionKey, tradesAllSessions } from '../../core/sessions';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
 import { isoDayLabel, num, pct, pctSigned, usd, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
@@ -2850,9 +2852,22 @@ const StrikeChart = ({
     const trails = trailsRef.current;
     if (!trails) return;
     trails.gapCause = fieldGapCause;
+    /* a name with sessions of its own splits its gaps at their edges (core/sessions.ts) — cached by the quarter hour */
+    if (tradesAllSessions(ticker)) {
+      const keys = new Map<number, string>();
+      trails.gapSession = (t: number) => {
+        const q = Math.floor(t / 900);
+        let k = keys.get(q);
+        if (k === undefined) {
+          k = gapSessionKey(ticker, q * 900_000);
+          keys.set(q, k);
+        }
+        return k;
+      };
+    } else trails.gapSession = null;
     trails.gapRev++;
     trails.requestUpdate?.();
-  }, [fieldGapCause, mainNonce]);
+  }, [fieldGapCause, mainNonce, ticker]);
 
   /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) — and the axis labels (item 5 (h)) */
   useEffect(() => {
@@ -6313,9 +6328,11 @@ const StrikeChart = ({
             ? null
             : lvl.readGap
               ? `Stale · no chain read since ${nyClockOf(lvl.readGap)} — the vols stand where that read left them`
-              : lvl.prov !== 'carried' && (share ?? 0) >= 0.5
-                ? `Stale · ${pct((share ?? 0) * 100)} of the strike's gamma on vols over an hour old`
-                : null;
+              : lvl.prov !== 'carried' && (lvl.wideShare ?? 0) >= 0.5
+                ? `Stale · ${pct((lvl.wideShare ?? 0) * 100)} of the strike's gamma on vols from wide quotes (over ${num(WIDE_VOL * 100, 0)} vol points)`
+                : lvl.prov !== 'carried' && (share ?? 0) >= 0.5
+                  ? `Stale · ${pct((share ?? 0) * 100)} of the strike's gamma on vols over an hour old`
+                  : null;
           const measured = feedCell ? measuredAt(ticker, card.strike, card.time) : null;
           /* the expanded figures: the rank at that bar, the price then and the strike's distance, the change over the
              thirty minutes before, the live legs for a bead on the newest column, the count's date */

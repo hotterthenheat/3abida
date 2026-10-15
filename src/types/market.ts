@@ -58,6 +58,9 @@ export interface GexLevel {
       minute, set only when it is more than trailModel READ_GAP_MS before it — a read is due every ten minutes, so one
       was missed and the vols stand where that read left them. The mark wears the stale edge. */
   readGap?: number;
+  /** The share of the strike's gamma priced on vols solved from WIDE quotes (wider than data/feed/forward.ts WIDE_VOL —
+      the SPX overnight field, 2026-10-15); half or more and the mark wears the stale edge */
+  wideShare?: number;
   coverage?: number;
   /** When the cell is a bar's peak minute (timeframe.ts aggregateSnapshots), that minute's own time (epoch s) */
   at?: number;

@@ -110,6 +110,8 @@ export interface PastDay {
   seed: { date: string; receivedAt: number; rows: [string, number | null, number | null, number][] } | null;
   /** Each traded contract's vols through the session, flattened [minute start (ms), vol, …] */
   ticks: Record<string, number[]>;
+  /** The tick minutes whose vol was solved from a wide quote (a Theta rebuild — trailModel ServerInputs `wide`) */
+  wide?: Record<string, number[]>;
   /** UW's whole book a minute: [minute start (ms), price, gamma per 1% by open interest (UW's sign)] */
   /** [minute start (ms), price, gamma per 1% by open interest, by volume, directionalized — UW's sign; the last two since format 2] */
   total: { receivedAt: number; rows: [number, number | null, number, number?, number?][] } | null;
@@ -160,7 +162,10 @@ export interface JobState {
 export interface MinuteBar {
   time: number;
   close: number;
-  session: 'pre' | 'r' | 'post';
+  /** 'gth' and 'curb' since 2026-10-15: SPX's overnight session and its curb (core/sessions.ts) */
+  session: 'pre' | 'r' | 'post' | 'gth' | 'curb';
+  /** 'options': the minute's price is the forward SPX's options imply (its index does not print — server/overnightReader.ts) */
+  src?: 'options';
   open?: number;
   high?: number;
   low?: number;
@@ -202,7 +207,7 @@ const strikeOf = (s: string) => {
 /** A contract's minute vols, compressed: [minute start (ms), vol, …] — the middle of UW's iv_low and iv_high (the
     tape's own minute midpoint to 0.00001, measured 2026-10-13), the regular session's prints alone, a minute kept
     when its vol moved VOL_STEP from the last kept. Empty with nothing to keep. */
-export function compressTicks(rows: readonly Pick<TapeRow, 'start_time' | 'iv_low' | 'iv_high'>[] | Row[], day: string): number[] {
+export function compressTicks(rows: readonly Pick<TapeRow, 'start_time' | 'iv_low' | 'iv_high'>[] | Row[], day: string, inSessions?: (ms: number) => boolean): number[] {
   const out: number[] = [];
   let lastIv = NaN;
   for (const x of [...rows].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))) {
@@ -210,9 +215,14 @@ export function compressTicks(rows: readonly Pick<TapeRow, 'start_time' | 'iv_lo
     const a = num(x.iv_low);
     const b = num(x.iv_high);
     if (!Number.isFinite(t) || a == null || b == null || !(a > 0) || !(b > 0)) continue;
-    const at = nyMinute(t);
-    /* the regular session's prints: 09:30 to the 16:15 close of index and fund options */
-    if (at.day !== day || at.minute < 9 * 60 + 30 || at.minute > 16 * 60 + 15) continue;
+    /* the regular session's prints: 09:30 to the 16:15 close of index and fund options — or, handed in, the name's own
+       sessions (SPX's overnight session and curb from Theta's quotes, core/sessions.ts) */
+    if (inSessions) {
+      if (!inSessions(t)) continue;
+    } else {
+      const at = nyMinute(t);
+      if (at.day !== day || at.minute < 9 * 60 + 30 || at.minute > 16 * 60 + 15) continue;
+    }
     const iv = (a + b) / 2;
     if (Number.isFinite(lastIv) && Math.abs(iv - lastIv) < VOL_STEP) continue;
     lastIv = iv;

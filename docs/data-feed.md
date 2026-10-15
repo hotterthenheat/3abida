@@ -1434,3 +1434,35 @@ house's estimate on the name's real price (≈) and nothing fills. In full: `doc
 (`realKeep.ts`), so the journal and the report never ask the record again; the journal marks its trades "Real days".
 The Desk's half sessions are left out (`EARLY_CLOSES`, and a day whose record stops before 15:30).
 
+
+## The sessions and SPX overnight (2026-10-15)
+
+The owner, "SPX OVERNIGHT FIELD": "'regular hours only' applies to SPY and QQQ. SPX/SPXW options trade nearly 24 hours
+on Cboe: regular 9:30 am–4:15 pm ET, curb 4:15–5:00 pm, Global Trading Hours 8:15 pm–9:25 am." The rules are in
+.claude/CLAUDE.md "THE SESSIONS AND SPX OVERNIGHT"; the report is docs/spx-overnight/README.md.
+
+- **One schedule** (src/core/sessions.ts): an equity's regular hours; SPX's overnight session (8:15 pm the evening
+  before → 9:25 am, its trading day the next), regular hours to 4:15 pm, the curb to 5:00 pm; half days and holidays.
+- **Where each vendor stands, checked live on 2026-10-14 at 10:30 pm New York**: UW's per-contract minutes
+  (`/option-contract/{id}/intraday`) run 9:31 am to 4:14 pm, all `trading_hours: "rth"`; its flow (`/stock/SPXW/
+  flow-recent`) carries the curb (`trading_hours: "curb"`, `underlying_price` null) to 4:59:58 pm; nothing overnight two
+  hours into Cboe's session; its chain snapshot after the curb stamps every contract 5:45 pm. Theta: overnight trades and
+  quotes for SPX, VIX, DJI and RUT options from 2015 to 2018 and from 2022 (its own pages give January and December —
+  `npm run theta:gth` measures the date).
+- **The price where the index does not print** (data/feed/forward.ts): the front SPXW expiry's three strikes nearest
+  put-call parity, F = K + e^{rT}(C − P) on the mids, their median; the field stands on F·e^{−rT}. On UW's after-curb
+  SPX snapshot of 2026-10-14 the three gave 7718.10, 7718.15 and 7718.10 (Oct 15 expiry).
+- **The wide-quote threshold**: 2 vol points of width ((ask − bid) ÷ vega). Measured 2026-10-14 within 5% of the money,
+  gamma × open interest weighted: SPY's regular-session NBBO (15 recorder reads, 26,932 quotes) p50 0.08, p90 0.48, p95
+  0.85, p99 4.08 points; SPX after the curb (UW's snapshot, 4,440 quotes) p50 0.29, p90 1.06, p95 2.06, p99 5.90 —
+  11.7% of that gamma over 1 point, 5.3% over 2, 3.0% over 3, 1.9% over 5. The overnight distribution is measured on the
+  owner's machine.
+- **Live**: the recorder (server/fieldRecorder.ts, server/overnightReader.ts) asks Theta's terminal for SPX whenever
+  it is in a session and its index does not print: /v3/option/snapshot/quote on the front expiry (strike_range 12) a
+  minute → the forward, a bar priced from options; every SPXW and SPX quote within 60 days (expiration=*, max_dte 60)
+  every ten minutes → a chain read solved at the spot (ChainRow's eighth figure the width). fwd.jsonl keeps the
+  forwards. `GET /feed/field/SPX` hands SPX's minutes (`bars`, the options-priced flagged), `fwd` and the Theta state.
+- **History**: the downloader's SPX roots read to 5:00 pm and the overnight session (chain-quotes-gth1-<E> asked on the
+  evening's calendar date from 20:15, chain-quotes-gth2-<E> the morning to 09:25, both under the trading day; the front
+  expiry at 1m, the rest at 5m); `first.gth` and log.ndjson kind 'gth' keep the oldest day served. The rebuild prices the
+  overnight and curb minutes off the forward and marks wide ticks (PastDay `wide`).

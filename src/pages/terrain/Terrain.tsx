@@ -24,6 +24,8 @@ import { refreshFeed } from '../../data/feed/poll';
 import { uwSpotGexByStrike } from '../../data/feed/uw';
 import { nyClock as nyClockAt, clock as printClock, marketClock, nyIsoDate, nyMinutes, nyParts, nySessionPhase, nyWallTime } from '../../core/nyTime';
 import { registerDepthState } from '../../dev/depthTrap';
+import { GTH_END_MIN, GTH_START_MIN, RTH_OPEN_MIN, fieldDayOf, fieldSessionAt, indexPrintsAt, isTradingIso, tradesAllSessions } from '../../core/sessions';
+import { overnightSourceOf } from '../../data/feed/optionsPrice';
 import { readoutOf, remLines, SESSION_MINUTES, shareBetween, sigmasAway, sigmaRemOf, type SigmaRem } from '../../data/feed/pricedMove';
 import { bookSureness, type Sureness } from '../../data/levelSureness';
 import { buildExposureSurface, CALENDAR_DTES } from '../../data/exposureSurface';
@@ -1217,8 +1219,11 @@ const Pane = ({
   const fOi = useFeedOi(onFeed, ticker).today;
   const fBars = useFeedBars(onFeed, ticker, { history: true });
   const fFieldRead = useFeedField(ticker);
-  /* the server records this pane's name once a minute through the session (server/fieldRecorder.ts) — its day joins the field */
-  useServerField(onFeed && !isCashIndex(ticker), ticker);
+  /* the server records this pane's name once a minute through the session (server/fieldRecorder.ts) — its day joins the
+     field. An index has no field on the plan but SPX: its minutes and its three sessions come from the recorder (its prints
+     in the index's hours, its options' forward outside them — core/sessions.ts, server/overnightReader.ts) */
+  const fieldName = !isCashIndex(ticker) || tradesAllSessions(ticker);
+  useServerField(onFeed && fieldName, ticker);
   /* 1D and 1W read the day bars — asked only while the pane draws them */
   const wantsDaily = timeframe === '1D' || timeframe === '1W';
   const fDaily = useFeedDaily(onFeed && wantsDaily, ticker);
@@ -1265,7 +1270,7 @@ const Pane = ({
      (data/feed/trailField.ts) */
   /* the field follows the pane's expiry card: one listed date's contracts alone, or every expiry */
   const trailCut = cutDate;
-  const fTrail = useFeedTrailField(onFeed && !isCashIndex(ticker), ticker, fBars.bars, fFieldRead, trailCut, win);
+  const fTrail = useFeedTrailField(onFeed && fieldName, ticker, fBars.bars, fFieldRead, trailCut, win);
   /* ══ THE SESSIONS BEFORE TODAY, AS THE SERVER FOLDED THEM (the owner's Section I, 2026-10-15) ══════════════════════
      Each past session comes as tiles (server/fieldTiles.ts): its bars at this pane's timeframe and its columns through
      the pane's window, each column carrying its references and held walls — modeled once on the server at rebuild time,
@@ -1274,7 +1279,7 @@ const Pane = ({
      same sessions at the neighbouring timeframes and the other windows, so a switch finds them in hand. A listed-date
      cut, an index, and a server with no tiles route read the sessions as before (useServerPastSessions). */
   const tileTf = TILE_TF_OF[timeframe === '15s' ? '1m' : timeframe] ?? null;
-  const tileReady = onFeed && !isCashIndex(ticker) && cutDate == null;
+  const tileReady = onFeed && fieldName && cutDate == null;
   const tDaily = useTileDaily(tileReady, ticker);
   const tilesToday = nyIsoDate();
   const [tileExtra, setTileExtra] = useState(0);
@@ -1325,7 +1330,7 @@ const Pane = ({
      modeled in the page only where the tiles do not stand (above) */
   /* a replay reads the live trail's columns for every session the recorder did not keep (the replay's twin), so while the
      pane is in a replay the sessions are modeled in the page as before */
-  const fPast = useServerPastSessions(onFeed && !isCashIndex(ticker) && overlays.trails, ticker, fBars.bars, !tilesOn || replay);
+  const fPast = useServerPastSessions(onFeed && fieldName && overlays.trails, ticker, fBars.bars, !tilesOn || replay);
   const fField = fTrail.snaps;
   /* the page's own minutes for the tape: the tiled sessions' left out (their bars come folded with their columns) */
   const tiledSet = useMemo(() => new Set(preTape?.days ?? []), [preTape]);
@@ -1498,7 +1503,23 @@ const Pane = ({
   const paneFlow = offHouse ? fPrints ?? EMPTY_FLOW : flowTape;
   /* AN INDEX ON THE FEED has its book but no bars on these plans — the chart says so in its place, and the ladder stands
      on the book's own rows (bookProjection) */
-  const noBars = onFeed && isCashIndex(ticker);
+  /* SPX with no minutes from the recorder: why, by its session now (core/sessions.ts) and the server's Theta source */
+  const spxEmptyWords = (() => {
+    if (!tradesAllSessions(ticker)) return '';
+    const now = Date.now();
+    const s = fieldSessionAt(ticker, now);
+    const src = overnightSourceOf(ticker);
+    if (s && !indexPrintsAt(now)) {
+      const where = s.session === 'gth' ? "SPX's overnight session" : s.session === 'curb' ? "SPX's curb" : 'After the index\'s close';
+      if (src && !src.thetaKey) return `${where}: no S&P 500 value prints, and its options' quotes come through Theta's terminal — this server reads none. The ladder reads its book.`;
+      if (src?.state === 'no-terminal') return `${where}: no S&P 500 value prints, and its options' quotes come through Theta's terminal — none runs on this server's machine (the always-on machine has one). The ladder reads its book.`;
+      if (src?.state === 'no-answer') return `${where}: Theta answered no quotes yet. The ladder reads its book.`;
+      return `${where}: waiting on the first quotes. The ladder reads its book.`;
+    }
+    return "SPX's minutes come from the server's recorder as it reads its prints — none recorded yet today. The ladder reads its book.";
+  })();
+  /* an index the recorder draws no minutes for (every one but SPX, or SPX before its first answer) */
+  const noBars = onFeed && isCashIndex(ticker) && !(tradesAllSessions(ticker) && fBars.bars?.length);
   const indexTape = useMemo(
     () => (noBars ? { bars: EMPTY_BARS, iv: feedIv ?? 0, key: `feed:${ticker}`, book: fField, earnings: null, macro: fMacro ?? [] } : undefined),
     [noBars, feedIv, ticker, fField, fMacro]
@@ -1585,15 +1606,15 @@ const Pane = ({
   /* HOW SURE, WITH THE FIELD (2026-10-13): on the feed the ladder's "How sure" also says how far the modeled field stands
      from Unusual Whales' own figures today — one line, no new panel */
   /* the field's line in How sure: its residual against the vendor's book, and the sessions rebuilt (the coverage line) */
-  const fCoverage = useFieldCoverage(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
+  const fCoverage = useFieldCoverage(onFeed && fieldName && overlays.trails, ticker);
   const fieldLine = useMemo(() => [fTrail.residual, coverageLine(fCoverage)].filter(Boolean).join(' '), [fTrail.residual, fCoverage]);
   /* the track record (the owner's item 2): the level types scored against their baselines, in How sure and the hover card */
   const fRecord = useTrackRecord(onFeed && overlays.trails, ticker);
   /* THE PRICED MOVE (item 4): the day's budget, the profile, the live remaining 1σ, the calibration */
-  const fMove = usePricedMove(onFeed && !isCashIndex(ticker) && (!!overlays.cone || overlays.trails), ticker);
+  const fMove = usePricedMove(onFeed && fieldName && (!!overlays.cone || overlays.trails), ticker);
   /* THE BEAD SCALE (item 5): the server's fixed and prior references, and the legend the chart hands back — kept only
      when its words would change, so a tick does not re-render the pane for nothing */
-  const fScale = useBeadScaleRefs(onFeed && !isCashIndex(ticker) && overlays.trails, ticker);
+  const fScale = useBeadScaleRefs(onFeed && fieldName && overlays.trails, ticker);
   const [beadLegend, setBeadLegend] = useState<BeadLegend | null>(null);
   const onBeadLegend = useCallback((l: BeadLegend | null) => {
     setBeadLegend(prev => (prev && l && prev.ref === l.ref && prev.refG === l.refG && prev.sizeBy === l.sizeBy && prev.ring === l.ring && prev.at === l.at && prev.basis === l.basis && prev.sessions === l.sessions && prev.priorDay === l.priorDay && prev.greek === l.greek ? prev : l));
@@ -1602,7 +1623,7 @@ const Pane = ({
   const beadFloor = cfg.beadFloor ?? 0;
   /* THE REGIME STRIP (item 3): the reference built nightly, and UW's directionalized sign in the house's sign — read
      whenever the pane is on the feed since the UI pass (the decision strip's Regime box reads them with the strip off) */
-  const fRegime = useRegimeReference(onFeed && !isCashIndex(ticker), ticker);
+  const fRegime = useRegimeReference(onFeed && fieldName, ticker);
   const regimeDir = useMemo<1 | -1 | 0 | null>(() => {
     if (!onFeed) return null;
     const rows = totalOf(ticker)?.rows;
@@ -2104,25 +2125,34 @@ const Pane = ({
   const gapCause = useMemo(() => {
     if (!onFeed || !overlays.trails) return null;
     const snaps = fTrail.snaps;
-    const today = nyIsoDate();
+    /* today's trading day — SPX's from 8:15 pm is the next one (its overnight session) */
+    const today = fieldDayOf(ticker, Date.now());
     const lastCol = snaps.length ? snaps[snaps.length - 1].time : 0;
     let firstToday = 0;
     for (const c of snaps)
-      if (nyIsoDate(c.time * 1000) === today) {
+      if (fieldDayOf(ticker, c.time * 1000) === today) {
         firstToday = c.time;
         break;
       }
     const hours = `${marketClock(9, 30)} to ${marketClock(16, 0)}`;
     const past = fPast;
     const full = fTrail.full;
+    const allSessions = tradesAllSessions(ticker);
     return (fromSec: number, toSec: number): string | null => {
-      const day = nyIsoDate(fromSec * 1000);
-      const wk = nyParts(fromSec * 1000).weekday;
-      if (wk === 0 || wk === 6) return 'no session';
-      const mFrom = nyMinutes(fromSec * 1000);
-      const mTo = nyMinutes(Math.max(fromSec, toSec - 60) * 1000);
-      if (mTo < 570) return `no field before the open · the book is read ${hours}`;
-      if (mFrom > 960) return 'no field after the close';
+      /* OUTSIDE THE NAME'S SESSIONS (core/sessions.ts — the owner, 2026-10-15: "SPY and QQQ: regular hours by default,
+         with the gap outside them labelled"): an equity's field is its regular hours; SPX's its three sessions */
+      const ses = fieldSessionAt(ticker, fromSec * 1000);
+      const day = ses?.day ?? nyIsoDate(fromSec * 1000);
+      if (!ses) {
+        if (!isTradingIso(nyIsoDate(fromSec * 1000)) && !allSessions) return 'no session';
+        const mFrom = nyMinutes(fromSec * 1000);
+        if (allSessions) {
+          if (mFrom >= GTH_END_MIN && mFrom < RTH_OPEN_MIN) return 'no session · the overnight session ends at ' + marketClock(9, 25);
+          if (mFrom >= GTH_START_MIN || !isTradingIso(nyIsoDate(fromSec * 1000))) return 'no session';
+          return `no session · Cboe's overnight session opens at ${marketClock(20, 15)}`;
+        }
+        return `outside regular hours · the field is ${hours}`;
+      }
       if (day < today && tilesOn && tileTf) {
         /* a tiled session: what the server said of it (Section I) */
         if (tileHeld(ticker, tileTf, win, day)) return 'rebuilt · no column at these minutes';
@@ -2140,6 +2170,17 @@ const Pane = ({
         if (past?.readyDays.includes(day)) return 'rebuilt · no column at these minutes';
         if (past && !past.days.includes(day)) return 'not rebuilt · beyond the ten sessions asked';
         return 'not rebuilt yet';
+      }
+      /* SPX WHERE ITS INDEX DOES NOT PRINT (overnight, 4:00 to 4:15 pm, the curb): its field stands on its options' quotes,
+         read through Theta's terminal on the machine the server runs on — say which is missing */
+      if (allSessions && !indexPrintsAt(fromSec * 1000) && (lastCol === 0 || fromSec > lastCol || toSec <= firstToday || !firstToday)) {
+        const where = ses.session === 'gth' ? 'overnight' : ses.session === 'curb' ? 'curb' : "after the index's close";
+        const src = overnightSourceOf(ticker);
+        if (!src) return `${where} · asking the server`;
+        if (!src.thetaKey) return `${where} · this server reads no Theta — its quotes are the only source here`;
+        if (src.state === 'no-terminal') return `${where} · no Theta terminal runs on this server's machine`;
+        if (src.state === 'no-answer') return `${where} · Theta answered no quotes`;
+        return `${where} · no quotes read yet`;
       }
       if (!firstToday) return full ? 'no column today' : 'chain not read yet · building';
       if (lastCol > 0 && fromSec >= lastCol) {
@@ -2339,6 +2380,12 @@ const Pane = ({
   );
 
   /* THE FACTS beside the identity: the price, an index's print chip, the Strikes door under lg, the change */
+  /* SPX'S PRICE FROM ITS OPTIONS (the owner, 2026-10-15: "Label it 'price from options (overnight)'") */
+  const optionsChip = fQuote?.source === 'options' && fQuote.at != null && (
+    <span className={`shrink-0 font-mono text-[11px] tnum ${fQuote.stale ? 'text-warn' : 'text-textMuted'}`} data-pane-print="options" title={`No S&P 500 index value outside 9:30 am to 4:00 pm New York: the price is the forward SPX's at-the-money options imply by put-call parity (the median of the three strikes nearest parity on the front expiry), ${printClock(fQuote.at)}${fQuote.stale ? ' — older than two minutes' : ''}`}>
+      price from options ({fieldSessionAt(ticker, fQuote.at - 60_000)?.session === 'gth' ? 'overnight' : 'after the close'}){fQuote.stale ? ' · stale' : ''}
+    </span>
+  );
   const printChip = fQuote?.source === 'print' && fQuote.at != null && (
     <span className={`shrink-0 font-mono text-[11px] tnum ${fQuote.stale ? 'text-warn' : 'text-textMuted'}`} data-pane-print={fQuote.stale ? 'stale' : 'fresh'} title={`The index is priced off its newest option print carrying a price, ${printClock(fQuote.at)}${fQuote.stale ? ' — older than two minutes' : ''}`}>
       {printClock(fQuote.at)} print{fQuote.stale ? ' · stale' : ''}
@@ -2350,6 +2397,7 @@ const Pane = ({
         <SpotPrice value={levels.spot} />
       </span>
       {printChip}
+      {optionsChip}
       {/* under lg the ladder's door is the peek over the chart's foot (the UI pass); the Strikes button stands only
           where the peek has nothing to show */}
       {belowLg && rail.rows.length > 0 && peek.length === 0 && (
@@ -2605,7 +2653,9 @@ const Pane = ({
                  tools stand under it, empty), the ladder beside it standing on the book's rows */
               <div ref={noBarsBoxRef} className="absolute inset-0 z-10 pointer-events-none flex items-start justify-center pt-24 pl-14 pr-6 text-center" data-no-bars>
                 <p className="max-w-[360px] rounded bg-canvas/70 px-2 py-1 text-[12px] text-textMuted">
-                  {ticker}'s price bars are not drawn here yet — Unusual Whales' plan carries no index price. The ladder reads its book.
+                  {tradesAllSessions(ticker)
+                    ? spxEmptyWords
+                    : `${ticker}'s price bars are not drawn here yet — Unusual Whales' plan carries no index price. The ladder reads its book.`}
                 </p>
               </div>
             )}
