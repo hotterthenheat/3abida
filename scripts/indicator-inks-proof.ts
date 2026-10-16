@@ -66,9 +66,15 @@
     4⁗′. a copy of a shipped script made before the house moved one of its inks (version 1, forkedFrom the shelf) draws as
         the shipped one, the former ink its pair's ink now;
     and decision 7 (the walls keep the ovals' gold and violet) is printed for the owner, one line each way.
+  And its fourth review (2026-10-16):
+    4‴, 4⁗″. a copy of a kept retired script never saved again (forkedFrom its id, version 1), and a kept or copied text
+        saved again unchanged from before the house moved an ink (builtinScripts asHouseNow), draw as the house's;
+    9m. the lightness floor: on a light tape every price-pane ink reads 1.5:1 by luminance from the tape's hue-less candle
+        (Stone's black fall), as seen and under each simulation — elsewhere measured and held for the owner;
+    9n. magenta stays the supreme's on the price pane but for the inks held for the owner by ink, and the list only shrinks.
 */
 import { readFileSync } from 'node:fs';
-import { distanceUnder, type Deficiency } from './colour-sim';
+import { distanceUnder, simulate, type Deficiency } from './colour-sim';
 import * as candleThemes from '../src/components/gex/candleTheme';
 import type { CandleTheme, CandleThemeKey } from '../src/components/gex/candleTheme';
 import { compile, explain, run } from '../src/core/pine';
@@ -592,9 +598,13 @@ check("the kept copies draw the inks they were kept with — the chart built-in'
     check(`4″. a kept copy holding a former family ink (EMA 21 #75BBF4, #77C4FE) draws its pair's current ink on a dark tape and its paper pair on a light one`, wasKept && formerMiss.length === 0, formerMiss.join('; '));
     /* who reads as kept: a retired id, the reader's shelf, never saved again by them (or the house's text today) */
     const rsiSrc = retiredBuiltin?.('builtin:rsi')?.source ?? '';
-    const cases: [string, { id: string; shelf: string; version: number; sourceHash: string }, boolean][] = [
+    /* the RSI text as the house wrote it before the third review moved its ink (#FBACFE, indicatorInks FORMER_DARK) */
+    const rsiPre = rsiSrc.replace(new RegExp(leadOf.rsi, 'gi'), '#FBACFE');
+    const cases: [string, { id: string; shelf: string; version: number; sourceHash: string; source?: string }, boolean][] = [
       ['kept, never saved', { id: 'builtin:rsi', shelf: 'mine', version: 1, sourceHash: 'x' }, true],
       ['saved again with the house text', { id: 'builtin:rsi', shelf: 'mine', version: 3, sourceHash: bs.hashSource(rsiSrc) }, true],
+      /* the fourth review of the rule (2026-10-16): saved again with the house's text of a day before it moved an ink */
+      ['saved again with the house text of before the move (#FBACFE)', { id: 'builtin:rsi', shelf: 'mine', version: 3, sourceHash: bs.hashSource(rsiPre), source: rsiPre }, rsiPre !== rsiSrc],
       ['edited by the reader', { id: 'builtin:rsi', shelf: 'mine', version: 2, sourceHash: bs.hashSource(`${rsiSrc}\n// mine`) }, false],
       ["the reader's own script", { id: 'a1b2', shelf: 'mine', version: 1, sourceHash: 'y' }, false],
       ['a shipped one', { id: 'builtin:supertrend', shelf: 'built-in', version: 1, sourceHash: 'z' }, false],
@@ -706,6 +716,71 @@ check("the kept copies draw the inks they were kept with — the chart built-in'
     }
     check(`4⁗′. a copy made before the house moved one of its inks (Make a copy: version 1, forkedFrom the shelf's id — ${preCases.length} former inks, Keltner's #7D7D74 and MFI's #447CAE among them) draws as the shipped one: each former ink its pair's ink now, the paper pair on Stone at 3:1 or better`, preCases.length >= 2 && preMiss.length === 0, [...new Set(preMiss)].slice(0, 6).join('; '));
     info(preNotes.slice(0, 6).join('; '));
+
+    /* 4⁗″. A COPY OF A KEPT RETIRED SCRIPT, AND A HOUSE TEXT SAVED AGAIN, FROM BEFORE A MOVE (the fourth review of the rule,
+       2026-10-16): the third review moved all six retired scripts' inks, and inksBy read the house's text only as it is
+       today — so Make a copy of a kept RSI (version 1, forkedFrom 'builtin:rsi') made before the move read as the reader's
+       own and drew #FBACFE on a Stone tape at 1.1:1, and so did a kept or copied text saved again unchanged. A copy of a
+       kept script never saved again, its text the kept one's, is kept; a text that is the house's but for inks the house
+       has since moved (indicatorInks FORMER_DARK) is the house's (builtinScripts asHouseNow); a copy of a kept script the
+       reader had edited stays the reader's. Every former ink of every retired script is tried, as a copy of that day,
+       never saved and saved again; and a shipped script's text of before a move, saved again (version 3). */
+    const retiredCases: { name: string; sc: Sc; want: Who; key: string; old: string }[] = [];
+    for (const { s: slug, r } of kept) {
+      if (!r) continue;
+      for (const [hex, name] of famFd) {
+        const pair = INK_PAIRS.find(q => q.name === name);
+        if (!pair || !r.source.toUpperCase().includes(pair.dark.toUpperCase())) continue;
+        const src = r.source.replace(new RegExp(pair.dark, 'gi'), hex);
+        retiredCases.push({ name: `a copy of the kept ${slug} holding ${hex}, never saved`, sc: { id: `copy-of-${slug}`, shelf: 'mine', version: 1, sourceHash: bs.hashSource(src), source: src, forkedFrom: `builtin:${slug}` }, want: 'kept', key: name, old: hex });
+        retiredCases.push({ name: `the kept ${slug} holding ${hex}, saved again unchanged`, sc: { id: `builtin:${slug}`, shelf: 'mine', version: 2, sourceHash: bs.hashSource(src), source: src, forkedFrom: `builtin:${slug}` }, want: 'kept', key: name, old: hex });
+      }
+    }
+    /* a copy of a kept RSI the reader had edited copies the reader's text: it stays the reader's own */
+    {
+      const rsiKept = kept.find(k => k.s === 'rsi')?.r?.source ?? '';
+      const mine = `${rsiKept.replace(new RegExp(leadOf.rsi, 'gi'), '#FBACFE')}\nplot(close, "Mine", color = #00FF7F)`;
+      retiredCases.push({ name: 'a copy of a kept RSI the reader had edited', sc: { id: 'copy-of-edited-rsi', shelf: 'mine', version: 1, sourceHash: bs.hashSource(mine), source: mine, forkedFrom: 'builtin:rsi' }, want: 'own', key: 'indicator:rsi', old: '#FBACFE' });
+    }
+    for (const [key, old] of preCases.slice(0, 2)) {
+      const pair = INK_PAIRS.find(q => q.name === key)!;
+      const sh = shipped.find(x => x.source.toUpperCase().includes(pair.dark.toUpperCase()))!;
+      const src = sh.source.replace(new RegExp(pair.dark, 'gi'), old);
+      retiredCases.push({ name: `a copy of ${sh.title} holding ${old}, saved again unchanged`, sc: { id: `copy-of-${sh.id}`, shelf: 'mine', version: 3, sourceHash: bs.hashSource(src), source: src, forkedFrom: sh.id }, want: 'shipped', key, old });
+    }
+    const retMiss: string[] = [];
+    const retNotes: string[] = [];
+    for (const c of retiredCases) {
+      const who = whoOf(c.sc);
+      if (who !== c.want) {
+        retMiss.push(`${c.name}: ${who}, want ${c.want}`);
+        continue;
+      }
+      const pair = INK_PAIRS.find(q => q.name === c.key)!;
+      if (c.want === 'own') {
+        /* the reader's own: every colour its code sets, as written, on either tape */
+        for (const light of [false, true]) {
+          const m = mapFor(c.sc, light);
+          for (const pl of runOf(c.sc.source).plots) if (pl.ink && m(pl.ink, 'line') !== pl.ink) retMiss.push(`${c.name}: ${pl.title} ${pl.ink} → ${m(pl.ink, 'line')} on a ${light ? 'light' : 'dark'} tape, want as written`);
+        }
+        continue;
+      }
+      for (const [tape, light] of [['Glacier', false], ['Stone', true]] as const) {
+        const m = mapFor(c.sc, light);
+        for (const pl of runOf(c.sc.source).plots)
+          for (const ink of new Set([pl.ink, ...(pl.colors ?? [])])) {
+            const c0 = ink ? parseInk(ink) : null;
+            if (!ink || !c0 || c0.a < 0.3 || hexOf(c0.rgb) !== hexOf(rgbOf(c.old))) continue;
+            const drawn = m(ink, 'line');
+            const want = light ? pair.paper : pair.dark;
+            const k = light ? contrast(over(drawn, STONE_DARK_PAGE), STONE_DARK_PAGE) : contrast(over(drawn, DARK_GROUNDS[0]), DARK_GROUNDS[0]);
+            if (c.old === '#FBACFE' && /never saved/.test(c.name)) retNotes.push(`${c.name} on ${tape}: ${pl.title} ${ink} → ${drawn} ${k.toFixed(2)}:1`);
+            if (hexOf(rgbOf(drawn)) !== hexOf(rgbOf(want)) || (light && k < 3)) retMiss.push(`${c.name} on ${tape}: ${pl.title} ${drawn} ${k.toFixed(2)}:1, want ${want}`);
+          }
+      }
+    }
+    check(`4⁗″. a copy of a kept retired script never saved again (forkedFrom its id, version 1), and a kept or copied text saved again unchanged from before a move, draw as the house's — each former ink its pair's ink now, the paper pair on Stone at 3:1 or better — while a copy of a kept script the reader had edited stays theirs (${retiredCases.length} cases over the six retired scripts' ${new Set(retiredCases.map(c => c.old)).size} former inks)`, retiredCases.length >= 12 && retMiss.length === 0, [...new Set(retMiss)].slice(0, 6).join('; '));
+    info(retNotes.slice(0, 4).join('; '));
   }
   const atr = await scriptStore.get('builtin:atr'); // what the alert watcher asks for an alert on it
   check("one an alert names is kept when the alert's watcher asks for it", !!atr && atr.shelf === 'mine');
@@ -895,10 +970,11 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
      option-ink-candle-view pairs stood under the floor, and 284 of 2,694 option-ink-candle pairs within 30° of hue
      (Bollinger #D394FE 0.004 from the blue-orange up #50A4FF under protanopia, IV #0DDBF5 0.005 from Glacier's up under
      deuteranopia, EMA 21 3° from the blue-orange up). The family moved until every pair clears but those with the candle
-     the owner is deciding on in eight themes (indicatorInks; FORMER_DARK keeps what each was): 48 and 60 now, every one
+     the owner is deciding on in eight themes (indicatorInks; FORMER_DARK keeps what each was): 48 and 60 then, every one
      held here by ink and theme, waiting on that decision — never a candle theme changed (the owner has not answered); a
      clash with a deciding theme's OTHER candle (Glacier's pale rise, Contrast's green one) is the family's to clear, and
-     the list only shrinks (9a′). */
+     the list only shrinks (9a′) — but once: the fourth review's lightness floor (9m) left the moving average's paper ink
+     no teal, and it stands a blue beside EMA 21's and the SMA's against Stone's blue rise (48 and 66 now). */
   /* the candle the owner is deciding on in each theme (the third review's list): a clash with that candle waits on the
      decision; one with the theme's other candle is the family's to clear */
   const DECIDING: Record<string, { side: 'up' | 'down' | 'both'; what: string }> = {
@@ -928,8 +1004,11 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
     ['#9931A7~velvet', { what: "the stochastic's %D (dark)" }],
     ['#9931A7~whipsaw', { what: "the stochastic's %D (dark)" }],
     ['#9931A7~contrast', { what: "the stochastic's %D (dark)" }],
-    ['#002A57~stone', { what: 'EMA 21 (paper)' }],
-    ['#04077E~stone', { what: 'SMA (paper)' }],
+    ['#002B66~stone', { what: 'EMA 21 (paper)' }],
+    ['#071591~stone', { what: 'SMA (paper)' }],
+    /* the fourth review's lightness floor (9m) left the moving average's paper ink no teal clear of its neighbours: it is a
+       blue now, beside EMA 21's and the SMA's, waiting on the same decision */
+    ['#093E89~stone', { what: 'the moving average (paper)' }],
   ]);
   const VIEWS9: (Deficiency | undefined)[] = [undefined, ...SIMS];
   const candleHueNear: string[] = [];
@@ -939,6 +1018,23 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
   let huePairs = 0;
   let huePairsUnder = 0;
   let huePairsHeld = 0;
+  /* 9m: lightness against a candle with no hue (WCAG luminance, as seen and under each simulation) */
+  const lumUnder = (rgb: RGB, k: Deficiency | undefined) => {
+    const l = simulate(rgb, k);
+    return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+  };
+  const lumRatio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  let lumLightPairs = 0;
+  let lumDarkPairs = 0;
+  const lumNear: string[] = [];
+  const lumDark: { said: string; price: boolean; light: boolean; r: number }[] = [];
+  /* a drawn ink's pane: the price pane's (the Indicators menu's overlays, the shipped overlay scripts, the compare lines, a
+     plot left uncoloured) or a pane of its own */
+  const onPricePane = (who: string) => {
+    if (who.startsWith('compare ') || who === 'default plot') return true;
+    const m = /^(indicator|script):([\w-]+)/.exec(who);
+    return !!m && overlayKeys.has(`${m[1]}:${m[2]}`);
+  };
   const holdFor = (o: Opt, side: string, inkHex: string, what: string): HeldOwner | null => {
     const dec = DECIDING[o.key];
     if (!dec || (dec.side !== 'both' && dec.side !== side)) return null;
@@ -1070,6 +1166,25 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
         else candleHueNear.push(said);
       }
     }
+    /* 9m: against a candle ink with no hue (chroma under 0.04, as 9l reads one), lightness — WCAG luminance, as seen and
+       under each simulation, the worst of the four */
+    for (const [cn, c] of candles) {
+      if (lchOf(c).C >= 0.04) continue;
+      for (const x of drawn) {
+        let worst = { r: Infinity, k: undefined as Deficiency | undefined };
+        for (const k of VIEWS9) {
+          const r = lumRatio(lumUnder(x.rgb, k), lumUnder(c, k));
+          if (r < worst.r) worst = { r, k };
+        }
+        const price = onPricePane(x.who);
+        if (o.light && price) lumLightPairs++;
+        else lumDarkPairs++;
+        if (worst.r >= 1.5) continue;
+        const said = `${x.who} ${hexOf(x.rgb)} ~ ${o.key}${o.light ? ` (${o.page} page)` : ''}${o.vision === 'standard' ? '' : ` ${o.vision}`} ${cn} ${hexOf(c)} ${worst.r.toFixed(2)}:1${worst.k ? ` under ${worst.k}` : ' as seen'}`;
+        if (o.light && price) lumNear.push(said);
+        else lumDark.push({ said, price, light: o.light, r: worst.r });
+      }
+    }
     const updown = distanceUnder(rgbOf(o.dir.up), rgbOf(o.dir.down));
     const rowKey = `${o.key}|${o.light ? o.page : '*'}|${o.vision}`;
     if (!seenRow.has(rowKey)) {
@@ -1083,6 +1198,74 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
   check(`9a. under every Colours option (${opts.length}: ${ct.CANDLE_THEME_OPTIONS.length} candle themes × 2 page themes × 3 colour visions), every indicator, shipped-script, compare, default-plot and volatility ink as drawn stands the family's floor from that option's two oval inks (0.15 from the house pair, 0.08 from the colour-vision pair) and 0.08 under simulated protanopia, deuteranopia and tritanopia (${HELD_TRITAN.size} held for the owner under tritanopia, below)`, sideNear.length === 0, uniq(sideNear).slice(0, 10).join('; ') + (sideNear.length > 10 ? ` … ${uniq(sideNear).length} in all` : ''));
   check(`9i. every indicator, shipped-script, compare, default-plot and volatility ink as drawn stands 0.05 or more (OKLab) from that option's candle up and down, as seen and under simulated protanopia, deuteranopia and tritanopia — no line passes for a candle (${candlePairsUnder} of ${candlePairs} option-ink-candle-view pairs under the floor, ${candlePairsHeld} of them held for a candle theme the owner is deciding on, below)`, candleNear.length === 0, uniq(candleNear).slice(0, 10).join('; ') + (candleNear.length > 10 ? ` … ${uniq(candleNear).length} in all` : ''));
   check(`9l. every ink with a hue stands 30° or more of OKLCh hue from each of that option's candle inks with a hue — no line reads as a rise or a fall in the candles' own colours (${huePairsUnder} of ${huePairs} option-ink-candle pairs within 30°, ${huePairsHeld} of them held for a candle theme the owner is deciding on, below)`, candleHueNear.length === 0, uniq(candleHueNear).slice(0, 10).join('; ') + (candleHueNear.length > 10 ? ` … ${uniq(candleHueNear).length} in all` : ''));
+  /* 9m. THE LIGHTNESS FLOOR (the fourth review of the rule, 2026-10-16): VWAP's paper ink had moved to #140013, the darkness
+     of Stone's black falling candle — 1.04:1 by luminance, and in a shot of Stone with VWAP on its session-reset drop read
+     as one more black wick. 9i let it by at 0.147 because OKLab's lightness, a cube root, stretches the near-blacks apart,
+     and 9l skips black, which has no hue. So against a candle ink with no hue every ink also reads 1.5:1 by luminance, as
+     seen and under each simulation. ASSERTED FOR THE PRICE PANE ON A LIGHT TAPE — where a line stands among the candles and
+     the tape's hue-less candle is black. MEASURED AND HELD FOR THE OWNER elsewhere (below): on a dark tape the hue-less
+     candles are the near-white rises of Foil, Velvet, Mono, Chrome, Tide and Harbor and the slate falls of Mono and Chrome,
+     which leave a line only luminance 0.18 to 0.50, and with the family's other floors at most 12 of the price pane's 18
+     inks fit there 0.08 apart; and a sub-pane line on a light tape stands where no candle does, while the floor on all 34
+     inks leaves room for about 21 of them 0.08 apart (a search over OKLCh, 2026-10-16). Before the floor, 7 price-pane
+     inks stood under it on a light tape (VWAP 1.03:1, compare line 2 1.12:1, the moving average 1.30:1, compare lines 3
+     and 4, the SMA, EMA 21). */
+  check(`9m. on a light tape every price-pane ink (the Indicators menu's overlays, the shipped overlay scripts, the compare lines, a plot left uncoloured) reads 1.5:1 (WCAG luminance) or better against that tape's candle with no hue (Stone's black fall), as seen and under simulated protanopia, deuteranopia and tritanopia — OKLab's cube-root lightness stretches the near-blacks apart, so lightness is measured too (${lumNear.length} of ${lumLightPairs} option-ink-candle pairs under; elsewhere ${lumDark.length} of ${lumDarkPairs}, held below)`, lumLightPairs > 0 && lumNear.length === 0, uniq(lumNear).slice(0, 10).join('; ') + (lumNear.length > 10 ? ` … ${uniq(lumNear).length} in all` : ''));
+  /* 9n. MAGENTA ON THE PRICE PANE (the fourth review of the rule, 2026-10-16 — the house's rule: "magenta stays the
+     supreme's", "MAGENTA IS THE SUPREME'S ALONE"; here the owner's to decide): the third review moved the family into the
+     hues the candles, the direction pair and the ovals leave, and the price pane's VWAP, its bands, Bollinger, Ichimoku's
+     conversion line, the SMA, Donchian and compare line 4 went to pinks and magentas 6° to 27° of hue from the supreme's
+     #EA00FF (of the family's dark inks, six stood within 30° of it at chroma 0.1 or more before, eleven after; on the price
+     pane three before, seven after) — 0.12 to 0.20 OKLab from it, over the 0.08 the family keeps, but its hue. On a dark
+     tape a price pane held 30° off the supreme's hue does not fit the family's other floors (a search over OKLCh,
+     2026-10-16: at most 16 of the price pane's 18 inks fit outside that arc 0.08 apart; moving all 31 dark inks at once
+     still left 4 pairs under 0.08, the nearest 0.063; a 15° arc with the sub-pane inks as they are left 5), and on a light
+     tape, with the lightness floor (9m), the search found no palette either that kept each ink's own hue. So the
+     price-pane inks with a hue (chroma 0.04 or more) inside the supreme's 30° are HELD for the owner by ink, dark and paper,
+     printed below with their gaps — and no other may join them: the list only shrinks. The paper inks the lightness floor
+     moved left the supreme's hue or stood further from it (VWAP 7° → 25°, compare line 4 20° → 28°). */
+  const HELD_SUPREME = new Map<string, { what: string; seen?: boolean }>([
+    ['#FB31BA', { what: 'the SMA (dark)' }],
+    ['#C21EB2', { what: 'VWAP (dark)' }],
+    ['#FF69F6', { what: 'the VWAP bands (dark)' }],
+    ['#DB88CE', { what: 'Bollinger (dark)' }],
+    ['#DD62D1', { what: "Ichimoku's conversion line (dark)" }],
+    ['#DC2C92', { what: 'Donchian (dark)' }],
+    ['#A92E81', { what: 'compare line 4 (dark)' }],
+    ['#400279', { what: 'VWAP (paper)' }],
+    ['#54286C', { what: 'the VWAP bands (paper)' }],
+    ['#703E81', { what: 'Bollinger (paper)' }],
+    ['#791853', { what: "Ichimoku's conversion line (paper)" }],
+    ['#730081', { what: 'Donchian (paper)' }],
+    ['#AC3D75', { what: 'compare line 1 (paper)' }],
+    ['#9E0065', { what: 'compare line 4 (paper)' }],
+  ]);
+  const supNear: string[] = [];
+  const supRows: string[] = [];
+  let supApart = Infinity;
+  for (const [ground, sup] of [['dark', rgbOf(SUPREME)], ['paper', tok(CHART_LIGHT, '--supreme')]] as const) {
+    const sh = lchOf(sup).h;
+    const inks = [...priceLines.map(i => ({ who: `${i.owner} ${i.part}`, css: ground === 'dark' ? i.dark : i.paper })), ...sideLines.map(c => ({ who: c.name, css: ground === 'dark' ? c.dark : c.paper }))];
+    const seenInk = new Set<string>();
+    for (const x of inks) {
+      const rgb = rgbOf(x.css);
+      const key = hexOf(rgb);
+      if (seenInk.has(key)) continue;
+      seenInk.add(key);
+      const l = lchOf(rgb);
+      if (l.C < 0.04) continue;
+      const gap = hueGap(l.h, sh);
+      if (gap >= 30) continue;
+      const said = `${x.who}${ground === 'paper' ? ' (paper)' : ''} ${key} ${gap.toFixed(0)}° from the supreme's ${hexOf(sup)} (${dE(rgb, sup).toFixed(3)} OKLab)`;
+      supRows.push(said);
+      supApart = Math.min(supApart, dE(rgb, sup));
+      const h = HELD_SUPREME.get(key);
+      if (h) h.seen = true;
+      else supNear.push(said);
+    }
+  }
+  const supCleared = [...HELD_SUPREME].filter(([, h]) => !h.seen).map(([k, h]) => `${h.what} ${k}`);
+  check(`9n. magenta stays the supreme's on the price pane: no price-pane ink with a hue (the Indicators menu's overlays, the shipped overlay scripts, the compare lines, a plot left uncoloured) stands within 30° of the supreme's hue on its tape but those held for the owner (${HELD_SUPREME.size}, by ink — the list only shrinks: an ink that leaves the arc comes off it)`, supNear.length === 0 && supCleared.length === 0, [...supNear.map(x => `joins the arc: ${x}`), ...supCleared.map(x => `clears now: ${x}`)].slice(0, 8).join('; '));
   const cleared = [...HELD_TRITAN, ...HELD_CANDLE, ...HELD_DECIDING].filter(([, h]) => !h.seen).map(([k, h]) => `${h.what} ${k}`);
   check(`9a′. the held list only shrinks: every ink held for the owner still stands under its floor somewhere (an ink that clears comes off the list)`, cleared.length === 0, cleared.length ? `clears now: ${cleared.join('; ')}` : '');
   check(`9b. every shipped script's up and down part (Supertrend, the SAR, ADX's ±DI, Ichimoku's leading spans — ${dirParts} parts over every option, ${(dirParts / opts.length).toFixed(0)} an option) is the theme's candle up and down, at the alpha written`, dirParts === 8 * opts.length && dirMiss.length === 0, uniq(dirMiss).slice(0, 8).join('; ') + (dirMiss.length > 8 ? ` … ${uniq(dirMiss).length} in all` : ''));
@@ -1242,6 +1425,16 @@ plotshape(close > open, "Rise")`).shapes[0]?.ink ?? '';
   console.log(`\n      FOR THE OWNER — decision 7, "walls keep gold and violet" (no code changed): the shipped wall scripts (${wallScripts.join(', ')}), the chart's wall chips and its axis labels wear the ovals' gold and violet`);
   console.log(`        keep: one meaning — a call wall is the calls' gold and a put wall the puts' violet wherever it stands, as the orbs rule ties the ovals, the ladder and the regime strip to the pair`);
   console.log(`        move: under "Only the ovals use their two colours", the distance and approach plots take family inks, and maybe the wall lines and chips too — the ovals alone wearing the pair`);
+  /* THE TWO QUESTIONS THE FOURTH REVIEW LEAVES THE OWNER (2026-10-16) */
+  console.log(`\n      FOR THE OWNER — magenta on the price pane (9n; ${supRows.length} inks held, no code changed for it): the house's rule is "magenta stays the supreme's"`);
+  for (const r of supRows) console.log(`        ${r}`);
+  console.log(`        keep: one family that clears every other floor — the candles' hues under colour vision, the direction pair, the ovals, 0.08 between lines — with the supreme apart by its own saturation and lightness (${supApart.toFixed(3)} OKLab or more from each of these), never by hue`);
+  console.log(`        move: the price pane held 30° off the supreme's hue — no palette clears every other floor there (at most 16 of its 18 inks fit 0.08 apart); it needs a floor eased first, e.g. a price-pane line kept 0.08 only from lines on its own pane (as the compare lines are) with the supreme's arc at 15°, where a search came within one pair`);
+  const darkPrice = lumDark.filter(x => x.price && !x.light);
+  const lightSub = lumDark.filter(x => x.light);
+  console.log(`\n      FOR THE OWNER — the lightness floor beyond the light tape's price pane (9m asserts it there): ${lumDark.length} of ${lumDarkPairs} option-ink-candle pairs stand under 1.5:1 against a candle with no hue — ${darkPrice.length} price-pane pairs on a dark tape, ${lumDark.length - darkPrice.length - lightSub.length} sub-pane pairs on a dark tape, ${lightSub.length} sub-pane pairs on a light one; the faintest ${uniq([...lumDark].sort((a, b) => a.r - b.r).map(x => x.said)).slice(0, 6).join('; ')}`);
+  console.log(`        keep: on a dark tape a line stands off a hue-less candle by 9i's 0.05 OKLab (out of the near-black stretch, OKLab's lightness reads true there) and, for every ink with a hue, by that hue`);
+  console.log(`        move: 1.5:1 on every tape and pane — on a dark tape the hue-less candles (near-white rises of Foil, Velvet, Mono, Chrome, Tide and Harbor, the slate falls of Mono and Chrome) leave a line luminance 0.18 to 0.50, where at most 12 of the price pane's 18 inks fit 0.08 apart with the other floors, and on a light tape the floor on all 34 inks leaves room for about 21: it needs a floor eased, or those candles darkened or lightened`);
   const owner = uniq(forOwner);
   console.log(`\n      FOR THE OWNER — the candles against the ovals under the floor (the oval pair and the candle themes are left as they are; ${owner.length} pairs):`);
   for (const l of owner) console.log(`        ${l}`);

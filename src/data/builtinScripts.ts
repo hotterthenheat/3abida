@@ -54,7 +54,7 @@
 
 import { compile, explain } from '../core/pine';
 import type { Script } from '../types/scripts';
-import { INDICATOR_INKS, MACD_SIGNAL_INK, SCRIPT_INKS } from '../components/gex/indicatorInks';
+import { INDICATOR_INKS, MACD_SIGNAL_INK, SCRIPT_INKS, inkNow } from '../components/gex/indicatorInks';
 import { BEAR, BULL, CALL_WALL, FLIP, PUT_WALL, SUPREME } from '../components/gex/palette';
 
 interface BuiltinSource {
@@ -455,16 +455,29 @@ export function retiredBuiltin(id: string): { title: string; description: string
 export const RETIRED_IDS: readonly string[] = RETIRED_SOURCES.map(r => `builtin:${r.slug}`);
 
 /**
- * A retired built-in the reader keeps AS THE HOUSE WROTE IT: kept under its own id (data/scriptStore keepAsOwn writes
- * version 1) and never saved again by the reader — or its text is the house's own today. Every ink in it is the family's,
- * which the reader never set, so the chart draws it as the family's (indicatorInks scriptInksWith `kept`); once the reader
- * saves an edit it is theirs and keeps what its code sets.
+ * A SCRIPT'S TEXT AS THE HOUSE WRITES IT TODAY: every former family ink in it (indicatorInks FORMER_DARK) its pair's
+ * current one. The house's text is its template with the family's inks of the day, so a text saved the day before the
+ * house moved an ink — a kept RSI holding #FBACFE, a copy of Keltner holding #7D7D74 — is the house's text still, and
+ * reads so here (the fourth review of the colour rule, 2026-10-16: the third review's palette move made every pre-move
+ * kept or copied text the reader's own, drawn in its dark inks on Stone at 1.1:1).
  */
-export function keptAsWritten(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sourceHash'>): boolean {
+export function asHouseNow(source: string): string {
+  return source.replace(/#[0-9A-Fa-f]{6}\b/g, inkNow);
+}
+
+/**
+ * A retired built-in the reader keeps AS THE HOUSE WROTE IT: kept under its own id (data/scriptStore keepAsOwn writes
+ * version 1) and never saved again by the reader — or its text is the house's own, today's or a former day's (asHouseNow).
+ * Every ink in it is the family's, which the reader never set, so the chart draws it as the family's (indicatorInks
+ * scriptInksWith `kept`); once the reader saves an edit it is theirs and keeps what its code sets.
+ */
+export function keptAsWritten(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sourceHash'> & { source?: string }): boolean {
   if (s.shelf !== 'mine' || !RETIRED_IDS.includes(s.id)) return false;
   if (s.version === 1) return true;
   const was = retiredBuiltin(s.id);
-  return !!was && s.sourceHash === hashSource(was.source);
+  if (!was) return false;
+  if (s.sourceHash === hashSource(was.source)) return true;
+  return s.source != null && asHouseNow(s.source) === was.source;
 }
 
 /** Who set a script's inks, as the chart maps them (indicatorInks scriptInksWith): the house's shelf, a retired built-in the
@@ -493,10 +506,22 @@ export function inksBy(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sourceHash'
      inks on a Stone tape at 2.21 and 2.35:1. Its inks the house has since moved draw as their pairs do now
      (indicatorInks FORMER_DARK, on the shipped path too). */
   if (s.shelf === 'mine' && s.version === 1 && s.forkedFrom && builtinScripts().some(b => b.id === s.forkedFrom)) return 'shipped';
+  /* A COPY OF A KEPT RETIRED SCRIPT NEVER SAVED AGAIN (the fourth review, 2026-10-16): Make a copy of a kept RSI writes
+     version 1 with 'builtin:rsi' in forkedFrom, and its text is the kept one's — the house's, its inks the family's, but
+     for any the house has moved since (asHouseNow; read only as today's text, a copy made before the move was the
+     reader's own). A kept script the reader edited copies the reader's text, which stays theirs: unlike a shipped one, a
+     kept one can be edited, so its copy is the house's only while its text is */
+  if (s.shelf === 'mine' && s.version === 1 && s.forkedFrom && RETIRED_IDS.includes(s.forkedFrom) && asHouseNow(s.source) === retiredBuiltin(s.forkedFrom)?.source) return 'kept';
+  /* a text the house wrote, today or before it moved an ink (asHouseNow) — saved again unchanged, or pasted */
   shippedText ??= new Map(builtinScripts().map(b => [b.sourceHash, b.source]));
-  if (shippedText.get(s.sourceHash) === s.source) return 'shipped';
   retiredText ??= new Map(RETIRED_SOURCES.map(r => [hashSource(r.source), r.source]));
+  if (shippedText.get(s.sourceHash) === s.source) return 'shipped';
   if (retiredText.get(s.sourceHash) === s.source) return 'kept';
+  const now = asHouseNow(s.source);
+  if (now === s.source) return 'own';
+  const nowHash = hashSource(now);
+  if (shippedText.get(nowHash) === now) return 'shipped';
+  if (retiredText.get(nowHash) === now) return 'kept';
   return 'own';
 }
 

@@ -2521,6 +2521,79 @@ check('inks: a retired copy kept as the house wrote it (RSI, EMA ribbon) draws i
   return { pass, ms: Date.now() - t0, notes };
 });
 
+/* ─── A KEPT RSI SAVED, AND COPIED, BEFORE THE HOUSE MOVED ITS INK (the fourth review of the owner's colour rule, 2026-10-16) ──
+   The third review moved every retired script's ink (RSI #FBACFE → #C68B9E), and the chart read the house's text only as
+   it is today: a kept RSI saved again unchanged before the move, and a "Make a copy" of it (version 1, forkedFrom
+   'builtin:rsi'), read as the reader's own and drew #FBACFE on a Stone tape at about 1.1:1. Both are the house's text but
+   for an ink the house has since moved (builtinScripts asHouseNow, inksBy), so both draw RSI's paper pair. Set up through
+   the store's development doors: the kept RSI saved with the former ink, then copied; both placed; their lines read. */
+check('inks: a kept RSI saved, and a copy of it made, before the house moved its ink draw the paper pair on a Stone tape, 3:1 or better', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const parse = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return { rgb: [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)), a: m[2] ? parseInt(m[2], 16) / 255 : 1 };
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?/i.exec(s);
+    return m ? { rgb: [m[1], m[2], m[3]].map(Number), a: m[4] == null ? 1 : Number(m[4]) } : null;
+  };
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  const hex = rgb => `#${rgb.map(v => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', overlays: { trails: true }, ladder: true }], { theme: 'dark' });
+  try {
+    const chartOf = `[...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length)`;
+    const set = await page.evaluate(async () => {
+      const b = await import('/src/data/builtinScripts.ts');
+      const f = await import('/src/components/gex/indicatorInks.ts');
+      const now = b.retiredBuiltin('builtin:rsi').source;
+      const pre = now.replace(new RegExp(f.INDICATOR_INKS.rsi, 'gi'), '#FBACFE');
+      const pair = f.INK_PAIRS.find(p => p.name === 'indicator:rsi');
+      /* the kept RSI, saved again with the house's text of before the move; then Make a copy of it */
+      const kept = await window.__paneScripts.save({ id: 'builtin:rsi', title: 'RSI', source: pre });
+      const copy = await window.__paneScripts.fork('builtin:rsi');
+      return { kept: { id: kept.id, version: kept.version }, copy: { id: copy.id, version: copy.version, forkedFrom: copy.forkedFrom }, pre: pre !== now, paper: pair.paper };
+    });
+    notes.push(`kept RSI ${set.kept.id} version ${set.kept.version} holding #FBACFE (${set.pre ? 'the former ink' : 'no former ink found'}); its copy ${set.copy.id} version ${set.copy.version} forkedFrom ${set.copy.forkedFrom}; RSI's paper pair ${set.paper}`);
+    await page.evaluate(`(() => { const e = ${chartOf}; window.__preSeen = new WeakSet(); for (const p of e.chart.panes()) for (const s of p.getSeries()) window.__preSeen.add(s); })()`);
+    const placed = [];
+    for (const id of [set.kept.id, set.copy.id]) placed.push(await page.evaluate(async id => (await window.__paneScripts.place('terrain:1', id)).id, id));
+    await page.waitForFunction(`(() => { const e = ${chartOf}; let n = 0; for (const p of e.chart.panes()) for (const s of p.getSeries()) if (!window.__preSeen.has(s) && s.seriesType() === 'Line' && s.data().some(d => 'value' in d)) n++; return n >= 2; })()`, null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    const got = await page.evaluate(`(() => {
+      const e = ${chartOf};
+      const out = [];
+      for (const p of e.chart.panes()) for (const s of p.getSeries()) if (!window.__preSeen.has(s) && s.seriesType() === 'Line' && s.data().some(d => 'value' in d)) out.push({ title: s.options().title ?? '', color: s.options().color });
+      return { lines: out, bg: e.chart.options().layout.background?.color ?? null };
+    })()`);
+    const ground = parse(got.bg)?.rgb ?? [190, 189, 184];
+    const rsiLines = got.lines.filter(l => /RSI/i.test(l.title) || hex(parse(l.color)?.rgb ?? [0, 0, 0]) === '#FBACFE' || hex(parse(l.color)?.rgb ?? [0, 0, 0]) === hex(parse(set.paper).rgb));
+    notes.push(`Stone tape ${got.bg}; ${got.lines.length} new lines, ${rsiLines.length} of them the two RSIs`);
+    if (!set.pre || rsiLines.length < 2) {
+      pass = false;
+      notes.push('  the two RSIs did not both draw');
+    }
+    for (const l of rsiLines) {
+      const c = parse(l.color);
+      const drawn = c.rgb.map((v, i) => v * c.a + ground[i] * (1 - c.a));
+      const k = contrast(drawn, ground);
+      const ok = hex(c.rgb) === hex(parse(set.paper).rgb) && k >= 3;
+      if (!ok) pass = false;
+      notes.push(`  ${l.title || 'line'} ${l.color} ${k.toFixed(2)}:1${ok ? '' : ` — want the paper pair ${set.paper}`}`);
+    }
+    for (const id of placed) await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), id);
+    if (errors.length) {
+      pass = false;
+      notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+    }
+  } finally {
+    await done();
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
 /* ─── THE VOLATILITY PANE'S RV AND IV ARE THE FAMILY'S (the review of the owner's colour rule, 2026-10-16) ────────────
    They wore a lavender and a cream — Whipsaw's and Harbor's rising candles to the digit, the ovals' two hues muted — with
    no pair for a light tape. Read off the chart: the two lines titled RV and IV, on a Glacier pane and on a Stone one,
@@ -2728,6 +2801,85 @@ check('inks: the compare menu\'s swatch is the colour its line is drawn in — o
     } finally {
       await done();
     }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── NO LINE PASSES FOR STONE'S BLACK CANDLE (the fourth review of the owner's colour rule, 2026-10-16) ─────────────────
+   VWAP's paper ink had moved to #140013, the darkness of Stone's black falling candle — 1.04:1 by luminance, and its
+   session-reset drop read as one more black wick — and compare line 2's to #32051A (1.17:1). OKLab let them by (its
+   cube-root lightness stretches the near-blacks apart). Every price-pane line on a light tape stands 1.5:1 (WCAG
+   luminance) from the tape's hue-less candle now (indicator-inks-proof 9m). Read on Stone on a dark page: the colour of
+   every line series on the price pane — the VWAP and its bands, the SMA, EMA 21, Bollinger, four compare lines (saved
+   with the inks a desk of before the family wrote, which the chart hands its slots' inks) and the shipped moving
+   average — against the candles' own down colour as the chart was given it. */
+check('inks: on a Stone tape every price-pane line stands 1.5:1 by luminance from the black falling candle (the VWAP and its bands, the SMA, EMA 21, Bollinger, the compare lines, the moving average)', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const parse = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return { rgb: [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)), a: m[2] ? parseInt(m[2], 16) / 255 : 1 };
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?/i.exec(s);
+    return m ? { rgb: [m[1], m[2], m[3]].map(Number), a: m[4] == null ? 1 : Number(m[4]) } : null;
+  };
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const ratio = (x, y) => (Math.max(lum(x), lum(y)) + 0.05) / (Math.min(lum(x), lum(y)) + 0.05);
+  const hex = rgb => `#${rgb.map(v => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+  const compares = ['QQQ', 'IWM', 'DIA', 'AAPL'].map((ticker, i) => ({ ticker, mode: 'percent', ink: ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'][i] }));
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', compares, indicators: { vwap: true, vwapBands: true, sma: true, ema21: true, bb: true }, overlays: { trails: false }, ladder: true }], { width: 2200, height: 1200, theme: 'dark' });
+  try {
+    const chartOf = `[...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length)`;
+    await page.waitForFunction(`(() => { const e = ${chartOf}; return !!e && e.chart.panes()[0].getSeries().some(s => s.options().title === 'AAPL' && s.data().length); })()`, null, { timeout: 20000 }).catch(() => {});
+    const placed = await page.evaluate(async () => (await window.__paneScripts.place('terrain:1', 'builtin:moving-average')).id).catch(() => null);
+    await page.waitForTimeout(2500);
+    const got = await page.evaluate(`(() => {
+      const e = ${chartOf};
+      const co = e.candles.options();
+      const lines = [];
+      for (const s of e.chart.panes()[0].getSeries()) {
+        if (s === e.candles || s.seriesType() !== 'Line' || !s.data().length) continue;
+        const o = s.options();
+        if (o.visible === false || o.lineVisible === false) continue;
+        lines.push({ title: o.title || '(untitled)', color: o.color });
+      }
+      return { down: co.downColor, wick: co.wickDownColor, border: co.borderDownColor, bg: getComputedStyle(e.host).backgroundColor, lines };
+    })()`);
+    const candle = parse(got.down)?.rgb;
+    notes.push(`Stone's falling candle ${got.down} (wick ${got.wick}, border ${got.border}); ${got.lines.length} lines on the price pane`);
+    if (!candle) {
+      pass = false;
+      notes.push('  no down colour read');
+    }
+    /* the chart's own indicators and a script's plots draw untitled; the compare lines carry their names */
+    const titles = got.lines.map(l => l.title);
+    const missing = compares.map(c => c.ticker).filter(w => !titles.includes(w));
+    const untitled = new Set(got.lines.filter(l => !compares.some(c => c.ticker === l.title)).map(l => hex(parse(l.color)?.rgb ?? [0, 0, 0])));
+    if (missing.length || untitled.size < 6) {
+      pass = false;
+      notes.push(`  not drawn: ${missing.join(', ') || 'every compare line drawn'}; ${untitled.size} inks of the indicators and the script (6 wanted: EMA 21, the SMA, the VWAP, its bands, Bollinger, the moving average)`);
+    }
+    const seen = new Set();
+    for (const l of got.lines) {
+      const c = parse(l.color);
+      if (!c || !candle) continue;
+      const key = `${l.title}|${hex(c.rgb)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const r = ratio(c.rgb, candle);
+      const ok = r >= 1.5;
+      if (!ok) pass = false;
+      notes.push(`  ${l.title} ${l.color} ${r.toFixed(2)}:1 from ${hex(candle)}${ok ? '' : ' — under 1.5:1'}`);
+    }
+    if (placed) await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), placed).catch(() => {});
+    if (errors.length) {
+      pass = false;
+      notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+    }
+  } finally {
+    await done();
   }
   return { pass, ms: Date.now() - t0, notes };
 });

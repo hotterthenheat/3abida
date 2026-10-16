@@ -101,13 +101,22 @@ export type IndicatorKey = 'ema9' | 'ema21' | 'ema50' | 'vwap' | 'bb' | 'vwapBan
    Harbor's falling candles, Whipsaw's violets, Stone's blue rise) waits on that decision, held by ink and theme in the
    proof. EMA 21's and the SMA's paper inks keep their navy: no paper ink at their new dark inks' hue clears every
    floor. Of the inks held under tritanopia above, the stochastic's %K and EMA 50's and Keltner's paper inks are held
-   still; the rest moved and clear it. */
+   still; the rest moved and clear it.
+   NO LINE PASSES FOR STONE'S BLACK CANDLE (the fourth review of the rule, 2026-10-16): VWAP's paper ink had gone to
+   #140013 and compare line 2's to #32051A, the darkness of Stone's black falling candle (1.04 and 1.17:1 by luminance) —
+   OKLab's cube-root lightness stretches the near-blacks apart, so the 0.05 floor let them by, and a VWAP reset read as one
+   more black wick. Every price-pane paper ink now reads 1.5:1 or better from that candle, as seen and under each
+   simulation (scripts/indicator-inks-proof.ts 9m): VWAP, EMA 21, the SMA, the moving average and the compare lines took
+   lighter inks of their own hue (compare line 1 made room for 3), but for the moving average, which found no teal clear
+   of its neighbours and stands a blue beside EMA 21's and the SMA's, held with them for the owner's decision on Stone's
+   blue rise. Every other floor holds. The price pane's magentas near the supreme's hue are the owner's to decide (9n);
+   none moved toward it. */
 const INDICATOR_PAIRS: Record<IndicatorKey, Pair> = {
   ema9: ['#54A6AB', '#04585C'],
-  ema21: ['#88C0B4', '#002A57'],
+  ema21: ['#88C0B4', '#002B66'],
   ema50: ['#75E0D8', '#0B726E'],
-  sma: ['#FB31BA', '#04077E'],
-  vwap: ['#C21EB2', '#140013'],
+  sma: ['#FB31BA', '#071591'],
+  vwap: ['#C21EB2', '#400279'],
   vwapBands: ['#FF69F6', '#54286C'],
   bb: ['#DB88CE', '#703E81'],
   rsi: ['#C68B9E', '#5C3242'],
@@ -138,7 +147,7 @@ export type ScriptInkKey =
   | 'mfi'
   | 'obv';
 const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
-  movingAverage: ['#0C9884', '#002823'],
+  movingAverage: ['#0C9884', '#093E89'],
   ichimokuConversion: ['#DD62D1', '#791853'],
   ichimokuBase: ['#9F9170', '#4D4834'],
   ichimokuLagging: ['#187D6E', '#034239'],
@@ -168,10 +177,10 @@ const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
    (2026-10-16: the olive 0.010 from Market's fall under protanopia and 20° from Neon's lime rise, the grey-teal 0.046 from
    Glacier's rise under tritanopia); a desk saved with either takes its slot's ink (OLD_COMPARE_INKS). */
 const COMPARE_PAIRS: readonly Pair[] = [
-  ['#C4879C', '#572F42'],
-  ['#A87084', '#32051A'],
-  ['#C4B5C3', '#322234'],
-  ['#A92E81', '#5B0042'],
+  ['#C4879C', '#AC3D75'],
+  ['#A87084', '#883C59'],
+  ['#C4B5C3', '#4B2535'],
+  ['#A92E81', '#9E0065'],
 ];
 const PLOT_DEFAULT_PAIR: Pair = ['#A97C07', '#432F01'];
 
@@ -311,10 +320,23 @@ export const FORMER_DARK: readonly [string, string][] = [
   ['#AB713C', 'script:obv'],
 ];
 const NOW_OF = new Map<string, [number, number, number]>();
+/* the same, as the house writes the ink in a script's text ('#RRGGBB', its pair's dark ink) */
+const NOW_TEXT = new Map<string, string>();
 for (const [hex, name] of FORMER_DARK) {
   const was = parseInk(hex);
-  const now = parseInk(INK_PAIRS.find(p => p.name === name)?.dark ?? '');
-  if (was && now) NOW_OF.set(keyOf(was.rgb), now.rgb);
+  const pair = INK_PAIRS.find(p => p.name === name);
+  const now = parseInk(pair?.dark ?? '');
+  if (was && now && pair) {
+    NOW_OF.set(keyOf(was.rgb), now.rgb);
+    NOW_TEXT.set(keyOf(was.rgb), pair.dark);
+  }
+}
+
+/** A '#rrggbb' as the house writes it today: a former family ink its pair's current dark ink, any other as it came — so a
+    script's text the house wrote before it moved an ink reads as the house's text now (data/builtinScripts inksBy) */
+export function inkNow(hex: string): string {
+  const c = parseInk(hex);
+  return (c && NOW_TEXT.get(keyOf(c.rgb))) ?? hex;
 }
 
 /** A family ink on a light tape: its paper pair, at the alpha it was written with; any other ink as it came */
