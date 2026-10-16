@@ -129,7 +129,9 @@ export function useLibraryVersion(): number {
    run time and reads the legend) — nothing of it ships */
 if (import.meta.env?.DEV && typeof window !== 'undefined') {
   (window as Window & { __paneScripts?: unknown }).__paneScripts = {
-    save: (s: { title: string; source: string }) => scriptStore.save(s),
+    save: (s: { title: string; source: string; id?: string }) => scriptStore.save(s),
+    /* "Make a copy" — the copy the review of the colour rule found mapped as the reader's own (inksBy) */
+    fork: (id: string) => scriptStore.fork(id),
     place: placeOnPane,
     lift: liftFromPane,
   };

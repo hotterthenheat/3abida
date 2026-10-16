@@ -22,7 +22,7 @@ import { useFlowTape } from '../../context/MarketDataContext';
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import CompareControl from '../../components/gex/CompareControl';
 import { chartGround, useCandleThemeKey } from '../../components/gex/candleTheme';
-import { COMPARE_INKS, paperInk } from '../../components/gex/indicatorInks';
+import { COMPARE_INKS, compareInkOn } from '../../components/gex/indicatorInks';
 import StrikeChart, {
   DEFAULT_INDICATORS,
   DEFAULT_OVERLAYS,
@@ -311,6 +311,7 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
                 compares={compares}
                 onAdd={addCompare}
                 onRemove={removeCompare}
+                light={ground === 'light'}
               />
               {/* No price here (Noah, 2026-08-23: "too redundant") — the
                   chart legend below carries the live tick now. The twins
@@ -512,8 +513,8 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
               only hand-removal outside the + menu */}
           {compares.map(c => (
             <div key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
-              <span className="w-2 h-[3px] rounded-full" style={{ background: ground === 'light' ? paperInk(c.ink) : c.ink }} aria-hidden />
-              <span className="text-[11px] font-semibold" style={{ color: ground === 'light' ? paperInk(c.ink) : c.ink }}>
+              <span className="w-2 h-[3px] rounded-full" style={{ background: compareInkOn(c.ink, ground === 'light') }} aria-hidden />
+              <span className="text-[11px] font-semibold" style={{ color: compareInkOn(c.ink, ground === 'light') }}>
                 {c.ticker}
               </span>
               {Simulator.TICKERS[c.ticker] && (

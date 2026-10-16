@@ -17,6 +17,7 @@ import type { TickerListing } from '../../data/tickers';
 import type { CompareEntry, CompareMode } from './StrikeChart';
 import useFocusTrap from '../ui/useFocusTrap';
 import { useEscapeLayer } from '../ui/layers';
+import { compareInkOn } from './indicatorInks';
 
 type TickerModule = typeof import('../../data/tickers');
 
@@ -35,13 +36,16 @@ interface CompareControlProps {
   onRemove: (ticker: string, mode: CompareMode) => void;
   /** Roster cap — the + dims when reached */
   max?: number;
+  /** The tape's ground is light (Stone): each added symbol's swatch names the ink its line is drawn in there, the paper pair
+      (indicatorInks compareInkOn — the line's, the chart legend's and this swatch's one answer) */
+  light?: boolean;
   /* OPTIONALLY CONTROLLED — see TickerQuickPick for the same shim and why. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
 const CompareControl = ({
-  current, compares, onAdd, onRemove, max = 4, open: openProp, onOpenChange,
+  current, compares, onAdd, onRemove, max = 4, light = false, open: openProp, onOpenChange,
 }: CompareControlProps) => {
   const [selfOpen, setSelfOpen] = useState(false);
   const open = openProp ?? selfOpen;
@@ -185,7 +189,7 @@ const CompareControl = ({
               </div>
               {compares.map(c => (
                 <div key={`${c.ticker}:${c.mode}`} className="flex items-center gap-2 px-2.5 py-1">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.ink }} aria-hidden />
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: compareInkOn(c.ink, light) }} aria-hidden />
                   <span className="font-mono text-[11px] font-semibold text-textPrimary w-14 shrink-0">{c.ticker}</span>
                   <span className="font-mono text-[11px] text-textMuted">{MODE_LABEL[c.mode]}</span>
                   <button

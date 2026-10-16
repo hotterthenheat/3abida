@@ -78,7 +78,7 @@ import ScopeChip from '../../components/ui/ScopeChip';
 import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { CANDLE_THEMES, chartGround, pageDefaultCandleKey, usePageDefaultCandleKey, type CandleThemeKey } from '../../components/gex/candleTheme';
-import { COMPARE_INKS, compareInk, paperInk } from '../../components/gex/indicatorInks';
+import { COMPARE_INKS, compareInk, compareInkOn } from '../../components/gex/indicatorInks';
 import { TIMEFRAMES, tfMinutes, type Timeframe } from '../../data/timeframe';
 import { fmtSession } from '../../components/gex/chartTime';
 import { TREND_GLYPH, buildConfluence, trendWords, type ConfluenceRow } from '../../data/confluence';
@@ -2587,6 +2587,7 @@ const Pane = ({
             compares={compares}
             onAdd={addCompare}
             onRemove={removeCompare}
+            light={ground === 'light'}
             open={menuOpen === 'compare'}
             onOpenChange={o => onMenu(o ? 'compare' : null)}
           />
@@ -3400,8 +3401,8 @@ const Pane = ({
                 {compares.map(c => (
                   <span key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
                     {/* the line's ink as the chart draws it: its pair on a light tape */}
-                    <span className="w-2 h-[3px] rounded-full" style={{ background: ground === 'light' ? paperInk(compareInk(c.ink)) : compareInk(c.ink) }} aria-hidden />
-                    <span className="font-mono text-[11px] font-semibold" style={{ color: ground === 'light' ? paperInk(compareInk(c.ink)) : compareInk(c.ink) }}>
+                    <span className="w-2 h-[3px] rounded-full" style={{ background: compareInkOn(c.ink, ground === 'light') }} aria-hidden />
+                    <span className="font-mono text-[11px] font-semibold" style={{ color: compareInkOn(c.ink, ground === 'light') }}>
                       {c.ticker}
                     </span>
                     {/* on the feed the crossed name's own last bar ("—" where its bars are not on the plans: an index) */}

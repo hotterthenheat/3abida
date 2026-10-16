@@ -2576,6 +2576,162 @@ check('inks: the volatility pane\'s RV and IV wear the family\'s pair — the da
   return { pass, ms: Date.now() - t0, notes };
 });
 
+/* ─── AN UNEDITED COPY OF A SHIPPED SCRIPT DRAWS AS THE SHIPPED ONE (the review of the owner's colour rule, 2026-10-16) ───
+   "Make a copy" (scriptStore fork) writes the house's text under the reader's name. Mapped as the reader's own, a copy of
+   Supertrend drew the house #30D158 and #FF3B30 beside Glacier's candles while its words said the candles' colours, and
+   on a Stone tape its dark inks at 1.07 to 1.89:1 (the moving average's #18a19c 1.69:1, Ichimoku's #e37dc1 1.40:1). A
+   script whose text is a shipped one's draws as the shipped one does (builtinScripts inksBy); once the reader saves an
+   edit it keeps the colours its code sets. Read off the chart: every series a placement adds, by its title, its colour
+   and its points' colours — the shipped script's against its copy's, then the edited copy's against its code. */
+check('inks: an unedited copy of a shipped script draws as the shipped one (Supertrend, the moving average, Ichimoku on Glacier and Stone); an edited copy keeps its coded colours', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const inkOf = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return `${[0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)).join(',')},${m[2] ? +(parseInt(m[2], 16) / 255).toFixed(2) : 1}`;
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?/i.exec(s);
+    return m ? `${[m[1], m[2], m[3]].map(v => Math.round(+v)).join(',')},${m[4] == null ? 1 : +(+m[4]).toFixed(2)}` : s;
+  };
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrast = (a, b) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x + 0.05) / (y + 0.05);
+  };
+  for (const theme of ['glacier', 'stone']) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme, overlays: { trails: true }, ladder: true }], { theme: 'dark' });
+    try {
+      const chartOf = () => `[...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length)`;
+      const count = () => page.evaluate(`(${chartOf()}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0)`);
+      /* what a placement draws: each added series by its title, its colours in a fixed order */
+      const drawOf = async id => {
+        await page.evaluate(`(() => { const e = ${chartOf()}; window.__copySeen = new WeakSet(); for (const p of e.chart.panes()) for (const s of p.getSeries()) window.__copySeen.add(s); })()`);
+        const n0 = await count();
+        const placed = await page.evaluate(async id => (await window.__paneScripts.place('terrain:1', id)).id, id);
+        await page.waitForFunction(`(${chartOf()}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) > ${n0}`, null, { timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(800);
+        const lines = await page.evaluate(`(() => {
+          const e = ${chartOf()};
+          const out = [];
+          for (const p of e.chart.panes()) for (const s of p.getSeries()) if (!window.__copySeen.has(s)) out.push({ title: s.options().title ?? '', inks: [...new Set([s.options().color, ...s.data().map(d => d.color)].filter(Boolean))] });
+          return { lines: out, bg: e.chart.options().layout.background?.color ?? null };
+        })()`);
+        await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), placed);
+        await page.waitForTimeout(400);
+        return lines;
+      };
+      const say = d => d.lines.map(l => `${l.title || 'line'} ${l.inks.join('/')}`).sort().join(', ');
+      const key = d => d.lines.map(l => `${l.title}:${l.inks.map(inkOf).sort().join('/')}`).sort().join(' | ');
+      let ground = null;
+      for (const slug of ['supertrend', 'moving-average', 'ichimoku']) {
+        const shipped = await drawOf(`builtin:${slug}`);
+        const copy = await page.evaluate(async id => {
+          const c = await window.__paneScripts.fork(id);
+          return { id: c.id, shelf: c.shelf, version: c.version, title: c.title };
+        }, `builtin:${slug}`);
+        const copied = await drawOf(copy.id);
+        ground ??= /^#([0-9a-f]{6})$/i.test(String(shipped.bg ?? '')) ? [0, 2, 4].map(i => parseInt(shipped.bg.slice(1 + i, 3 + i), 16)) : null;
+        const same = shipped.lines.length > 0 && key(shipped) === key(copied);
+        notes.push(`${theme} ${slug}: shipped ${say(shipped) || 'nothing'}; its copy ("${copy.title}", shelf ${copy.shelf}, version ${copy.version}) ${say(copied) || 'nothing'}${same ? '' : ' — not the shipped one\'s inks'}`);
+        if (!same) pass = false;
+        if (theme === 'stone' && ground)
+          for (const l of copied.lines)
+            for (const c of l.inks) {
+              const m = /^#([0-9a-f]{6})$/i.exec(c) ?? null;
+              const rgb = m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : null;
+              if (rgb) notes.push(`    ${l.title} ${c} ${contrast(rgb, ground).toFixed(2)}:1 on ${shipped.bg}`);
+            }
+        /* the reader edits the copy and saves it: its text and its inks are theirs */
+        if (slug === 'supertrend') {
+          await page.evaluate(async id => {
+            const store = window.__paneScripts;
+            const c = await store.fork(id);
+            const s = await store.save({ id: c.id, title: c.title, source: `${c.source}\n// mine` });
+            window.__editedCopy = s.id;
+          }, `builtin:${slug}`);
+          const edited = await drawOf(await page.evaluate(() => window.__editedCopy));
+          const inks = edited.lines.flatMap(l => l.inks.map(inkOf));
+          const coded = inks.length > 0 && inks.every(c => c === '48,209,88,1' || c === '255,59,48,1');
+          notes.push(`${theme} supertrend, edited copy: ${say(edited) || 'nothing'}${coded ? ' — its coded #30D158 and #FF3B30' : ' — want its coded #30D158 and #FF3B30'}`);
+          if (!coded) pass = false;
+        }
+      }
+      if (errors.length) {
+        pass = false;
+        notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── THE COMPARE MENU'S SWATCH IS ITS LINE'S INK (the review of the owner's colour rule, 2026-10-16) ───────────────────
+   On a light tape a compare line is drawn in its paper pair, and the chart's legend says so; the compare menu's "Added
+   symbols" kept the dark-tape ink — on Stone IWM's swatch was grey-teal #9EC3C2 over a dark purple #332138 line, QQQ's
+   pink #C4879C over #572F42. One answer now (indicatorInks compareInkOn). Read: each compare line's series colour, and the
+   swatch beside its name in the opened menu. */
+check('inks: the compare menu\'s swatch is the colour its line is drawn in — on a Stone tape and a Glacier one', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const rgbOf = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})/i.exec(s);
+    if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)).join(',');
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(s);
+    return m ? [m[1], m[2], m[3]].map(v => Math.round(+v)).join(',') : null;
+  };
+  const compares = [
+    { ticker: 'QQQ', mode: 'percent', ink: '#C4879C' },
+    { ticker: 'IWM', mode: 'percent', ink: '#9EC3C2' },
+  ];
+  for (const theme of ['stone', 'glacier']) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme, compares, overlays: { trails: true }, ladder: true }], { width: 2560, height: 1300, theme: 'dark' });
+    try {
+      await page.waitForFunction(() => [...window.__charts].some(e => e.chart.panes().some(p => p.getSeries().some(s => s.options().title === 'IWM'))), null, { timeout: 15000 }).catch(() => {});
+      const lines = await page.evaluate(() => {
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
+        const out = {};
+        for (const p of e.chart.panes()) for (const s of p.getSeries()) if (['QQQ', 'IWM'].includes(s.options().title)) out[s.options().title] = s.options().color;
+        return out;
+      });
+      const pane = page.locator('[data-chart-frame]').first();
+      await pane.hover();
+      const door = pane.locator('button[aria-label="Compare symbol"]').first();
+      await door.click({ timeout: 5000 });
+      await page.waitForSelector('input[placeholder="Compare symbols…"]', { timeout: 5000 });
+      const swatches = await page.evaluate(() => {
+        const input = document.querySelector('input[placeholder="Compare symbols…"]');
+        const menu = input?.closest('div.absolute');
+        const out = {};
+        for (const row of menu ? menu.querySelectorAll('div') : []) {
+          const name = [...row.children].find(c => c.tagName === 'SPAN' && /^(QQQ|IWM)$/.test(c.textContent?.trim() ?? ''));
+          const dot = name && [...row.children].find(c => c.tagName === 'SPAN' && c.getAttribute('aria-hidden') === 'true');
+          if (name && dot) out[name.textContent.trim()] = getComputedStyle(dot).backgroundColor;
+        }
+        return out;
+      });
+      for (const { ticker } of compares) {
+        const ok = !!lines[ticker] && !!swatches[ticker] && rgbOf(lines[ticker]) === rgbOf(swatches[ticker]);
+        notes.push(`${theme}: ${ticker} line ${lines[ticker] ?? 'not drawn'}, menu swatch ${swatches[ticker] ?? 'not found'}${ok ? '' : ' — not the line\'s ink'}`);
+        if (!ok) pass = false;
+      }
+      await page.keyboard.press('Escape');
+      if (errors.length) {
+        pass = false;
+        notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
 let failed = 0;
 for (const { name, fn } of results) {
   let r;

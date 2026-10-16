@@ -31,8 +31,10 @@
   script's pair in its candles' up and down
   (indicatorInks scriptInksWith) — Supertrend, the
   SAR, ADX's ±DI, Ichimoku's leading spans and its
-  cloud, a faint wash. A copy is the reader's own and
-  keeps the colours its code sets.
+  cloud, a faint wash. A copy the reader never changed
+  draws as the shipped one does (inksBy: its text, its
+  inks, are still the house's); once edited it is the
+  reader's own and keeps the colours its code sets.
 
   EVERY OTHER LINE WEARS ITS OWN INK (2026-10-15 —
   the owner's approvals 4 and 5): the family in
@@ -463,6 +465,32 @@ export function keptAsWritten(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sour
   if (s.version === 1) return true;
   const was = retiredBuiltin(s.id);
   return !!was && s.sourceHash === hashSource(was.source);
+}
+
+/** Who set a script's inks, as the chart maps them (indicatorInks scriptInksWith): the house's shelf, a retired built-in the
+    reader keeps as the house wrote it, or the reader */
+export type InksBy = 'shipped' | 'kept' | 'own';
+
+let shippedText: Map<string, string> | null = null;
+let retiredText: Map<string, string> | null = null;
+
+/**
+ * WHO SET A SCRIPT'S INKS (the review of the owner's colour rule, 2026-10-16): the terminal's shelf is the house's; so is a
+ * COPY THE READER NEVER CHANGED — "Make a copy" (data/scriptStore fork) writes the house's text under the reader's name,
+ * and every ink in it is still the house's, the reader set none. Mapped as the reader's own, an unedited copy of
+ * Supertrend drew the house green and red beside Glacier's candles while its words said the candles' colours, and on a
+ * Stone tape its dark inks at 1.07 to 1.89:1. So a script whose text IS a shipped script's draws as the shipped one does,
+ * and one whose text is a retired built-in's as a kept copy does; a retired id kept as the house wrote it is kept
+ * (keptAsWritten). Once the reader saves an edit the text is theirs and keeps the colours its code sets.
+ */
+export function inksBy(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sourceHash' | 'source'>): InksBy {
+  if (s.shelf === 'built-in') return 'shipped';
+  if (keptAsWritten(s)) return 'kept';
+  shippedText ??= new Map(builtinScripts().map(b => [b.sourceHash, b.source]));
+  if (shippedText.get(s.sourceHash) === s.source) return 'shipped';
+  retiredText ??= new Map(RETIRED_SOURCES.map(r => [hashSource(r.source), r.source]));
+  if (retiredText.get(s.sourceHash) === s.source) return 'kept';
+  return 'own';
 }
 
 let cache: Script[] | null = null;

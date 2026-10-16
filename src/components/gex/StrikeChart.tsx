@@ -35,10 +35,10 @@ import Simulator from '../../core/simulator';
 import { onGlide, promisedWidth } from '../../core/glide';
 import { compile, explain, run as runScript, type Compiled, type RunResult } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
-import { keptAsWritten } from '../../data/builtinScripts';
+import { inksBy, type InksBy } from '../../data/builtinScripts';
 import { drawRun, inkRun, type ScriptHandle } from './scriptLayer';
 import { barTints, candleTintForm, NO_TINT, retint, tintPoint, type TintForm } from './barTints';
-import { DIR_WASH_ALPHA, INDICATOR_INKS, IV_INK, MACD_SIGNAL_INK, RV_INK, compareInk, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
+import { DIR_WASH_ALPHA, INDICATOR_INKS, IV_INK, MACD_SIGNAL_INK, RV_INK, compareInkOn, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
 import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
@@ -3685,7 +3685,7 @@ const StrikeChart = ({
     const hostBars = tapeRef.current?.compareBars;
     /* the family's compare ink (indicatorInks — a desk saved with the old inks takes its slot's), its pair on a light tape */
     const lightTape = chartGround(themeKey) === 'light';
-    const inkOf = (c: CompareEntry) => (lightTape ? paperInk(compareInk(c.ink)) : compareInk(c.ink));
+    const inkOf = (c: CompareEntry) => compareInkOn(c.ink, lightTape);
     const sig = `${ticker}|${timeframe}|${compares.map(c => `${c.ticker}:${c.mode}:${inkOf(c)}:${hostBars ? (hostBars[c.ticker]?.bars.length ? 'm' : '') + (hostBars[c.ticker]?.daily?.length ? 'd' : '') : ''}`).join(',')}|${full ? 'full' : 'recent'}`;
     const rebuild = compareLoadedRef.current !== sig;
     if (rebuild) {
@@ -4171,12 +4171,12 @@ const StrikeChart = ({
        a change of any redraws. */
     const lightTape = chartGround(themeKey) === 'light';
     const dir = candleDirInks(themeRef.current);
-    /* by who wrote the script's inks: the terminal's shelf, a retired built-in kept as the house wrote it (its family inks
-       drawn as the family's, paper pairs on a light tape — builtinScripts keptAsWritten), or the reader */
-    type InkBy = 'shipped' | 'kept' | 'own';
-    const byOf = (sc: (typeof live)[number]['script']): InkBy => (sc.shelf === 'built-in' ? 'shipped' : keptAsWritten(sc) ? 'kept' : 'own');
-    const inkers = new Map<InkBy, ReturnType<typeof scriptInksWith>>();
-    const inkFor = (by: InkBy) => {
+    /* by who set the script's inks (builtinScripts inksBy): the terminal's shelf, or a copy of it the reader never changed;
+       a retired built-in kept as the house wrote it (its family inks drawn as the family's, paper pairs on a light tape);
+       or the reader */
+    const byOf = (sc: (typeof live)[number]['script']): InksBy => inksBy(sc);
+    const inkers = new Map<InksBy, ReturnType<typeof scriptInksWith>>();
+    const inkFor = (by: InksBy) => {
       if (inkers.has(by)) return inkers.get(by);
       /* THE TAPE'S OWN TOKENS, READ INSIDE THE BOX: the chart's container stands in the box and inherits its light set,
          and its ref is filled before any effect runs. The box's own ref is state, null when a load's first commit runs

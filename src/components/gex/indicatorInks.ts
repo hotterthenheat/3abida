@@ -185,6 +185,13 @@ export function compareInk(saved: string): string {
   }
   return saved;
 }
+/** A compare line's ink as its tape draws it — its slot's ink (compareInk), the paper pair on a light tape. The one answer
+    for the line, the chart's legend and the compare menu's swatch, so a swatch never names a colour the line is not (the
+    review of 2026-10-16: on Stone the menu showed IWM's dark-tape grey-teal beside a dark purple line) */
+export function compareInkOn(saved: string, light: boolean): string {
+  const ink = compareInk(saved);
+  return light ? paperInk(ink) : ink;
+}
 
 /* THE VOLATILITY PANE'S TWO LINES (StrikeChart's vol drift — realised against implied): the lavender and the cream they
    wore were Whipsaw's and Harbor's rising candles to the digit, the reference's purple and yellow — the ovals' two hues —
@@ -345,7 +352,8 @@ export function withAlpha(css: string, a: number): string {
 
 /** What a script's inks are mapped by: whether the terminal ships it, the tape's ground, the chart's candles */
 export interface ScriptInkOpts {
-  /** A script the terminal ships, read-only (Script `shelf: 'built-in'`). A reader's own — a copy, one they wrote, a kept
+  /** A script the terminal ships (Script `shelf: 'built-in'`), or a copy of one the reader never changed — its text and
+      its inks are still the house's (data/builtinScripts inksBy). A reader's own — one they wrote, a copy or a kept
       retired one they have edited — keeps the colours its code sets */
   shipped: boolean;
   /** A retired built-in the reader keeps AS THE HOUSE WROTE IT (data/builtinScripts keptAsWritten — kept since approval 5

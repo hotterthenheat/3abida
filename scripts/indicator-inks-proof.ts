@@ -47,6 +47,15 @@
         drew its dark inks on Stone at 1.0 to 1.85:1), a former family ink its pair's current one; an edited copy keeps
         its colours;
     and what the rule leaves open is printed: direction lines under 3:1 on their own ground, a theme with one ink.
+  And its second review (2026-10-16):
+    4⁗. a copy the reader never changed (Make a copy: shelf 'mine', the house's text) draws as the house's — a shipped
+        script's copy as the shipped one, its up and down the candles' and its lines their paper pairs on Stone (mapped
+        as the reader's own it drew the house green and red beside Glacier's candles, and 1.07 to 1.89:1 on Stone), a
+        retired one's text as a kept copy; an edited one keeps its coded colours;
+    9k. every theme and colour vision whose candles fall under a floor from the ovals carries one proposed candle ink
+        that clears every floor — printed for the owner, never applied;
+    and what else the rule leaves open is printed: a reader's own script on a light tape keeps its dark inks, and
+    Terrain's own up and down words stay on the house's direction pair (measured in the candles' inks beside it).
 */
 import { readFileSync } from 'node:fs';
 import { distanceUnder, type Deficiency } from './colour-sim';
@@ -584,6 +593,69 @@ check("the kept copies draw the inks they were kept with — the chart built-in'
     const edited = mapperOf(false, true);
     const editedKeeps = runOf(rsiSrc).plots.every(pl => edited(pl.ink, 'line') === pl.ink);
     check(`4‴. only an unedited kept copy reads as the house's (${cases.length} cases); one the reader edited keeps its coded colours on a light tape`, !!bs.keptAsWritten && wrongCase.length === 0 && editedKeeps, wrongCase.join('; '));
+
+    /* 4⁗. A COPY THE READER NEVER CHANGED (the review of the colour rule, 2026-10-16): "Make a copy" (scriptStore fork)
+       writes the house's text under the reader's name, shelf 'mine', version 1. Mapped as the reader's own, a copy of
+       Supertrend drew the house #30D158 and #FF3B30 beside Glacier's candles while its words said the candles' colours,
+       and on Stone its dark inks at 1.07 and 1.89:1 (the moving average's 1.69:1). A script whose text is a shipped one's
+       draws as the shipped one does, one whose text is a retired one's as a kept copy (builtinScripts inksBy); once the
+       reader saves an edit it is theirs. Before the review the chart asked only the shelf and keptAsWritten. */
+    type Who = 'shipped' | 'kept' | 'own';
+    type Sc = { id: string; shelf: string; version: number; sourceHash: string; source: string };
+    const bsi = builtins as unknown as { inksBy?: (sc: Sc) => Who };
+    const whoOf = (sc: Sc): Who => (bsi.inksBy ? bsi.inksBy(sc) : sc.shelf === 'built-in' ? 'shipped' : keptOf(sc) ? 'kept' : 'own');
+    const stCopy = await scriptStore.fork('builtin:supertrend');
+    const maCopy = await scriptStore.fork('builtin:moving-average');
+    const ichCopy = await scriptStore.fork('builtin:ichimoku');
+    const toEdit = await scriptStore.fork('builtin:supertrend');
+    const stEdited = await scriptStore.save({ id: toEdit.id, title: toEdit.title, source: `${toEdit.source}\n// mine` });
+    const rsiAgain = await scriptStore.save({ title: 'RSI, pasted', source: rsiSrc });
+    const mineOwn = await scriptStore.save({ title: 'Mine', source: `//@version=6\nindicator("Mine", overlay = true)\nplot(close, "Up", color = ${BULL})` });
+    const shippedSt = shipped.find(x => x.id === 'builtin:supertrend')!;
+    const whoCases: [string, Sc, Who][] = [
+      ["Supertrend's copy, unedited", stCopy, 'shipped'],
+      ["the moving average's copy, unedited", maCopy, 'shipped'],
+      ["Ichimoku's copy, unedited", ichCopy, 'shipped'],
+      ["Supertrend's copy, edited and saved", stEdited, 'own'],
+      ["a retired script's text under a new name", rsiAgain, 'kept'],
+      ["the reader's own script", mineOwn, 'own'],
+      ['the shipped Supertrend', shippedSt, 'shipped'],
+    ];
+    const whoWrong = whoCases.filter(([, sc, want]) => whoOf(sc) !== want).map(([n, sc, want]) => `${n}: ${whoOf(sc)}, want ${want}`);
+    /* as drawn: the copy's up and down on Glacier and Stone, its moving average and Ichimoku lines on Stone */
+    const glacier = ctk.themeFor('glacier', 'standard');
+    const glacierDir = ctk.candleDirInks ? ctk.candleDirInks(glacier) : { up: glacier.borderUp ?? glacier.up, down: glacier.borderDown ?? glacier.down };
+    const DARK_HOUSE = (n: string): RGB | null => (n === '--absorb' ? GOLD.dark : n === '--amplify' ? VIOLET.dark : DARK_TOK.get(n)) ?? null;
+    const mapFor = (sc: Sc, light: boolean) => {
+      const who = whoOf(sc);
+      return fam.scriptInksWith?.({ shipped: who === 'shipped', kept: who === 'kept', light, dir: light ? stoneDir : glacierDir, token: light ? PAPER_HOUSE : DARK_HOUSE }) ?? ((c: string) => c);
+    };
+    const copyMiss: string[] = [];
+    const copyNotes: string[] = [];
+    for (const [tape, light, dir] of [['Glacier', false, glacierDir], ['Stone', true, stoneDir]] as const) {
+      const m = mapFor(stCopy, light);
+      const inks = runOf(stCopy.source).plots.map(pl => `${pl.title} ${m(pl.ink, 'line')}`);
+      const want = [`Up trend ${dir.up}`, `Down trend ${dir.down}`];
+      const got = runOf(stCopy.source).plots.map(pl => hexOf(rgbOf(m(pl.ink, 'line'))));
+      copyNotes.push(`Supertrend's copy on ${tape}: ${inks.join(', ')}`);
+      if (got[0] !== hexOf(rgbOf(dir.up)) || got[1] !== hexOf(rgbOf(dir.down))) copyMiss.push(`Supertrend's copy on ${tape}: ${inks.join(', ')}; want ${want.join(', ')}`);
+    }
+    for (const sc of [maCopy, ichCopy]) {
+      const m = mapFor(sc, true);
+      for (const pl of runOf(sc.source).plots)
+        for (const c of new Set([pl.ink, ...(pl.colors ?? [])])) {
+          const c0 = c ? parseInk(c) : null;
+          if (!c || !c0 || c0.a < 0.6) continue;
+          const src = hexOf(c0.rgb);
+          if (src === hexOf(rgbOf(BULL)) || src === hexOf(rgbOf(BEAR))) continue; // the candles' — what the rule leaves open
+          const drawn = m(c, 'line');
+          const k = contrast(over(drawn, STONE_DARK_PAGE), STONE_DARK_PAGE);
+          copyNotes.push(`${sc.title} on Stone: ${pl.title} ${c} → ${drawn} ${k.toFixed(2)}:1`);
+          if (k < 3) copyMiss.push(`${sc.title} ${pl.title} ${drawn} ${k.toFixed(2)}:1 on ${hexOf(STONE_DARK_PAGE)}`);
+        }
+    }
+    check(`4⁗. a copy the reader never changed draws as the house's — a shipped script's copy as the shipped one (its up and down the candles', its lines their paper pairs on Stone), a retired one's as a kept copy — and an edited one keeps its coded colours (${whoCases.length} cases)`, !!bsi.inksBy && whoWrong.length === 0 && copyMiss.length === 0, [...whoWrong, ...copyMiss].slice(0, 8).join('; '));
+    info(copyNotes.join('; '));
   }
   const atr = await scriptStore.get('builtin:atr'); // what the alert watcher asks for an alert on it
   check("one an alert names is kept when the alert's watcher asks for it", !!atr && atr.shelf === 'mine');
@@ -777,6 +849,8 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
   const seenRow = new Set<string>();
   let dirParts = 0;
   let cloudFills = 0;
+  /* every ink drawn on each option's tape that is not an oval's and means no direction (for the proposals, below) */
+  const drawnOf = new Map<Opt, RGB[]>();
   for (const o of opts) {
     const mapShipped = mapperFor(o, true) ?? asIs;
     /* (b) every ink drawn on this tape that is not an oval's and means no direction: the Indicators menu's lines, the
@@ -815,6 +889,7 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
     }
     for (const c of sideLines) drawn.push({ who: c.name, rgb: rgbOf(o.light ? c.paper : c.dark) });
     for (const v of volLines) drawn.push({ who: `vol ${v.name}`, rgb: rgbOf(o.light ? v.paper : v.dark) });
+    drawnOf.set(o, drawn.map(x => x.rgb));
     /* the measures: each ink against each oval ink, as seen and under each simulation */
     const ovals: [string, RGB][] = [['gold', o.gold], ['violet', o.violet]];
     let nearN = { d: Infinity, s: '' };
@@ -1024,6 +1099,158 @@ plotshape(close > open, "Rise")`).shapes[0]?.ink ?? '';
   }
   console.log(`\n      WHAT THE RULE LEAVES OPEN — direction lines in the candles' inks under 3:1 on their own ground (${open.length}), and themes with one ink for up and down (${oneInk.length}):`);
   for (const l of [...open, ...oneInk]) console.log(`        ${l}`);
+
+  /* WHAT ELSE THE RULE LEAVES OPEN (the review of the rule, 2026-10-16 — the owner's to decide):
+     · A READER'S OWN SCRIPT ON A LIGHT TAPE keeps the colours its code sets — one they wrote, or a copy they edited — so
+       ink written for a dark tape draws as written on Stone (only a plot left uncoloured takes its light pair). Measured
+       on the darkest light tape with the inks a reader most often writes, the house's own;
+     · TERRAIN'S OWN UP AND DOWN WORDS — the pane head's change, the fullscreen line's change, the timeframe tabs' trend
+       arrows, the ladder's distance from the price and its card's change since the open — stay on the house's
+       direction pair (data-dir, which the reader's colour vision moves and marks ▲/▼). Drawn in the candles' inks as
+       11 px words they would stand on the tape's ground at the contrast below; the house's pair, as the chrome reads it
+       on each option's tape, beside. */
+  const ownOnStone = [BULL, BEAR, CALL_WALL, PUT_WALL, FAMILY_INKS.ema21, FAMILY_INKS.rsi].map(c => `${hexOf(rgbOf(c))} ${contrast(rgbOf(c), STONE_DARK_PAGE).toFixed(2)}:1`);
+  console.log(`\n      WHAT ELSE IT LEAVES OPEN — a reader's own script (one they wrote, or a copy they edited) keeps its coded inks on a light tape: on ${hexOf(STONE_DARK_PAGE)} ${ownOnStone.join(', ')} — alternative: on a light tape alone, a coded ink under 3:1 lifted to 3:1 at its own hue (the code's colour kept on every dark tape); and an edited copy keeps the shipped words ("in the candles' up colour …") while it draws its coded colours`);
+  const chromeSet = (o: Opt): { up: RGB; down: RGB } => {
+    const m = o.light
+      ? lightBlock(o.vision)
+      : o.vision === 'standard'
+        ? DARK_TOK
+        : (blockAt(indexCss, `:root[data-cvd='${o.vision}'] :is([data-chart-chrome]`)?.tok ?? DARK_TOK);
+    const at = (n: string) => m.get(n) ?? (o.light ? CHART_LIGHT.get(n) : DARK_TOK.get(n))!;
+    return { up: at('--bull'), down: at('--bear') };
+  };
+  const words: { tag: string; k: number; house: number; s: string }[] = [];
+  const seenWords = new Set<string>();
+  for (const o of opts) {
+    const key = `${o.key}|${o.light ? o.page : '*'}|${o.vision}`;
+    if (seenWords.has(key)) continue;
+    seenWords.add(key);
+    const house = chromeSet(o);
+    for (const side of ['up', 'down'] as const) {
+      const k = contrast(rgbOf(o.dir[side]), o.ground);
+      const h = contrast(house[side], o.ground);
+      words.push({ tag: `${o.key}${o.light ? ` (${o.page} page)` : ''}${o.vision === 'standard' ? '' : ` ${o.vision}`} ${side}`, k, house: h, s: `${hexOf(rgbOf(o.dir[side]))} ${k.toFixed(2)}:1 (house ${hexOf(house[side])} ${h.toFixed(2)}:1)` });
+    }
+  }
+  const wordsUnder = words.filter(w => w.k < 4.5).sort((a, b) => a.k - b.k);
+  const houseUnder = words.filter(w => w.house < 4.5);
+  console.log(`      Terrain's own up and down words stay on the house's direction pair: in the candles' inks as 11 px words, ${wordsUnder.length} of ${words.length} option-sides would stand under 4.5:1 on their tape (${wordsUnder.filter(w => w.k < 3).length} under 3:1) — the faintest ${wordsUnder.slice(0, 8).map(w => `${w.tag} ${w.s}`).join('; ')}; the house's pair under 4.5:1 on ${houseUnder.length} (${houseUnder.slice(0, 6).map(w => `${w.tag} ${w.s}`).join('; ') || 'none'})`);
+
+  /* FOR THE OWNER — ONE PROPOSAL A CLASH (the review of the rule, 2026-10-16; the owner: "If the candles' blue clashes with
+     the oval blue under blue–orange, propose a fix and wait"): for each theme and colour-vision cut whose candle ink falls
+     under a floor from an oval, one alternative candle ink that clears every floor — PRINTED, NEVER APPLIED: the candle
+     themes and the oval pair are left as they are. The nearest ink (OKLab) to the candle's own that stands the family's
+     floor from both ovals as seen (0.15, 0.08 from the colour-vision pair) and 0.08 under each simulation; keeps its
+     distance from the other candle (0.9 of today's as seen, today's or 0.08 under each simulation); stands 0.05 from every
+     ink drawn on that tape (9i) and 0.08 from the supreme's magenta; reads on its ground no worse than today's or 4.5:1
+     (where none does, today's or 3:1); and
+     keeps its hue within 35° (a grey stays a grey). Wire's one ink moves as one. */
+  const labToRgb = ([L, a, b]: number[]): RGB | null => {
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s2 = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    const lin3 = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s2, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s2, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s2];
+    if (lin3.some(v => v < -0.0005 || v > 1.0005)) return null;
+    return lin3.map(v => Math.round(Math.max(0, Math.min(1, v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)) * 255)) as RGB;
+  };
+  const near = new Map<string, RGB[]>();
+  const candidatesNear = (rgb: RGB): RGB[] => {
+    const k0 = hexOf(rgb);
+    const hit = near.get(k0);
+    if (hit) return hit;
+    const [, a0, b0] = oklab(rgb);
+    const grey = Math.hypot(a0, b0) < 0.04;
+    const h0 = Math.atan2(b0, a0);
+    const seen = new Set<string>();
+    const out: { c: RGB; d: number }[] = [];
+    for (let L = 0.15; L <= 0.98; L += 0.0125)
+      for (let C = 0; C <= (grey ? 0.06 : 0.32); C += 0.01)
+        for (let dh = grey ? -180 : -35; dh <= (grey ? 165 : 35); dh += grey ? 15 : 2.5) {
+          const h = h0 + (dh * Math.PI) / 180;
+          const c = labToRgb([L, C * Math.cos(h), C * Math.sin(h)]);
+          if (!c) continue;
+          const k = hexOf(c);
+          if (seen.has(k) || k === k0) continue;
+          seen.add(k);
+          out.push({ c, d: dE(c, rgb) });
+        }
+    const sorted = out.sort((p, q) => p.d - q.d).map(x => x.c);
+    near.set(k0, sorted);
+    return sorted;
+  };
+  const VIEWS: (Deficiency | undefined)[] = [undefined, ...SIMS];
+  const vName = (k: Deficiency | undefined) => (k ? `under ${k}` : 'as seen');
+  const underFloor = (o: Opt, c: RGB) => {
+    const out: { on: string; ov: RGB; k: Deficiency | undefined; d: number }[] = [];
+    for (const [on, ov] of [['gold', o.gold], ['violet', o.violet]] as const)
+      for (const k of VIEWS) {
+        const d = distanceUnder(c, ov, k);
+        if (d < (k ? 0.08 : floorOf(o))) out.push({ on, ov, k, d });
+      }
+    return out;
+  };
+  const supremeOf = (o: Opt): RGB => (o.token('--supreme') as RGB | null) ?? rgbOf(SUPREME);
+  const CANDLE_LABEL = new Map((candleThemes.CANDLE_THEME_OPTIONS as { value: string; label: string }[]).map(x => [x.value, x.label]));
+  const proposals: { key: string; visions: string[]; head: string; body: string }[] = [];
+  const noProposal: string[] = [];
+  for (const o of opts) {
+    const one = hexOf(rgbOf(o.dir.up)) === hexOf(rgbOf(o.dir.down));
+    for (const side of one ? (['up'] as const) : (['up', 'down'] as const)) {
+      const orig = rgbOf(o.dir[side]);
+      const before = underFloor(o, orig);
+      if (!before.length) continue;
+      const other = one ? null : rgbOf(o.dir[side === 'up' ? 'down' : 'up']);
+      const apart0 = other ? VIEWS.map(k => distanceUnder(orig, other, k)) : [];
+      const k0 = contrast(orig, o.ground);
+      const drawn = drawnOf.get(o) ?? [];
+      const sup = supremeOf(o);
+      /* first an ink that reads as well as today's (up to 4.5:1), else one that reads 3:1 */
+      const fits = (c: RGB, kMin: number) => {
+        if (underFloor(o, c).length) return false;
+        if (other) for (let i = 0; i < VIEWS.length; i++) if (distanceUnder(c, other, VIEWS[i]) < (i === 0 ? 0.9 * apart0[0] : Math.min(apart0[i], 0.08))) return false;
+        if (contrast(c, o.ground) < Math.min(k0, kMin)) return false;
+        if (distanceUnder(c, sup) < 0.08) return false;
+        for (const x of drawn) if (distanceUnder(c, x) < 0.05) return false;
+        return true;
+      };
+      const alt = candidatesNear(orig).find(c => fits(c, 4.5)) ?? candidatesNear(orig).find(c => fits(c, 3));
+      const label = `${CANDLE_LABEL.get(o.key) ?? o.key}${o.light ? ` on the ${o.page} page` : ''}`;
+      const what = `${one ? 'up and down' : side} ${hexOf(orig)}`;
+      const was = before.map(b => `${b.on} ${hexOf(b.ov)} ${b.d.toFixed(3)} ${vName(b.k)}`).join(', ');
+      if (!alt) {
+        noProposal.push(`${label} ${o.vision}: ${what} (${was}) — none within 35° of its hue`);
+        continue;
+      }
+      const after = before.map(b => `${b.on} ${distanceUnder(alt, b.ov, b.k).toFixed(3)} ${vName(b.k)}`).join(', ');
+      const apart1 = other ? distanceUnder(alt, other) : 0;
+      /* the same ink, the same clash and the same answer under another vision (standard and high contrast share theirs) is one line */
+      const key = `${label}|${what}|${hexOf(alt)}|${was}`;
+      const had = proposals.find(q => q.key === key);
+      if (had) {
+        if (!had.visions.includes(o.vision)) had.visions.push(o.vision);
+        continue;
+      }
+      proposals.push({
+        key,
+        visions: [o.vision],
+        head: label,
+        body: `${what} → ${hexOf(alt)} (a ${dE(alt, orig).toFixed(3)} move${oklab(alt)[0] > oklab(orig)[0] + 0.02 ? ', lighter' : oklab(alt)[0] < oklab(orig)[0] - 0.02 ? ', darker' : ''}) — ${was} → ${after}${other ? `; from the ${side === 'up' ? 'down' : 'up'} candle ${apart0[0].toFixed(3)} → ${apart1.toFixed(3)}` : ''}; ${k0.toFixed(2)} → ${contrast(alt, o.ground).toFixed(2)}:1 on ${hexOf(o.ground)}`,
+      });
+    }
+  }
+  const clashes = new Set(owner.map(l => l.split(':')[0])).size;
+  const covered = new Set(proposals.flatMap(p => p.visions.map(v => `${p.head}|${v}`))).size;
+  console.log(`\n      FOR THE OWNER — one proposed candle ink for each theme and colour vision whose candles fall under a floor from the ovals (${proposals.length} proposals covering ${covered} of the ${clashes} theme-and-vision cuts under a floor; proposed, not applied — the candle themes and the oval pair stay as they are):`);
+  for (const p of proposals) console.log(`        ${p.head} (${p.visions.join(', ')}): ${p.body}`);
+  for (const l of noProposal) console.log(`        ${l}`);
+  /* the owner's own question: the colour-vision cut's blue (Neon and Market under blue and orange) against the oval violet */
+  for (const o of opts.filter(x => x.vision === 'blue-orange' && (x.key === 'market' || x.key === 'classic')).slice(0, 1)) {
+    const up = rgbOf(o.dir.up);
+    const d = VIEWS.map(k => `${distanceUnder(up, o.violet, k).toFixed(3)} ${vName(k)}`).join(', ');
+    console.log(`        the colour-vision cut's blue (Neon and Market under blue and orange) ${hexOf(up)} against the oval violet ${hexOf(o.violet)}: ${d} — ${underFloor(o, up).length ? 'under a floor' : 'it clears every floor; it needs no fix'}`);
+  }
+  check(`9k. every theme and colour vision whose candles fall under a floor from the ovals carries one proposed candle ink that clears every floor (printed for the owner, not applied — ${proposals.length} proposals)`, noProposal.length === 0 && proposals.length > 0, noProposal.slice(0, 6).join('; '));
 }
 
 /* ---- the chart draws the family: no ink of its own in INDICATOR_PARTS ------------------------------------------- */
