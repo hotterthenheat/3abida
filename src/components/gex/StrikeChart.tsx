@@ -864,8 +864,9 @@ interface StrikeChartProps {
       the host loads the sessions to its left before the reader gets there */
   onViewFrom?: (fromTime: number) => void;
   /** A CLICK ON A BAR while nothing else owns the click (no pick, no drawing, no bead under the pointer) — the host's day
-      panel on a daily chart */
-  onBarClick?: (time: number) => void;
+      panel on a daily chart. It may hand back how to undo it: a double-click is a reset, and its first press is put back
+      (the press journal, below) */
+  onBarClick?: (time: number) => void | (() => void);
   /** THE STALE STATE (the UI pass): the host's data is old — the candles draw at six tenths, the beads at four */
   stale?: boolean;
   /** THE AXIS CHIPS (the Terrain UI pass, 2026-10-14): the call wall, the flip, the put wall, the supreme and the field's
@@ -889,7 +890,8 @@ interface StrikeChartProps {
   beadDensity?: boolean;
   /** The bead card's doors: a replay from the bead's minute, and the strike kept as the pane's focus */
   onReplayFrom?: (time: number) => void;
-  onPinStrike?: (strike: number) => void;
+  /** The pin's toggle; it may hand back how to undo it, as onBarClick may */
+  onPinStrike?: (strike: number) => void | (() => void);
 }
 
 /** Mark a moment on this chart on another pane's behalf; null clears it. */
@@ -1080,6 +1082,9 @@ const FIT_GAP_PX = 6;
 /** The drawing rail docked left: 6 px in, 44 wide, 6 clear — the plot starts after it (the owner, 2026-10-13: "the
     floating drawing toolbar covers candles on the left edge") */
 const RAIL_LEFT_INSET_PX = 56;
+/** The Reset pill over a pane foot (the replay's strip): its top 2rem above the foot's (the pill's 1.5rem and 0.5rem
+    clear), the foot's top said by PaneFoot as --pane-foot-top */
+const FOOT_PILL = { top: 'calc(var(--pane-foot-top, 100%) - 2rem)', bottom: 'auto' } as const;
 
 /* THE AXIS CHIPS' ROWS (the Terrain UI pass, 2026-10-14) */
 type AxisChipKey = 'cw' | 'pw' | 'flip' | 'supreme' | 'top';
@@ -1861,6 +1866,14 @@ const StrikeChart = ({
     series.setData(pts);
   }, []);
 
+  /* THE RESET VIEW, ONE FUNCTION FOR ALL FOUR DOORS (the pill, the right-click card — the chart's own or the level card's
+     last line — Alt+R over the chart, and a double-click on the plot; approval 3, 2026-10-15 — the owner: "All four resets
+     must land on the identical view"): the price scale back on autoscale (the candles in view, inside the fit's margins
+     when the host fits — applyFitMargins, the chrome measured), the time scale on the newest bars as the world opened
+     (showRecent: the timeframe's pitch, the history share left and the runway right), and that opening view held as bars
+     arrive ('recent'). It touches nothing else: a pinned strike, a pinned card, a day panel, the drawings and the
+     timeframe stay as they stood — so the double-click puts back what its own presses did before it calls this (the
+     press journal, below). */
   const resetView = useCallback(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -1868,6 +1881,16 @@ const StrikeChart = ({
     showRecent();
     spanHoldRef.current = 'recent';
   }, [showRecent]);
+  /* A DOUBLE-CLICK IS A RESET, NOT TWO CLICKS (approval 3): its first press is a click before the browser knows a second
+     is coming — on a node it pinned the node's card and toggled its strike's pin (another node's pin was lost), on empty
+     plot it let a pinned card go, on a day bar it opened the day panel — so the pill, Alt+R and the card landed with the
+     pin and the panel as they were and the double-click without. Each press's click work notes its undo here (a press
+     counted 1 starts the journal; the second press of a double-click does no click work), and the double-click runs the
+     journal back before the reset. */
+  const pressUndoRef = useRef<(() => void)[]>([]);
+  const notePress = (undo: void | (() => void)) => {
+    if (typeof undo === 'function') pressUndoRef.current.push(undo);
+  };
 
   useEffect(() => {
     chartRef.current?.applyOptions({ rightPriceScale: { minimumWidth: axisChips ? AXIS_CHIPS_SCALE_MIN_WIDTH : priceTag ? PRICE_SCALE_MIN_WIDTH : 0 } });
@@ -5014,7 +5037,7 @@ const StrikeChart = ({
         if (d && typeof d.time === 'number') t = d.time;
       }
       if (t == null) return;
-      onBarClickRef.current?.(t);
+      notePress(onBarClickRef.current?.(t));
     };
     chart.subscribeClick(h);
     return () => chart.unsubscribeClick(h);
@@ -5844,10 +5867,18 @@ const StrikeChart = ({
         data-chart-ink
         data-chart-ground={chartGround(themeKey)}
         onDoubleClick={e => {
-          if (onSurface(e.target)) resetView();
+          if (!onSurface(e.target)) return;
+          /* the presses' click work put back, newest first, then the one reset (the press journal, above) */
+          const undo = pressUndoRef.current.splice(0);
+          for (let i = undo.length - 1; i >= 0; i--) undo[i]();
+          resetView();
         }}
         onPointerDownCapture={e => {
           downAtRef.current = { x: e.clientX, y: e.clientY };
+        }}
+        onMouseDownCapture={e => {
+          /* a first press starts the journal; a double-click's second (detail 2) keeps it */
+          if (e.detail <= 1) pressUndoRef.current = [];
         }}
         onMouseMove={e => {
           /* The event lane's hover — resolved here because canvas glyphs
@@ -5896,6 +5927,8 @@ const StrikeChart = ({
              Not while picking a replay bar or drawing — those own the click. */
           if (picking || drawing) return;
           if (!onSurface(e.target)) return;
+          /* the second press of a double-click is the reset's, not a click (the press journal) */
+          if (e.detail > 1) return;
           if ((e.target as HTMLElement).closest('[data-bead-card], [data-axis-chips], [data-chart-chrome]')) return;
           /* A PAN IS NOT A CLICK (the round-3 audit: a drag across the chart ended on a node and pinned it, its card up) —
              a press that moved more than a few pixels before it let go pins nothing */
@@ -5908,10 +5941,12 @@ const StrikeChart = ({
           const plotW = chartRef.current?.paneSize(0).width ?? rect.width;
           const px = e.clientX - rect.left;
           const bead = tr && px >= 0 && px < plotW ? tr.beadAt(px, e.clientY - rect.top) : null;
+          const wasBead = pinRef.current.pinnedBead;
+          notePress(() => setPinnedBead(wasBead));
           setPinnedBead(bead);
           /* THE PIN (the orbs message, item 10): a click on a node pins its strike — the chain stays bright, the rest dims
              to 40% — until the strike is clicked again or Esc; the ladder's click-to-keep is the same pin (Terrain's focus) */
-          if (bead && onPinStrike) onPinStrike(bead.strike);
+          if (bead && onPinStrike) notePress(onPinStrike(bead.strike));
         }}
       >
         {picking && pickFade && (
@@ -5928,7 +5963,9 @@ const StrikeChart = ({
         {/* THE HOST'S LAYER (Review's position, target and stop) — over the plot, under the chrome */}
         {layer?.({ chart: () => chartRef.current, series: () => candleSeriesRef.current as ISeriesApi<SeriesType> | null, host: () => containerRef.current, room: layerRoom, reset: resetView })}
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
-        <ResetViewControl onReset={resetView} {...(resetPillClass ? { pillClass: resetPillClass } : {})} />
+        {/* over a pane foot (the replay's strip) the pill stands above it, its top measured (PaneFoot --pane-foot-top) —
+            the strip covered it, and a replay had three ways home of the four */}
+        <ResetViewControl onReset={resetView} {...(footBar || (replay && !external) ? { pillClass: 'left-1/2 -translate-x-1/2', pillStyle: FOOT_PILL } : resetPillClass ? { pillClass: resetPillClass } : {})} />
         {/* The scripts on this pane, named at the top left with hide and remove (2026-09-10) */}
         {paneId && paneScripts.length > 0 && !replay && <ScriptLegend paneId={paneId} scripts={paneScripts} faults={scriptFaults} left={12 + railLeftInset} />}
         {/* Every band says its own name, the way the reference does. An

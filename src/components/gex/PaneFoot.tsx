@@ -21,6 +21,12 @@
   to. A double-click on the bar stays on the bar: the
   chart's box resets its view on one, and two quick
   steps of a replay are not a reset.
+
+  Its top edge is said to the box it stands in as
+  --pane-foot-top (pixels from the box's top), so the
+  chart's Reset pill stands above the bar, never under
+  it (approval 3, 2026-10-15: in a replay the strip
+  covered the pill — one of the four ways home gone).
 ==================================================
 */
 
@@ -46,6 +52,18 @@ const PaneFoot = ({ chart, children, gap = 8, className = 'pl-3', axisPad = true
     let raf = 0;
     let shownH = -1;
     let shownR = -1;
+    let shownTop = NaN;
+    /* the bar's own height, kept by an observer (never read in the frame) */
+    let footH = 0;
+    const box = ref.current?.parentElement ?? null;
+    const sizeObs =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(entries => {
+            const e = entries[0];
+            footH = e?.borderBoxSize?.[0]?.blockSize ?? (e?.target as HTMLElement | undefined)?.offsetHeight ?? 0;
+          });
+    if (ref.current) sizeObs?.observe(ref.current);
     const place = () => {
       raf = requestAnimationFrame(place);
       const c = chart();
@@ -70,9 +88,18 @@ const PaneFoot = ({ chart, children, gap = 8, className = 'pl-3', axisPad = true
         shownR = r;
         el.style.paddingRight = `${r + 12}px`;
       }
+      const top = Math.round(h - gap - footH);
+      if (footH > 0 && top !== shownTop && box) {
+        shownTop = top;
+        box.style.setProperty('--pane-foot-top', `${top}px`);
+      }
     };
     raf = requestAnimationFrame(place);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      sizeObs?.disconnect();
+      box?.style.removeProperty('--pane-foot-top');
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gap, axisPad]);
   return (

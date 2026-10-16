@@ -2732,6 +2732,226 @@ check('inks: the compare menu\'s swatch is the colour its line is drawn in — o
   return { pass, ms: Date.now() - t0, notes };
 });
 
+/* ─── THE FOUR RESETS LAND ON THE IDENTICAL VIEW (approval 3, 2026-10-15 — the owner: "All four resets must land on the
+   identical view") ───────────────────────────────────────────────────────────────────────────────────────────────────────
+   The pill, a double-click on the plot, Alt+R over the chart and the right-click card's Reset all call the chart's one
+   resetView. From the same disturbed state — a pan back, a wheel zoom and a drag of the price axis — each is run in turn
+   (the state disturbed again in between) and the views must be equal field by field: the visible logical and time ranges
+   (counted from the last bar), the price range and its autoscale, the fit's margins, the right offset, the scroll, the
+   bar spacing and the plot's width; and what the reset must leave as it stood: the pinned strike, a pinned node card,
+   the day panel, "Back to live", a replay's cursor, no menu left open. The crosshair and its readout follow the pointer
+   (on the pill, on the plot, where the card's line was), not the reset, and are left out. Before: a double-click's first
+   press was a click — on 1D it opened the day panel, on another node it took the pin and the card — and in a replay the
+   strip covered the pill. */
+const RESET_CASES = [
+  { name: '1 pane, 5m, a strike pinned', panes: [{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], pin: true },
+  { name: '1 pane, 1D', panes: [{ ticker: 'SPY', timeframe: '1D', overlays: { trails: true }, ladder: true }] },
+  { name: '4 panes, 1m', panes: [{ ticker: 'SPY', timeframe: '1m', overlays: { trails: true }, ladder: true }], layout: 4 },
+  { name: 'a replay, 5m', panes: [{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], replay: true },
+];
+for (const c of RESET_CASES) {
+  check(`reset: the pill, a double-click, Alt+R and the right-click card land on the identical view (${c.name})`, async () => {
+    const { page, errors, done } = await terrain(c.panes, { layout: c.layout ?? 1 });
+    const WRAP = '[data-chart-ink][data-chart-ground]:not([data-recap-shot] *)';
+    /* the first pane's chart, its plot's free points (none under a card, a chip or the rail) and a node of the field */
+    const probe = avoid =>
+      page.evaluate(
+        ([W, avoid]) => {
+          const wrap = document.querySelector(W);
+          const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
+          const r = e.host.getBoundingClientRect();
+          const w = e.chart.paneSize(0).width;
+          const h = e.chart.paneSize(0).height;
+          const free = (x, y) => {
+            const el = document.elementFromPoint(r.left + x, r.top + y);
+            return !!el && e.host.contains(el);
+          };
+          const near = (x, y) => {
+            for (let dx = -12; dx <= 12; dx += 3) for (let dy = -12; dy <= 12; dy += 3) if (e.trails?.beadAt(x + dx, y + dy)) return true;
+            return false;
+          };
+          let empty = null;
+          let node = null;
+          for (let y = Math.round(h * 0.3); y < h * 0.8 && (!empty || !node); y += 3)
+            for (let x = Math.round(w * 0.12); x < w * 0.6 && (!empty || !node); x += 4) {
+              if (!free(x, y)) continue;
+              const b = e.trails?.beadAt(x, y);
+              if (b && !node && b.strike !== avoid) node = { x: r.left + x, y: r.top + y, strike: b.strike };
+              if (!b && !empty && !near(x, y)) empty = { x: r.left + x, y: r.top + y };
+            }
+          return { empty, node, w, h, box: { x: r.left, y: r.top } };
+        },
+        [WRAP, avoid ?? null]
+      );
+    const viewOf = () =>
+      page.evaluate(W => {
+        const wrap = document.querySelector(W);
+        const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
+        const ts = e.chart.timeScale();
+        const lr = ts.getVisibleLogicalRange();
+        const tr = ts.getVisibleRange();
+        const ps = e.chart.priceScale('right');
+        const pr = ps.getVisibleRange();
+        const o = ps.options();
+        const bars = e.candles.data().filter(d => 'close' in d);
+        const len = bars.length;
+        const last = bars.at(-1)?.time ?? 0;
+        const card = document.querySelector('[data-bead-card="pinned"]');
+        const r3 = v => Math.round(v * 1000) / 1000;
+        return {
+          bars: `${len} to ${last}`,
+          view: {
+            logical: lr ? [r3(lr.from - len), r3(lr.to - len)] : null,
+            time: tr ? [tr.from - last, tr.to - last] : null,
+            price: pr ? [Math.round(pr.from * 1e4) / 1e4, Math.round(pr.to * 1e4) / 1e4] : null,
+            autoscale: o.autoScale,
+            margins: [r3(o.scaleMargins.top), r3(o.scaleMargins.bottom)],
+            rightOffset: ts.options().rightOffset,
+            scroll: r3(ts.scrollPosition()),
+            barSpacing: r3(ts.options().barSpacing),
+            width: ts.width(),
+          },
+          kept: {
+            pin: e.trails?.focusStrike ?? null,
+            card: card ? card.textContent.slice(0, 24) : null,
+            dayPanel: document.querySelector('[data-day-panel]')?.getAttribute('data-day-panel') ?? null,
+            backToLive: !!wrap.parentElement?.querySelector('[data-back-to-live]'),
+            replay: wrap.querySelector('[data-as-of]')?.getAttribute('data-as-of') ?? null,
+            menu: !!document.querySelector('[role="menu"][aria-label="Chart"], [data-chart-menu="level-alert"]'),
+          },
+        };
+      }, WRAP);
+    const disturb = async () => {
+      const b = await page.locator(WRAP).first().boundingBox();
+      const s = await probe();
+      const from = s.empty ?? { x: b.x + b.width * 0.3, y: b.y + b.height * 0.55 };
+      /* a pan back */
+      for (let i = 0; i < 2; i++) {
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(from.x + s.w * 0.25, from.y + 6, { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(250);
+      }
+      /* a wheel zoom */
+      await page.mouse.move(from.x + s.w * 0.1, from.y);
+      for (let i = 0; i < 3; i++) {
+        await page.mouse.wheel(0, -200);
+        await page.waitForTimeout(120);
+      }
+      await page.waitForTimeout(400);
+      /* a drag of the price axis: the scale is the reader's */
+      const ax = { x: b.x + b.width - 30, y: b.y + b.height * 0.4 };
+      await page.mouse.move(ax.x, ax.y);
+      await page.mouse.down();
+      await page.mouse.move(ax.x, ax.y + 70, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(700);
+    };
+    const resets = {
+      pill: async () => {
+        await page.locator(WRAP).first().locator('button[title^="Reset chart view"]').click({ timeout: 3000 });
+      },
+      'double-click': async s => {
+        /* on a node when a strike is pinned (another strike's), else on the plot */
+        const at = c.pin && s.node ? s.node : s.empty;
+        await page.mouse.dblclick(at.x, at.y);
+      },
+      'Alt+R': async s => {
+        await page.mouse.move(s.empty.x, s.empty.y);
+        await page.keyboard.press('Alt+KeyR');
+      },
+      'the right-click card': async s => {
+        await page.mouse.click(s.empty.x, s.empty.y, { button: 'right' });
+        const item = await page.waitForSelector('[role="menu"][aria-label="Chart"] [role="menuitem"], [data-chart-menu-item="reset-view"]', { timeout: 3000 });
+        await item.click();
+      },
+    };
+    const notes = [];
+    let pass = true;
+    try {
+      const t0 = Date.now();
+      if (c.replay) {
+        const head = await page.locator('[data-pane-head]').first().boundingBox();
+        await page.mouse.click(head.x + head.width * 0.6, head.y + head.height / 2);
+        await page.keyboard.press('p');
+        await page.waitForTimeout(600);
+        const b = await page.locator(WRAP).first().boundingBox();
+        await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+        await page.waitForFunction(() => !!document.querySelector('[data-as-of]'), null, { timeout: 8000 });
+        await page.waitForTimeout(1500);
+      }
+      /* the pin the resets must keep: a node clicked (its strike and its card) */
+      let pinned = null;
+      if (c.pin) {
+        const s0 = await probe();
+        if (!s0.node) return { pass: false, notes: ['no node to pin'] };
+        await page.mouse.click(s0.node.x, s0.node.y);
+        await page.waitForTimeout(500);
+        pinned = s0.node.strike;
+      }
+      const rows = {};
+      for (const [name, run] of Object.entries(resets)) {
+        let row = null;
+        for (let attempt = 0; attempt < 2 && !row; attempt++) {
+          await disturb();
+          const before = await viewOf();
+          const s = await probe(pinned);
+          const wantNode = c.pin && name === 'double-click';
+          if (!s.empty || (wantNode && !s.node)) {
+            notes.push(`${name}: no free point${wantNode ? ' or node of another strike' : ''} on the plot`);
+            pass = false;
+            break;
+          }
+          try {
+            await run(s);
+          } catch (err) {
+            notes.push(`${name}: could not be used — ${String(err).split('\n')[0].slice(0, 160)}`);
+            pass = false;
+            break;
+          }
+          await page.waitForTimeout(1200);
+          const after = await viewOf();
+          /* a bar that came in meanwhile moves the view with it — that take is run again */
+          if (after.bars === before.bars) row = after;
+        }
+        if (row) rows[name] = row;
+        await page.mouse.move(5, 5);
+        await page.waitForTimeout(150);
+      }
+      const names = Object.keys(rows);
+      if (names.length) {
+        const first = rows[names[0]];
+        notes.push(`${names[0]}: ${JSON.stringify(first.view)} · ${JSON.stringify(first.kept)} · bars ${first.bars}`);
+        for (const n of names.slice(1)) {
+          const diffs = [];
+          for (const part of ['view', 'kept'])
+            for (const k of Object.keys(first[part])) if (JSON.stringify(rows[n][part][k]) !== JSON.stringify(first[part][k])) diffs.push(`${k} ${JSON.stringify(rows[n][part][k])} (the ${names[0]}: ${JSON.stringify(first[part][k])})`);
+          if (rows[n].bars !== first.bars) diffs.push(`bars ${rows[n].bars} (the ${names[0]}: ${first.bars})`);
+          notes.push(`${n}: ${diffs.length ? diffs.join('; ') : 'the same view, field by field'}`);
+          if (diffs.length) pass = false;
+        }
+        if (first.view.autoscale !== true) {
+          pass = false;
+          notes.push('the reset left the price scale off autoscale');
+        }
+        if (c.pin && first.kept.pin !== pinned) {
+          pass = false;
+          notes.push(`the pin was ${pinned}, the reset left ${first.kept.pin}`);
+        }
+      }
+      if (names.length < 4) pass = false;
+      if (errors.length) {
+        pass = false;
+        notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
+      return { pass, ms: Date.now() - t0, notes };
+    } finally {
+      await done();
+    }
+  });
+}
+
 let failed = 0;
 for (const { name, fn } of results) {
   let r;

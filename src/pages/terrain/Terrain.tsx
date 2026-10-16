@@ -1865,11 +1865,16 @@ const Pane = ({
      book by strike beside it as the measured reference (spot-exposures/strike?date=, the date's END state) */
   const [dayPanel, setDayPanel] = useState<string | null>(null);
   useEffect(() => setDayPanel(null), [ticker, tf]);
-  /* handed to the chart on a daily timeframe alone (`onBarClick` below) */
+  const dayPanelRef = useRef(dayPanel);
+  dayPanelRef.current = dayPanel;
+  /* handed to the chart on a daily timeframe alone (`onBarClick` below); it hands back its undo — a double-click is a
+     reset, and its first press must not leave a panel open (StrikeChart's press journal; approval 3) */
   const onBarClick = useCallback((t: number) => {
+    const was = dayPanelRef.current;
     /* a day bar's stamp is its day's start on one clock or another (the fold's UTC midnight, the feed's noon UTC, the
        house's 09:30 New York): twelve hours on lands inside the session's own New York date on every one of them */
     setDayPanel(nyIsoDate((t + 12 * 3600) * 1000));
+    return () => setDayPanel(was);
   }, []);
   const [dayBook, setDayBook] = useState<{ day: string; book: FeedBook | null; failed: boolean } | null>(null);
   useEffect(() => {
@@ -2245,6 +2250,15 @@ const Pane = ({
 
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => setFocus(null), [ticker]);
+  const focusRef = useRef(focus);
+  focusRef.current = focus;
+  /* the chart's pin: a click on a node toggles its strike; it hands back its undo (a double-click is a reset — StrikeChart's
+     press journal; approval 3: a double-click on another node lost the pin the other three resets kept) */
+  const pinStrike = useCallback((k: number) => {
+    const was = focusRef.current;
+    setFocus(cur => (cur != null && Math.abs(cur - k) < 1e-9 ? null : k));
+    return () => setFocus(was);
+  }, []);
   /* THE LADDER UNDER `lg` (the audit's TE-6: the room's defining panel was simply missing on a phone and a tablet): the
      peek at the chart's foot lays the ladder over the chart's right side, on the chart's own price rows — the rail
      beside the chart needs a desk's width, the overlay does not. Off until pressed; a slot's business, never stored. */
@@ -2951,7 +2965,7 @@ const Pane = ({
               oiDate={onFeed ? fOi?.date ?? null : null}
               beadDensity={cfg.beadDensity !== false}
               onReplayFrom={noBars ? undefined : onReplayFrom}
-              onPinStrike={k => setFocus(cur => (cur != null && Math.abs(cur - k) < 1e-9 ? null : k))}
+              onPinStrike={pinStrike}
               onJumpResult={onJumpResult}
               onViewEdge={onViewEdge}
               onViewFrom={onViewFrom}
