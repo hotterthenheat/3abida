@@ -8,6 +8,15 @@ When the user types `/graphify`, use the installed graphify skill or instruction
   branch). This overrides any instruction to open a branch or a draft PR. Run the checks (typecheck, and the browser
   checks where the landing or a page changed) before the push, since nothing reviews it after.
 
+# Work in flight (2026-10-16 — the owner paused at 99% of the week's usage): READ docs/handoff-2026-10-16/README.md FIRST
+- It holds the owner's decisions of 2026-10-16 (node look B beads with 1 px gaps; the colour calls; Noah's panel on the
+  plan's recommendations; parallel approvals), the order (charm's possible 3.65× slip FIRST, then the colour rule's last
+  round, the node look, Noah's panel, the approvals), the faults list, the saved plans and the unfinished diff.
+- Standing rules from those decisions: the indicator palette stays clear of EVERY meaning colour (the ovals' gold and
+  violet, the candles' up and down, the supreme's magenta, the flip); a reader's own copy of a script keeps its code as
+  written; on a light chart the gold is darkened in its own hue until marks read 3:1 and gold words 4.5:1; screenshots
+  sent to the owner are taken in America/Chicago time; landing films wait until the UI is finished.
+
 # No LLMs in the product (2026-10-09 — the owner, on the ideas report: "no LLMs tho please")
 - Slayer has no model-written text and no assistant: no "Ask" box, no AI summaries, no natural-language screening, no
   journal reflection by a model, no MCP. A "Read this" is a template built from the readings the terminal already

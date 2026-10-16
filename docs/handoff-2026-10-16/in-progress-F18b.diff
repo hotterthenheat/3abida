@@ -1,0 +1,45 @@
+diff --git a/scripts/indicator-inks-proof.ts b/scripts/indicator-inks-proof.ts
+index 710e697..073b7c3 100644
+--- a/scripts/indicator-inks-proof.ts
++++ b/scripts/indicator-inks-proof.ts
+@@ -88,6 +88,7 @@ import * as builtins from '../src/data/builtinScripts';
+ import { INK_PAIRS, INDICATOR_INKS as FAMILY_INKS, MACD_HIST_INK, MACD_SIGNAL_INK, paperInk, paperInksWith, parseInk } from '../src/components/gex/indicatorInks';
+ import * as inkFamily from '../src/components/gex/indicatorInks';
+ import { ACCENT, BEAR, BULL, CALL_WALL, FLIP, PUT_WALL, SUPREME } from '../src/components/gex/palette';
++import { OVAL_ALPHA_MIN } from '../src/components/gex/gexNodesPrimitive';
+ 
+ let pass = 0;
+ let fail = 0;
+@@ -141,6 +142,8 @@ const over = (css: string, ground: RGB): RGB => {
+   const c = parseInk(css)!;
+   return c.rgb.map((v, i) => v * c.a + ground[i] * (1 - c.a)) as RGB;
+ };
++/** an ink at an alpha on its ground, as the canvas composites it */
++const mixOn = (rgb: RGB, ground: RGB, a: number): RGB => rgb.map((v, i) => v * a + ground[i] * (1 - a)) as RGB;
+ 
+ /* ---- the grounds and the house's tokens, read from the source the page is built from ---------------------------- */
+ const root = new URL('../', import.meta.url);
+@@ -1225,10 +1228,14 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
+     drawnOf.set(o, drawn.map(x => x.rgb));
+     /* the measures: each ink against each oval ink, as seen and under each simulation */
+     const ovals: [string, RGB][] = [['gold', o.gold], ['violet', o.violet]];
++    /* AND AS A SMALL OVAL DRAWS (the colour rule's last review, 2026-10-16): a node at size 0 is its ink at OVAL_ALPHA_MIN
++       on the tape's ground (gexNodesPrimitive ovalAlpha), a shade darker on a dark tape and paler on a light one — an ink
++       measured only against the full oval let the uncoloured plot's amber, OBV and RV by within 3° of the gold's hue */
++    const ovalsAsDrawn: [string, RGB][] = [...ovals, ...ovals.map(([on, ov]): [string, RGB] => [`${on} at ${OVAL_ALPHA_MIN}`, mixOn(ov, o.ground, OVAL_ALPHA_MIN)])];
+     let nearN = { d: Infinity, s: '' };
+     const nearS: Record<Deficiency, { d: number; s: string }> = { protan: { d: Infinity, s: '' }, deutan: { d: Infinity, s: '' }, tritan: { d: Infinity, s: '' } };
+     for (const x of drawn)
+-      for (const [on, ov] of ovals) {
++      for (const [on, ov] of ovalsAsDrawn) {
+         const dn = distanceUnder(x.rgb, ov);
+         if (dn < nearN.d) nearN = { d: dn, s: `${x.who}~${on}` };
+         if (dn < floorOf(o)) sideNear.push(`${o.key}/${o.page}/${o.vision} ${x.who} ${hexOf(x.rgb)} ~ ${on} ${dn.toFixed(3)}`);
+@@ -1320,6 +1327,7 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
+     }
+   }
+   const uniq = <T,>(a: T[]) => [...new Set(a)];
++  if (process.env.DUMP9A) (await import('node:fs')).writeFileSync(process.env.DUMP9A, uniq(sideNear).join('\n'));
+   check(`9a. under every Colours option (${opts.length}: ${ct.CANDLE_THEME_OPTIONS.length} candle themes × 2 page themes × 3 colour visions), every indicator, shipped-script, compare, default-plot and volatility ink as drawn stands the family's floor from that option's two oval inks (0.15 from the house pair, 0.08 from the colour-vision pair) and 0.08 under simulated protanopia, deuteranopia and tritanopia (${HELD_TRITAN.size} held for the owner under tritanopia, below)`, sideNear.length === 0, uniq(sideNear).slice(0, 10).join('; ') + (sideNear.length > 10 ? ` … ${uniq(sideNear).length} in all` : ''));
+   check(`9i. every indicator, shipped-script, compare, default-plot and volatility ink as drawn stands 0.05 or more (OKLab) from that option's candle up and down, as seen and under simulated protanopia, deuteranopia and tritanopia — no line passes for a candle (${candlePairsUnder} of ${candlePairs} option-ink-candle-view pairs under the floor, ${candlePairsHeld} of them held for a candle theme the owner is deciding on, below)`, candleNear.length === 0, uniq(candleNear).slice(0, 10).join('; ') + (candleNear.length > 10 ? ` … ${uniq(candleNear).length} in all` : ''));
+   check(`9l. every ink with a hue stands 30° or more of OKLCh hue from each of that option's candle inks with a hue — no line reads as a rise or a fall in the candles' own colours (${huePairsUnder} of ${huePairs} option-ink-candle pairs within 30°, ${huePairsHeld} of them held for a candle theme the owner is deciding on, below)`, candleHueNear.length === 0, uniq(candleHueNear).slice(0, 10).join('; ') + (candleHueNear.length > 10 ? ` … ${uniq(candleHueNear).length} in all` : ''));

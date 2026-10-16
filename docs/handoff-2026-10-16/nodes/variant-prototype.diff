@@ -1,0 +1,286 @@
+diff --git a/src/components/gex/ProfilePanel.tsx b/src/components/gex/ProfilePanel.tsx
+index f930b72..118831f 100644
+--- a/src/components/gex/ProfilePanel.tsx
++++ b/src/components/gex/ProfilePanel.tsx
+@@ -75,6 +75,16 @@ import type { KeyLevels } from '../../types/gex';
+ import { FONT_SANS } from '../../theme/fonts';
+ import { dirOf, groundRgb, readToken, useColourVision, useResolvedTheme } from '../../theme/theme';
+ 
++/* PROTOTYPE ONLY (2026-10-16, the node-size comparison — scratchpad nodes-compare REPORT.md §5): the ladder's bar cap,
++   read off localStorage at draw time — 'proto_ladder14' = '1' caps a bar at 14 px, else today's 22. Never ship it. */
++function protoLadderCap(): number {
++  try {
++    return globalThis.localStorage?.getItem('proto_ladder14') === '1' ? 14 : 22;
++  } catch {
++    return 22;
++  }
++}
++
+ export type ProfileLane = 'both' | 'size' | 'flow';
+ export const LANE_OPTIONS: DropdownOption<ProfileLane>[] = [
+   { value: 'both', label: 'Both', hint: 'What sits at each strike, and what a move there costs, side by side' },
+@@ -776,7 +786,7 @@ const ProfilePanel = ({
+       const netCol = view === 'ladder' && showSize && sizeR - sizeL >= 300 ? 60 : 0;
+ 
+       /* THE ROWS on screen, and the ones culled above and below */
+-      const barH = Math.max(4, Math.min(22, Math.round(pitch * 0.62)));
++      const barH = Math.max(4, Math.min(protoLadderCap(), Math.round(pitch * 0.62)));
+       const half = barH / 2;
+       const placed: Placed[] = [];
+       let above = 0;
+diff --git a/src/components/gex/gexNodesPrimitive.ts b/src/components/gex/gexNodesPrimitive.ts
+index 35c54fb..bdf2f5f 100644
+--- a/src/components/gex/gexNodesPrimitive.ts
++++ b/src/components/gex/gexNodesPrimitive.ts
+@@ -79,6 +79,60 @@ export const ovalDiameter = (t: number, rowCss: number): number => OVAL_MIN_CSS
+ export const mergeBars = (barSpacing: number): number => (barSpacing >= OVAL_MERGE_CSS ? 1 : Math.ceil((OVAL_MERGE_CSS + 1) / barSpacing));
+ /** A node's opacity at size t: OVAL_ALPHA_MIN → 1 */
+ export const ovalAlpha = (t: number): number => OVAL_ALPHA_MIN + (1 - OVAL_ALPHA_MIN) * Math.max(0, Math.min(1, t));
++
++/* ---- PROTOTYPE ONLY (2026-10-16, the node-size comparison — scratchpad nodes-compare REPORT.md §5) -------------------
++   A switch read off localStorage AT DRAW TIME, so one build draws each variant for pictures: 'proto_node_variant' is
++   'A' | 'B' | 'C', anything else today's. r = the node's size ÷ the size reference, LINEAR, clipped at 1 (Bead `r`;
++   today's t is √r). The size, the reference, the colours, grey-when-balanced, the soft stale edge, the count and the
++   merge stay today's. Never ship this switch. */
++export type ProtoNodeVariant = 'today' | 'A' | 'B' | 'C';
++export function protoNodeVariant(): ProtoNodeVariant {
++  try {
++    const v = globalThis.localStorage?.getItem('proto_node_variant');
++    return v === 'A' || v === 'B' || v === 'C' ? v : 'today';
++  } catch {
++    return 'today';
++  }
++}
++const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
++/** A: r^1.6 */
++export const protoPowA = (r: number): number => Math.pow(clamp01(r), 1.6);
++/** A's cap, CSS px: 0.6 × the chart's bar spacing (never the merged slot), held between 3 and 9 */
++export const protoCapA = (barSpacing: number): number => Math.max(3, Math.min(9, 0.6 * barSpacing));
++/** A node's HEIGHT in CSS px under a variant (rowCss one strike row, slotCss the drawn slot after merging, barSpacing the
++    chart's):
++    today  ovalDiameter(t, row) = 3 + (0.85 row − 3) × √r
++    A      2 × (0.45 + r^1.6 × (cap − 0.45)), cap = clamp(0.6 × barSpacing, 3, 9)
++    B      2 + (Hmax − 2) × r, Hmax = min(0.30 × row, 12) (held at 2 or more, so a taller node is never a shorter mark)
++    C      3 + (Dmax − 3) × √r, Dmax = min(slot − 1, 0.5 × row) (held at 3 or more, as today's row floor) */
++export function protoHeightCss(v: ProtoNodeVariant, r: number, t: number, rowCss: number, slotCss: number, barSpacing: number): number {
++  switch (v) {
++    case 'A': {
++      const cap = protoCapA(barSpacing);
++      return 2 * (0.45 + protoPowA(r) * (cap - 0.45));
++    }
++    case 'B': {
++      const hMax = Math.max(2, Math.min(0.3 * rowCss, 12));
++      return 2 + (hMax - 2) * clamp01(r);
++    }
++    case 'C': {
++      const dMax = Math.max(OVAL_MIN_CSS, Math.min(slotCss - 1, 0.5 * rowCss));
++      return OVAL_MIN_CSS + (dMax - OVAL_MIN_CSS) * Math.sqrt(clamp01(r));
++    }
++    default:
++      return ovalDiameter(t, rowCss);
++  }
++}
++/** A node's core opacity under a variant: today's, B's and C's ovalAlpha on today's quantized step of t (unchanged);
++    A's 0.16 + 0.5 × r^1.6 */
++export const protoCoreAlpha = (v: ProtoNodeVariant, r: number, t: number): number =>
++  v === 'A' ? 0.16 + 0.5 * protoPowA(r) : ovalAlpha(Math.round(clamp01(t) * STRENGTH_STEPS) / STRENGTH_STEPS);
++/** A's halo: under the core where r > 0.2, the same centre, 1.9 × its height and 1.15 × its width, at 0.04 + 0.14 × r^1.6 */
++export const PROTO_HALO_MIN_R = 0.2;
++export const protoHaloAlpha = (r: number): number => 0.04 + 0.14 * protoPowA(r);
++/** Whether a node of this drawn size (CSS px) wears today's one-pixel outline: today and C min(w, h) ≥ 6; B h ≥ 6; A none */
++export const protoOutlined = (v: ProtoNodeVariant, wCss: number, hCss: number): boolean =>
++  v === 'A' ? false : v === 'B' ? hCss >= OVAL_OUTLINE_MIN_CSS : Math.min(wCss, hCss) >= OVAL_OUTLINE_MIN_CSS;
+ /** lightweight-charts' own candle body width (src/renderers/optimal-bar-width.ts, 5.x), so the candles' edge lands on
+     the body the library draws */
+ export function optimalCandlestickWidth(barSpacing: number, pixelRatio: number): number {
+@@ -135,6 +189,8 @@ interface Bead {
+   /** Its size, √(gross ÷ the size reference) clipped at 1, and the step it draws at (1..BEAD_STEPS) */
+   t: number;
+   step: number;
++  /** PROTOTYPE: gross ÷ the size reference, LINEAR, clipped at 1 (t = √r) — the variants' r */
++  r: number;
+   /** The column the cell came from (a merged group keeps each strike's peak minute) */
+   ci: number;
+   /** |net| ÷ gross, 0 balanced to 1 one-sided; 1 where the cell keeps no gross */
+@@ -535,6 +591,8 @@ class TrailsPaneRenderer {
+     const inks: MarkInks = paper ? { put: paper.put, call: paper.call, neutral: paper.neutral } : darkMarkInks();
+     const ground = this.groundOf(chart, paper);
+     const ringInk: RGB3 = paper ? paper.ink : [255, 255, 255];
++    /* PROTOTYPE: the node-size variant, read at draw time (it rides in the bitmap's cache key) */
++    const variant = protoNodeVariant();
+ 
+     target.useBitmapCoordinateSpace(scope => {
+       const ctx = scope.context;
+@@ -563,7 +621,7 @@ class TrailsPaneRenderer {
+       const x0 = ts.timeToCoordinate(firstBucket as Time);
+       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? col0.spot) ?? -1;
+       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? col0.spot) + 1) ?? -1;
+-      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}|${src.footKeep}`;
++      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}|${src.footKeep}|${variant}`;
+       const cached = key === this.cacheKey && !!this.bmp;
+ 
+       const yCache = new Map<number, number | null>();
+@@ -575,15 +633,20 @@ class TrailsPaneRenderer {
+         }
+         return y;
+       };
+-      /* a node's box on the device grid: whole pixels, centred on its candle and strike */
+-      const boxOf = (cxDev: number, yCss: number, t: number, capDev: number) => {
+-        const dCss = ovalDiameter(t, rowCss);
++      /* a node's box on the device grid: whole pixels, centred on its candle and strike (PROTOTYPE: its height under the
++         variant — today's d on t; A and B as wide as the slot less a pixel (capDev), today and C capped by it, C round) */
++      const boxOf = (cxDev: number, yCss: number, b: Bead, capDev: number, slotCss: number) => {
++        const dCss = protoHeightCss(variant, b.r, b.t, rowCss, slotCss, barSpacing);
+         const h = Math.max(pxV, Math.round(dCss * vr));
+-        const w = Math.max(px, Math.min(Math.round(dCss * hr), capDev));
++        const w = variant === 'A' || variant === 'B' ? capDev : Math.max(px, Math.min(Math.round(dCss * hr), capDev));
+         const left = Math.round(cxDev - w / 2);
+         const top = Math.round(yCss * vr - h / 2);
+         return { left, top, w, h };
+       };
++      /* PROTOTYPE: whether a drawn box wears the outline under the variant */
++      const outlined = (box: { w: number; h: number }) => protoOutlined(variant, box.w / hr, box.h / vr);
++      /* PROTOTYPE: a node's core opacity under the variant, in thousandths (every variant, as today's) */
++      const coreMil = (b: Bead) => Math.round(protoCoreAlpha(variant, b.r, b.t) * 1000);
+       const ellipse = (p: Path2D, b: { left: number; top: number; w: number; h: number }, inset = 0) => {
+         const rw = Math.max(0.5, b.w / 2 - inset);
+         const rh = Math.max(0.5, b.h / 2 - inset);
+@@ -591,7 +654,6 @@ class TrailsPaneRenderer {
+       };
+       /* the darker shade of a node's own hue, for its outline */
+       const shade = (c: RGB3): RGB3 => (paper ? [Math.round(c[0] * 0.7), Math.round(c[1] * 0.7), Math.round(c[2] * 0.7)] : [Math.round(c[0] * 0.6), Math.round(c[1] * 0.6), Math.round(c[2] * 0.6)]);
+-      const alphaOf = (aStep: number) => ovalAlpha(aStep / STRENGTH_STEPS);
+ 
+       /* THE GROUPS ON SCREEN: consecutive columns in one span, each with its x and its width cap */
+       type Placed = { g: Group; cxDev: number; capDev: number; xCss: number; widthCss: number };
+@@ -627,6 +689,8 @@ class TrailsPaneRenderer {
+         const fills = new Map<string, Path2D>();
+         const edges = new Map<string, Path2D>();
+         const outlines = new Map<string, Path2D>();
++        /* PROTOTYPE: variant A's halos, painted first (under every core) */
++        const halos = new Map<string, Path2D>();
+         const flipPath = new Path2D();
+         let flipDrawn = false;
+         const cwLine = new Path2D();
+@@ -644,7 +708,7 @@ class TrailsPaneRenderer {
+            strike" (density off) draws every strike whole. */
+         const zoomedOut = src.density && (last - first) * Math.max(1, src.stepSec) > 8 * 3600;
+         for (let pi = 0; pi < placed.length; pi++) {
+-          const { g, cxDev, capDev } = placed[pi];
++          const { g, cxDev, capDev, widthCss } = placed[pi];
+           const col = g.last;
+           const levelSet = src.density ? new Set<number>([col.cw ?? NaN, col.pw ?? NaN, ...g.topSet]) : null;
+           for (const bead of src.nodesOf(g)) {
+@@ -653,7 +717,7 @@ class TrailsPaneRenderer {
+             /* IN RANGE ONLY (the owner's second review, 2026-10-13, item 2): a strike under the chrome band or off the
+                pane's foot is not drawn — a wall beyond the clear area is named by its pinned chip */
+             if (y < floorCss || y > paneHCss) continue;
+-            const box = boxOf(cxDev, y, bead.t, capDev);
++            const box = boxOf(cxDev, y, bead, capDev, widthCss);
+             let dimA = 1;
+             if (levelSet && !levelSet.has(bead.strike)) {
+               if (zoomedOut) dimA *= 0.25;
+@@ -662,16 +726,28 @@ class TrailsPaneRenderer {
+             const dim = dimA >= 1 ? '1' : dimA.toFixed(2);
+             /* two states: the side's ink, or grey where the sides all but cancel */
+             const sStep = bead.strength >= BALANCED_BELOW - 1e-9 ? STRENGTH_STEPS : 0;
+-            const aStep = Math.round(Math.max(0, Math.min(1, bead.t)) * STRENGTH_STEPS);
+-            const k = `${bead.put ? 'p' : 'c'}|${sStep}|${aStep}|${bead.stale}|${dim}`;
++            /* PROTOTYPE: the key carries the core's opacity in thousandths (today's: ovalAlpha on the step of t, as before) */
++            const aMil = coreMil(bead);
++            const k = `${bead.put ? 'p' : 'c'}|${sStep}|${aMil}|${bead.stale}|${dim}`;
++            /* PROTOTYPE, A: the halo under the core where r > 0.2 — the same centre exactly, 1.9 × its height, 1.15 × its
++               width, never rounded to whole pixels (the oval is anti-aliased; a rounded box sat half a pixel off centre) */
++            if (variant === 'A' && bead.r > PROTO_HALO_MIN_R) {
++              const hh = box.h * 1.9;
++              const hw = box.w * 1.15;
++              const cx = box.left + box.w / 2;
++              const cy = box.top + box.h / 2;
++              const hk = `${bead.put ? 'p' : 'c'}|${sStep}|${Math.round(protoHaloAlpha(bead.r) * 1000)}|0|${dim}`;
++              ellipse(pathFor(halos, hk), { left: cx - hw / 2, top: cy - hh / 2, w: hw, h: hh });
++            }
+             if (bead.stale > 0 && box.w > 2 * px && box.h > 2 * pxV) {
+               /* THE SOFT EDGE (B3): a one-pixel border at a fraction of the node's light, the core inset by it */
+               ellipse(pathFor(edges, k), box);
+               ellipse(pathFor(fills, k), box, Math.max(px, pxV));
+             } else {
+               ellipse(pathFor(fills, k), box);
+-              /* THE OUTLINE: a node six pixels or more wears a one-pixel line in a darker shade of its own hue */
+-              if (Math.min(box.w / hr, box.h / vr) >= OVAL_OUTLINE_MIN_CSS) ellipse(pathFor(outlines, k), box, Math.max(px, pxV) / 2);
++              /* THE OUTLINE: a node six pixels or more wears a one-pixel line in a darker shade of its own hue (PROTOTYPE:
++                 the variant's rule — today and C min(w, h) ≥ 6, B h ≥ 6, A none) */
++              if (outlined(box)) ellipse(pathFor(outlines, k), box, Math.max(px, pxV) / 2);
+             }
+             /* no ring where a strike enters the three heaviest and no ghost where one leaves (the orbs' second round: "top-5
+                membership changes too often for them to mean anything") — the wall-move ticks stay */
+@@ -718,9 +794,9 @@ class TrailsPaneRenderer {
+         if (bctx) {
+           const paint = (map: Map<string, Path2D>, mode: 'fill' | 'edge' | 'outline') => {
+             for (const [k, path] of map) {
+-              const [side, sStep, aStep, , dim] = k.split('|');
++              const [side, sStep, aMil, , dim] = k.split('|');
+               const rgb = markInk(side === 'p' ? 1 : -1, Number(sStep) / STRENGTH_STEPS, inks);
+-              const a = alphaOf(Number(aStep)) * Number(dim) * src.globalDim * (mode === 'edge' ? SOFT_EDGE_ALPHA : 1);
++              const a = (Number(aMil) / 1000) * Number(dim) * src.globalDim * (mode === 'edge' ? SOFT_EDGE_ALPHA : 1);
+               if (mode === 'outline') {
+                 const s = shade(rgb);
+                 bctx.lineWidth = Math.max(px, pxV);
+@@ -732,6 +808,7 @@ class TrailsPaneRenderer {
+               }
+             }
+           };
++          paint(halos, 'fill');
+           paint(edges, 'edge');
+           paint(fills, 'fill');
+           paint(outlines, 'outline');
+@@ -787,9 +864,9 @@ class TrailsPaneRenderer {
+           for (const p of placed) {
+             const b = p.g.all.get(strike);
+             if (!b) continue;
+-            const box = boxOf(p.cxDev, y, b.t, p.capDev);
++            const box = boxOf(p.cxDev, y, b, p.capDev, p.widthCss);
+             ellipse(path, box);
+-            if (Math.min(box.w / hr, box.h / vr) >= OVAL_OUTLINE_MIN_CSS) ellipse(outs, box, Math.max(px, pxV) / 2);
++            if (outlined(box)) ellipse(outs, box, Math.max(px, pxV) / 2);
+             side = b.put ? 1 : -1;
+             strength = b.strength;
+             any = true;
+@@ -808,7 +885,7 @@ class TrailsPaneRenderer {
+             for (const p of placed) {
+               const b = p.g.all.get(strike);
+               if (!b) continue;
+-              const box = boxOf(p.cxDev, y, b.t, p.capDev);
++              const box = boxOf(p.cxDev, y, b, p.capDev, p.widthCss);
+               addOval(ringPath, box.left + box.w / 2, box.top + box.h / 2, box.w / 2 + px / 2, box.h / 2 + pxV / 2);
+             }
+             ctx.lineWidth = Math.max(px, pxV);
+@@ -822,7 +899,7 @@ class TrailsPaneRenderer {
+           const p = placed.find(q => q.g.cols.some(c => snaps[c].time === hover.time) || q.g.all.get(hover.strike)?.ci === hover.ci);
+           const b = p?.g.all.get(hover.strike);
+           if (y !== null && p && b) {
+-            const box = boxOf(p.cxDev, y, b.t, p.capDev);
++            const box = boxOf(p.cxDev, y, b, p.capDev, p.widthCss);
+             const lw = Math.max(1, Math.round(1.5 * Math.min(hr, vr)));
+             ctx.lineWidth = lw;
+             ctx.strokeStyle = rgba(ringInk, 0.95);
+@@ -917,7 +994,7 @@ class TrailsPaneRenderer {
+             ctx.fillStyle = padInk;
+             ctx.fillRect(l, top, pw, full);
+             const rgb = markInk(b.put ? 1 : -1, b.strength, inks);
+-            ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alphaOf(Math.round(b.t * STRENGTH_STEPS)).toFixed(3)})`;
++            ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(coreMil(b) / 1000).toFixed(3)})`;
+             ctx.beginPath();
+             ctx.ellipse(l + padX + swW / 2, top + full / 2, swW / 2, swH / 2, 0, 0, Math.PI * 2);
+             ctx.fill();
+@@ -1585,8 +1662,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
+            store rows before 2026-10-14). THE STRENGTH: |net| ÷ gross, 1 where the gross is not kept. */
+         const gross = gex && l.gross != null && l.gross > 0 ? l.gross : Math.abs(v);
+         const t = strengthOf(gross, refG);
++        /* PROTOTYPE: the same ratio strengthOf takes the square root of, kept linear for the variants */
++        const r = refG > 0 ? Math.min(1, Math.abs(gross) / refG) : 0;
+         const strength = gex && l.gross != null && l.gross > 0 ? Math.min(1, Math.abs(v) / l.gross) : 1;
+-        all.set(l.strike, { strike: l.strike, value: v, gross, t, step: stepOf(t), strength, put: v >= 0, stale: staleOf(l), ci: i });
++        all.set(l.strike, { strike: l.strike, value: v, gross, t, step: stepOf(t), r, strength, put: v >= 0, stale: staleOf(l), ci: i });
+       }
+       const floorAbs = this.floor * refG;
+       const top = [...all.values()].filter(b => b.gross > 0 && b.gross >= floorAbs && b.step > 0).sort((a, b) => b.gross - a.gross);
