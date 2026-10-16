@@ -208,7 +208,8 @@ check('hover: the node under the pointer is the one hovered, the rail docked lef
       const box = e.box().getBoundingClientRect();
       const w = e.chart.paneSize(0).width;
       const h = e.chart.paneSize(0).height;
-      for (const fx of [0.55, 0.65, 0.75, 0.45]) {
+      /* across the plot from its right (in the evening the right half is after-hours bars, where SPY's field draws nothing) */
+      for (const fx of [0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15]) {
         const x = Math.round(w * fx);
         /* below the chrome band (the header strip, the legend and the hover row, which stands over the plot's top under a
            pointer) — a node there is behind the row by design */
