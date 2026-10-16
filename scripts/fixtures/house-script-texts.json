@@ -1,0 +1,626 @@
+{
+ "about": "Every text the house wrote under each built-in script id, from the first commit (e9f9f81, 2026-10-03) to 23be8fb (2026-10-16): builtinScripts() and retiredBuiltin() run at every commit that changed src/data/builtinScripts.ts, src/components/gex/indicatorInks.ts or src/components/gex/palette.ts. former: the texts that are not today's, each with the commits it stood at; today: the hash of each id's text at 23be8fb. Read by scripts/indicator-inks-proof.ts 4⁗‴ (builtinScripts FORMER_TEXTS, drawnText).",
+ "commits": [
+  "e9f9f81",
+  "fa6f479",
+  "a3c58e1",
+  "6edd964",
+  "93eb4be",
+  "6fd4558",
+  "40b297e",
+  "03ca5ad",
+  "59d97da",
+  "98bdc58",
+  "d968aa2",
+  "8367930",
+  "20d4204",
+  "150b8e2",
+  "23be8fb"
+ ],
+ "today": {
+  "builtin:walls": "a6f87fbb",
+  "builtin:flip": "6167f5c1",
+  "builtin:supreme": "efc51a27",
+  "builtin:distance-to-walls": "eadefa21",
+  "builtin:wall-approach": "9e86c46a",
+  "builtin:moving-average": "a78520ca",
+  "builtin:supertrend": "cbc5280d",
+  "builtin:parabolic-sar": "6a8f566c",
+  "builtin:ichimoku": "f44344e2",
+  "builtin:keltner": "94591e9b",
+  "builtin:donchian": "66adb149",
+  "builtin:stochastic": "51d819d3",
+  "builtin:adx": "841f1339",
+  "builtin:cci": "a2637a34",
+  "builtin:williams-r": "231cf134",
+  "builtin:mfi": "2859affa",
+  "builtin:obv": "55983c41",
+  "builtin:ema-ribbon": "23ae6b8c",
+  "builtin:vwap": "c2230168",
+  "builtin:bollinger": "4deba13d",
+  "builtin:rsi": "5ebbb7a8",
+  "builtin:macd": "92483486",
+  "builtin:atr": "a04b7193"
+ },
+ "former": {
+  "builtin:walls": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"The walls\", overlay = true)\n\ncallWall = slayer.callWall\nputWall  = slayer.putWall\n\nc = plot(callWall, \"Call wall\", color = #30D158, linewidth = 1)\np = plot(putWall,  \"Put wall\",  color = #FF3B30, linewidth = 1)\nfill(c, p, color = color.new(#C7D3E8, 96), title = \"The corridor\")\nalertcondition(ta.crossover(close, callWall),  \"Through the call wall\", \"{{ticker}} closed above the call wall\")\nalertcondition(ta.crossunder(close, putWall),  \"Through the put wall\",  \"{{ticker}} closed below the put wall\")"
+   }
+  ],
+  "builtin:flip": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"The flip\", overlay = true)\n\nflip = slayer.flip\nplot(flip, \"Flip\", color = #C7D3E8, linewidth = 1)\nbgcolor(close < flip ? color.new(#FF3B30, 94) : na, title = \"Below the flip\")\nalertcondition(ta.cross(close, flip), \"Crossed the flip\", \"{{ticker}} crossed the flip\")"
+   }
+  ],
+  "builtin:supreme": [],
+  "builtin:distance-to-walls": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Distance to the walls\")\n\ntoCall = (slayer.callWall - close) / close * 100\ntoPut  = (close - slayer.putWall) / close * 100\n\nplot(toCall, \"To the call wall\", color = #30D158)\nplot(toPut,  \"To the put wall\",  color = #FF3B30)\nhline(0, \"Touching\", color = color.new(#C7D3E8, 60), linestyle = hline.style_dotted)"
+   }
+  ],
+  "builtin:wall-approach": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Wall approach\", overlay = true)\n\nnear = input.float(0.25, \"Within (%)\", minval = 0.05, step = 0.05)\nnearCall = math.abs(slayer.callWall - close) / close * 100 <= near\nnearPut  = math.abs(close - slayer.putWall) / close * 100 <= near\n\nplotshape(nearCall, \"Near the call wall\", shape.triangledown, location.abovebar, #30D158, size = size.tiny)\nplotshape(nearPut,  \"Near the put wall\",  shape.triangleup,   location.belowbar, #FF3B30, size = size.tiny)"
+   }
+  ],
+  "builtin:moving-average": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Moving average\", overlay = true)\n\nlen  = input.int(20, \"Length\", minval = 1)\nkind = input.string(\"EMA\", \"Kind\", options = [\"SMA\", \"EMA\", \"WMA\", \"HMA\", \"VWMA\"])\nsrc  = input.source(close, \"Source\")\n\nma = switch kind\n    \"SMA\"  => ta.sma(src, len)\n    \"WMA\"  => ta.wma(src, len)\n    \"HMA\"  => ta.hma(src, len)\n    \"VWMA\" => ta.vwma(src, len)\n    => ta.ema(src, len)\n\nplot(ma, \"MA\", color = #5B9CF6, linewidth = 2)"
+   },
+   {
+    "at": [
+     "03ca5ad",
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Moving average\", overlay = true)\n\nlen  = input.int(20, \"Length\", minval = 1)\nkind = input.string(\"EMA\", \"Kind\", options = [\"SMA\", \"EMA\", \"WMA\", \"HMA\", \"VWMA\"])\nsrc  = input.source(close, \"Source\")\n\nma = switch kind\n    \"SMA\"  => ta.sma(src, len)\n    \"WMA\"  => ta.wma(src, len)\n    \"HMA\"  => ta.hma(src, len)\n    \"VWMA\" => ta.vwma(src, len)\n    => ta.ema(src, len)\n\nplot(ma, \"MA\", color = #18A19C, linewidth = 2)"
+   }
+  ],
+  "builtin:supertrend": [],
+  "builtin:parabolic-sar": [],
+  "builtin:ichimoku": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Ichimoku Cloud\", overlay = true)\n\nconvLen = input.int(9,  \"Conversion\", minval = 1)\nbaseLen = input.int(26, \"Base\", minval = 1)\nspanLen = input.int(52, \"Leading span B\", minval = 1)\ndisp    = input.int(26, \"Displacement\", minval = 1)\n\ndonchian(int len) => math.avg(ta.lowest(len), ta.highest(len))\n\nconv  = donchian(convLen)\nbase  = donchian(baseLen)\nspanA = math.avg(conv, base)\nspanB = donchian(spanLen)\n\nplot(conv, \"Conversion\", color = #7DE3FF)\nplot(base, \"Base\", color = #FF9500)\nplot(close, \"Lagging span\", color = color.new(#C7D3E8, 30), offset = -disp + 1)\na = plot(spanA, \"Leading span A\", color = color.new(#30D158, 55), offset = disp - 1)\nb = plot(spanB, \"Leading span B\", color = color.new(#FF3B30, 55), offset = disp - 1)\nfill(a, b, color = spanA > spanB ? color.new(#30D158, 88) : color.new(#FF3B30, 88), title = \"Cloud\")\nalertcondition(ta.crossover(conv, base),  \"Conversion crossed up\",   \"{{ticker}} tenkan crossed above kijun\")\nalertcondition(ta.crossunder(conv, base), \"Conversion crossed down\", \"{{ticker}} tenkan crossed below kijun\")"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Ichimoku Cloud\", overlay = true)\n\nconvLen = input.int(9,  \"Conversion\", minval = 1)\nbaseLen = input.int(26, \"Base\", minval = 1)\nspanLen = input.int(52, \"Leading span B\", minval = 1)\ndisp    = input.int(26, \"Displacement\", minval = 1)\n\ndonchian(int len) => math.avg(ta.lowest(len), ta.highest(len))\n\nconv  = donchian(convLen)\nbase  = donchian(baseLen)\nspanA = math.avg(conv, base)\nspanB = donchian(spanLen)\n\nplot(conv, \"Conversion\", color = #E37DC1)\nplot(base, \"Base\", color = #968D6C)\nplot(close, \"Lagging span\", color = color.new(#FCDCFF, 30), offset = -disp + 1)\na = plot(spanA, \"Leading span A\", color = color.new(#30D158, 55), offset = disp - 1)\nb = plot(spanB, \"Leading span B\", color = color.new(#FF3B30, 55), offset = disp - 1)\nfill(a, b, color = spanA > spanB ? color.new(#30D158, 88) : color.new(#FF3B30, 88), title = \"Cloud\")\nalertcondition(ta.crossover(conv, base),  \"Conversion crossed up\",   \"{{ticker}} tenkan crossed above kijun\")\nalertcondition(ta.crossunder(conv, base), \"Conversion crossed down\", \"{{ticker}} tenkan crossed below kijun\")"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Ichimoku Cloud\", overlay = true)\n\nconvLen = input.int(9,  \"Conversion\", minval = 1)\nbaseLen = input.int(26, \"Base\", minval = 1)\nspanLen = input.int(52, \"Leading span B\", minval = 1)\ndisp    = input.int(26, \"Displacement\", minval = 1)\n\ndonchian(int len) => math.avg(ta.lowest(len), ta.highest(len))\n\nconv  = donchian(convLen)\nbase  = donchian(baseLen)\nspanA = math.avg(conv, base)\nspanB = donchian(spanLen)\n\nplot(conv, \"Conversion\", color = #E37DC1)\nplot(base, \"Base\", color = #9F9170)\nplot(close, \"Lagging span\", color = color.new(#FCDCFF, 30), offset = -disp + 1)\na = plot(spanA, \"Leading span A\", color = color.new(#30D158, 55), offset = disp - 1)\nb = plot(spanB, \"Leading span B\", color = color.new(#FF3B30, 55), offset = disp - 1)\nfill(a, b, color = spanA > spanB ? color.new(#30D158, 88) : color.new(#FF3B30, 88), title = \"Cloud\")\nalertcondition(ta.crossover(conv, base),  \"Conversion crossed up\",   \"{{ticker}} tenkan crossed above kijun\")\nalertcondition(ta.crossunder(conv, base), \"Conversion crossed down\", \"{{ticker}} tenkan crossed below kijun\")"
+   }
+  ],
+  "builtin:keltner": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Keltner Channels\", overlay = true)\n\nlen   = input.int(20, \"Length\", minval = 1)\nmult  = input.float(2.0, \"ATR multiple\", minval = 0.5, step = 0.25)\natrLn = input.int(10, \"ATR length\", minval = 1)\n\nbasis = ta.ema(close, len)\nband  = ta.atr(atrLn) * mult\nplot(basis, \"Basis\", color = #D8BC8F)\nu = plot(basis + band, \"Upper\", color = color.new(#D8BC8F, 40))\nl = plot(basis - band, \"Lower\", color = color.new(#D8BC8F, 40))\nfill(u, l, color = color.new(#D8BC8F, 94), title = \"Channel\")"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Keltner Channels\", overlay = true)\n\nlen   = input.int(20, \"Length\", minval = 1)\nmult  = input.float(2.0, \"ATR multiple\", minval = 0.5, step = 0.25)\natrLn = input.int(10, \"ATR length\", minval = 1)\n\nbasis = ta.ema(close, len)\nband  = ta.atr(atrLn) * mult\nplot(basis, \"Basis\", color = #CE909B)\nu = plot(basis + band, \"Upper\", color = color.new(#CE909B, 40))\nl = plot(basis - band, \"Lower\", color = color.new(#CE909B, 40))\nfill(u, l, color = color.new(#CE909B, 94), title = \"Channel\")"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Keltner Channels\", overlay = true)\n\nlen   = input.int(20, \"Length\", minval = 1)\nmult  = input.float(2.0, \"ATR multiple\", minval = 0.5, step = 0.25)\natrLn = input.int(10, \"ATR length\", minval = 1)\n\nbasis = ta.ema(close, len)\nband  = ta.atr(atrLn) * mult\nplot(basis, \"Basis\", color = #7D7D74)\nu = plot(basis + band, \"Upper\", color = color.new(#7D7D74, 40))\nl = plot(basis - band, \"Lower\", color = color.new(#7D7D74, 40))\nfill(u, l, color = color.new(#7D7D74, 94), title = \"Channel\")"
+   },
+   {
+    "at": [
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Keltner Channels\", overlay = true)\n\nlen   = input.int(20, \"Length\", minval = 1)\nmult  = input.float(2.0, \"ATR multiple\", minval = 0.5, step = 0.25)\natrLn = input.int(10, \"ATR length\", minval = 1)\n\nbasis = ta.ema(close, len)\nband  = ta.atr(atrLn) * mult\nplot(basis, \"Basis\", color = #6A6B57)\nu = plot(basis + band, \"Upper\", color = color.new(#6A6B57, 40))\nl = plot(basis - band, \"Lower\", color = color.new(#6A6B57, 40))\nfill(u, l, color = color.new(#6A6B57, 94), title = \"Channel\")"
+   }
+  ],
+  "builtin:donchian": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Donchian Channels\", overlay = true)\n\nlen = input.int(20, \"Length\", minval = 1)\nu = plot(ta.highest(high, len), \"Upper\", color = color.new(#6BD3C7, 30))\nl = plot(ta.lowest(low, len),   \"Lower\", color = color.new(#6BD3C7, 30))\nplot(math.avg(ta.highest(high, len), ta.lowest(low, len)), \"Middle\", color = color.new(#6BD3C7, 60))\nfill(u, l, color = color.new(#6BD3C7, 95), title = \"Channel\")"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Donchian Channels\", overlay = true)\n\nlen = input.int(20, \"Length\", minval = 1)\nu = plot(ta.highest(high, len), \"Upper\", color = color.new(#7BAB84, 30))\nl = plot(ta.lowest(low, len),   \"Lower\", color = color.new(#7BAB84, 30))\nplot(math.avg(ta.highest(high, len), ta.lowest(low, len)), \"Middle\", color = color.new(#7BAB84, 60))\nfill(u, l, color = color.new(#7BAB84, 95), title = \"Channel\")"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Donchian Channels\", overlay = true)\n\nlen = input.int(20, \"Length\", minval = 1)\nu = plot(ta.highest(high, len), \"Upper\", color = color.new(#58B0D1, 30))\nl = plot(ta.lowest(low, len),   \"Lower\", color = color.new(#58B0D1, 30))\nplot(math.avg(ta.highest(high, len), ta.lowest(low, len)), \"Middle\", color = color.new(#58B0D1, 60))\nfill(u, l, color = color.new(#58B0D1, 95), title = \"Channel\")"
+   }
+  ],
+  "builtin:stochastic": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Stochastic\")\n\nlen = input.int(14, \"Length\", minval = 1)\nkS  = input.int(3, \"%K smoothing\", minval = 1)\ndS  = input.int(3, \"%D smoothing\", minval = 1)\n\nk = ta.sma(ta.stoch(close, high, low, len), kS)\nd = ta.sma(k, dS)\nplot(k, \"%K\", color = #5B9CF6)\nplot(d, \"%D\", color = #FF9500)\nhline(80, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(20, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Stochastic\")\n\nlen = input.int(14, \"Length\", minval = 1)\nkS  = input.int(3, \"%K smoothing\", minval = 1)\ndS  = input.int(3, \"%D smoothing\", minval = 1)\n\nk = ta.sma(ta.stoch(close, high, low, len), kS)\nd = ta.sma(k, dS)\nplot(k, \"%K\", color = #FD98BE)\nplot(d, \"%D\", color = #AA8802)\nhline(80, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(20, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Stochastic\")\n\nlen = input.int(14, \"Length\", minval = 1)\nkS  = input.int(3, \"%K smoothing\", minval = 1)\ndS  = input.int(3, \"%D smoothing\", minval = 1)\n\nk = ta.sma(ta.stoch(close, high, low, len), kS)\nd = ta.sma(k, dS)\nplot(k, \"%K\", color = #FD98BE)\nplot(d, \"%D\", color = #A78A00)\nhline(80, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(20, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   }
+  ],
+  "builtin:adx": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"ADX and DI\")\n\ndiLen  = input.int(14, \"DI length\", minval = 1)\nadxLen = input.int(14, \"ADX smoothing\", minval = 1)\n\n[dp, dm, adx] = ta.dmi(diLen, adxLen)\nplot(adx, \"ADX\", color = #C7D3E8, linewidth = 2)\nplot(dp,  \"+DI\", color = #30D158)\nplot(dm,  \"-DI\", color = #FF3B30)\nhline(25, \"Trending\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "03ca5ad",
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"ADX and DI\")\n\ndiLen  = input.int(14, \"DI length\", minval = 1)\nadxLen = input.int(14, \"ADX smoothing\", minval = 1)\n\n[dp, dm, adx] = ta.dmi(diLen, adxLen)\nplot(adx, \"ADX\", color = #FFBCD3, linewidth = 2)\nplot(dp,  \"+DI\", color = #30D158)\nplot(dm,  \"-DI\", color = #FF3B30)\nhline(25, \"Trending\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   }
+  ],
+  "builtin:cci": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"CCI\")\n\nlen = input.int(20, \"Length\", minval = 1)\nplot(ta.cci(hlc3, len), \"CCI\", color = #BBB2E8)\nhline(100,  \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(-100, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "03ca5ad",
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"CCI\")\n\nlen = input.int(20, \"Length\", minval = 1)\nplot(ta.cci(hlc3, len), \"CCI\", color = #C267A9)\nhline(100,  \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(-100, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   }
+  ],
+  "builtin:williams-r": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Williams %R\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.wpr(len), \"%R\", color = #A9C77F)\nhline(-20, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(-80, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Williams %R\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.wpr(len), \"%R\", color = #D06976)\nhline(-20, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(-80, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Williams %R\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.wpr(len), \"%R\", color = #C73996)\nhline(-20, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(-80, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   }
+  ],
+  "builtin:mfi": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Money flow index\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.mfi(hlc3, len), \"MFI\", color = #6BD3C7, linewidth = 2)\nhline(80, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(20, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Money flow index\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.mfi(hlc3, len), \"MFI\", color = #40A859, linewidth = 2)\nhline(80, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(20, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Money flow index\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.mfi(hlc3, len), \"MFI\", color = #447CAE, linewidth = 2)\nhline(80, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(20, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   },
+   {
+    "at": [
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Money flow index\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.mfi(hlc3, len), \"MFI\", color = #44739E, linewidth = 2)\nhline(80, \"Upper\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(20, \"Lower\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)"
+   }
+  ],
+  "builtin:obv": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"On-balance volume\")\n\nplot(ta.obv(), \"OBV\", color = #EDE4CD)"
+   },
+   {
+    "at": [
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"On-balance volume\")\n\nplot(ta.obv, \"OBV\", color = #EDE4CD)"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"On-balance volume\")\n\nplot(ta.obv, \"OBV\", color = #FA7F7D)"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"On-balance volume\")\n\nplot(ta.obv, \"OBV\", color = #AB713C)"
+   }
+  ],
+  "builtin:ema-ribbon": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"EMA ribbon\", overlay = true)\n\nplot(ta.ema(close, 9),  \"EMA 9\",  color = #5B9CF6)\nplot(ta.ema(close, 21), \"EMA 21\", color = #BBB2E8)\nplot(ta.ema(close, 50), \"EMA 50\", color = #EDE4CD)"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"EMA ribbon\", overlay = true)\n\nplot(ta.ema(close, 9),  \"EMA 9\",  color = #0099CC)\nplot(ta.ema(close, 21), \"EMA 21\", color = #75BBF4)\nplot(ta.ema(close, 50), \"EMA 50\", color = #ABF8F3)"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"EMA ribbon\", overlay = true)\n\nplot(ta.ema(close, 9),  \"EMA 9\",  color = #0099CC)\nplot(ta.ema(close, 21), \"EMA 21\", color = #77C4FE)\nplot(ta.ema(close, 50), \"EMA 50\", color = #ABF8F3)"
+   },
+   {
+    "at": [
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"EMA ribbon\", overlay = true)\n\nplot(ta.ema(close, 9),  \"EMA 9\",  color = #0099CC)\nplot(ta.ema(close, 21), \"EMA 21\", color = #85B9FE)\nplot(ta.ema(close, 50), \"EMA 50\", color = #ABF8F3)"
+   }
+  ],
+  "builtin:vwap": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"VWAP\", overlay = true)\n\nplot(ta.vwap(hlc3), \"VWAP\", color = #6BD3C7, linewidth = 2)"
+   },
+   {
+    "at": [
+     "03ca5ad",
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"VWAP\", overlay = true)\n\nplot(ta.vwap(hlc3), \"VWAP\", color = #06BFB0, linewidth = 2)"
+   }
+  ],
+  "builtin:bollinger": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"Bollinger Bands\", overlay = true)\n\nlen  = input.int(20, \"Length\", minval = 1)\nmult = input.float(2.0, \"Deviations\", minval = 0.5, step = 0.25)\n\n[basis, upper, lower] = ta.bb(close, len, mult)\nplot(basis, \"Basis\", color = #C7A9CF)\nu = plot(upper, \"Upper\", color = color.new(#C7A9CF, 40))\nl = plot(lower, \"Lower\", color = color.new(#C7A9CF, 40))\nfill(u, l, color = color.new(#C7A9CF, 94), title = \"Band\")"
+   },
+   {
+    "at": [
+     "03ca5ad",
+     "59d97da",
+     "98bdc58",
+     "d968aa2"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"Bollinger Bands\", overlay = true)\n\nlen  = input.int(20, \"Length\", minval = 1)\nmult = input.float(2.0, \"Deviations\", minval = 0.5, step = 0.25)\n\n[basis, upper, lower] = ta.bb(close, len, mult)\nplot(basis, \"Basis\", color = #D498FC)\nu = plot(upper, \"Upper\", color = color.new(#D498FC, 40))\nl = plot(lower, \"Lower\", color = color.new(#D498FC, 40))\nfill(u, l, color = color.new(#D498FC, 94), title = \"Band\")"
+   },
+   {
+    "at": [
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"Bollinger Bands\", overlay = true)\n\nlen  = input.int(20, \"Length\", minval = 1)\nmult = input.float(2.0, \"Deviations\", minval = 0.5, step = 0.25)\n\n[basis, upper, lower] = ta.bb(close, len, mult)\nplot(basis, \"Basis\", color = #D394FE)\nu = plot(upper, \"Upper\", color = color.new(#D394FE, 40))\nl = plot(lower, \"Lower\", color = color.new(#D394FE, 40))\nfill(u, l, color = color.new(#D394FE, 94), title = \"Band\")"
+   }
+  ],
+  "builtin:rsi": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"RSI\")\n\nlen = input.int(14, \"Length\", minval = 1)\nrsi = ta.rsi(close, len)\nplot(rsi, \"RSI\", color = #A9C77F, linewidth = 2)\nhline(70, \"Overbought\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(30, \"Oversold\",   color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nalertcondition(ta.crossover(rsi, 70),  \"Above 70\", \"{{ticker}} RSI crossed above 70\")\nalertcondition(ta.crossunder(rsi, 30), \"Below 30\", \"{{ticker}} RSI crossed below 30\")"
+   },
+   {
+    "at": [
+     "03ca5ad",
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"RSI\")\n\nlen = input.int(14, \"Length\", minval = 1)\nrsi = ta.rsi(close, len)\nplot(rsi, \"RSI\", color = #FBACFE, linewidth = 2)\nhline(70, \"Overbought\", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nhline(30, \"Oversold\",   color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)\nalertcondition(ta.crossover(rsi, 70),  \"Above 70\", \"{{ticker}} RSI crossed above 70\")\nalertcondition(ta.crossunder(rsi, 30), \"Below 30\", \"{{ticker}} RSI crossed below 30\")"
+   }
+  ],
+  "builtin:macd": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"MACD\")\n\nfast = input.int(12, \"Fast\", minval = 1)\nslow = input.int(26, \"Slow\", minval = 1)\nsig  = input.int(9,  \"Signal\", minval = 1)\n\n[m, s, h] = ta.macd(close, fast, slow, sig)\nplot(h, \"Histogram\", color = h >= 0 ? color.new(#30D158, 40) : color.new(#FF3B30, 40), style = plot.style_histogram)\nplot(m, \"MACD\",   color = #5B9CF6)\nplot(s, \"Signal\", color = #D8A6A6)\nhline(0, \"Zero\", color = color.new(#C7D3E8, 80))"
+   },
+   {
+    "at": [
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"MACD\")\n\nfast = input.int(12, \"Fast\", minval = 1)\nslow = input.int(26, \"Slow\", minval = 1)\nsig  = input.int(9,  \"Signal\", minval = 1)\n\n[m, s, h] = ta.macd(close, fast, slow, sig)\n// One steel wash for the bars, as the chart's own MACD: the sign of momentum is not a price direction\nplot(h, \"Histogram\", color = color.new(#E2EAF4, 70), style = plot.style_histogram)\nplot(m, \"MACD\",   color = #5B9CF6)\nplot(s, \"Signal\", color = #D8A6A6)\nhline(0, \"Zero\", color = color.new(#C7D3E8, 80))"
+   },
+   {
+    "at": [
+     "03ca5ad"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"MACD\")\n\nfast = input.int(12, \"Fast\", minval = 1)\nslow = input.int(26, \"Slow\", minval = 1)\nsig  = input.int(9,  \"Signal\", minval = 1)\n\n[m, s, h] = ta.macd(close, fast, slow, sig)\n// One steel wash for the bars, as the chart's own MACD: the sign of momentum is not a price direction\nplot(h, \"Histogram\", color = color.new(#E2EAF4, 70), style = plot.style_histogram)\nplot(m, \"MACD\",   color = #B692CE)\nplot(s, \"Signal\", color = #D27843)\nhline(0, \"Zero\", color = color.new(#C7D3E8, 80))"
+   },
+   {
+    "at": [
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"MACD\")\n\nfast = input.int(12, \"Fast\", minval = 1)\nslow = input.int(26, \"Slow\", minval = 1)\nsig  = input.int(9,  \"Signal\", minval = 1)\n\n[m, s, h] = ta.macd(close, fast, slow, sig)\n// One steel wash for the bars, as the chart's own MACD: the sign of momentum is not a price direction\nplot(h, \"Histogram\", color = color.new(#E2EAF4, 70), style = plot.style_histogram)\nplot(m, \"MACD\",   color = #B692CE)\nplot(s, \"Signal\", color = #D37C18)\nhline(0, \"Zero\", color = color.new(#C7D3E8, 80))"
+   }
+  ],
+  "builtin:atr": [
+   {
+    "at": [
+     "e9f9f81",
+     "fa6f479",
+     "a3c58e1",
+     "6edd964",
+     "93eb4be",
+     "6fd4558",
+     "40b297e"
+    ],
+    "shelf": "shipped",
+    "source": "//@version=6\nindicator(\"ATR\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.atr(len), \"ATR\", color = #D8BC8F, linewidth = 2)"
+   },
+   {
+    "at": [
+     "03ca5ad",
+     "59d97da",
+     "98bdc58",
+     "d968aa2",
+     "8367930",
+     "20d4204"
+    ],
+    "shelf": "retired",
+    "source": "//@version=6\nindicator(\"ATR\")\n\nlen = input.int(14, \"Length\", minval = 1)\nplot(ta.atr(len), \"ATR\", color = #A77E91, linewidth = 2)"
+   }
+  ]
+ }
+}

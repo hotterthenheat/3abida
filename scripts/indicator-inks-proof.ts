@@ -72,6 +72,11 @@
     9m. the lightness floor: on a light tape every price-pane ink reads 1.5:1 by luminance from the tape's hue-less candle
         (Stone's black fall), as seen and under each simulation — elsewhere measured and held for the owner;
     9n. magenta stays the supreme's on the price pane but for the inks held for the owner by ink, and the list only shrinks.
+  And its fifth review (2026-10-16):
+    4⁗‴. every text the house has written under a script's id since 2026-10-03 (scripts/fixtures/house-script-texts.json),
+        as a copy of that day, saved again, pasted, kept or a copy of the kept, reads as the house's and draws the house's
+        text of today (builtinScripts drawnText) — a copy made before approval 4 drew its inks of then, Keltner's
+        #D8BC8F on Stone at 1.03:1; and the house's former texts stay on record (builtinScripts FORMER_TEXTS).
 */
 import { readFileSync } from 'node:fs';
 import { distanceUnder, simulate, type Deficiency } from './colour-sim';
@@ -781,6 +786,126 @@ check("the kept copies draw the inks they were kept with — the chart built-in'
     }
     check(`4⁗″. a copy of a kept retired script never saved again (forkedFrom its id, version 1), and a kept or copied text saved again unchanged from before a move, draw as the house's — each former ink its pair's ink now, the paper pair on Stone at 3:1 or better — while a copy of a kept script the reader had edited stays theirs (${retiredCases.length} cases over the six retired scripts' ${new Set(retiredCases.map(c => c.old)).size} former inks)`, retiredCases.length >= 12 && retMiss.length === 0, [...new Set(retMiss)].slice(0, 6).join('; '));
     info(retNotes.slice(0, 4).join('; '));
+
+    /* 4⁗‴. EVERY TEXT THE HOUSE HAS WRITTEN, AS A COPY OF THAT DAY (the fifth review of the rule, 2026-10-16): FORMER_DARK
+       reaches back only to approval 4's first cut, and the inks before it were shared across scripts (#5B9CF6 the moving
+       average's, the MACD's, the EMA ribbon's and the stochastic's), so a copy made from 2026-10-03 to approval 4 read as
+       the house's but drew its inks of then — a Keltner copy #D8BC8F on Stone at 1.03:1, the moving average's #5B9CF6 0.137
+       from the field's violet — and a copy of a script since retired read as the reader's own. Every text the house wrote
+       under each id (scripts/fixtures/house-script-texts.json — builtinScripts() at every commit that changed it, its inks
+       or the palette) is tried as each script that could hold it: Make a copy of the shelf's one that day (version 1,
+       forkedFrom its id), saved again unchanged (version 3), pasted under a new name; a retired text kept and saved again,
+       and copied. Each must read as the house's and draw as the house's script does today (builtinScripts drawnText) on
+       Glacier and Stone: every part's ink the house script's own, every line not the candles' 3:1 or better on
+       #BEBDB8 as drawn, every one 0.15 from the field's gold and violet on its tape (0.08 from the pair blue-orange wears). */
+    {
+      type Fx = { today: Record<string, string>; former: Record<string, { at: string[]; shelf: 'shipped' | 'retired' | 'both'; source: string }[]> };
+      const fx = JSON.parse(read('scripts/fixtures/house-script-texts.json')) as Fx;
+      const bsx = builtins as unknown as { drawnText?: (sc: Sc) => { source: string; sourceHash: string }; FORMER_TEXTS?: Readonly<Record<string, readonly string[]>>; houseText?: (id: string) => { source: string } | null };
+      const drawnOf = (sc: Sc) => (bsx.drawnText ? bsx.drawnText(sc).source : sc.source);
+      const todayOf = (id: string) => shipped.find(x => x.id === id)?.source ?? retiredBuiltin?.(id)?.source ?? null;
+      /* what a script draws on a tape: each part's title and its inks, through the chart's mapper */
+      const partsOf = (src: string, m: (c: string, k?: 'line' | 'wash') => string) => {
+        const r = runOf(src);
+        const out: string[] = [];
+        const ink = (c: string | null | undefined, k: 'line' | 'wash') => (c && parseInk(c) ? hexOf(rgbOf(m(c, k))) + (parseInk(m(c, k))!.a < 1 ? `@${parseInk(m(c, k))!.a.toFixed(2)}` : '') : '');
+        for (const p of r.plots) out.push(`plot ${p.title}: ${[...new Set([p.ink, ...(p.colors ?? [])].map(c => ink(c, 'line')).filter(Boolean))].sort().join('/')}`);
+        for (const sh of r.shapes) out.push(`shape ${sh.title}: ${[...new Set([sh.ink, ...(sh.colors ?? [])].map(c => ink(c, 'line')).filter(Boolean))].sort().join('/')}`);
+        for (const h of r.hlines) out.push(`hline ${h.title}: ${ink(h.ink, 'line')}`);
+        for (const f of r.fills) out.push(`fill ${f.title}: ${[...new Set([f.ink, ...(f.colors ?? [])].map(c => ink(c, 'wash')).filter(Boolean))].sort().join('/')}`);
+        if (r.bgcolors?.some(Boolean)) out.push(`background: ${[...new Set(r.bgcolors.map(c => ink(c, 'wash')).filter(Boolean))].sort().join('/')}`);
+        return out.sort();
+      };
+      const fxCases: { name: string; sc: Sc; want: Who; id: string }[] = [];
+      const fxMiss: string[] = [];
+      for (const [id, texts] of Object.entries(fx.former)) {
+        const by: Who = shipped.some(x => x.id === id) ? 'shipped' : 'kept';
+        texts.forEach((t, n) => {
+          const h = bs.hashSource(t.source);
+          const when = t.at[0];
+          if (t.shelf !== 'retired') {
+            fxCases.push({ name: `a copy of ${id} made at ${when}`, sc: { id: `copy-${n}-of-${id}`, shelf: 'mine', version: 1, sourceHash: h, source: t.source, forkedFrom: id }, want: by, id });
+            fxCases.push({ name: `a copy of ${id} made at ${when}, saved again unchanged`, sc: { id: `resaved-${n}-of-${id}`, shelf: 'mine', version: 3, sourceHash: h, source: t.source, forkedFrom: id }, want: by, id });
+            fxCases.push({ name: `${id}'s text of ${when}, pasted`, sc: { id: `pasted-${n}-of-${id}`, shelf: 'mine', version: 1, sourceHash: h, source: t.source }, want: by, id });
+          }
+          if (t.shelf !== 'shipped') {
+            fxCases.push({ name: `${id} kept at ${when}, saved again unchanged`, sc: { id, shelf: 'mine', version: 2, sourceHash: h, source: t.source, forkedFrom: id }, want: 'kept', id });
+            fxCases.push({ name: `a copy of ${id} kept at ${when}`, sc: { id: `copy-${n}-of-kept-${id}`, shelf: 'mine', version: 1, sourceHash: h, source: t.source, forkedFrom: id }, want: 'kept', id });
+          }
+          /* the house's text of today takes that day's settings: the same inputs, the same pane */
+          const now = todayOf(id);
+          if (now) {
+            const a = compile(t.source).meta;
+            const b = compile(now).meta;
+            if (JSON.stringify(a.inputs) !== JSON.stringify(b.inputs) || a.pane !== b.pane) fxMiss.push(`${id} of ${when}: its inputs or pane are not today's`);
+          }
+        });
+      }
+      /* the house's script of today under each id, as its own class draws it */
+      const houseSc = (id: string): Sc => {
+        const s0 = shipped.find(x => x.id === id);
+        if (s0) return s0 as unknown as Sc;
+        const src = todayOf(id)!;
+        return { id, shelf: 'mine', version: 1, sourceHash: bs.hashSource(src), source: src };
+      };
+      const STONE_GROUND = STONE_DARK_PAGE;
+      const fxNotes: string[] = [];
+      let fxLines = 0;
+      const lowest = { k: Infinity, at: '' };
+      for (const c of fxCases) {
+        const who = whoOf(c.sc);
+        if (who !== c.want) {
+          fxMiss.push(`${c.name}: ${who}, want ${c.want}`);
+          continue;
+        }
+        const src = drawnOf(c.sc);
+        for (const [tape, light] of [['Glacier', false], ['Stone', true]] as const) {
+          const m = mapFor(c.sc, light);
+          const got = partsOf(src, m);
+          const want = partsOf(todayOf(c.id)!, mapFor(houseSc(c.id), light));
+          if (got.join('|') !== want.join('|')) fxMiss.push(`${c.name} on ${tape}: ${got.filter(g => !want.includes(g)).join('; ')} — the house's today ${want.filter(w => !got.includes(w)).join('; ')}`);
+          /* every line it draws that is not the candles' or the house's: readable on Stone, off the field's pair */
+          const r = runOf(src);
+          for (const pl of [...r.plots, ...r.shapes])
+            for (const ink of new Set([pl.ink, ...(pl.colors ?? [])])) {
+              const c0 = ink ? parseInk(ink) : null;
+              if (!ink || !c0 || c0.a < 0.6 || isHouse(ink)) continue;
+              const drawn = m(ink, 'line');
+              const rgb = rgbOf(drawn);
+              fxLines++;
+              if (light) {
+                const k = contrast(over(drawn, STONE_GROUND), STONE_GROUND);
+                if (k < lowest.k) Object.assign(lowest, { k, at: `${c.name}: ${pl.title} ${ink} → ${drawn}` });
+                if (k < 3) fxMiss.push(`${c.name} on Stone: ${pl.title} ${ink} → ${drawn} ${k.toFixed(2)}:1`);
+                const f = Math.min(dE(rgb, GOLD.paper), dE(rgb, VIOLET.paper));
+                const v = Math.min(dE(rgb, GOLD.cvdPaper), dE(rgb, VIOLET.cvdPaper));
+                if (f < 0.15 || v < 0.08) fxMiss.push(`${c.name} on Stone: ${pl.title} ${drawn} ${f.toFixed(3)} from the field's pair, ${v.toFixed(3)} from blue-orange's`);
+              } else {
+                const f = Math.min(dE(rgb, GOLD.dark), dE(rgb, VIOLET.dark));
+                const v = Math.min(dE(rgb, GOLD.cvdDark), dE(rgb, VIOLET.cvdDark));
+                if (f < 0.15 || v < 0.08) fxMiss.push(`${c.name} on Glacier: ${pl.title} ${drawn} ${f.toFixed(3)} from the field's pair, ${v.toFixed(3)} from blue-orange's`);
+              }
+            }
+        }
+        if (/keltner|moving-average|rsi/.test(c.id) && /made at e9f9f81$|kept at 03ca5ad$/.test(c.name)) fxNotes.push(`${c.name} (${who}): draws ${partsOf(src, mapFor(c.sc, true)).join(', ')} on Stone`);
+      }
+      const tally = (re: RegExp) => fxMiss.filter(x => re.test(x)).length;
+      const fxTally = `${tally(/, want (shipped|kept)$/)} read as the reader's own, ${tally(/ — the house's today /)} tape views not the house's of today, ${tally(/:1$/)} lines under 3:1 on Stone, ${tally(/from the field's pair/)} lines near the field's pair`;
+      check(`4⁗‴. every text the house has written under a script's id since 2026-10-03 (${Object.values(fx.former).flat().length} former texts over ${Object.keys(fx.former).length} ids, ${fxCases.length} cases: a copy of that day, saved again, pasted, kept, a copy of the kept) reads as the house's and draws as the house's script does today — each part its ink of today, every line 3:1 or better on ${hexOf(STONE_GROUND)} as drawn (the lowest ${lowest.k.toFixed(2)}:1, ${fxLines} lines) and off the field's pair`, fxCases.length > 100 && fxMiss.length === 0, fxMiss.length ? `${fxTally}: ${[...new Set(fxMiss)].slice(0, 6).join('; ')}` : '');
+      info(fxNotes.slice(0, 4).join('; '));
+      info(`the lowest line on Stone: ${lowest.at} ${lowest.k.toFixed(2)}:1`);
+      /* the record holds: every former text is listed by its hash, and a text of today that has moved since the fixture was
+         written must join its id's list (builtinScripts FORMER_TEXTS) — else a copy made before the move reads as the reader's */
+      const listed = bsx.FORMER_TEXTS ?? {};
+      const unlisted: string[] = [];
+      for (const [id, texts] of Object.entries(fx.former)) for (const t of texts) if (!listed[id]?.includes(bs.hashSource(t.source))) unlisted.push(`${id} of ${t.at[0]} (${bs.hashSource(t.source)})`);
+      const movedToday: string[] = [];
+      for (const [id, h] of Object.entries(fx.today)) {
+        const now = todayOf(id);
+        if (now && bs.hashSource(now) !== h && !listed[id]?.includes(h)) movedToday.push(`${id}: the fixture's text of today (${h}) has moved to ${bs.hashSource(now)} — add ${h} to FORMER_TEXTS['${id}'] and the moved text to the fixture`);
+      }
+      check(`4⁗‴. the house's former texts are on record (builtinScripts FORMER_TEXTS: ${Object.values(listed).flat().length} hashes), and no text of today has moved off the record`, unlisted.length === 0 && movedToday.length === 0, [...unlisted, ...movedToday].slice(0, 6).join('; '));
+    }
   }
   const atr = await scriptStore.get('builtin:atr'); // what the alert watcher asks for an alert on it
   check("one an alert names is kept when the alert's watcher asks for it", !!atr && atr.shelf === 'mine');

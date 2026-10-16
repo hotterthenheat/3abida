@@ -2742,6 +2742,119 @@ check('inks: an unedited copy of a shipped script draws as the shipped one (Supe
   return { pass, ms: Date.now() - t0, notes };
 });
 
+/* ─── A COPY MADE BEFORE APPROVAL 4 DRAWS AS THE HOUSE'S SCRIPT DOES TODAY (the fifth review of the owner's colour rule,
+   2026-10-16) ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+   "Make a copy" has written the house's text as the reader's (version 1, forkedFrom the shelf's id) since 2026-10-03. The
+   inks of the days before approval 4 were shared across scripts, beyond the reach of an ink-by-ink table, so a copy made
+   then read as the house's but drew its inks of then on a Stone tape — Keltner's #D8BC8F at 1.03:1, CCI's #BBB2E8 (Whipsaw's
+   rising candle) at 1.05:1 — and a copy of the shelf's RSI or MACD, since retired, read as the reader's own. The chart now
+   draws the house's text of today for a text that is the house's (builtinScripts drawnText). Each copy is made as that day
+   made it: Make a copy, then its text put back to the day's (scripts/fixtures/house-script-texts.json) in the store's own
+   database, version 1 and forkedFrom kept. Placed beside the house's script of today (the shelf's, or the kept retired
+   one), each must draw the same series in the same inks, and every line but the candles' 3:1 or better on the tape. */
+check('inks: a copy made before approval 4 (Keltner, CCI, OBV, the moving average, ADX, Ichimoku; the RSI and the MACD since retired) draws as the house\'s script does today on a Stone tape, every line 3:1 or better', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const fx = JSON.parse(readFileSync(new URL('./fixtures/house-script-texts.json', import.meta.url), 'utf8'));
+  const pick = [
+    ['builtin:keltner', 'e9f9f81'],
+    ['builtin:cci', 'e9f9f81'],
+    ['builtin:obv', '6fd4558'],
+    ['builtin:moving-average', 'e9f9f81'],
+    ['builtin:adx', 'e9f9f81'],
+    ['builtin:ichimoku', 'e9f9f81'],
+    ['builtin:rsi', 'e9f9f81'],
+    ['builtin:macd', 'e9f9f81'],
+  ];
+  const texts = pick.map(([id, at]) => ({ id, at, source: fx.former[id]?.find(t => t.at.includes(at))?.source ?? null }));
+  if (texts.some(t => !t.source)) return { pass: false, ms: Date.now() - t0, notes: [`no fixture text for ${texts.filter(t => !t.source).map(t => t.id).join(', ')}`] };
+  const parse = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return { rgb: [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)), a: m[2] ? parseInt(m[2], 16) / 255 : 1 };
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?/i.exec(s);
+    return m ? { rgb: [m[1], m[2], m[3]].map(Number), a: m[4] == null ? 1 : Number(m[4]) } : null;
+  };
+  const inkOf = s => {
+    const c = parse(s);
+    return c ? `${c.rgb.map(v => Math.round(v)).join(',')},${+c.a.toFixed(2)}` : String(s);
+  };
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', overlays: { trails: true }, ladder: true }], { theme: 'dark' });
+  try {
+    const chartOf = `[...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length)`;
+    const count = () => page.evaluate(`(${chartOf}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0)`);
+    const drawOf = async id => {
+      await page.evaluate(`(() => { const e = ${chartOf}; window.__oldSeen = new WeakSet(); for (const p of e.chart.panes()) for (const s of p.getSeries()) window.__oldSeen.add(s); })()`);
+      const n0 = await count();
+      const placed = await page.evaluate(async id => (await window.__paneScripts.place('terrain:1', id)).id, id);
+      await page.waitForFunction(`(${chartOf}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) > ${n0}`, null, { timeout: 10000 }).catch(() => {});
+      await page.waitForTimeout(800);
+      const got = await page.evaluate(`(() => {
+        const e = ${chartOf};
+        const out = [];
+        for (const p of e.chart.panes()) for (const s of p.getSeries()) if (!window.__oldSeen.has(s)) out.push({ title: s.options().title ?? '', inks: [...new Set([s.options().color, ...s.data().map(d => d.color)].filter(Boolean))] });
+        const o = e.candles.options();
+        return { lines: out, bg: e.chart.options().layout.background?.color ?? null, candles: [o.upColor, o.downColor, o.borderUpColor, o.borderDownColor, o.wickUpColor, o.wickDownColor].filter(Boolean) };
+      })()`);
+      await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), placed);
+      await page.waitForTimeout(400);
+      return got;
+    };
+    const key = d => d.lines.map(l => `${l.title}:${l.inks.map(inkOf).sort().join('/')}`).sort().join(' | ');
+    const say = d => d.lines.map(l => `${l.title || 'line'} ${l.inks.join('/')}`).sort().join(', ');
+    /* the copies, as that day made them */
+    const made = await page.evaluate(async texts => {
+      const { scriptStore } = await import('/src/data/scriptStore.ts');
+      const { hashSource } = await import('/src/data/builtinScripts.ts');
+      const { compile } = await import('/src/core/pine/index.ts');
+      const out = [];
+      for (const t of texts) {
+        const c = await scriptStore.fork(t.id);
+        const back = { ...c, source: t.source, sourceHash: hashSource(t.source), meta: compile(t.source).meta };
+        await scriptStore.db.put('scripts', back);
+        const read = await scriptStore.get(c.id);
+        out.push({ id: c.id, house: t.id, at: t.at, version: read.version, forkedFrom: read.forkedFrom, heldText: read.source === t.source });
+      }
+      return out;
+    }, texts);
+    for (const m of made) {
+      if (m.version !== 1 || m.forkedFrom !== m.house || !m.heldText) {
+        pass = false;
+        notes.push(`${m.house}'s copy of ${m.at} was not made as that day made it (version ${m.version}, forkedFrom ${m.forkedFrom}, text held ${m.heldText})`);
+        continue;
+      }
+      const house = await drawOf(m.house);
+      const copied = await drawOf(m.id);
+      const ground = parse(copied.bg)?.rgb ?? [190, 189, 184];
+      const candle = new Set(copied.candles.map(inkOf).map(s => s.split(',').slice(0, 3).join(',')));
+      const same = house.lines.length > 0 && key(house) === key(copied);
+      notes.push(`${m.house} copied at ${m.at}: ${say(copied) || 'nothing'}${same ? '' : ` — the house's today: ${say(house) || 'nothing'}`}`);
+      if (!same) pass = false;
+      for (const l of copied.lines)
+        for (const ink of l.inks) {
+          const c = parse(ink);
+          if (!c || c.a < 0.6 || candle.has(c.rgb.map(v => Math.round(v)).join(','))) continue;
+          const k = contrast(c.rgb.map((v, i) => v * c.a + ground[i] * (1 - c.a)), ground);
+          if (k < 3) {
+            pass = false;
+            notes.push(`    ${l.title} ${ink} ${k.toFixed(2)}:1 on ${copied.bg}`);
+          }
+        }
+    }
+    if (errors.length) {
+      pass = false;
+      notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+    }
+  } finally {
+    await done();
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
 /* ─── THE COMPARE MENU'S SWATCH IS ITS LINE'S INK (the review of the owner's colour rule, 2026-10-16) ───────────────────
    On a light tape a compare line is drawn in its paper pair, and the chart's legend says so; the compare menu's "Added
    symbols" kept the dark-tape ink — on Stone IWM's swatch was grey-teal #9EC3C2 over a dark purple #332138 line, QQQ's

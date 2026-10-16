@@ -36,7 +36,7 @@ import Simulator from '../../core/simulator';
 import { onGlide, promisedWidth } from '../../core/glide';
 import { compile, explain, run as runScript, type Compiled, type RunResult } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
-import { inksBy, type InksBy } from '../../data/builtinScripts';
+import { drawnText, inksBy, type InksBy } from '../../data/builtinScripts';
 import { drawRun, inkRun, type ScriptHandle } from './scriptLayer';
 import { barTints, candleTintForm, NO_TINT, retint, tintPoint, type TintForm } from './barTints';
 import { DIR_WASH_ALPHA, INDICATOR_INKS, IV_INK, MACD_SIGNAL_INK, RV_INK, compareInkOn, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
@@ -4287,11 +4287,14 @@ const StrikeChart = ({
         faults.set(ps.chart.id, SCRIPT_CAP_NOTE);
         continue;
       }
-      let compiled = compiledRef.current.get(ps.script.sourceHash);
+      /* the house's text of today for a script that is the house's (builtinScripts drawnText — an unedited copy made before
+         the house moved or reshaped it draws as the shipped one does); a reader's own, its own text */
+      const drawn = drawnText(ps.script);
+      let compiled = compiledRef.current.get(drawn.sourceHash);
       if (!compiled) {
         try {
-          compiled = compile(ps.script.source);
-          compiledRef.current.set(ps.script.sourceHash, compiled);
+          compiled = compile(drawn.source);
+          compiledRef.current.set(drawn.sourceHash, compiled);
         } catch {
           continue;
         }
