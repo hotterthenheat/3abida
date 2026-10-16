@@ -33,11 +33,20 @@
     9. for every candle theme × page theme × colour vision (standard, blue and orange, high contrast — the rails' Colours
        move the ladder alone, never the ovals): every indicator, script, compare and default-plot ink, as drawn on that
        tape, stands the family's floor from the two ovals' inks of that option (0.15 from the house pair, 0.08 from the
-       colour-vision pair) and 0.08 from them under simulated protanopia and deuteranopia (tritanopia printed); every
+       colour-vision pair) and 0.08 from them under simulated protanopia, deuteranopia and tritanopia; every
        shipped script's and built-in's up and down part IS the theme's candle up and down; the Ichimoku cloud's two
        fills are the candle inks at its alpha; a reader's own script keeps the colours its code sets; a plot given no
        colour and the compare lines wear the family's own inks, no blue near the violet. A table prints the closest
        pairs per option — the candles against the ovals among them, left as the owner's to decide where they close up.
+  And the review of that rule (2026-10-16):
+    9a. tritanopia is asserted like the other two simulations; the approved inks that clear it only with a new hue are
+        HELD for the owner by name, printed with their nearest pair and one alternative, and the list only shrinks (9a′);
+    9i. every ink as drawn stands 0.05 from that option's candle up and down (EMA 21 sat 0.038 from Glacier's rise);
+    9j. the volatility pane's RV and IV are the family's pairs (they were Whipsaw's and Harbor's rising candles);
+    4′. a retired copy kept as the house wrote it draws its family inks' paper pairs on a light tape (as a reader's own it
+        drew its dark inks on Stone at 1.0 to 1.85:1), a former family ink its pair's current one; an edited copy keeps
+        its colours;
+    and what the rule leaves open is printed: direction lines under 3:1 on their own ground, a theme with one ink.
 */
 import { readFileSync } from 'node:fs';
 import { distanceUnder, type Deficiency } from './colour-sim';
@@ -326,6 +335,13 @@ const sideLines: { name: string; dark: string; paper: string }[] = [
   /* a plot given no colour: the family's default, or before the rule the interpreter's own '#5B9CF6' (no light pair) */
   defaultPair ? { name: 'default plot', dark: defaultPair.dark, paper: defaultPair.paper } : { name: 'default plot', dark: famAll.DEFAULT_PLOT_INK ?? '#5B9CF6', paper: famAll.DEFAULT_PLOT_INK ?? '#5B9CF6' },
 ];
+/* THE VOLATILITY PANE'S RV AND IV: the family's own pairs since the review of the owner's rule (2026-10-16); before it
+   StrikeChart's literals, the reference's lavender and cream, with no light pair */
+const volPairs = INK_PAIRS.filter(p => p.name.startsWith('vol:'));
+const volLiteral = (n: string) => /const (RV|IV)_INK = '([^']+)'/g.exec(strike) && [...strike.matchAll(/const (RV|IV)_INK = '([^']+)'/g)].find(m => m[1] === n)?.[2];
+const volLines: { name: string; dark: string; paper: string }[] = volPairs.length
+  ? volPairs.map(p => ({ name: p.name === 'vol:rv' ? 'RV' : 'IV', dark: p.dark, paper: p.paper }))
+  : (['RV', 'IV'] as const).map(n => ({ name: n, dark: volLiteral(n) ?? '#000000', paper: volLiteral(n) ?? '#000000' }));
 const nearCompare: string[] = [];
 let minCompare = Infinity;
 for (const i of priceLines)
@@ -506,6 +522,69 @@ check("the kept copies draw the inks they were kept with — the chart built-in'
     !!rsi && rsi.shelf === 'mine' && !rsi.readOnly && rsi.source === retiredBuiltin?.('builtin:rsi')?.source && onPane.some(c => c.id === placed.id && c.scriptId === 'builtin:rsi' && c.inputs.len === 21) && mine.some(s => s.id === 'builtin:rsi')
   );
   check('a starred one is kept too, and listed under My scripts', !!macd && macd.shelf === 'mine');
+  /* 4′. A KEPT COPY DRAWS AS THE FAMILY (the review of the owner's rule, 2026-10-16): mapped as a reader's own, the six
+     kept copies drew their dark inks on a light tape at 1.0 to 1.85:1 (a kept RSI #FBACFE on Stone 1.11:1). A copy kept
+     as the house wrote it (builtinScripts keptAsWritten) draws its family inks' paper pairs on a light tape and its pair's
+     current ink where the family moved one; once the reader saves an edit it keeps what its code sets. */
+  {
+    const bs = builtins as unknown as { keptAsWritten?: (sc: { id: string; shelf: string; version: number; sourceHash: string }) => boolean; hashSource: (x: string) => string };
+    const fam = inkFamily as unknown as { scriptInksWith?: (o: { shipped: boolean; kept?: boolean; light: boolean; dir: { up: string; down: string }; token: (n: string) => [number, number, number] | null }) => ((css: string, kind?: 'line' | 'wash') => string) | undefined };
+    const ctk = candleThemes as unknown as { themeFor: (k: string, v: string) => CandleTheme; candleDirInks?: (t: CandleTheme) => { up: string; down: string } };
+    const stone = ctk.themeFor('stone', 'standard');
+    const stoneDir = ctk.candleDirInks ? ctk.candleDirInks(stone) : { up: stone.borderUp ?? stone.up, down: stone.borderDown ?? stone.down };
+    const keptOf = (sc: { id: string; shelf: string; version: number; sourceHash: string }) => (bs.keptAsWritten ? bs.keptAsWritten(sc) : false);
+    const wasKept = !!rsi && keptOf(rsi);
+    const mapperOf = (kept: boolean, light: boolean) => fam.scriptInksWith?.({ shipped: false, kept, light, dir: stoneDir, token: PAPER_HOUSE }) ?? ((c: string) => c);
+    const keptLight = mapperOf(wasKept, true);
+    const keptDim: string[] = [];
+    const keptNotes: string[] = [];
+    let keptLines = 0;
+    for (const { s: slug, r } of kept) {
+      if (!r) continue;
+      const run1 = runOf(r.source);
+      for (const pl of run1.plots)
+        for (const c of new Set([pl.ink, ...(pl.colors ?? [])])) {
+          const c0 = c ? parseInk(c) : null;
+          if (!c || !c0 || c0.a < 0.3 || isHouse(c)) continue;
+          keptLines++;
+          const drawn = keptLight(c, 'line');
+          const ct2 = contrast(over(drawn, STONE_DARK_PAGE), STONE_DARK_PAGE);
+          if (slug === 'rsi' || slug === 'ema-ribbon') keptNotes.push(`${slug} ${pl.title} ${c} → ${drawn} ${ct2.toFixed(2)}:1`);
+          if (ct2 < 3) keptDim.push(`${slug} ${pl.title} ${c} → ${drawn} ${ct2.toFixed(2)}:1`);
+        }
+    }
+    check(`4′. a retired copy kept as the house wrote it (${rsi ? `"${rsi.title}" version ${rsi.version}` : 'none'} reads as kept: ${wasKept}) draws every line its paper pair on a light tape, 3:1 or better on ${hexOf(STONE_DARK_PAGE)} (${keptLines} lines over the six)`, wasKept && keptLines >= 10 && keptDim.length === 0, keptDim.slice(0, 8).join('; '));
+    info(`kept copies on Stone: ${keptNotes.join('; ')}`);
+    /* a copy kept on an earlier day holds the family's inks of that day: its pair's current ink, on either tape */
+    const ribbon = kept.find(k => k.s === 'ema-ribbon')?.r?.source ?? '';
+    const formerMiss: string[] = [];
+    for (const old of ['#75BBF4', '#77C4FE']) {
+      const src = ribbon.replace(new RegExp(leadOf.ema21, 'i'), old);
+      const plot = runOf(src).plots.find(pl => pl.title === 'EMA 21');
+      if (!plot) {
+        formerMiss.push(`${old}: no EMA 21`);
+        continue;
+      }
+      const onDark = mapperOf(wasKept, false)(plot.ink, 'line');
+      const onLight = mapperOf(wasKept, true)(plot.ink, 'line');
+      const ems = INK_PAIRS.find(q => q.name === 'indicator:ema21')!;
+      if (hexOf(rgbOf(onDark)) !== hexOf(rgbOf(ems.dark)) || hexOf(rgbOf(onLight)) !== hexOf(rgbOf(ems.paper))) formerMiss.push(`${old} → ${onDark} dark, ${onLight} light; want ${ems.dark} / ${ems.paper}`);
+    }
+    check(`4″. a kept copy holding a former family ink (EMA 21 #75BBF4, #77C4FE) draws its pair's current ink on a dark tape and its paper pair on a light one`, wasKept && formerMiss.length === 0, formerMiss.join('; '));
+    /* who reads as kept: a retired id, the reader's shelf, never saved again by them (or the house's text today) */
+    const rsiSrc = retiredBuiltin?.('builtin:rsi')?.source ?? '';
+    const cases: [string, { id: string; shelf: string; version: number; sourceHash: string }, boolean][] = [
+      ['kept, never saved', { id: 'builtin:rsi', shelf: 'mine', version: 1, sourceHash: 'x' }, true],
+      ['saved again with the house text', { id: 'builtin:rsi', shelf: 'mine', version: 3, sourceHash: bs.hashSource(rsiSrc) }, true],
+      ['edited by the reader', { id: 'builtin:rsi', shelf: 'mine', version: 2, sourceHash: bs.hashSource(`${rsiSrc}\n// mine`) }, false],
+      ["the reader's own script", { id: 'a1b2', shelf: 'mine', version: 1, sourceHash: 'y' }, false],
+      ['a shipped one', { id: 'builtin:supertrend', shelf: 'built-in', version: 1, sourceHash: 'z' }, false],
+    ];
+    const wrongCase = cases.filter(([, sc, want]) => keptOf(sc) !== want).map(([n]) => n);
+    const edited = mapperOf(false, true);
+    const editedKeeps = runOf(rsiSrc).plots.every(pl => edited(pl.ink, 'line') === pl.ink);
+    check(`4‴. only an unedited kept copy reads as the house's (${cases.length} cases); one the reader edited keeps its coded colours on a light tape`, !!bs.keptAsWritten && wrongCase.length === 0 && editedKeeps, wrongCase.join('; '));
+  }
   const atr = await scriptStore.get('builtin:atr'); // what the alert watcher asks for an alert on it
   check("one an alert names is kept when the alert's watcher asks for it", !!atr && atr.shelf === 'mine');
   const after = await scriptStore.list('mine');
@@ -670,7 +749,27 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
   const asIs = (css: string) => css;
 
   const floorOf = (o: Opt) => (o.vision === 'blue-orange' ? 0.08 : 0.15);
+  /* HELD FOR THE OWNER (the review of the rule, 2026-10-16): the approved inks that clear the ovals under simulated
+     tritanopia, or a candle, only with a new hue or a near-black — the family holds no room for them at a small move
+     (scripts searched it: RSI, the stochastic's %K, ADX and the lagging span all land on the same few saturated pinks, and
+     the paper blues and teals on near-blacks). Each is asserted held, never hidden: printed with its nearest pair and one
+     alternative that clears every floor measured alone against today's family; an entry that clears is said, so the list
+     only shrinks. Every other ink is held to the floor. */
+  interface Held { what: string; alt: string; seen?: boolean; worst?: { d: number; s: string } }
+  const HELD_TRITAN = new Map<string, Held>([
+    ['#FBACFE', { what: 'RSI (dark)', alt: '#FF7BF1, a deeper pink' }],
+    ['#FD98BE', { what: "the stochastic's %K (dark)", alt: '#FE549F, a deeper pink' }],
+    ['#FFBCD3', { what: 'ADX (dark)', alt: '#944765, a dark rose' }],
+    ['#FCDCFF', { what: "Ichimoku's lagging span (dark)", alt: '#EFF8C6, a pale yellow-green' }],
+    ['#768EAE', { what: 'SMA (dark)', alt: '#338377, a teal (clears Foil\'s falling candle too)' }],
+    ['#0E6B9E', { what: 'EMA 9 (paper)', alt: '#493285, a purple' }],
+    ['#0B726E', { what: 'EMA 50 (paper)', alt: '#0E1DB1, a royal blue' }],
+    ['#005282', { what: 'Donchian (paper)', alt: '#3A498A, a slate blue' }],
+    ['#5C5663', { what: 'Keltner (paper)', alt: '#191221, a near-black' }],
+  ]);
+  const HELD_CANDLE = new Map<string, Held>([['#768EAE~#8B84B4', { what: "SMA (dark) against Foil's falling candle", alt: '#338377, a teal (clears the violet under tritanopia too); #6D89A2 clears the candle alone at a 0.036 move but stands 0.045 from the violet under tritanopia' }]]);
   const sideNear: string[] = [];
+  const candleNear: string[] = [];
   const dirMiss: string[] = [];
   const cloudMiss: string[] = [];
   const forOwner: string[] = [];
@@ -715,6 +814,7 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
           }
     }
     for (const c of sideLines) drawn.push({ who: c.name, rgb: rgbOf(o.light ? c.paper : c.dark) });
+    for (const v of volLines) drawn.push({ who: `vol ${v.name}`, rgb: rgbOf(o.light ? v.paper : v.dark) });
     /* the measures: each ink against each oval ink, as seen and under each simulation */
     const ovals: [string, RGB][] = [['gold', o.gold], ['violet', o.violet]];
     let nearN = { d: Infinity, s: '' };
@@ -727,7 +827,14 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
         for (const k of SIMS) {
           const ds = distanceUnder(x.rgb, ov, k);
           if (ds < nearS[k].d) nearS[k] = { d: ds, s: `${x.who}~${on}` };
-          if (k !== 'tritan' && ds < 0.08) sideNear.push(`${o.key}/${o.page}/${o.vision} ${x.who} ${hexOf(x.rgb)} ~ ${on} ${ds.toFixed(3)} (${k})`);
+          if (ds >= 0.08) continue;
+          /* tritanopia, asserted like the others; the inks only a new hue clears are held for the owner (HELD_TRITAN) */
+          const held = k === 'tritan' ? HELD_TRITAN.get(hexOf(x.rgb)) : undefined;
+          if (held) {
+            held.seen = true;
+            const w = `${x.who} ${hexOf(x.rgb)} ~ ${on} ${hexOf(ov)} ${ds.toFixed(3)}`;
+            if (!held.worst || ds < held.worst.d) held.worst = { d: ds, s: w };
+          } else sideNear.push(`${o.key}/${o.page}/${o.vision} ${x.who} ${hexOf(x.rgb)} ~ ${on} ${ds.toFixed(3)} (${k})`);
         }
       }
     /* the candles against the ovals and against the indicator inks — reported, the owner's to decide */
@@ -745,6 +852,12 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
       for (const [cn, c] of candles) {
         const d = distanceUnder(x.rgb, c);
         if (d < indCand.d) indCand = { d, s: `${x.who}~${cn}` };
+        if (d >= 0.05) continue;
+        const held = HELD_CANDLE.get(`${hexOf(x.rgb)}~${hexOf(c)}`);
+        if (held) {
+          held.seen = true;
+          held.worst = { d, s: `${x.who} ${hexOf(x.rgb)} ~ ${o.key} ${cn} ${hexOf(c)} ${d.toFixed(3)}` };
+        } else candleNear.push(`${o.key}/${o.light ? o.page : '*'}/${o.vision} ${x.who} ${hexOf(x.rgb)} ~ candles ${cn} ${hexOf(c)} ${d.toFixed(3)}`);
       }
     const updown = distanceUnder(rgbOf(o.dir.up), rgbOf(o.dir.down));
     const rowKey = `${o.key}|${o.light ? o.page : '*'}|${o.vision}`;
@@ -756,7 +869,10 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
     }
   }
   const uniq = <T,>(a: T[]) => [...new Set(a)];
-  check(`9a. under every Colours option (${opts.length}: ${ct.CANDLE_THEME_OPTIONS.length} candle themes × 2 page themes × 3 colour visions), every indicator, shipped-script, compare and default-plot ink as drawn stands the family's floor from that option's two oval inks (0.15 from the house pair, 0.08 from the colour-vision pair) and 0.08 under simulated protanopia and deuteranopia`, sideNear.length === 0, uniq(sideNear).slice(0, 10).join('; ') + (sideNear.length > 10 ? ` … ${uniq(sideNear).length} in all` : ''));
+  check(`9a. under every Colours option (${opts.length}: ${ct.CANDLE_THEME_OPTIONS.length} candle themes × 2 page themes × 3 colour visions), every indicator, shipped-script, compare, default-plot and volatility ink as drawn stands the family's floor from that option's two oval inks (0.15 from the house pair, 0.08 from the colour-vision pair) and 0.08 under simulated protanopia, deuteranopia and tritanopia (${HELD_TRITAN.size} held for the owner under tritanopia, below)`, sideNear.length === 0, uniq(sideNear).slice(0, 10).join('; ') + (sideNear.length > 10 ? ` … ${uniq(sideNear).length} in all` : ''));
+  check(`9i. every indicator, shipped-script, compare, default-plot and volatility ink as drawn stands 0.05 or more (OKLab) from that option's candle up and down — no line passes for a candle (${opts.length} options; ${HELD_CANDLE.size} pair held for the owner, below)`, candleNear.length === 0, uniq(candleNear).slice(0, 10).join('; ') + (candleNear.length > 10 ? ` … ${uniq(candleNear).length} in all` : ''));
+  const cleared = [...HELD_TRITAN, ...HELD_CANDLE].filter(([, h]) => !h.seen).map(([k, h]) => `${h.what} ${k}`);
+  check(`9a′. the held list only shrinks: every ink held for the owner still stands under its floor somewhere (an ink that clears comes off the list)`, cleared.length === 0, cleared.length ? `clears now: ${cleared.join('; ')}` : '');
   check(`9b. every shipped script's up and down part (Supertrend, the SAR, ADX's ±DI, Ichimoku's spans — ${dirParts} parts over every option) is the theme's candle up and down, at the alpha written`, dirParts > 0 && dirMiss.length === 0, uniq(dirMiss).slice(0, 8).join('; ') + (dirMiss.length > 8 ? ` … ${uniq(dirMiss).length} in all` : ''));
   /* the walls a shipped script draws are the ovals' own pair on that tape, in the reader's colour vision */
   const wallMiss: string[] = [];
@@ -823,14 +939,91 @@ plotshape(close > open, "Rise")`).shapes[0]?.ink ?? '';
   /* the rails' Colours (House, Thermal) move the ladder alone: the ovals read the gamma pair, never the ladder's pick */
   const nodesSrc = read('src/components/gex/gexNodesPrimitive.ts');
   check("9h. the rails' Colours (House, Thermal) leave the ovals' inks as they are — the ovals read the gamma pair (heatmap HEAT_MODE), never the ladder's pick", /heatRampColorFor\(1, 1, HEAT_MODE/.test(nodesSrc) && !/thermal|ProfilePalette/i.test(nodesSrc));
+  /* THE VOLATILITY PANE'S RV AND IV (the review of the rule, 2026-10-16: "Everything else uses the indicator palette, kept
+     clear of the ovals' colours" — they were Whipsaw's and Harbor's rising candles to the digit, with no light pair): the
+     family's pairs, drawn by StrikeChart through them, apart from each other, the house's inks and every other ink */
+  const volMiss: string[] = [];
+  if (volPairs.length !== 2) volMiss.push(`no family pairs (StrikeChart's own ${volLines.map(v => `${v.name} ${v.dark}`).join(', ')}, no light pair)`);
+  if (/const (RV|IV)_INK = '/.test(strike)) volMiss.push('StrikeChart writes its own RV_INK / IV_INK');
+  if (!/paperInk\(RV_INK\)/.test(strike) || !/paperInk\(IV_INK\)/.test(strike)) volMiss.push('no paper pair drawn on a light tape');
+  if (volLines.length === 2) {
+    const [rv, iv] = volLines;
+    for (const g of ['dark', 'paper'] as const) {
+      const d = distanceUnder(rgbOf(rv[g]), rgbOf(iv[g]));
+      if (d < 0.08) volMiss.push(`RV ~ IV ${g} ${d.toFixed(3)}`);
+    }
+    for (const v of volLines) {
+      for (const [name, d, p2] of houseInks) {
+        const dd = dE(rgbOf(v.dark), d);
+        const pp = dE(rgbOf(v.paper), p2);
+        if (dd < 0.08 || pp < 0.08) volMiss.push(`${v.name} ~ ${name} ${dd.toFixed(3)}/${pp.toFixed(3)}`);
+      }
+      for (const g of DARK_GROUNDS) if (contrast(rgbOf(v.dark), g) < 3) volMiss.push(`${v.name} ${v.dark} ${contrast(rgbOf(v.dark), g).toFixed(2)}:1 on ${hexOf(g)}`);
+      if (contrast(rgbOf(v.paper), STONE_DARK_PAGE) < 3) volMiss.push(`${v.name} paper ${v.paper} ${contrast(rgbOf(v.paper), STONE_DARK_PAGE).toFixed(2)}:1 on ${hexOf(STONE_DARK_PAGE)}`);
+      for (const [ground, css] of [['dark', v.dark], ['paper', v.paper]] as const) {
+        const gp = dirGap(rgbOf(css), ground);
+        if (gp && gp.gap < 30) volMiss.push(`${v.name} ${css} ${gp.gap.toFixed(0)}° from ${gp.to}`);
+      }
+      for (const f of INK_PAIRS.filter(q => !q.wash && !q.name.startsWith('vol:')))
+        for (const g of ['dark', 'paper'] as const) {
+          const d = distanceUnder(rgbOf(v[g]), rgbOf(f[g]));
+          if (d < 0.05) volMiss.push(`${v.name} ~ ${f.name} ${g} ${d.toFixed(3)}`);
+        }
+    }
+  }
+  check(`9j. the volatility pane's RV and IV are the family's (${volLines.map(v => `${v.name} ${v.dark}/${v.paper}`).join(', ')}): a pair for a light tape each, 0.08 apart and from the house's inks, 0.05 from every other ink, 3:1 on every dark tape and on Stone, no direction hue — and off the ovals and the candles in 9a and 9i`, volMiss.length === 0, uniq(volMiss).slice(0, 8).join('; '));
   console.log('\n      THE CLOSEST PAIRS UNDER EVERY COLOURS OPTION (OKLab; "any page": a dark tape is the same island on either page)');
   for (const r of rows) console.log(`      ${r}`);
+  console.log(`\n      HELD FOR THE OWNER — the family's approved inks that clear the ovals under simulated tritanopia, or a candle, only with a new hue (${HELD_TRITAN.size + HELD_CANDLE.size}; each nearest pair, then one alternative that clears every floor measured alone):`);
+  for (const [how, list] of [['under tritanopia', HELD_TRITAN], ['as seen', HELD_CANDLE]] as const) for (const [, h] of list) console.log(`        ${h.what}: ${h.worst ? h.worst.s : 'clear'} (${how}) — alternative ${h.alt}`);
   const owner = uniq(forOwner);
   console.log(`\n      FOR THE OWNER — the candles against the ovals under the floor (the oval pair and the candle themes are left as they are; ${owner.length} pairs):`);
   for (const l of owner) console.log(`        ${l}`);
-  /* the light tape's direction lines, as the candles draw them: their contrast on the tape */
-  for (const o of opts.filter(x => x.light && x.vision === 'standard'))
-    info(`${o.key} on the ${o.page} page (${hexOf(o.ground)}): a direction line in the candles' up ${hexOf(rgbOf(o.dir.up))} reads ${contrast(rgbOf(o.dir.up), o.ground).toFixed(2)}:1, down ${hexOf(rgbOf(o.dir.down))} ${contrast(rgbOf(o.dir.down), o.ground).toFixed(2)}:1`);
+  /* WHAT THE RULE LEAVES OPEN (the review of the rule, 2026-10-16 — reported, the owner's to decide; the candle themes are
+     left as they are): a direction line drawn in the candles' up or down reads under 3:1 on its own ground where the
+     candle ink is dark on a dark tape or pale on a light one (it was the house pair or the tape's tokens at 3:1 or better
+     before the rule), the MACD's bars at DIR_WASH_ALPHA fainter still; and a theme whose up and down are one ink (Wire)
+     cannot tell ±DI, the cloud's two fills, the MACD's bars or the drift lines apart by colour. One alternative each: the
+     line lifted (or deepened) to 3:1 on its ground at the candle's own hue, the candle left as it is; for one ink, the down
+     part dashed or hollow. */
+  const fromOklab = ([L, a, b]: number[]): RGB => {
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s2 = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    const lin3 = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s2, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s2, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s2];
+    return lin3.map(v => Math.round(Math.max(0, Math.min(1, v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)) * 255)) as RGB;
+  };
+  const liftTo3 = (rgb: RGB, ground: RGB): RGB | null => {
+    const [L0, a, b] = oklab(rgb);
+    const up = lum(ground) < 0.18;
+    for (let L = L0; L >= 0 && L <= 1; L += up ? 0.005 : -0.005) {
+      const c = fromOklab([L, a, b]);
+      if (contrast(c, ground) >= 3) return c;
+    }
+    return null;
+  };
+  const open: string[] = [];
+  const oneInk: string[] = [];
+  const seenOpen = new Set<string>();
+  for (const o of opts) {
+    if (o.vision === 'high-contrast') continue;
+    /* a theme the blue-and-orange cut leaves alone is one row */
+    const once = `${o.key}|${o.light ? o.page : ''}|${hexOf(rgbOf(o.dir.up))}|${hexOf(rgbOf(o.dir.down))}`;
+    if (seenOpen.has(once)) continue;
+    seenOpen.add(once);
+    const tag = `${o.key}${o.light ? ` on the ${o.page} page` : ''}${o.vision === 'blue-orange' ? ' under blue and orange' : ''}`;
+    if (hexOf(rgbOf(o.dir.up)) === hexOf(rgbOf(o.dir.down))) oneInk.push(`${tag}: up and down both ${hexOf(rgbOf(o.dir.up))} — alternative: the down part dashed (lines) or hollow (bars), the cloud's falling fill a hatch`);
+    for (const [k, css] of [['up', o.dir.up], ['down', o.dir.down]] as const) {
+      const c = rgbOf(css);
+      const line = contrast(c, o.ground);
+      const bars = contrast(over(`rgba(${c.join(', ')}, 0.6)`, o.ground), o.ground);
+      if (line >= 3) continue;
+      const alt = liftTo3(c, o.ground);
+      open.push(`${tag} (${hexOf(o.ground)}): ${k} ${hexOf(c)} ${line.toFixed(2)}:1 as a line, ${bars.toFixed(2)}:1 as the MACD's bars at 0.6 — alternative ${alt ? `${hexOf(alt)} ${contrast(alt, o.ground).toFixed(2)}:1, the line at the candle's hue` : 'none at its hue'}`);
+    }
+  }
+  console.log(`\n      WHAT THE RULE LEAVES OPEN — direction lines in the candles' inks under 3:1 on their own ground (${open.length}), and themes with one ink for up and down (${oneInk.length}):`);
+  for (const l of [...open, ...oneInk]) console.log(`        ${l}`);
 }
 
 /* ---- the chart draws the family: no ink of its own in INDICATOR_PARTS ------------------------------------------- */

@@ -35,9 +35,10 @@ import Simulator from '../../core/simulator';
 import { onGlide, promisedWidth } from '../../core/glide';
 import { compile, explain, run as runScript, type Compiled, type RunResult } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
+import { keptAsWritten } from '../../data/builtinScripts';
 import { drawRun, inkRun, type ScriptHandle } from './scriptLayer';
 import { barTints, candleTintForm, NO_TINT, retint, tintPoint, type TintForm } from './barTints';
-import { DIR_WASH_ALPHA, INDICATOR_INKS, MACD_SIGNAL_INK, compareInk, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
+import { DIR_WASH_ALPHA, INDICATOR_INKS, IV_INK, MACD_SIGNAL_INK, RV_INK, compareInk, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
 import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
@@ -163,22 +164,13 @@ const PRICE_STRETCH = 3;
 */
 
 /*
-  THE TWO VOLATILITY LINES ADD NO NEW HUE.
-
-  Both values are the compare lines' second and third inks until 2026-10-16
-  (the compare lines are the indicator family's since the owner's colour rule)
-  — the pale violet and the warm cream the EMA 21 and EMA 50 wore until their
-  own family (indicatorInks.ts, 2026-10-15). The reference happens to draw the
-  same pair as saturated purple and yellow; these are the house's muted version
-  of the same two positions. They are Whipsaw's and Harbor's rising candles to
-  the digit, and they have no light pair — held for the owner.
-
-  Written out rather than read from another map on purpose: reaching into one
-  would couple the vol pane to that palette, so recolouring a line there would
-  silently recolour a different pane in a different unit.
+  THE TWO VOLATILITY LINES ARE THE INDICATOR FAMILY'S (indicatorInks RV_INK,
+  IV_INK — the review of the owner's colour rule, 2026-10-16). They wore a pale
+  violet and a warm cream, the reference's purple and yellow muted: the ovals'
+  two hues, Whipsaw's and Harbor's rising candles to the digit, and no pair for
+  a light tape. A pair of their own now, kept off the ovals, the candles and
+  each other, the paper pair on a light tape.
 */
-const RV_INK = '#BBB2E8';
-const IV_INK = '#EDE4CD';
 
 /** The baseline style's two sides — over the session's open in the candles' up, under it in their down */
 const baselineInks = (t: CandleTheme) => {
@@ -3442,8 +3434,8 @@ const StrikeChart = ({
         priceLineVisible: false,
         crosshairMarkerVisible: false,
       };
-      rv = chart.addSeries(LineSeries, { ...opts, color: RV_INK, title: 'RV' }, paneIndex);
-      iv = chart.addSeries(LineSeries, { ...opts, color: IV_INK, title: 'IV' }, paneIndex);
+      rv = chart.addSeries(LineSeries, { ...opts, title: 'RV' }, paneIndex);
+      iv = chart.addSeries(LineSeries, { ...opts, title: 'IV' }, paneIndex);
       rvRef.current = rv;
       ivRef.current = iv;
       try {
@@ -3453,6 +3445,10 @@ const StrikeChart = ({
         /* pane sizing is a nicety; never lose the chart over it */
       }
     }
+    /* the family's two inks, their paper pairs on a light tape — the theme is in the deps, so a change re-inks in place */
+    const lightVol = chartGround(themeKey) === 'light';
+    rv.applyOptions({ color: lightVol ? paperInk(RV_INK) : RV_INK });
+    iv.applyOptions({ color: lightVol ? paperInk(IV_INK) : IV_INK });
 
     const mins = tfMinutes(timeframe);
     const bars = barsFor(mins);
@@ -4175,9 +4171,13 @@ const StrikeChart = ({
        a change of any redraws. */
     const lightTape = chartGround(themeKey) === 'light';
     const dir = candleDirInks(themeRef.current);
-    const inkers = new Map<boolean, ReturnType<typeof scriptInksWith>>();
-    const inkFor = (shipped: boolean) => {
-      if (inkers.has(shipped)) return inkers.get(shipped);
+    /* by who wrote the script's inks: the terminal's shelf, a retired built-in kept as the house wrote it (its family inks
+       drawn as the family's, paper pairs on a light tape — builtinScripts keptAsWritten), or the reader */
+    type InkBy = 'shipped' | 'kept' | 'own';
+    const byOf = (sc: (typeof live)[number]['script']): InkBy => (sc.shelf === 'built-in' ? 'shipped' : keptAsWritten(sc) ? 'kept' : 'own');
+    const inkers = new Map<InkBy, ReturnType<typeof scriptInksWith>>();
+    const inkFor = (by: InkBy) => {
+      if (inkers.has(by)) return inkers.get(by);
       /* THE TAPE'S OWN TOKENS, READ INSIDE THE BOX: the chart's container stands in the box and inherits its light set,
          and its ref is filled before any effect runs. The box's own ref is state, null when a load's first commit runs
          its effects — the root's tokens were read then (on a dark page the flip, the supreme and the direction pair in
@@ -4188,16 +4188,17 @@ const StrikeChart = ({
          and the silver as the tape's own chrome reads them, off its box */
       const made = box
         ? scriptInksWith({
-            shipped,
+            shipped: by === 'shipped',
+            kept: by === 'kept',
             light: lightTape,
             dir,
             token: name => (name === '--absorb' || name === '--amplify' ? groundRgb(name, lightTape ? 'light' : 'dark') : (parseInk(readToken(name, undefined, box))?.rgb ?? null)),
           })
         : undefined;
-      inkers.set(shipped, made);
+      inkers.set(by, made);
       return made;
     };
-    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${lightTape ? 'light' : 'dark'}|${appTheme}|${dir.up}/${dir.down}|${live.map(p => `${p.chart.id}:${p.script.shelf}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
+    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${lightTape ? 'light' : 'dark'}|${appTheme}|${dir.up}/${dir.down}|${live.map(p => `${p.chart.id}:${byOf(p.script)}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
     const rebuild = scriptSigRef.current !== sig;
     if (rebuild) tearDown();
     const slayer = { callWall: levels.callWall, putWall: levels.putWall, flip: levels.flip, supreme: levels.supreme };
@@ -4245,7 +4246,7 @@ const StrikeChart = ({
         continue;
       }
       faults.delete(ps.chart.id);
-      const ink = inkFor(ps.script.shelf === 'built-in');
+      const ink = inkFor(byOf(ps.script));
       /* a script in its own pane colours the price pane's candles too (TradingView's barcolor) — in the inks its lines take */
       tintRuns.push(ink ? inkRun(result, ink) : result);
       const have = handles.get(ps.chart.id);

@@ -2281,12 +2281,15 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
       const wrong = new Set([...DARK, ...(cvd ? CVD_DARK : []), ...Object.values(live.root).map(hexOf)].filter(h => h && !wantSet.has(h)));
       notes.push(`${run}, Stone tape — the tape's: ${Object.entries(want).map(([k, v]) => `${k} ${v}`).join(', ')}`);
       /* under the reader's colour vision the direction lines are still the tape's candles — never the dark island's pair
-         (it was the dark ground's #50A4FF and #FF8526, 1.38 and 1.29:1 on Stone); their contrast is the candles' own */
+         (it was the dark ground's #50A4FF and #FF8526, 1.38 and 1.29:1 on Stone); their contrast is the candles' own. Under
+         3:1 it is not a failure of this check but HELD FOR THE OWNER (the review of the rule, 2026-10-16): Stone's rising
+         candle #6887DE reads 1.83:1 on its dark-page tape — scripts/indicator-inks-proof.ts prints it with an alternative
+         (the line deepened to #4561B4, 3.08:1, the candle left as it is) under "What the rule leaves open" */
       if (cvd) {
         const tapeBg = hexOf(live.bg) ?? '#BEBDB8';
         for (const k of ['up', 'down']) {
           const c = contrast(want[k], tapeBg);
-          notes.push(`  ${k} ${want[k]} ${c.toFixed(2)}:1 on the tape ${tapeBg} (the candles' own)`);
+          notes.push(`  ${k} ${want[k]} ${c.toFixed(2)}:1 on the tape ${tapeBg} (the candles' own${c < 3 ? ' — under 3:1, held for the owner' : ''})`);
           if (CVD_DARK.includes(want[k])) pass = false;
         }
       }
@@ -2443,6 +2446,125 @@ plot(close - 1, "Mine down", color = #FF3B30)`;
       notes.push(`  a reader's own script: ${ownLines.map(l => `${l.title || 'line'} ${l.color}`).join(', ') || 'no lines'}${ownOk ? '' : ' — want its own #30D158 and #FF3B30'}`);
       if (!ownOk) pass = false;
       await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), mine);
+      if (errors.length) {
+        pass = false;
+        notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── A RETIRED COPY KEPT AS THE HOUSE WROTE IT, ON A LIGHT TAPE (the review of the owner's colour rule, 2026-10-16) ─────
+   The six scripts that left the shelf are kept as the reader's own where a pane still names them (approval 5). Mapped as a
+   reader's own, a kept RSI and EMA ribbon drew their dark inks on Stone (#0099cc, #77c4fe, #abf8f3, #fbacfe — 1.0 to
+   1.74:1 on #BEBDB8); before the rule they drew the family's paper pairs at 3:1 or better. A copy kept as the house
+   wrote it draws as the family does (builtinScripts keptAsWritten, indicatorInks scriptInksWith `kept`). Read off the
+   chart: the line series the two placements add, each one's own colour against the tape's ground. */
+check('inks: a retired copy kept as the house wrote it (RSI, EMA ribbon) draws its paper pairs on a Stone tape, 3:1 or better', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const rgbOf = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return { rgb: [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)), a: m[2] ? parseInt(m[2], 16) / 255 : 1 };
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?/i.exec(s);
+    return m ? { rgb: [m[1], m[2], m[3]].map(Number), a: m[4] == null ? 1 : Number(m[4]) } : null;
+  };
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrast = (a, b) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x + 0.05) / (y + 0.05);
+  };
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'stone', overlays: { trails: true }, ladder: true }], { theme: 'dark' });
+  try {
+    const chartOf = () => `[...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length)`;
+    const count = () => page.evaluate(`(${chartOf()}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0)`);
+    await page.evaluate(`(() => { const e = ${chartOf()}; window.__keptSeen = new WeakSet(); for (const p of e.chart.panes()) for (const s of p.getSeries()) window.__keptSeen.add(s); })()`);
+    const n0 = await count();
+    const placed = await page.evaluate(async () => [(await window.__paneScripts.place('terrain:1', 'builtin:rsi')).id, (await window.__paneScripts.place('terrain:1', 'builtin:ema-ribbon')).id]);
+    await page.waitForFunction(`(${chartOf()}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) >= ${n0 + 4}`, null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    const got = await page.evaluate(`(() => {
+      const e = ${chartOf()};
+      const out = [];
+      for (const p of e.chart.panes()) for (const s of p.getSeries()) if (!window.__keptSeen.has(s) && s.seriesType() === 'Line' && s.data().some(d => 'value' in d)) out.push({ title: s.options().title ?? '', color: s.options().color });
+      const bg = e.chart.options().layout.background;
+      return { lines: out, bg: bg?.color ?? null, ground: e.host.closest('[data-chart-ground]')?.getAttribute('data-chart-ground') ?? null };
+    })()`);
+    const ground = rgbOf(got.bg)?.rgb ?? [190, 189, 184];
+    notes.push(`Stone tape ${got.bg} (${got.ground}); ${got.lines.length} lines from the two kept copies (${(await count()) - n0} series added)`);
+    if (got.lines.length < 4) {
+      pass = false;
+      notes.push('  the kept copies drew fewer than four lines');
+    }
+    for (const l of got.lines) {
+      const c = rgbOf(l.color);
+      if (!c) continue;
+      const drawn = c.rgb.map((v, i) => v * c.a + ground[i] * (1 - c.a));
+      const k = contrast(drawn, ground);
+      notes.push(`  ${l.title || 'line'} ${l.color} ${k.toFixed(2)}:1`);
+      if (k < 3) pass = false;
+    }
+    for (const id of placed) await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), id);
+    if (errors.length) {
+      pass = false;
+      notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+    }
+  } finally {
+    await done();
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── THE VOLATILITY PANE'S RV AND IV ARE THE FAMILY'S (the review of the owner's colour rule, 2026-10-16) ────────────
+   They wore a lavender and a cream — Whipsaw's and Harbor's rising candles to the digit, the ovals' two hues muted — with
+   no pair for a light tape. Read off the chart: the two lines titled RV and IV, on a Glacier pane and on a Stone one,
+   against the family's pairs (indicatorInks INK_PAIRS vol:rv and vol:iv) and 3:1 on the tape. */
+check('inks: the volatility pane\'s RV and IV wear the family\'s pair — the dark one on Glacier, the paper one on Stone, 3:1 on the tape', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const rgbOf = s => {
+    const m = /^#([0-9a-f]{6})$/i.exec(String(s ?? '').trim());
+    if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
+    const r = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(String(s ?? ''));
+    return r ? [r[1], r[2], r[3]].map(Number) : null;
+  };
+  const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrast = (a, b) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x + 0.05) / (y + 0.05);
+  };
+  const same = (a, b) => !!a && !!b && a.every((v, i) => Math.round(v) === Math.round(b[i]));
+  for (const theme of ['glacier', 'stone']) {
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme, overlays: { trails: true, volDrift: true }, ladder: true }], { theme: 'dark' });
+    try {
+      await page.waitForFunction(() => [...window.__charts].some(e => e.chart.panes().some(p => p.getSeries().some(s => s.options().title === 'RV'))), null, { timeout: 15000 }).catch(() => {});
+      const got = await page.evaluate(async () => {
+        const e = [...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length);
+        const lines = {};
+        for (const p of e.chart.panes()) for (const s of p.getSeries()) if (['RV', 'IV'].includes(s.options().title)) lines[s.options().title] = s.options().color;
+        const f = await import('/src/components/gex/indicatorInks.ts');
+        const pairs = Object.fromEntries((f.INK_PAIRS ?? []).filter(p => p.name.startsWith('vol:')).map(p => [p.name === 'vol:rv' ? 'RV' : 'IV', p]));
+        return { lines, pairs, bg: e.chart.options().layout.background?.color ?? null, ground: e.host.closest('[data-chart-ground]')?.getAttribute('data-chart-ground') ?? null };
+      });
+      const light = got.ground === 'light';
+      const ground = rgbOf(got.bg) ?? (light ? [190, 189, 184] : [10, 10, 10]);
+      for (const k of ['RV', 'IV']) {
+        const drawn = rgbOf(got.lines[k]);
+        const pair = got.pairs[k];
+        const want = pair ? rgbOf(light ? pair.paper : pair.dark) : null;
+        const c = drawn ? contrast(drawn, ground) : 0;
+        const ok = !!drawn && same(drawn, want) && c >= 3;
+        notes.push(`${theme} (${got.ground}, ${got.bg}): ${k} ${got.lines[k] ?? 'not drawn'} ${c.toFixed(2)}:1${pair ? ` — the family's ${light ? pair.paper : pair.dark}` : ' — no family pair'}`);
+        if (!ok) pass = false;
+      }
       if (errors.length) {
         pass = false;
         notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);

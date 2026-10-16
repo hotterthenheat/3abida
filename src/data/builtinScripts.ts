@@ -452,6 +452,19 @@ export function retiredBuiltin(id: string): { title: string; description: string
 /** The old ids of the scripts that left the shelf */
 export const RETIRED_IDS: readonly string[] = RETIRED_SOURCES.map(r => `builtin:${r.slug}`);
 
+/**
+ * A retired built-in the reader keeps AS THE HOUSE WROTE IT: kept under its own id (data/scriptStore keepAsOwn writes
+ * version 1) and never saved again by the reader — or its text is the house's own today. Every ink in it is the family's,
+ * which the reader never set, so the chart draws it as the family's (indicatorInks scriptInksWith `kept`); once the reader
+ * saves an edit it is theirs and keeps what its code sets.
+ */
+export function keptAsWritten(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sourceHash'>): boolean {
+  if (s.shelf !== 'mine' || !RETIRED_IDS.includes(s.id)) return false;
+  if (s.version === 1) return true;
+  const was = retiredBuiltin(s.id);
+  return !!was && s.sourceHash === hashSource(was.source);
+}
+
 let cache: Script[] | null = null;
 
 /** The built-ins as scripts — compiled once so the library has their meta */

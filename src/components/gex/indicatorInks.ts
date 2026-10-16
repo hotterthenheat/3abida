@@ -78,15 +78,22 @@ type Pair = readonly [string, string];
 export type IndicatorKey = 'ema9' | 'ema21' | 'ema50' | 'vwap' | 'bb' | 'vwapBands' | 'sma' | 'rsi' | 'macd' | 'atrPane';
 
 /* The Indicators menu's lines (StrikeChart INDICATOR_PARTS) — a lead ink a key; the MACD's signal and its steel wash
-   beside them */
+   beside them.
+   UNDER EVERY COLOURS OPTION, TRITANOPIA AND THE CANDLES TOO (the review of the owner's colour rule, 2026-10-16): the
+   family's floor from the ovals holds as seen and under simulated protanopia, deuteranopia and tritanopia, and every ink
+   stands 0.05 from every theme's candle up and down. The inks that met it with a small move moved (EMA 21 #77C4FE → off
+   Glacier's rising candle at 0.038; Bollinger #D498FC, Keltner #7D7D74 and MFI #447CAE off the gold or the violet under
+   tritanopia; compare lines 1 and 4). Those that met it only with a new hue — RSI, the stochastic's %K, ADX, Ichimoku's
+   lagging span, the SMA, and on paper EMA 9, EMA 50, Donchian and Keltner — are the owner's to decide, each measured in
+   scripts/indicator-inks-proof.ts with an alternative that clears it. */
 const INDICATOR_PAIRS: Record<IndicatorKey, Pair> = {
   ema9: ['#0099CC', '#0E6B9E'],
-  ema21: ['#77C4FE', '#002A57'],
+  ema21: ['#85B9FE', '#002A57'],
   ema50: ['#ABF8F3', '#0B726E'],
   sma: ['#768EAE', '#04077E'],
   vwap: ['#06BFB0', '#003F38'],
   vwapBands: ['#42F6D9', '#005856'],
-  bb: ['#D498FC', '#703E81'],
+  bb: ['#D394FE', '#703E81'],
   rsi: ['#FBACFE', '#3A2244'],
   macd: ['#B692CE', '#410569'],
   atrPane: ['#A77E91', '#5A0040'],
@@ -119,14 +126,14 @@ const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
   ichimokuConversion: ['#E37DC1', '#791853'],
   ichimokuBase: ['#9F9170', '#4D4834'],
   ichimokuLagging: ['#FCDCFF', '#700982'],
-  keltner: ['#7D7D74', '#5C5663'],
+  keltner: ['#6A6B57', '#5C5663'],
   donchian: ['#58B0D1', '#005282'],
   stochasticK: ['#FD98BE', '#BD1D73'],
   stochasticD: ['#A78A00', '#433009'],
   adx: ['#FFBCD3', '#5B3244'],
   cci: ['#C267A9', '#9A0179'],
   williamsR: ['#C73996', '#974477'],
-  mfi: ['#447CAE', '#013583'],
+  mfi: ['#44739E', '#013583'],
   obv: ['#AB713C', '#321901'],
 };
 
@@ -134,7 +141,8 @@ const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
    indicator palette, no blue near the violet"): the compare lines wore #5B9CF6, #BBB2E8, #EDE4CD and #6BD3C7 with no
    pair for a light tape, and a Pine plot given no colour #5B9CF6 — a blue 0.137 from the field's violet, under the 0.15
    the family keeps; the lavender and the cream were Whipsaw's and Harbor's rising candles to the digit. Members of the
-   family now, held to its floors from the field's pair (and from it under simulated protanopia and deuteranopia), from
+   family now, held to its floors from the field's pair (and from it under simulated protanopia, deuteranopia and
+   tritanopia — compare lines 1 and 4 moved off the gold under tritanopia on 2026-10-16), from
    the house's inks, from every theme's candles (0.05 — no compare line is a candle) and from each other, each with its
    pair for a light tape. THEY STAND APART FROM THE LINES THEY SHARE A PANE WITH: a compare line and a script's plot draw
    on the price pane or a pane of their own, never in a sub-pane indicator's, so they keep 0.08 from the price pane's
@@ -142,10 +150,10 @@ const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
    family holds no free blue at 0.08 on either ground (2026-10-16, searched: the only room was dim mid-tones at
    L 0.50–0.57), so no compare line is a blue. */
 const COMPARE_PAIRS: readonly Pair[] = [
-  ['#D69FB2', '#572F42'],
+  ['#C4879C', '#572F42'],
   ['#929A2D', '#3B3600'],
   ['#9EC3C2', '#332138'],
-  ['#FDBCD2', '#51004F'],
+  ['#A92E81', '#51004F'],
 ];
 const PLOT_DEFAULT_PAIR: Pair = ['#C27F22', '#391C00'];
 
@@ -162,13 +170,33 @@ export const SCRIPT_INKS: Record<ScriptInkKey, string> = dark(SCRIPT_PAIRS);
 export const COMPARE_INKS: readonly string[] = COMPARE_PAIRS.map(p => p[0]);
 /** A Pine plot's or shape's ink when its script sets none (core/pine) */
 export const DEFAULT_PLOT_INK = PLOT_DEFAULT_PAIR[0];
-/* the compare inks a desk saved before 2026-10-16, by slot */
-const OLD_COMPARE_INKS = ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'];
-/** A compare line's ink as a desk saved it: one saved before the family took the compare lines in is its slot's ink now */
+/* the compare inks a desk may have saved, by slot: before the family took the compare lines in, and the family's first cut
+   (2026-10-16, its first and fourth moved off the gold under tritanopia the same day) */
+const OLD_COMPARE_INKS: readonly (readonly string[])[] = [
+  ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'],
+  ['#D69FB2', '#929A2D', '#9EC3C2', '#FDBCD2'],
+];
+/** A compare line's ink as a desk saved it: one saved with a former ink is its slot's ink now */
 export function compareInk(saved: string): string {
-  const i = OLD_COMPARE_INKS.indexOf(saved.trim().toUpperCase());
-  return i >= 0 ? COMPARE_INKS[i] : saved;
+  const key = saved.trim().toUpperCase();
+  for (const list of OLD_COMPARE_INKS) {
+    const i = list.indexOf(key);
+    if (i >= 0) return COMPARE_INKS[i];
+  }
+  return saved;
 }
+
+/* THE VOLATILITY PANE'S TWO LINES (StrikeChart's vol drift — realised against implied): the lavender and the cream they
+   wore were Whipsaw's and Harbor's rising candles to the digit, the reference's purple and yellow — the ovals' two hues —
+   and had no pair for a light tape (the review of the owner's colour rule, 2026-10-16: "Everything else uses the indicator
+   palette, kept clear of the ovals' colours"). Members of the family now, held to its floors from the ovals (as seen and
+   under the three simulations), the house's inks and every theme's candles, 0.08 from each other, 0.05 from every other
+   ink (their pane is their own), each with its pair for a light tape. */
+const VOL_PAIRS = { rv: ['#915004', '#613503'] as Pair, iv: ['#0DDBF5', '#212F32'] as Pair };
+/** Realised volatility's line on a dark tape (its pair on a light one through paperInk) */
+export const RV_INK = VOL_PAIRS.rv[0];
+/** Implied volatility's line on a dark tape */
+export const IV_INK = VOL_PAIRS.iv[0];
 
 /** Every pair of the family, for the proof and for the light tape's lookup */
 export const INK_PAIRS: { name: string; dark: string; paper: string; wash?: true }[] = [
@@ -178,6 +206,8 @@ export const INK_PAIRS: { name: string; dark: string; paper: string; wash?: true
   ...Object.entries<Pair>(SCRIPT_PAIRS).map(([k, [d, p]]) => ({ name: `script:${k}`, dark: d, paper: p })),
   ...COMPARE_PAIRS.map(([d, p], i) => ({ name: `compare:${i + 1}`, dark: d, paper: p })),
   { name: 'plot:default', dark: PLOT_DEFAULT_PAIR[0], paper: PLOT_DEFAULT_PAIR[1] },
+  { name: 'vol:rv', dark: VOL_PAIRS.rv[0], paper: VOL_PAIRS.rv[1] },
+  { name: 'vol:iv', dark: VOL_PAIRS.iv[0], paper: VOL_PAIRS.iv[1] },
 ];
 
 /* ---- reading an ink, and its paper pair ---------------------------------------------- */
@@ -204,6 +234,26 @@ for (const p of INK_PAIRS) {
   const d = parseInk(p.dark);
   const q = parseInk(p.paper);
   if (d && q) PAPER_OF.set(keyOf(d.rgb), q.rgb);
+}
+
+/* THE FAMILY'S FORMER DARK INKS, by the pair that holds the line now. A retired built-in kept as the house wrote it
+   (approval 5) holds the inks of the day it was kept, and draws its pair's current ink (keptInksWith), so the copy and the
+   Indicators menu's line agree — and it finds its paper pair on a light tape (an ink the family no longer lists had none:
+   a copy kept on 2026-10-15 drew its EMA 21 and MACD signal dark inks on Stone). */
+const FORMER_DARK: [string, string][] = [
+  /* approval 4's first cut (03ca5ad), moved by its review (59d97da) */
+  ['#75BBF4', 'indicator:ema21'],
+  ['#D27843', 'indicator:macdSignal'],
+  /* moved under every Colours option (2026-10-16): EMA 21 off Glacier's rising candle, Bollinger off the gold under
+     tritanopia */
+  ['#77C4FE', 'indicator:ema21'],
+  ['#D498FC', 'indicator:bb'],
+];
+const NOW_OF = new Map<string, [number, number, number]>();
+for (const [hex, name] of FORMER_DARK) {
+  const was = parseInk(hex);
+  const now = parseInk(INK_PAIRS.find(p => p.name === name)?.dark ?? '');
+  if (was && now) NOW_OF.set(keyOf(was.rgb), now.rgb);
 }
 
 /** A family ink on a light tape: its paper pair, at the alpha it was written with; any other ink as it came */
@@ -295,9 +345,13 @@ export function withAlpha(css: string, a: number): string {
 
 /** What a script's inks are mapped by: whether the terminal ships it, the tape's ground, the chart's candles */
 export interface ScriptInkOpts {
-  /** A script the terminal ships, read-only (Script `shelf: 'built-in'`). A reader's own — a copy, a kept retired one, one
-      they wrote — keeps the colours its code sets */
+  /** A script the terminal ships, read-only (Script `shelf: 'built-in'`). A reader's own — a copy, one they wrote, a kept
+      retired one they have edited — keeps the colours its code sets */
   shipped: boolean;
+  /** A retired built-in the reader keeps AS THE HOUSE WROTE IT (data/builtinScripts keptAsWritten — kept since approval 5
+      and never saved again by the reader): every ink in it is the family's, which the reader never set, so it draws as the
+      Indicators menu's own line does — its pair's current ink, and on a light tape the paper pair */
+  kept?: boolean;
   /** The tape's ground is light (Stone) */
   light: boolean;
   /** The candles' up and down this chart paints (candleTheme candleDirInks, after the reader's colour vision) */
@@ -312,6 +366,34 @@ const BULL_KEY = keyOf(parseInk(BULL)!.rgb);
 const BEAR_KEY = keyOf(parseInk(BEAR)!.rgb);
 
 /**
+ * A RETIRED BUILT-IN KEPT AS THE HOUSE WROTE IT (ScriptInkOpts `kept`): its inks are the family's, written by the house in
+ * their dark values, and the reader never set one. So it draws as the Indicators menu's line does: an ink the family has
+ * since moved takes its pair's current ink, and on a light tape every family ink its paper pair and the house's inks the
+ * tape's tokens (paperInksWith) — the light-tape guarantee of approval 4 (the review of 2026-10-16: mapped as a reader's
+ * own, a kept RSI, EMA ribbon, VWAP, Bollinger, MACD or ATR drew its dark inks on Stone at 1.0 to 1.85:1). Once the reader
+ * saves it, it is theirs and keeps what its code sets.
+ */
+function keptInksWith(o: ScriptInkOpts): (css: string, kind?: InkKind) => string {
+  const light = o.light ? paperInksWith(o.token) : null;
+  const kept = new Map<string, string>();
+  return (css: string, kind: InkKind = 'wash') => {
+    const key = `${kind}|${css}`;
+    const hit = kept.get(key);
+    if (hit !== undefined) return hit;
+    let out = css;
+    const c = parseInk(css);
+    if (c) {
+      const now = NOW_OF.get(keyOf(c.rgb));
+      if (now) out = cssOf(now, c.a);
+      if (light) out = light(out, kind);
+    }
+    if (kept.size > 512) kept.clear();
+    kept.set(key, out);
+    return out;
+  };
+}
+
+/**
  * A SCRIPT'S INKS ON THIS CHART (the owner's rule of 2026-10-15), or undefined where nothing is mapped:
  *  · a SHIPPED script's up and down (the house pair it writes, BULL and BEAR) are the candles' up and down, at the alpha
  *    written — on a dark tape and a light one, under every theme and colour vision (the last review found nothing mapped
@@ -320,9 +402,11 @@ const BEAR_KEY = keyOf(parseInk(BEAR)!.rgb);
  *    light tape its flip, supreme and silver are the tape's tokens and the family's inks their paper pairs
  *    (paperInksWith);
  *  · a READER'S OWN script keeps every colour its code sets; only a plot it left uncoloured — the family's default, the
- *    house's pick — takes its pair on a light tape.
+ *    house's pick — takes its pair on a light tape;
+ *  · a retired built-in KEPT AS THE HOUSE WROTE IT draws as the family does (keptInksWith).
  */
 export function scriptInksWith(o: ScriptInkOpts): ((css: string, kind?: InkKind) => string) | undefined {
+  if (!o.shipped && o.kept) return keptInksWith(o);
   if (!o.shipped) {
     if (!o.light) return undefined;
     return (css: string, kind: InkKind = 'wash') => {
