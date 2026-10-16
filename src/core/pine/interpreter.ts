@@ -36,6 +36,7 @@
 
 import type { ScriptInputValue } from '../../types/scripts';
 import { nyParts } from '../nyTime';
+import { DEFAULT_PLOT_INK } from '../../components/gex/indicatorInks';
 import { constEval, type OutputPlan } from './analyze';
 import { asBool, asNum, callBuiltin, clockField, CONSTANTS, namedColor, type CallArg, type ClockParts, type Ctx, type OutputSink, type State } from './builtins';
 import { fromHex, isColor, toCss } from './colors';
@@ -201,11 +202,11 @@ export class Runner {
 
     plan.plots.forEach((id, i) => {
       this.plotIndex.set(id, i);
-      this.plots.push({ id: `plot${i + 1}`, title: '', style: 'line', ink: '#5B9CF6', width: 1, offset: 0, values: new Float64Array(this.n).fill(NA), colors: null, colorsArr: new Array(this.n).fill(null), hidden: false, seen: false });
+      this.plots.push({ id: `plot${i + 1}`, title: '', style: 'line', ink: DEFAULT_PLOT_INK, width: 1, offset: 0, values: new Float64Array(this.n).fill(NA), colors: null, colorsArr: new Array(this.n).fill(null), hidden: false, seen: false });
     });
     plan.shapes.forEach((id, i) => {
       this.shapeIndex.set(id, i);
-      this.shapes.push({ id: `shape${i + 1}`, title: '', style: 'xcross', location: 'abovebar', size: 'auto', text: '', ink: '#5B9CF6', values: new Float64Array(this.n).fill(NA), colors: null, colorsArr: new Array(this.n).fill(null), seen: false });
+      this.shapes.push({ id: `shape${i + 1}`, title: '', style: 'xcross', location: 'abovebar', size: 'auto', text: '', ink: DEFAULT_PLOT_INK, values: new Float64Array(this.n).fill(NA), colors: null, colorsArr: new Array(this.n).fill(null), seen: false });
     });
     plan.hlines.forEach((id, i) => {
       this.hlineIndex.set(id, i);

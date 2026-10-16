@@ -32,9 +32,11 @@ import type { Arg, Expr, Program, Stmt } from './ast';
 import { CONSTANTS, inputKindOf } from './builtins';
 import { fromHex, isColor, named, rgb, toCss, withTransp } from './colors';
 import type { Value } from './types';
+import { DEFAULT_PLOT_INK } from '../../components/gex/indicatorInks';
 
-/** The house's line ink when a plot's colour is decided bar by bar */
-export const DYNAMIC_INK = '#5B9CF6';
+/** The house's line ink when a plot's colour is decided bar by bar, or not set at all — the indicator family's default
+    (the owner's rule of 2026-10-15: "Pine plots with no colour set: indicator palette, no blue near the violet") */
+export const DYNAMIC_INK = DEFAULT_PLOT_INK;
 
 export interface OutputPlan {
   plots: number[];

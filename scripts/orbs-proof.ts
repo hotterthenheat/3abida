@@ -19,6 +19,7 @@ import { BALANCED_BELOW, DARK_MARK_INKS, HOVER_KEEP, addOval, markInk, NODE_LABE
 import { beadLegendLines } from '../src/components/terrain/beadLegend';
 import { TERMS } from '../src/data/terms';
 import type { StoreRow } from '../server/fieldStore';
+import { apart } from './colour-sim';
 
 let pass = 0;
 let fail = 0;
@@ -170,28 +171,6 @@ const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
   };
   const toLin = (rgb: readonly number[]) => rgb.map(lin);
   const dist = (a: readonly number[], b: readonly number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-  const M: Record<string, number[][]> = {
-    protan: [
-      [0.152286, 1.052583, -0.204868],
-      [0.114503, 0.786281, 0.099216],
-      [-0.003882, -0.048116, 1.051998],
-    ],
-    deutan: [
-      [0.367322, 0.860646, -0.227968],
-      [0.280085, 0.672501, 0.047413],
-      [-0.01182, 0.04294, 0.968881],
-    ],
-    tritan: [
-      [1.255528, -0.076749, -0.178779],
-      [-0.078411, 0.930809, 0.147602],
-      [0.004733, 0.691367, 0.3039],
-    ],
-  };
-  const sim = (rgb: readonly number[], m: number[][]) => {
-    const l = toLin(rgb);
-    return m.map(row => Math.max(0, Math.min(1, row[0] * l[0] + row[1] * l[1] + row[2] * l[2])));
-  };
-  const apart = (a: readonly number[], b: readonly number[]) => Object.fromEntries(Object.entries(M).map(([k, m]) => [k, dist(oklab(sim(a, m)), oklab(sim(b, m)))])) as Record<string, number>;
   const f3 = (x: number) => x.toFixed(3);
   const darkAbsorb = token("\\[data-theme='dark'\\]", 'absorb');
   const darkAmplify = token("\\[data-theme='dark'\\]", 'amplify');

@@ -14,11 +14,15 @@
   in place, a change of shape rebuilds it, and the
   host tears it down whole.
 
-  ON A LIGHT TAPE every ink a run hands back goes
-  through the host's `ink` (indicatorInks
-  paperInksWith): the shipped family's paper pairs
-  and the house's inks read off the tape's tokens —
-  the dark set read 1.0 to 2:1 on the Stone tape.
+  EVERY INK A RUN HANDS BACK goes through the host's
+  `ink` (indicatorInks scriptInksWith): a shipped
+  script's up and down are the chart's candles' (the
+  owner's rule, 2026-10-15), its walls the field's
+  pair on the tape's ground, and on a light tape the
+  family's paper pairs and the house's inks off the
+  tape's tokens — the dark set read 1.0 to 2:1 on the
+  Stone tape. A reader's own script keeps the colours
+  its code sets.
 
   THE BARS' COLOURS (barcolor, the owner's approval
   13) are not a series of the script's own but the
@@ -242,8 +246,9 @@ function bandsFor(run: RunResult, bars: Bar[]): { times: number[]; bands: Band[]
 }
 
 /** A run with every ink passed through `ink` — plots, their per-bar colours, hlines and shapes as lines; fills and the
-    backgrounds as washes (a line written faint is lifted on paper, a wash is not — indicatorInks paperInksWith) */
-function inkRun(run: RunResult, ink: (css: string, kind: InkKind) => string): RunResult {
+    backgrounds as washes (a line written faint is lifted on paper, a wash is not — indicatorInks paperInksWith); the bar
+    colours as lines, so the host's candles take what the script's lines take */
+export function inkRun(run: RunResult, ink: (css: string, kind: InkKind) => string): RunResult {
   const each = (cs: (string | null)[] | null, kind: InkKind) => (cs ? cs.map(c => (c ? ink(c, kind) : c)) : cs);
   return {
     ...run,

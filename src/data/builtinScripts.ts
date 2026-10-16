@@ -15,12 +15,24 @@
   the audit): a script cannot read a token, so a wall
   is written in palette.ts's CALL_WALL and PUT_WALL
   hexes — gold for the call wall, violet for the put
-  wall — and green and red stay for direction only
-  (a trend's up and down). A wall is read off the
+  wall — and the direction pair stays for direction
+  only (a trend's up and down). A wall is read off the
   book wherever the price stands, so no word puts the
   call wall above or the put wall below. The MACD's
   histogram is the chart's own steel wash, and OBV is
   read as TradingView writes it, `ta.obv`.
+
+  UP AND DOWN ARE THE CANDLES' (the owner, 2026-10-15:
+  "Shipped scripts (Supertrend and the rest): up/down
+  inks use the candles' colours, so they follow every
+  Colours option"): a script cannot read the chart's
+  theme, so a direction is written in palette.ts's
+  BULL and BEAR and the chart draws a shipped
+  script's pair in its candles' up and down
+  (indicatorInks scriptInksWith) — Supertrend, the
+  SAR, ADX's ±DI, Ichimoku's leading spans and its
+  cloud, a faint wash. A copy is the reader's own and
+  keeps the colours its code sets.
 
   EVERY OTHER LINE WEARS ITS OWN INK (2026-10-15 —
   the owner's approvals 4 and 5): the family in
@@ -41,7 +53,7 @@
 import { compile, explain } from '../core/pine';
 import type { Script } from '../types/scripts';
 import { INDICATOR_INKS, MACD_SIGNAL_INK, SCRIPT_INKS } from '../components/gex/indicatorInks';
-import { CALL_WALL, FLIP, PUT_WALL, SUPREME } from '../components/gex/palette';
+import { BEAR, BULL, CALL_WALL, FLIP, PUT_WALL, SUPREME } from '../components/gex/palette';
 
 interface BuiltinSource {
   slug: string;
@@ -150,7 +162,7 @@ plot(ma, "MA", color = ${SCRIPT_INKS.movingAverage}, linewidth = 2)`,
     slug: 'supertrend',
     group: 'Trend',
     title: 'Supertrend',
-    description: 'An ATR stop that only ever moves in the trend — green under price, red over it',
+    description: "An ATR stop that only ever moves in the trend — in the candles' up colour under price, their down colour over it",
     source: `//@version=6
 indicator("Supertrend", overlay = true)
 
@@ -160,8 +172,8 @@ atrLen = input.int(10, "ATR length", minval = 1)
 [st, dir] = ta.supertrend(factor, atrLen)
 up   = dir < 0 ? st : na
 down = dir > 0 ? st : na
-plot(up,   "Up trend",   color = #30D158, linewidth = 2, style = plot.style_linebr)
-plot(down, "Down trend", color = #FF3B30, linewidth = 2, style = plot.style_linebr)
+plot(up,   "Up trend",   color = ${BULL}, linewidth = 2, style = plot.style_linebr)
+plot(down, "Down trend", color = ${BEAR}, linewidth = 2, style = plot.style_linebr)
 alertcondition(ta.change(dir) != 0, "Trend turned", "{{ticker}} supertrend turned")`,
   },
   {
@@ -177,13 +189,13 @@ inc   = input.float(0.02, "Increment", step = 0.01)
 maxAf = input.float(0.2,  "Maximum", step = 0.05)
 
 sar = ta.sar(start, inc, maxAf)
-plot(sar, "SAR", color = sar < close ? #30D158 : #FF3B30, style = plot.style_circles, linewidth = 1)`,
+plot(sar, "SAR", color = sar < close ? ${BULL} : ${BEAR}, style = plot.style_circles, linewidth = 1)`,
   },
   {
     slug: 'ichimoku',
     group: 'Trend',
     title: 'Ichimoku Cloud',
-    description: 'The conversion and base lines, the lagging span, and the cloud drawn ahead of price',
+    description: "The conversion and base lines, the lagging span, and the cloud drawn ahead of price in the candles' up and down colours",
     source: `//@version=6
 indicator("Ichimoku Cloud", overlay = true)
 
@@ -202,9 +214,9 @@ spanB = donchian(spanLen)
 plot(conv, "Conversion", color = ${SCRIPT_INKS.ichimokuConversion})
 plot(base, "Base", color = ${SCRIPT_INKS.ichimokuBase})
 plot(close, "Lagging span", color = color.new(${SCRIPT_INKS.ichimokuLagging}, 30), offset = -disp + 1)
-a = plot(spanA, "Leading span A", color = color.new(#30D158, 55), offset = disp - 1)
-b = plot(spanB, "Leading span B", color = color.new(#FF3B30, 55), offset = disp - 1)
-fill(a, b, color = spanA > spanB ? color.new(#30D158, 88) : color.new(#FF3B30, 88), title = "Cloud")
+a = plot(spanA, "Leading span A", color = color.new(${BULL}, 55), offset = disp - 1)
+b = plot(spanB, "Leading span B", color = color.new(${BEAR}, 55), offset = disp - 1)
+fill(a, b, color = spanA > spanB ? color.new(${BULL}, 88) : color.new(${BEAR}, 88), title = "Cloud")
 alertcondition(ta.crossover(conv, base),  "Conversion crossed up",   "{{ticker}} tenkan crossed above kijun")
 alertcondition(ta.crossunder(conv, base), "Conversion crossed down", "{{ticker}} tenkan crossed below kijun")`,
   },
@@ -277,8 +289,8 @@ adxLen = input.int(14, "ADX smoothing", minval = 1)
 
 [dp, dm, adx] = ta.dmi(diLen, adxLen)
 plot(adx, "ADX", color = ${SCRIPT_INKS.adx}, linewidth = 2)
-plot(dp,  "+DI", color = #30D158)
-plot(dm,  "-DI", color = #FF3B30)
+plot(dp,  "+DI", color = ${BULL})
+plot(dm,  "-DI", color = ${BEAR})
 hline(25, "Trending", color = color.new(#C7D3E8, 70), linestyle = hline.style_dotted)`,
   },
   {

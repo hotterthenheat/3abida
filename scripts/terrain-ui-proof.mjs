@@ -2033,12 +2033,14 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
         document.body.appendChild(probe);
         const pcs = getComputedStyle(probe);
         const g = n => pcs.getPropertyValue(n).trim().split(/\s+/).map(Number);
-        const out = { gold: g('--absorb'), violet: g('--amplify'), bull: t('--bull'), bear: t('--bear'), supreme: t('--supreme'), flip: t('--flip'), select: t('--select'), ground: bg?.color ?? null, light };
+        /* the candles' up and down as drawn: a shipped script's direction lines wear them (the owner's rule, 2026-10-15) */
+        const co = e.candles.options();
+        const out = { gold: g('--absorb'), violet: g('--amplify'), bull: t('--bull'), bear: t('--bear'), supreme: t('--supreme'), flip: t('--flip'), select: t('--select'), up: co.borderUpColor, down: co.borderDownColor, ground: bg?.color ?? null, light };
         probe.remove();
         return out;
       });
       const ground = parse(tokens.ground)?.rgb ?? (tokens.light ? [221, 220, 215] : [10, 10, 10]);
-      const HOUSE = [tokens.gold, tokens.violet, tokens.bull, tokens.bear, tokens.supreme, tokens.flip, tokens.select, ...['#E8B94A', '#8064F7', '#30D158', '#FF3B30', '#EA00FF', '#9CA3AF', '#C7D3E8'].map(c => parse(c).rgb)].map(hex);
+      const HOUSE = [tokens.gold, tokens.violet, tokens.bull, tokens.bear, tokens.supreme, tokens.flip, tokens.select, ...[tokens.up, tokens.down].map(c => parse(c)?.rgb).filter(Boolean), ...['#E8B94A', '#8064F7', '#30D158', '#FF3B30', '#EA00FF', '#9CA3AF', '#C7D3E8'].map(c => parse(c).rgb)].map(hex);
       /* every owner's inks: [owner, part ink] */
       const owned = [];
       const take = (owner, got) => {
@@ -2106,7 +2108,18 @@ check('inks: every indicator and shipped script draws its own ink, off gold and 
         const d = dE(uniq[a].rgb, uniq[b].rgb);
         if (d < 0.08) pairs.push(`${uniq[a].owner} ${hex(uniq[a].rgb)} ~ ${uniq[b].owner} ${hex(uniq[b].rgb)} ${d.toFixed(3)}`);
       }
-      const cmp = uniq.flatMap(o => COMPARE.filter(c => dE(o.rgb, c) < 0.08).map(c => `${o.owner} ${hex(o.rgb)} ~ compare ${hex(c)}`));
+      /* the compare lines and an uncoloured plot, as this tape draws them, against the lines they share a pane with — the
+         price pane's (the family's own since the owner's rule of 2026-10-15; the old list before it, against every line) */
+      const side = await page.evaluate(async light => {
+        const f = await import('/src/components/gex/indicatorInks.ts');
+        const b = await import('/src/data/builtinScripts.ts');
+        const pairs = (f.INK_PAIRS ?? []).filter(p => p.name.startsWith('compare:') || p.name === 'plot:default');
+        const overlay = b.builtinScripts().filter(x => x.meta && x.meta.pane !== 'own').map(x => `script:${x.id.replace('builtin:', '')}`);
+        return { inks: pairs.map(p => (light ? p.paper : p.dark)), overlay };
+      }, tokens.light);
+      const SIDE = side.inks.length ? side.inks.map(c => parse(c).rgb) : COMPARE;
+      const OVERLAY_OWNERS = new Set(side.inks.length ? ['indicator:ema9', 'indicator:ema21', 'indicator:ema50', 'indicator:vwap', 'indicator:vwapBands', 'indicator:bb', 'indicator:sma', ...side.overlay] : owned.map(o => o.owner));
+      const cmp = uniq.filter(o => OVERLAY_OWNERS.has(o.owner)).flatMap(o => SIDE.filter(c => dE(o.rgb, c) < 0.08).map(c => `${o.owner} ${hex(o.rgb)} ~ compare ${hex(c)}`));
       const asDrawn = o => contrast(overG(o.rgb, o.a, ground), ground);
       /* every line as drawn, its alpha kept apart (a band shares its basis's ink at a lower alpha) */
       const drawnLines = [];
@@ -2204,6 +2217,8 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
             for (const s of p.getSeries()) {
               n++;
               const o = s.options();
+              /* the candles and their volume bars are not a script's (Stone's volume wears the candles' own inks) */
+              if (s === e.candles || o.priceScaleId === 'vol') continue;
               for (const c of [o.color, o.lineColor]) if (typeof c === 'string') inks.add(c);
               for (const d of s.data()) if (typeof d.color === 'string') inks.add(d.color);
             }
@@ -2217,7 +2232,9 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
           probe.remove();
           const names = ['--flip', '--supreme', '--bull', '--bear'];
           const bg = e.chart.options().layout.background;
-          return { n, inks: [...inks], ground: box.getAttribute('data-chart-ground'), tape: of(box, names), root: of(document.documentElement, names), walls, bg: bg?.color ?? null };
+          /* the candles' up and down as drawn — a shipped script's direction lines wear them since the owner's rule */
+          const co = e.candles.options();
+          return { n, inks: [...inks], ground: box.getAttribute('data-chart-ground'), tape: of(box, names), root: of(document.documentElement, names), walls, bg: bg?.color ?? null, candles: { up: co.borderUpColor, down: co.borderDownColor } };
         });
       const reloaded = async want => {
         await page.reload({ waitUntil: 'domcontentloaded' });
@@ -2249,11 +2266,13 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
       await page.waitForTimeout(1200);
       const live = await read();
       const stages = [['placed live', live], ['after a reload', await reloaded(live.n)], ['after a second reload', await reloaded(live.n)]];
+      /* the flip and the supreme the tape's tokens; up and down the tape's candles (the owner's rule of 2026-10-15 —
+         before it the tape's --bull and --bear) */
       const want = {
         flip: hexOf(live.tape['--flip']),
         supreme: hexOf(live.tape['--supreme']),
-        up: hexOf(live.tape['--bull']),
-        down: hexOf(live.tape['--bear']),
+        up: hexOf(live.candles.up),
+        down: hexOf(live.candles.down),
         'call wall': hexOf(live.walls['--absorb']),
         'put wall': hexOf(live.walls['--amplify']),
       };
@@ -2261,14 +2280,14 @@ check('inks: a light tape keeps the house inks of a placed script through a relo
       /* a wrong ink: the palette's dark value, or the root's own token where the tape's differs */
       const wrong = new Set([...DARK, ...(cvd ? CVD_DARK : []), ...Object.values(live.root).map(hexOf)].filter(h => h && !wantSet.has(h)));
       notes.push(`${run}, Stone tape — the tape's: ${Object.entries(want).map(([k, v]) => `${k} ${v}`).join(', ')}`);
-      /* under the reader's colour vision the tape's direction pair is the reader's light pair: never the dark island's, and
-         read 3:1 on the tape (it was the dark ground's #50A4FF and #FF8526, 1.38 and 1.29:1 on Stone) */
+      /* under the reader's colour vision the direction lines are still the tape's candles — never the dark island's pair
+         (it was the dark ground's #50A4FF and #FF8526, 1.38 and 1.29:1 on Stone); their contrast is the candles' own */
       if (cvd) {
         const tapeBg = hexOf(live.bg) ?? '#BEBDB8';
         for (const k of ['up', 'down']) {
           const c = contrast(want[k], tapeBg);
-          notes.push(`  ${k} ${want[k]} ${c.toFixed(2)}:1 on the tape ${tapeBg}`);
-          if (CVD_DARK.includes(want[k]) || c < 3) pass = false;
+          notes.push(`  ${k} ${want[k]} ${c.toFixed(2)}:1 on the tape ${tapeBg} (the candles' own)`);
+          if (CVD_DARK.includes(want[k])) pass = false;
         }
       }
       for (const [label, got] of stages) {
@@ -2344,6 +2363,90 @@ check('inks: the reader\'s colour vision reaches the chart\'s chrome — blue an
       notes.push(`high contrast, Stone tape (${r.ground}) ${r.bg}: the frame's words ${r.box['--text-primary']} ${cBox.toFixed(2)}:1, muted ${r.box['--text-muted']} ${cMuted.toFixed(2)}:1; the chart box's ${r.ink['--text-primary']} ${cInk.toFixed(2)}:1; the head ${r.headColor} ${cHead.toFixed(2)}:1; the pair ${r.box['--bull']} / ${r.box['--bear']}`);
       if (r.ground !== 'light' || cBox < 7 || cMuted < 7 || cInk < 7 || cHead < 7 || r.box['--bull'] === '110 245 140') pass = false;
       if (errors.length) { pass = false; notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`); }
+    } finally {
+      await done();
+    }
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
+/* ─── THE CANDLES' UP AND DOWN UNDER EVERY COLOURS OPTION (the owner's colour rule, 2026-10-15) ───────────────────────
+   "Anything meaning up/down uses the candles' up and down colours … Shipped scripts (Supertrend and the rest): up/down
+   inks use the candles' colours, so they follow every Colours option. A user's own script keeps the colours its code
+   sets." Before: Supertrend drew the house green and red on every dark tape (under blue and orange beside blue and
+   orange candles), the MACD's bars one steel wash. Read off the chart: the candle series' own up and down, Supertrend's
+   two lines, the MACD's bars point by point, and a reader's own script that writes the house green and red. */
+check('inks: Supertrend and the MACD\'s bars draw up and down in each theme\'s candle inks (Market, Glacier, Market under blue and orange, Stone); a reader\'s own script keeps its coded colours', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const rgbOf = s => {
+    s = String(s ?? '').trim();
+    let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(s);
+    if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)).join(',');
+    m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(s);
+    return m ? [m[1], m[2], m[3]].map(v => Math.round(+v)).join(',') : null;
+  };
+  const OWN = `//@version=6
+indicator("My trend lines", overlay = true)
+plot(close + 1, "Mine up", color = #30D158)
+plot(close - 1, "Mine down", color = #FF3B30)`;
+  for (const { theme, cvd } of [{ theme: 'market' }, { theme: 'glacier' }, { theme: 'market', cvd: 'blue-orange' }, { theme: 'stone' }]) {
+    const run = `${theme}${cvd ? ` under ${cvd}` : ''}`;
+    const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme, indicators: { macd: true }, overlays: { trails: true }, ladder: true }], { cvd, theme: 'dark' });
+    try {
+      const chartOf = () => `[...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length)`;
+      const seen = () => page.evaluate(`(() => { const e = ${chartOf()}; window.__dirSeen = new WeakSet(); for (const p of e.chart.panes()) for (const s of p.getSeries()) window.__dirSeen.add(s); return e.chart.panes().reduce((n, p) => n + p.getSeries().length, 0); })()`);
+      /* the line series a placement added: each one's own colour */
+      const fresh = () => page.evaluate(`(() => { const e = ${chartOf()}; const out = []; for (const p of e.chart.panes()) for (const s of p.getSeries()) if (!window.__dirSeen.has(s) && s.seriesType() === 'Line' && s.data().some(d => 'value' in d)) out.push({ title: s.options().title ?? '', color: s.options().color, per: [...new Set(s.data().map(d => d.color).filter(Boolean))] }); return out; })()`);
+      const base = await page.evaluate(`(() => {
+        const e = ${chartOf()};
+        const co = e.candles.options();
+        /* the MACD's pane: one histogram and two lines */
+        let hist = null;
+        for (const p of e.chart.panes()) {
+          const ss = p.getSeries();
+          const h = ss.filter(s => s.seriesType() === 'Histogram' && s.options().priceScaleId !== 'vol');
+          if (h.length === 1 && ss.filter(s => s.seriesType() === 'Line').length === 2) hist = h[0];
+        }
+        const pts = hist ? hist.data().filter(d => 'value' in d) : [];
+        return { up: co.borderUpColor, down: co.borderDownColor, hist: pts.length, rising: [...new Set(pts.filter(d => d.value >= 0).map(d => d.color ?? hist.options().color))], falling: [...new Set(pts.filter(d => d.value < 0).map(d => d.color ?? hist.options().color))] };
+      })()`);
+      const up = rgbOf(base.up);
+      const down = rgbOf(base.down);
+      const histOk = base.hist > 0 && base.rising.length === 1 && base.falling.length === 1 && rgbOf(base.rising[0]) === up && rgbOf(base.falling[0]) === down;
+      notes.push(`${run}: candles up ${base.up}, down ${base.down}; the MACD's bars ${base.hist ? `over zero ${base.rising.join(' ')}, under ${base.falling.join(' ')}` : 'not drawn'}${histOk ? '' : ' — not the candles\''}`);
+      if (!histOk) pass = false;
+      /* Supertrend, shipped */
+      let n0 = await seen();
+      const st = await page.evaluate(async () => (await window.__paneScripts.place('terrain:1', 'builtin:supertrend')).id);
+      await page.waitForFunction(`(${chartOf()}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) > ${n0}`, null, { timeout: 8000 }).catch(() => {});
+      await page.waitForTimeout(600);
+      const stLines = await fresh();
+      const stInks = stLines.flatMap(l => [l.color, ...l.per]).map(rgbOf);
+      const stOk = stLines.length >= 2 && stInks.includes(up) && stInks.includes(down) && stInks.every(c => c === up || c === down);
+      notes.push(`  Supertrend: ${stLines.map(l => `${l.title || 'line'} ${[l.color, ...l.per].join('/')}`).join(', ') || 'no lines'}${stOk ? '' : ` — want the candles' ${base.up} and ${base.down}`}`);
+      if (!stOk) pass = false;
+      await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), st);
+      await page.waitForTimeout(400);
+      /* a reader's own script that writes the house green and red keeps them */
+      n0 = await seen();
+      const mine = await page.evaluate(async src => {
+        const s = await window.__paneScripts.save({ title: 'My trend lines', source: src });
+        return (await window.__paneScripts.place('terrain:1', s.id)).id;
+      }, OWN);
+      await page.waitForFunction(`(${chartOf()}).chart.panes().reduce((n, p) => n + p.getSeries().length, 0) > ${n0}`, null, { timeout: 8000 }).catch(() => {});
+      await page.waitForTimeout(600);
+      const ownLines = await fresh();
+      const ownInks = ownLines.map(l => rgbOf(l.color));
+      const ownOk = ownLines.length === 2 && ownInks.includes('48,209,88') && ownInks.includes('255,59,48');
+      notes.push(`  a reader's own script: ${ownLines.map(l => `${l.title || 'line'} ${l.color}`).join(', ') || 'no lines'}${ownOk ? '' : ' — want its own #30D158 and #FF3B30'}`);
+      if (!ownOk) pass = false;
+      await page.evaluate(async c => window.__paneScripts.lift('terrain:1', c), mine);
+      if (errors.length) {
+        pass = false;
+        notes.push(`  page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
     } finally {
       await done();
     }

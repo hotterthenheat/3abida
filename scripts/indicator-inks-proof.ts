@@ -25,11 +25,24 @@
     7. a line as drawn reads 3:1 on the darkest light tape — the Indicators menu's faint parts at the alpha the chart
        draws them at, a shipped script's lines through the light tape's mapper, alpha and all;
     8. the reader's colour vision reaches the chart's chrome: under blue and orange (and high contrast) a light tape's
-       direction pair — the one a script's lines read off the box — is the reader's light pair, not the dark island's,
-       outranks the dark island's set, and reads 3:1 (high contrast: its words 7:1) on the darkest light tape; a dark
-       tape's chrome takes the reader's dark set.
+       direction pair is the reader's light pair, not the dark island's, outranks the dark island's set, and reads 3:1
+       (high contrast: its words 7:1) on the darkest light tape; a dark tape's chrome takes the reader's dark set.
+  And the owner's colour rule of 2026-10-15, under every Colours option ("Only the ovals use their two colours …
+  Anything meaning up/down uses the candles' up and down colours. Everything else uses the indicator palette, kept clear
+  of the ovals' colours"):
+    9. for every candle theme × page theme × colour vision (standard, blue and orange, high contrast — the rails' Colours
+       move the ladder alone, never the ovals): every indicator, script, compare and default-plot ink, as drawn on that
+       tape, stands the family's floor from the two ovals' inks of that option (0.15 from the house pair, 0.08 from the
+       colour-vision pair) and 0.08 from them under simulated protanopia and deuteranopia (tritanopia printed); every
+       shipped script's and built-in's up and down part IS the theme's candle up and down; the Ichimoku cloud's two
+       fills are the candle inks at its alpha; a reader's own script keeps the colours its code sets; a plot given no
+       colour and the compare lines wear the family's own inks, no blue near the violet. A table prints the closest
+       pairs per option — the candles against the ovals among them, left as the owner's to decide where they close up.
 */
 import { readFileSync } from 'node:fs';
+import { distanceUnder, type Deficiency } from './colour-sim';
+import * as candleThemes from '../src/components/gex/candleTheme';
+import type { CandleTheme, CandleThemeKey } from '../src/components/gex/candleTheme';
 import { compile, explain, run } from '../src/core/pine';
 import type { Bar, RunResult } from '../src/core/pine';
 import * as builtins from '../src/data/builtinScripts';
@@ -125,9 +138,16 @@ DARK_GROUNDS.push(tok(DARK_TOK, '--panel'));
 const STONE_DARK_PAGE = rgbOf(/bg: '(#[0-9A-Fa-f]{6})', bgOnLightPage/.exec(themeSrc)![1]);
 const STONE_LIGHT_PAGE = rgbOf(/bgOnLightPage: '(#[0-9A-Fa-f]{6})'/.exec(themeSrc)![1]);
 
-/* the compare lines' inks (Terrain and the Pulse widget hand them out; neither has a light pair) */
-const compareOf = (p: string) => JSON.parse((/const COMPARE_INKS = (\[[^\]]*\])/.exec(read(p))![1]).replace(/'/g, '"')) as string[];
-const COMPARE = [...new Set([...compareOf('src/pages/terrain/Terrain.tsx'), ...compareOf('src/pages/workspace/LiveChartWidget.tsx')])];
+/* the compare lines' inks: the family's since the owner's rule of 2026-10-15 (indicatorInks COMPARE_INKS, a light pair
+   each); before it Terrain and the Pulse widget each wrote their own list, with no light pair */
+const famCompare = INK_PAIRS.filter(p => p.name.startsWith('compare:'));
+const compareOf = (p: string) => {
+  const m = /const COMPARE_INKS = (\[[^\]]*\])/.exec(read(p));
+  return m ? (JSON.parse(m[1].replace(/'/g, '"')) as string[]) : [];
+};
+const localCompare = [...new Set([...compareOf('src/pages/terrain/Terrain.tsx'), ...compareOf('src/pages/workspace/LiveChartWidget.tsx')])];
+const COMPARE = famCompare.length ? famCompare.map(p => p.dark) : localCompare;
+const COMPARE_PAPER = famCompare.length ? famCompare.map(p => p.paper) : localCompare;
 
 /* ---- the inks the chart's own indicators draw, as StrikeChart takes them ----------------------------------------- */
 interface Ink {
@@ -294,15 +314,34 @@ for (let a = 0; a < items.length; a++)
 check(`no two indicators or scripts share an ink (${items.length} inks)`, shared.length === 0, shared.slice(0, 10).join('; '));
 check(`every ink 0.08 or more from every other, dark tape and paper (nearest ${minPair.toFixed(3)} and ${minPaperPair.toFixed(3)})`, close.length === 0, close.slice(0, 10).join('; '));
 
+/* THE COMPARE LINES AND AN UNCOLOURED PLOT stand apart from the lines they share a pane with: the price pane's (the
+   Indicators menu's overlays and the shipped overlay scripts) — never in a sub-pane indicator's (indicatorInks) */
+const overlayKeys = new Set([...partsBlock.matchAll(/^ {2}(\w+): \{\s*pane: 'overlay'/gm)].map(m => `indicator:${m[1]}`));
+for (const sc of shipped) if (sc.meta && sc.meta.pane !== 'own') overlayKeys.add(`script:${sc.id.replace(/^builtin:/, '')}`);
+const priceLines = lines.filter(i => overlayKeys.has(i.owner));
+const famAll = inkFamily as unknown as { DEFAULT_PLOT_INK?: string };
+const defaultPair = INK_PAIRS.find(p => p.name === 'plot:default');
+const sideLines: { name: string; dark: string; paper: string }[] = [
+  ...COMPARE.map((c, k) => ({ name: `compare ${k + 1}`, dark: c, paper: COMPARE_PAPER[k] })),
+  /* a plot given no colour: the family's default, or before the rule the interpreter's own '#5B9CF6' (no light pair) */
+  defaultPair ? { name: 'default plot', dark: defaultPair.dark, paper: defaultPair.paper } : { name: 'default plot', dark: famAll.DEFAULT_PLOT_INK ?? '#5B9CF6', paper: famAll.DEFAULT_PLOT_INK ?? '#5B9CF6' },
+];
 const nearCompare: string[] = [];
-for (const i of lines)
-  for (const c of COMPARE) {
-    const dd = dE(rgbOf(i.dark), rgbOf(c));
-    /* a compare line has no light pair: it is drawn in the same hex on a light tape */
-    const pp = dE(rgbOf(i.paper), rgbOf(c));
-    if (dd < 0.08 || pp < 0.08) nearCompare.push(`${i.owner} ${i.part} ${i.dark} ~ compare ${c} ${Math.min(dd, pp).toFixed(3)}`);
+let minCompare = Infinity;
+for (const i of priceLines)
+  for (const c of sideLines) {
+    const dd = dE(rgbOf(i.dark), rgbOf(c.dark));
+    const pp = dE(rgbOf(i.paper), rgbOf(c.paper));
+    minCompare = Math.min(minCompare, dd, pp);
+    if (dd < 0.08 || pp < 0.08) nearCompare.push(`${i.owner} ${i.part} ~ ${c.name} ${c.dark}/${c.paper} ${Math.min(dd, pp).toFixed(3)}`);
   }
-check(`every ink 0.08 or more from the compare lines' ${COMPARE.join(' ')}`, nearCompare.length === 0, nearCompare.slice(0, 10).join('; '));
+for (let a = 0; a < sideLines.length; a++)
+  for (let b = a + 1; b < sideLines.length; b++) {
+    const dd = dE(rgbOf(sideLines[a].dark), rgbOf(sideLines[b].dark));
+    const pp = dE(rgbOf(sideLines[a].paper), rgbOf(sideLines[b].paper));
+    if (dd < 0.08 || pp < 0.08) nearCompare.push(`${sideLines[a].name} ~ ${sideLines[b].name} ${Math.min(dd, pp).toFixed(3)}`);
+  }
+check(`the compare lines (${COMPARE.join(' ')}) and an uncoloured plot (${sideLines[4].dark}) stand 0.08 or more from every price-pane ink (${priceLines.length}) and from each other, dark tape and paper (nearest ${minCompare.toFixed(3)})`, nearCompare.length === 0, nearCompare.slice(0, 10).join('; '));
 
 const houseInks: [string, RGB, RGB][] = [
   ['call wall', rgbOf(CALL_WALL), tok(PAPER_TOK, '--absorb')],
@@ -342,7 +381,9 @@ check(`and its dark ink 3:1 or better on every dark tape (${DARK_GROUNDS.length}
 /* the house's own inks a shipped script draws, through the light tape's mapper (the paper tokens) */
 const houseLight: string[] = [];
 const houseNotes: string[] = [];
-for (const [name, d] of houseInks.slice(0, 7)) {
+/* the direction pair is not among them since the owner's rule of 2026-10-15: a shipped script's up and down are the
+   candles' (9, below) */
+for (const [name, d] of houseInks.slice(0, 7).filter(([n]) => n !== 'up' && n !== 'down')) {
   const mapped = rgbOf(toPaper(hexOf(d)));
   const onPage = contrast(mapped, STONE_LIGHT_PAGE);
   const onDarkPage = contrast(mapped, STONE_DARK_PAGE);
@@ -350,7 +391,7 @@ for (const [name, d] of houseInks.slice(0, 7)) {
   if (hexOf(mapped) === hexOf(d)) houseLight.push(`${name} not mapped`);
   else if (onPage < 3) houseLight.push(`${name} ${onPage.toFixed(2)}:1`);
 }
-check(`a shipped script's house inks take the paper tokens on a light tape and read 3:1 or better on the light page's tape ${hexOf(STONE_LIGHT_PAGE)}`, houseLight.length === 0, houseLight.join('; '));
+check(`a shipped script's house inks (the walls, the flip, the supreme, the silver) take the paper tokens on a light tape and read 3:1 or better on the light page's tape ${hexOf(STONE_LIGHT_PAGE)}`, houseLight.length === 0, houseLight.join('; '));
 info(houseNotes.join('; '));
 const alphaKept = toPaper('rgba(232, 185, 74, 0.6)');
 check(`an ink written at an alpha keeps it on paper (the call wall at 0.6 → ${alphaKept})`, /, 0\.6\)$/.test(alphaKept) && hexOf(rgbOf(alphaKept)) === hexOf(tok(PAPER_TOK, '--absorb')));
@@ -449,7 +490,7 @@ const inkMiss = SIX.filter(s => {
   const w = want[s].map(c => hexOf(rgbOf(c)));
   return got.length !== w.length || got.some((g, i) => g !== w[i]);
 });
-check("the kept copies draw the chart built-in's own inks", inkMiss.length === 0, inkMiss.map(s => `${s}: ${keptInk(s).join(' ')} want ${want[s].map(c => hexOf(rgbOf(c))).join(' ')}`).join('; '));
+check("the kept copies draw the inks they were kept with — the chart built-in's lines, the MACD copy's bars its steel wash (a reader's own script keeps the colours its code sets)", inkMiss.length === 0, inkMiss.map(s => `${s}: ${keptInk(s).join(' ')} want ${want[s].map(c => hexOf(rgbOf(c))).join(' ')}`).join('; '));
 
 /* the store (its memory driver here — no IndexedDB in Node): a pane, a star and an alert keep theirs, once */
 {
@@ -505,7 +546,7 @@ const redGreen = washes
   .filter(w => w.hit.length);
 info(`washes in the shipped scripts: ${washes.map(w => `${w.slug} ${w.what} ${w.inks.slice(0, 3).join(' ')}`).join('; ')}`);
 info(`red or green washes (reported, not changed): ${redGreen.map(w => `${w.slug} ${w.what} (${w.hit.slice(0, 2).join(', ')})`).join('; ') || 'none'}`);
-check('no shipped script but the Ichimoku cloud paints a red or green wash (by hue)', redGreen.length >= 1 && redGreen.every(w => w.slug === 'ichimoku'), redGreen.filter(w => w.slug !== 'ichimoku').map(w => `${w.slug} ${w.what}: ${w.hit.slice(0, 2).join(', ')}`).join('; '));
+check('no shipped script but the Ichimoku cloud writes a red or green wash (by hue) — and the chart draws the cloud in the candles\' up and down (9c)', redGreen.length >= 1 && redGreen.every(w => w.slug === 'ichimoku'), redGreen.filter(w => w.slug !== 'ichimoku').map(w => `${w.slug} ${w.what}: ${w.hit.slice(0, 2).join(', ')}`).join('; '));
 
 /* ---- 8: the reader's colour vision on the chart's chrome ---------------------------------------------------------- */
 /* a selector's specificity, as [attributes, classes and pseudo-classes] — enough for these blocks (no ids, no types) */
@@ -571,22 +612,225 @@ for (const vision of ['blue-orange', 'high-contrast'] as const) {
   const miss = names.filter(n => !dark || hexOf(dark.tok.get(n) ?? [0, 0, 0]) !== hexOf(tok(want, n)));
   check(`under ${vision}, a dark tape's chrome takes the reader's dark set (the dark chart set had kept the house's)`, !!dark && miss.length === 0, dark ? miss.map(n => `${n} ${dark.tok.get(n) ? hexOf(dark.tok.get(n)!) : 'unset'} want ${hexOf(tok(want, n))}`).join('; ') : 'no set');
 }
-/* a shipped script's direction lines on a blue-and-orange light tape: the reader's light pair, read 3:1 on the tape */
+/* ---- 9: the owner's rule under every Colours option (2026-10-15) ----------------------------------------------------
+   "Only the ovals use their two colours (gold/violet, or the colour-vision pair). Anything meaning up/down uses the
+   candles' up and down colours. Everything else uses the indicator palette, kept clear of the ovals' colours." */
 {
-  const light = blockAt(indexCss, ":root[data-cvd='blue-orange'] [data-chart-ground='light'] :is(");
-  /* as the chart reads them off its box: the light set, then the reader's (or, before the review, the dark island's) */
-  const boxTok = (name: string): RGB | null => (name === '--absorb' || name === '--amplify' ? CVD_PAPER.get(name) : name === '--bull' || name === '--bear' ? (light?.tok.get(name) ?? CVD_DARK.get(name)) : CHART_LIGHT.get(name)) ?? null;
-  const cvdPaper = paperInksWith(boxTok);
-  const notes: string[] = [];
-  let ok = true;
-  for (const [name, ink] of [['up', BULL], ['down', BEAR]] as const) {
-    const drawn = rgbOf(cvdPaper(ink));
-    const c = contrast(drawn, STONE_DARK_PAGE);
-    notes.push(`${name} ${hexOf(drawn)} ${c.toFixed(2)}:1`);
-    if (c < 3) ok = false;
+  type Vision = 'standard' | 'blue-orange' | 'high-contrast';
+  const ct = candleThemes as unknown as {
+    CANDLE_THEME_OPTIONS: { value: CandleThemeKey }[];
+    themeFor: (k: CandleThemeKey, v: Vision) => CandleTheme;
+    candleDirInks?: (t: CandleTheme) => { up: string; down: string };
+  };
+  const fam = inkFamily as unknown as {
+    scriptInksWith?: (o: { shipped: boolean; light: boolean; dir: { up: string; down: string }; token: (n: string) => [number, number, number] | null }) => ((css: string, kind?: 'line' | 'wash') => string) | undefined;
+    DEFAULT_PLOT_INK?: string;
+  };
+  /* the candles' up and down as a line wears them: the rule's one source, or (before it) the same definition read here,
+     so the old code is measured against the same candles */
+  const dirOfTheme = (t: CandleTheme) => (ct.candleDirInks ? ct.candleDirInks(t) : { up: t.borderUp ?? t.up, down: t.borderDown ?? t.down });
+  const lightBlock = (v: Vision) => (v === 'standard' ? CHART_LIGHT : (blockAt(indexCss, `:root[data-cvd='${v}'] [data-chart-ground='light'] :is(`)?.tok ?? CHART_LIGHT));
+  const SIMS: Deficiency[] = ['protan', 'deutan', 'tritan'];
+  const BULL_HEX = hexOf(rgbOf(BULL));
+  const BEAR_HEX = hexOf(rgbOf(BEAR));
+  const HOUSE_HEX = new Set([CALL_WALL, PUT_WALL, SUPREME, FLIP, ACCENT].map(c => hexOf(rgbOf(c))));
+  interface Opt {
+    key: CandleThemeKey;
+    page: 'dark' | 'light';
+    vision: Vision;
+    light: boolean;
+    ground: RGB;
+    dir: { up: string; down: string };
+    gold: RGB;
+    violet: RGB;
+    token: (n: string) => [number, number, number] | null;
   }
-  check(`under blue-orange, Supertrend's, SAR's, ±DI's and the Ichimoku spans' direction lines on a light tape read 3:1 or better on ${hexOf(STONE_DARK_PAGE)}`, ok, notes.join('; '));
-  info(`blue-orange light tape: ${notes.join('; ')}`);
+  const opts: Opt[] = [];
+  for (const { value: key } of ct.CANDLE_THEME_OPTIONS)
+    for (const page of ['dark', 'light'] as const)
+      for (const vision of ['standard', 'blue-orange', 'high-contrast'] as const) {
+        const t = ct.themeFor(key, vision);
+        const light = t.canvas?.light === true;
+        const ground: RGB = light ? rgbOf(page === 'light' ? (t.canvas?.bgOnLightPage ?? t.canvas!.bg) : t.canvas!.bg) : t.canvas?.bg ? rgbOf(t.canvas.bg) : tok(DARK_TOK, '--panel');
+        const bo = vision === 'blue-orange';
+        const gold = light ? (bo ? GOLD.cvdPaper : GOLD.paper) : bo ? GOLD.cvdDark : GOLD.dark;
+        const violet = light ? (bo ? VIOLET.cvdPaper : VIOLET.paper) : bo ? VIOLET.cvdDark : VIOLET.dark;
+        const lb = lightBlock(vision);
+        const token = (n: string): [number, number, number] | null => {
+          if (n === '--absorb') return [...gold] as [number, number, number];
+          if (n === '--amplify') return [...violet] as [number, number, number];
+          return ((light ? lb.get(n) ?? CHART_LIGHT.get(n) : DARK_TOK.get(n)) ?? null) as [number, number, number] | null;
+        };
+        opts.push({ key, page, vision, light, ground, dir: dirOfTheme(t), gold, violet, token });
+      }
+  /* the inks a script draws on this option's tape, as the chart hands them to the script layer: the rule's mapper, or
+     (before it) the light tape's paper mapper for every script and nothing on a dark tape */
+  const mapperFor = (o: Opt, shipped: boolean): ((css: string, kind?: 'line' | 'wash') => string) | undefined =>
+    fam.scriptInksWith ? fam.scriptInksWith({ shipped, light: o.light, dir: o.dir, token: o.token }) : o.light ? paperInksWith(o.token) : undefined;
+  const asIs = (css: string) => css;
+
+  const floorOf = (o: Opt) => (o.vision === 'blue-orange' ? 0.08 : 0.15);
+  const sideNear: string[] = [];
+  const dirMiss: string[] = [];
+  const cloudMiss: string[] = [];
+  const forOwner: string[] = [];
+  const rows: string[] = [];
+  const seenRow = new Set<string>();
+  let dirParts = 0;
+  let cloudFills = 0;
+  for (const o of opts) {
+    const mapShipped = mapperFor(o, true) ?? asIs;
+    /* (b) every ink drawn on this tape that is not an oval's and means no direction: the Indicators menu's lines, the
+       shipped scripts' own lines (through the chart's mapper), the compare lines and a plot left uncoloured */
+    const drawn: { who: string; rgb: RGB }[] = [];
+    for (const i of lines) if (i.owner.startsWith('indicator:')) drawn.push({ who: `${i.owner}:${i.part}`, rgb: rgbOf(o.light ? i.paper : i.dark) });
+    for (const [slug, r] of runs) {
+      const marks = [...r.plots.map(p => ({ t: p.title, cs: [p.ink, ...(p.colors ?? [])] })), ...r.shapes.map(sh => ({ t: sh.title, cs: [sh.ink, ...(sh.colors ?? [])] }))];
+      for (const m of marks)
+        for (const c of new Set(m.cs)) {
+          if (!c || !parseInk(c) || parseInk(c)!.a < 0.6) continue;
+          const src = hexOf(rgbOf(c));
+          const out = mapShipped(c, 'line');
+          /* (c) a direction part: the theme's candle up or down, at the alpha written */
+          if (src === BULL_HEX || src === BEAR_HEX) {
+            dirParts++;
+            const want = src === BULL_HEX ? o.dir.up : o.dir.down;
+            if (hexOf(rgbOf(out)) !== hexOf(rgbOf(want)) || Math.abs(parseInk(out)!.a - parseInk(c)!.a) > 0.005) dirMiss.push(`${o.key}/${o.page}/${o.vision} ${slug} ${m.t} ${out} want ${want}`);
+            continue;
+          }
+          if (HOUSE_HEX.has(src)) continue;
+          drawn.push({ who: `script:${slug}:${m.t}`, rgb: rgbOf(out) });
+        }
+      /* the cloud: the candles' up and down at the alpha it was written with */
+      if (slug === 'ichimoku')
+        for (const f of r.fills)
+          for (const c of new Set([f.ink, ...(f.colors ?? [])])) {
+            if (!c) continue;
+            const src = hexOf(rgbOf(c));
+            if (src !== BULL_HEX && src !== BEAR_HEX) continue;
+            cloudFills++;
+            const out = mapShipped(c, 'wash');
+            const want = src === BULL_HEX ? o.dir.up : o.dir.down;
+            if (hexOf(rgbOf(out)) !== hexOf(rgbOf(want)) || Math.abs(parseInk(out)!.a - parseInk(c)!.a) > 0.005) cloudMiss.push(`${o.key}/${o.page}/${o.vision} ${out} want ${want} at ${parseInk(c)!.a.toFixed(2)}`);
+          }
+    }
+    for (const c of sideLines) drawn.push({ who: c.name, rgb: rgbOf(o.light ? c.paper : c.dark) });
+    /* the measures: each ink against each oval ink, as seen and under each simulation */
+    const ovals: [string, RGB][] = [['gold', o.gold], ['violet', o.violet]];
+    let nearN = { d: Infinity, s: '' };
+    const nearS: Record<Deficiency, { d: number; s: string }> = { protan: { d: Infinity, s: '' }, deutan: { d: Infinity, s: '' }, tritan: { d: Infinity, s: '' } };
+    for (const x of drawn)
+      for (const [on, ov] of ovals) {
+        const dn = distanceUnder(x.rgb, ov);
+        if (dn < nearN.d) nearN = { d: dn, s: `${x.who}~${on}` };
+        if (dn < floorOf(o)) sideNear.push(`${o.key}/${o.page}/${o.vision} ${x.who} ${hexOf(x.rgb)} ~ ${on} ${dn.toFixed(3)}`);
+        for (const k of SIMS) {
+          const ds = distanceUnder(x.rgb, ov, k);
+          if (ds < nearS[k].d) nearS[k] = { d: ds, s: `${x.who}~${on}` };
+          if (k !== 'tritan' && ds < 0.08) sideNear.push(`${o.key}/${o.page}/${o.vision} ${x.who} ${hexOf(x.rgb)} ~ ${on} ${ds.toFixed(3)} (${k})`);
+        }
+      }
+    /* the candles against the ovals and against the indicator inks — reported, the owner's to decide */
+    const candles: [string, RGB][] = [['up', rgbOf(o.dir.up)], ['down', rgbOf(o.dir.down)]];
+    let cand = { d: Infinity, s: '' };
+    for (const [cn, c] of candles)
+      for (const [on, ov] of ovals)
+        for (const k of [undefined, ...SIMS] as (Deficiency | undefined)[]) {
+          const d = distanceUnder(c, ov, k);
+          if (d < cand.d) cand = { d, s: `${cn}~${on}${k ? ` ${k}` : ''}` };
+          if (d < (k ? 0.08 : floorOf(o))) forOwner.push(`${o.key}/${o.page === 'light' && o.light ? 'light page' : 'any page'}/${o.vision}: candles ${cn} ${hexOf(c)} ~ oval ${on} ${hexOf(ov)} ${d.toFixed(3)}${k ? ` under ${k}` : ' as seen'}`);
+        }
+    let indCand = { d: Infinity, s: '' };
+    for (const x of drawn)
+      for (const [cn, c] of candles) {
+        const d = distanceUnder(x.rgb, c);
+        if (d < indCand.d) indCand = { d, s: `${x.who}~${cn}` };
+      }
+    const updown = distanceUnder(rgbOf(o.dir.up), rgbOf(o.dir.down));
+    const rowKey = `${o.key}|${o.light ? o.page : '*'}|${o.vision}`;
+    if (!seenRow.has(rowKey)) {
+      seenRow.add(rowKey);
+      rows.push(
+        `${o.key.padEnd(8)} ${(o.light ? `${o.page} page` : 'any page').padEnd(10)} ${o.vision.padEnd(13)} up ${hexOf(rgbOf(o.dir.up))} down ${hexOf(rgbOf(o.dir.down))} (apart ${updown.toFixed(3)}) | ink~oval ${nearN.d.toFixed(3)} ${nearN.s}; protan ${nearS.protan.d.toFixed(3)} deutan ${nearS.deutan.d.toFixed(3)} tritan ${nearS.tritan.d.toFixed(3)} ${nearS.tritan.s} | candle~oval ${cand.d.toFixed(3)} ${cand.s} | ink~candle ${indCand.d.toFixed(3)} ${indCand.s}`
+      );
+    }
+  }
+  const uniq = <T,>(a: T[]) => [...new Set(a)];
+  check(`9a. under every Colours option (${opts.length}: ${ct.CANDLE_THEME_OPTIONS.length} candle themes × 2 page themes × 3 colour visions), every indicator, shipped-script, compare and default-plot ink as drawn stands the family's floor from that option's two oval inks (0.15 from the house pair, 0.08 from the colour-vision pair) and 0.08 under simulated protanopia and deuteranopia`, sideNear.length === 0, uniq(sideNear).slice(0, 10).join('; ') + (sideNear.length > 10 ? ` … ${uniq(sideNear).length} in all` : ''));
+  check(`9b. every shipped script's up and down part (Supertrend, the SAR, ADX's ±DI, Ichimoku's spans — ${dirParts} parts over every option) is the theme's candle up and down, at the alpha written`, dirParts > 0 && dirMiss.length === 0, uniq(dirMiss).slice(0, 8).join('; ') + (dirMiss.length > 8 ? ` … ${uniq(dirMiss).length} in all` : ''));
+  /* the walls a shipped script draws are the ovals' own pair on that tape, in the reader's colour vision */
+  const wallMiss: string[] = [];
+  for (const o of opts) {
+    const m = mapperFor(o, true) ?? asIs;
+    for (const [nm, ink, want] of [['call wall', CALL_WALL, o.gold], ['put wall', PUT_WALL, o.violet]] as const) {
+      const out = m(ink, 'line');
+      if (hexOf(rgbOf(out)) !== hexOf(want)) wallMiss.push(`${o.key}/${o.page}/${o.vision} ${nm} ${out} want ${hexOf(want)}`);
+    }
+  }
+  check(`9b′. a shipped script's walls are the ovals' own pair on every tape and colour vision (the gold and violet the field draws there)`, wallMiss.length === 0, uniq(wallMiss).slice(0, 6).join('; ') + (wallMiss.length > 6 ? ` … ${uniq(wallMiss).length} in all` : ''));
+  check(`9c. the Ichimoku cloud's two fills are the candles' up and down at its alpha (${cloudFills} fills over every option), never a fixed red or green`, cloudFills > 0 && cloudMiss.length === 0, uniq(cloudMiss).slice(0, 6).join('; '));
+  /* the built-in's direction part: the MACD's bars, drawn by StrikeChart in the candles' up and down */
+  const macdBlock = /^ {2}macd: \{[\s\S]*?^ {2}\},?$/m.exec(partsBlock)?.[0] ?? '';
+  const histDir = /part: 'hist', kind: 'hist', dir: true/.test(macdBlock) && !/part: 'hist'[^}]*ink:/.test(macdBlock);
+  const readsCandles = /const dir = candleDirInks\(themeRef\.current\);\s*const dirUp = withAlpha\(dir\.up, DIR_WASH_ALPHA\);\s*const dirDown = withAlpha\(dir\.down, DIR_WASH_ALPHA\);/.test(strike);
+  const flowReads = (strike.match(/candleDirInks\(themeRef\.current\)/g) ?? []).length;
+  check(`9d. the chart's own up and down read the candles: the MACD's bars a direction part (${histDir ? 'dir, no ink' : 'a fixed ink'}), drawn in candleDirInks at DIR_WASH_ALPHA; the flow legs, the drift lines and the baseline style too (${flowReads} reads, ${/topLineColor: '#30D158'|FLOW_CALL_INK = BULL|DRIFT_CALL_INK = BULL/.test(strike) ? 'the house green and red still written' : 'no house pair written'})`, histDir && readsCandles && flowReads >= 4 && !/topLineColor: '#30D158'|FLOW_CALL_INK = BULL|DRIFT_CALL_INK = BULL/.test(strike));
+  /* a reader's own script keeps the colours its code sets; a plot it left uncoloured wears the family's default */
+  const own = runOf(`//@version=6
+indicator("Mine", overlay = true)
+plot(close, "Up", color = ${BULL})
+plot(open, "Wall", color = ${CALL_WALL})
+plot(high, "Plain")
+fill(plot(low, "Lo", color = ${BEAR}), plot(low - 1, "Lo2", color = ${BEAR}), color = color.new(${BULL}, 80))`);
+  const ownMiss: string[] = [];
+  const defaultInk = fam.DEFAULT_PLOT_INK;
+  for (const o of opts) {
+    const m = mapperFor(o, false) ?? asIs;
+    for (const p of own.plots) {
+      const out = m(p.ink, 'line');
+      const isDefault = !!defaultInk && hexOf(rgbOf(p.ink)) === hexOf(rgbOf(defaultInk));
+      const want = isDefault && o.light ? defaultPair?.paper ?? p.ink : p.ink;
+      if (hexOf(rgbOf(out)) !== hexOf(rgbOf(want))) ownMiss.push(`${o.key}/${o.page}/${o.vision} ${p.title} ${p.ink} → ${out}`);
+    }
+    for (const f of own.fills) {
+      const out = m(f.ink, 'wash');
+      if (out !== f.ink && hexOf(rgbOf(out)) !== hexOf(rgbOf(f.ink))) ownMiss.push(`${o.key}/${o.page}/${o.vision} fill ${f.ink} → ${out}`);
+    }
+  }
+  check('9e. a reader\'s own script keeps the colours its code sets on every tape — its green, its gold, its wash — and only a plot it left uncoloured takes its light pair on a light tape', ownMiss.length === 0, uniq(ownMiss).slice(0, 6).join('; '));
+  const plain = own.plots.find(p => p.title === 'Plain')?.ink ?? '';
+  const shape = runOf(`//@version=6
+indicator("Marks", overlay = true)
+plotshape(close > open, "Rise")`).shapes[0]?.ink ?? '';
+  const isFamily = INK_PAIRS.some(p => p.name === 'plot:default' && hexOf(rgbOf(p.dark)) === hexOf(rgbOf(plain)));
+  const violetGap = plain ? distanceUnder(rgbOf(plain), VIOLET.dark) : 0;
+  check(`9f. a plot and a shape given no colour wear the family's default (${plain} and ${shape}; ${violetGap.toFixed(3)} from the field's violet), never the old blue #5B9CF6 near the violet`, isFamily && hexOf(rgbOf(shape)) === hexOf(rgbOf(plain)) && violetGap >= 0.15 && hexOf(rgbOf(plain)) !== '#5B9CF6');
+  const localLists = ['src/pages/terrain/Terrain.tsx', 'src/pages/workspace/LiveChartWidget.tsx'].filter(f => /const COMPARE_INKS = \[/.test(read(f)));
+  /* no compare line and no uncoloured plot is a candle: 0.05 or more from every theme's up and down, as drawn on its tape
+     (the lavender and the cream were Whipsaw's and Harbor's rising candles to the digit) */
+  const onCandle: string[] = [];
+  let minOnCandle = Infinity;
+  for (const o of opts)
+    for (const c of sideLines)
+      for (const [cn, cd] of [['up', o.dir.up], ['down', o.dir.down]] as const) {
+        const d = distanceUnder(rgbOf(o.light ? c.paper : c.dark), rgbOf(cd));
+        minOnCandle = Math.min(minOnCandle, d);
+        if (d < 0.05) onCandle.push(`${c.name} ${o.light ? c.paper : c.dark} ~ ${o.key} ${cn} ${cd} ${d.toFixed(3)}`);
+      }
+  check(`9g′. no compare line and no uncoloured plot wears a candle's ink: 0.05 or more from every theme's up and down under every option (nearest ${minOnCandle.toFixed(3)})`, onCandle.length === 0, uniq(onCandle).slice(0, 6).join('; '));
+  const blueLeft = COMPARE.map(c => ({ c, d: distanceUnder(rgbOf(c), VIOLET.dark) })).filter(x => x.d < 0.15);
+  check(`9g. the compare lines are the family's (${famCompare.length} pairs; ${localLists.length ? `own lists still in ${localLists.join(', ')}` : 'no list of their own on a page'}), none within 0.15 of the field's violet (${COMPARE.map(c => `${c} ${distanceUnder(rgbOf(c), VIOLET.dark).toFixed(3)}`).join(', ')})`, famCompare.length === 4 && localLists.length === 0 && blueLeft.length === 0);
+  /* the rails' Colours (House, Thermal) move the ladder alone: the ovals read the gamma pair, never the ladder's pick */
+  const nodesSrc = read('src/components/gex/gexNodesPrimitive.ts');
+  check("9h. the rails' Colours (House, Thermal) leave the ovals' inks as they are — the ovals read the gamma pair (heatmap HEAT_MODE), never the ladder's pick", /heatRampColorFor\(1, 1, HEAT_MODE/.test(nodesSrc) && !/thermal|ProfilePalette/i.test(nodesSrc));
+  console.log('\n      THE CLOSEST PAIRS UNDER EVERY COLOURS OPTION (OKLab; "any page": a dark tape is the same island on either page)');
+  for (const r of rows) console.log(`      ${r}`);
+  const owner = uniq(forOwner);
+  console.log(`\n      FOR THE OWNER — the candles against the ovals under the floor (the oval pair and the candle themes are left as they are; ${owner.length} pairs):`);
+  for (const l of owner) console.log(`        ${l}`);
+  /* the light tape's direction lines, as the candles draw them: their contrast on the tape */
+  for (const o of opts.filter(x => x.light && x.vision === 'standard'))
+    info(`${o.key} on the ${o.page} page (${hexOf(o.ground)}): a direction line in the candles' up ${hexOf(rgbOf(o.dir.up))} reads ${contrast(rgbOf(o.dir.up), o.ground).toFixed(2)}:1, down ${hexOf(rgbOf(o.dir.down))} ${contrast(rgbOf(o.dir.down), o.ground).toFixed(2)}:1`);
 }
 
 /* ---- the chart draws the family: no ink of its own in INDICATOR_PARTS ------------------------------------------- */

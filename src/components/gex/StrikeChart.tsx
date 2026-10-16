@@ -35,9 +35,9 @@ import Simulator from '../../core/simulator';
 import { onGlide, promisedWidth } from '../../core/glide';
 import { compile, explain, run as runScript, type Compiled, type RunResult } from '../../core/pine';
 import { setPaneBars, usePaneScripts } from '../../data/paneScripts';
-import { drawRun, type ScriptHandle } from './scriptLayer';
+import { drawRun, inkRun, type ScriptHandle } from './scriptLayer';
 import { barTints, candleTintForm, NO_TINT, retint, tintPoint, type TintForm } from './barTints';
-import { INDICATOR_INKS, MACD_HIST_INK, MACD_SIGNAL_INK, faintInk, paperInk, paperInksWith, parseInk } from './indicatorInks';
+import { DIR_WASH_ALPHA, INDICATOR_INKS, MACD_SIGNAL_INK, compareInk, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
 import ResetViewControl from './ResetViewControl';
 import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
@@ -72,6 +72,7 @@ import { ALERTABLE_KINDS, DrawingsPrimitive, gestureOf, isFlatLine, isFreehand, 
 import DrawRailTools, { DrawSheet } from './DrawRailTools';
 import { drawToolLabel, registerDrawChart, rememberDrawTool, touchDrawChart } from './drawTools';
 import {
+  candleDirInks,
   chartGround,
   themeFor,
   useCandleThemeKey,
@@ -144,32 +145,33 @@ const PRICE_STRETCH = 3;
   puts became the same colour, which is the one thing a two-sided histogram
   cannot survive. The whole point of drawing both legs is telling them apart.
 
-  So the legs wear the house DIRECTION inks, always. That is the right register
+  So the legs wear the DIRECTION inks, always. That is the right register
   as well as the readable one: call premium arriving is bullish and put premium
   arriving is bearish, which is direction, not dealer side — gold and steel
-  would be the wrong vocabulary here.
-*/
-const FLOW_CALL_INK = BULL;
-const FLOW_PUT_INK = BEAR;
+  would be the wrong vocabulary here. Since the owner's rule of 2026-10-15
+  ("Anything meaning up/down uses the candles' up and down colours") the
+  direction inks are the CANDLES' up and down (candleDirInks — the theme's
+  outline inks, not its volume washes), so the legs follow every Colours
+  option; a theme whose up and down are one ink (Wire) tells the legs apart by
+  side of the zero line alone.
 
-/*
   THE DRIFT LINES WEAR THE SAME TWO INKS AS THE FLOW LEGS, and they should:
   they are the same two quantities. The band draws call and put premium per
   bar; the drift lines draw the running totals of exactly those bars. Giving
   the totals their own colours would ask a reader to learn a second vocabulary
   for a number they already know.
 */
-const DRIFT_CALL_INK = BULL;
-const DRIFT_PUT_INK = BEAR;
 
 /*
   THE TWO VOLATILITY LINES ADD NO NEW HUE.
 
-  Both values are the compare lines' second and third inks (Terrain
-  COMPARE_INKS) — the pale violet and the warm cream the EMA 21 and EMA 50
-  wore until their own family (indicatorInks.ts, 2026-10-15). The reference
-  happens to draw the same pair as saturated purple and yellow; these are the
-  house's muted version of the same two positions.
+  Both values are the compare lines' second and third inks until 2026-10-16
+  (the compare lines are the indicator family's since the owner's colour rule)
+  — the pale violet and the warm cream the EMA 21 and EMA 50 wore until their
+  own family (indicatorInks.ts, 2026-10-15). The reference happens to draw the
+  same pair as saturated purple and yellow; these are the house's muted version
+  of the same two positions. They are Whipsaw's and Harbor's rising candles to
+  the digit, and they have no light pair — held for the owner.
 
   Written out rather than read from another map on purpose: reaching into one
   would couple the vol pane to that palette, so recolouring a line there would
@@ -177,6 +179,19 @@ const DRIFT_PUT_INK = BEAR;
 */
 const RV_INK = '#BBB2E8';
 const IV_INK = '#EDE4CD';
+
+/** The baseline style's two sides — over the session's open in the candles' up, under it in their down */
+const baselineInks = (t: CandleTheme) => {
+  const d = candleDirInks(t);
+  return {
+    topLineColor: d.up,
+    topFillColor1: withAlpha(d.up, 0.2),
+    topFillColor2: withAlpha(d.up, 0.02),
+    bottomLineColor: d.down,
+    bottomFillColor1: withAlpha(d.down, 0.02),
+    bottomFillColor2: withAlpha(d.down, 0.2),
+  };
+};
 
 /** Height of a pane's name chip, and its inset from the pane's top edge. */
 const PANE_LABEL_H = 17;
@@ -329,7 +344,11 @@ export const MAX_SUB_PANES = 2;
 interface IndicatorPartSpec {
   part: string;
   kind: 'line' | 'hist';
-  ink: string;
+  /** The family's ink (indicatorInks) — none for a part drawn in the candles' up and down */
+  ink?: string;
+  /** A sign drawn as up and down: each bar in the chart's candle up ink at or over zero, its down ink under (the owner's
+      rule, 2026-10-15 — "Anything meaning up/down uses the candles' up and down colours"), at DIR_WASH_ALPHA */
+  dir?: true;
   dashed?: boolean;
   faint?: boolean;
 }
@@ -360,10 +379,11 @@ const INDICATOR_PARTS: Record<keyof ChartIndicators, { pane: 'overlay' | 'sub'; 
   macd: {
     pane: 'sub',
     parts: [
-      /* The histogram draws FIRST so the lines read over it. One steel wash
-         for its bars, not red/green — the sign of momentum is not the price
-         direction the pair is reserved for. */
-      { part: 'hist', kind: 'hist', ink: MACD_HIST_INK },
+      /* The histogram draws FIRST so the lines read over it. Its bars are the
+         sign of momentum, up and down — in the candles' up and down (the
+         owner's rule of 2026-10-15; a steel wash until then), a wash under
+         the two lines. */
+      { part: 'hist', kind: 'hist', dir: true },
       { part: 'line', kind: 'line', ink: INDICATOR_INKS.macd },
       { part: 'signal', kind: 'line', ink: MACD_SIGNAL_INK },
     ],
@@ -917,7 +937,7 @@ export type CrosshairReadout = (bar: CrosshairBar | null) => void;
 import { defaultStop } from './drawingKinds';
 import { undoable } from '../ui/undo';
 import { useEscapeLayer } from '../ui/layers';
-import { BULL, BEAR, SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
+import { SUPREME, FOCUS, DARK_POOL, ALERT as ALERT_INK } from './palette';
 import { FONT_SANS } from '../../theme/fonts';
 
 /* ── THE RAIL'S TWO READER PREFERENCES (Noah, 2026-08-29: "the user has a
@@ -2513,17 +2533,9 @@ const StrikeChart = ({
           break;
         case 'baseline':
           // Above/below the session open IS a price-direction read → the
-          // house bull/bear pair (the one style allowed to speak it)
-          s = chart.addSeries(BaselineSeries, {
-            topLineColor: '#30D158',
-            topFillColor1: 'rgba(48,209,88,0.20)',
-            topFillColor2: 'rgba(48,209,88,0.02)',
-            bottomLineColor: '#FF3B30',
-            bottomFillColor1: 'rgba(255,59,48,0.02)',
-            bottomFillColor2: 'rgba(255,59,48,0.20)',
-            lineWidth: 2,
-            ...base,
-          });
+          // candles' up and down (the owner's rule, 2026-10-15; the house
+          // green and red until then)
+          s = chart.addSeries(BaselineSeries, { ...baselineInks(t), lineWidth: 2, ...base });
           break;
         default:
           s = chart.addSeries(CandlestickSeries, { ...candleSeriesOptions(t), ...base });
@@ -3140,16 +3152,17 @@ const StrikeChart = ({
 
     const barSec = tfMinutes(timeframe) * 60;
     const bars = bucketFlow(flowPrints ?? [], { barSec, ticker });
+    const dir = candleDirInks(themeRef.current);
 
     calls.setData(
       bars
         .filter(b => b.callPrem > 0)
-        .map(b => ({ time: b.time as UTCTimestamp, value: b.callPrem, color: FLOW_CALL_INK }))
+        .map(b => ({ time: b.time as UTCTimestamp, value: b.callPrem, color: dir.up }))
     );
     puts.setData(
       bars
         .filter(b => b.putPrem > 0)
-        .map(b => ({ time: b.time as UTCTimestamp, value: -b.putPrem, color: FLOW_PUT_INK }))
+        .map(b => ({ time: b.time as UTCTimestamp, value: -b.putPrem, color: dir.down }))
     );
 
     /*
@@ -3168,7 +3181,7 @@ const StrikeChart = ({
     }
 
     remeasurePaneLabels();
-  }, [overlays.flow, flowPrints, timeframe, ticker, themeKey, remeasurePaneLabels, altSpec]);
+  }, [overlays.flow, flowPrints, timeframe, ticker, themeKey, themeTag, remeasurePaneLabels, altSpec]);
 
   /*
     THE REGIME STRIP (the owner's item 3, 2026-10-13): the column's net a bar — every strike summed, estimated dealer
@@ -3344,8 +3357,8 @@ const StrikeChart = ({
         priceLineVisible: false,
         crosshairMarkerVisible: false,
       };
-      calls = chart.addSeries(LineSeries, { ...opts, color: DRIFT_CALL_INK, title: 'Calls' }, paneIndex);
-      puts = chart.addSeries(LineSeries, { ...opts, color: DRIFT_PUT_INK, title: 'Puts' }, paneIndex);
+      calls = chart.addSeries(LineSeries, { ...opts, title: 'Calls' }, paneIndex);
+      puts = chart.addSeries(LineSeries, { ...opts, title: 'Puts' }, paneIndex);
       driftCallsRef.current = calls;
       driftPutsRef.current = puts;
       try {
@@ -3355,6 +3368,11 @@ const StrikeChart = ({
         /* pane sizing is a nicety; never lose the chart over it */
       }
     }
+
+    /* the flow legs' two inks — the candles' up and down, so a change of theme or colour vision re-inks them in place */
+    const dir = candleDirInks(themeRef.current);
+    calls.applyOptions({ color: dir.up });
+    puts.applyOptions({ color: dir.down });
 
     const barSec = tfMinutes(timeframe) * 60;
     const points = cumulativeDrift(flowPrints ?? [], { barSec, ticker });
@@ -3379,7 +3397,7 @@ const StrikeChart = ({
     }
 
     remeasurePaneLabels();
-  }, [overlays.netDrift, flowPrints, timeframe, ticker, themeKey, remeasurePaneLabels, altSpec]);
+  }, [overlays.netDrift, flowPrints, timeframe, ticker, themeKey, themeTag, remeasurePaneLabels, altSpec]);
 
   /*
     THE VOLATILITY DRIFT: what the underlying is doing against what the option
@@ -3498,7 +3516,12 @@ const StrikeChart = ({
     const subBase = paneCompareOn ? 2 : 1;
     const full = fullWorldRef.current === `${ticker}|${timeframe}|${barClock}`;
     const lightTape = chartGround(themeKey) === 'light';
-    const sig = `${ticker}|${timeframe}|${barClock}|${active.join(',')}|${subBase}|${mainNonce}|${full ? 'full' : 'recent'}|${lightTape ? 'light' : 'dark'}|${fitCandles ? 'fit' : ''}`;
+    /* a part that draws up and down wears the candles' up and down (the owner's rule) — the theme and the reader's colour
+       vision are in the signature, so a change of either redraws it */
+    const dir = candleDirInks(themeRef.current);
+    const dirUp = withAlpha(dir.up, DIR_WASH_ALPHA);
+    const dirDown = withAlpha(dir.down, DIR_WASH_ALPHA);
+    const sig = `${ticker}|${timeframe}|${barClock}|${active.join(',')}|${subBase}|${mainNonce}|${full ? 'full' : 'recent'}|${lightTape ? 'light' : 'dark'}|${dir.up}/${dir.down}|${fitCandles ? 'fit' : ''}`;
     const rebuild = indicatorLoadedRef.current !== sig;
     if (rebuild) {
       for (const s of indicatorSeriesRef.current.values()) {
@@ -3513,23 +3536,23 @@ const StrikeChart = ({
          put RSI, MACD or ATR inside the regime strip's, the flow band's or a drift's pane on its scale. Our own series are
          gone by now and the library drops a pane with none, so the panes left are the others' */
       const subFrom = chart.panes().length;
-      const inkOf = (ink: string) => (lightTape ? paperInk(ink) : ink);
+      const inkOf = (part: IndicatorPartSpec) => (part.dir || !part.ink ? dirUp : lightTape ? paperInk(part.ink) : part.ink);
       for (const key of active) {
         const spec = INDICATOR_PARTS[key];
         const paneIndex = spec.pane === 'overlay' ? 0 : subFrom + subsActive.indexOf(key);
         for (const part of spec.parts) {
           const series =
             part.kind === 'hist'
-              ? chart.addSeries(HistogramSeries, { color: inkOf(part.ink), priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } }, paneIndex)
+              ? chart.addSeries(HistogramSeries, { color: inkOf(part), priceLineVisible: false, lastValueVisible: false, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } }, paneIndex)
               : chart.addSeries(
                   LineSeries,
                   {
-                    color: inkOf(part.ink),
+                    color: inkOf(part),
                     lineWidth: 1,
                     lineStyle: part.dashed ? 2 : 0,
                     /* a faint part as drawn reads 3:1 on a light tape too (indicatorInks faintInk: 60% on a dark tape, 87% of
                        its paper pair on a light one — at 60% the VWAP and Bollinger bands read 2.2 to 2.4:1 on Stone) */
-                    ...(part.faint ? { color: faintInk(part.ink, lightTape) } : {}),
+                    ...(part.faint && part.ink ? { color: faintInk(part.ink, lightTape) } : {}),
                     ...(spec.pane === 'overlay' ? { priceScaleId: 'right' } : {}),
                     /* AN OVERLAY NEVER WIDENS A FITTED AXIS (the round-3 audit, D(a): SMA 200, Bollinger and the VWAP's ±2σ
                        stretched the axis Terrain fits to the candles — "no wall, supreme, spot or layer widens it") */
@@ -3617,8 +3640,13 @@ const StrikeChart = ({
       for (const [part, vals] of Object.entries(values)) {
         const s = indicatorSeriesRef.current.get(`${key}:${part}`);
         if (!s) continue;
+        const signed = INDICATOR_PARTS[key].parts.find(p => p.part === part)?.dir === true;
         const pts = bars.map((b, i) =>
-          vals[i] === null ? { time: b.time as UTCTimestamp } : { time: b.time as UTCTimestamp, value: vals[i] as number }
+          vals[i] === null
+            ? { time: b.time as UTCTimestamp }
+            : signed
+              ? { time: b.time as UTCTimestamp, value: vals[i] as number, color: (vals[i] as number) >= 0 ? dirUp : dirDown }
+              : { time: b.time as UTCTimestamp, value: vals[i] as number }
         );
         /* Same completed-bar rule as the candles: update() cannot rewrite
            an older time, so a pass whose window is not the last one with at
@@ -3633,7 +3661,7 @@ const StrikeChart = ({
     indAltCountRef.current = bars.length;
     indWindowRef.current = { first: bars[0].time, last: bars[bars.length - 1].time, count: bars.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, themeKey, fitCandles]);
+  }, [indicators, ticker, revision, timeframe, mainNonce, compares, altSpec, barClock, fullNonce, themeKey, themeTag, fitCandles]);
 
   /* the handles go with the chart */
   useEffect(
@@ -3659,7 +3687,10 @@ const StrikeChart = ({
     const full = fullWorldRef.current === `${ticker}|${timeframe}|${barClock}`;
     /* a host's compare bars may land after the line was made — whether each has them is part of the signature */
     const hostBars = tapeRef.current?.compareBars;
-    const sig = `${ticker}|${timeframe}|${compares.map(c => `${c.ticker}:${c.mode}:${c.ink}:${hostBars ? (hostBars[c.ticker]?.bars.length ? 'm' : '') + (hostBars[c.ticker]?.daily?.length ? 'd' : '') : ''}`).join(',')}|${full ? 'full' : 'recent'}`;
+    /* the family's compare ink (indicatorInks — a desk saved with the old inks takes its slot's), its pair on a light tape */
+    const lightTape = chartGround(themeKey) === 'light';
+    const inkOf = (c: CompareEntry) => (lightTape ? paperInk(compareInk(c.ink)) : compareInk(c.ink));
+    const sig = `${ticker}|${timeframe}|${compares.map(c => `${c.ticker}:${c.mode}:${inkOf(c)}:${hostBars ? (hostBars[c.ticker]?.bars.length ? 'm' : '') + (hostBars[c.ticker]?.daily?.length ? 'd' : '') : ''}`).join(',')}|${full ? 'full' : 'recent'}`;
     const rebuild = compareLoadedRef.current !== sig;
     if (rebuild) {
       for (const s of compareSeriesRef.current.values()) {
@@ -3675,7 +3706,7 @@ const StrikeChart = ({
         const series = chart.addSeries(
           LineSeries,
           {
-            color: c.ink,
+            color: inkOf(c),
             lineWidth: 2,
             priceScaleId: c.mode === 'scale' ? 'left' : 'right',
             priceLineVisible: false,
@@ -3724,7 +3755,7 @@ const StrikeChart = ({
         s.update({ time: last.time as UTCTimestamp, value: last.close });
       }
     }
-  }, [compares, ticker, revision, timeframe, barClock, fullNonce]);
+  }, [compares, ticker, revision, timeframe, barClock, fullNonce, themeKey]);
 
   /*
     THE MAIN SCALE'S MODE — T-7, and it is its own effect on purpose.
@@ -3764,8 +3795,8 @@ const StrikeChart = ({
     const t = themeRef.current;
     const main = candleSeriesRef.current;
     if (main) {
-      // Recolor IN the active style's vocabulary — baseline keeps its fixed
-      // bull/bear pair and needs nothing
+      // Recolor IN the active style's vocabulary — the baseline's two sides
+      // are the candles' up and down
       const style = styleRef.current;
       if (style === 'candles') main.applyOptions(candleSeriesOptions(t));
       else if (style === 'hollow') {
@@ -3780,6 +3811,7 @@ const StrikeChart = ({
       else if (style === 'line' || style === 'step') (main as unknown as ISeriesApi<'Line'>).applyOptions({ color: t.up });
       else if (style === 'area')
         (main as unknown as ISeriesApi<'Area'>).applyOptions({ lineColor: t.up, topColor: `${t.up}40`, bottomColor: `${t.up}05` });
+      else if (style === 'baseline') (main as unknown as ISeriesApi<'Baseline'>).applyOptions(baselineInks(t));
     }
     /* The frame's inks ride the theme too (2026-09-11, the Stone theme): a
        light ground takes the dark axis ink, scale borders and crosshair. */
@@ -4135,28 +4167,37 @@ const StrikeChart = ({
     const paneCompareOn = compares.some(c => c.mode === 'pane');
     const subBase = paneCompareOn ? 2 : 1;
     const live = paneScripts.filter(p => p.chart.visible && p.script.status === 'ok');
-    /* ON A LIGHT TAPE a script's inks are the paper's (the owner's approval 4, 2026-10-15): the shipped family's pairs and
-       the house's own inks — a wall, the flip, the supreme, the direction pair — read off the tape's tokens, as the field
-       reads them. The ground and the reader's colour vision are in the signature, so a change of either redraws. */
+    /* A SCRIPT'S INKS ON THIS CHART (the owner's rule, 2026-10-15 — "Anything meaning up/down uses the candles' up and
+       down colours … A user's own script keeps the colours its code sets"; indicatorInks scriptInksWith): a shipped
+       script's up and down are this chart's candles', on any tape; its walls the field's pair on the tape's ground; on a
+       light tape the family's paper pairs and the house's inks off the tape's tokens (the owner's approval 4). A reader's
+       own script keeps what its code sets. The ground, the theme and the reader's colour vision are in the signature, so
+       a change of any redraws. */
     const lightTape = chartGround(themeKey) === 'light';
-    let paperOf: ReturnType<typeof paperInksWith> | undefined;
-    const inkFor = () => {
-      if (!lightTape) return undefined;
+    const dir = candleDirInks(themeRef.current);
+    const inkers = new Map<boolean, ReturnType<typeof scriptInksWith>>();
+    const inkFor = (shipped: boolean) => {
+      if (inkers.has(shipped)) return inkers.get(shipped);
       /* THE TAPE'S OWN TOKENS, READ INSIDE THE BOX: the chart's container stands in the box and inherits its light set,
          and its ref is filled before any effect runs. The box's own ref is state, null when a load's first commit runs
          its effects — the root's tokens were read then (on a dark page the flip, the supreme and the direction pair in
          their dark values, 1.1 to 1.9:1 on a Stone tape), and nothing redrew once the box was up. */
       const box = containerRef.current ?? boxElRef.current;
-      if (!box) return undefined;
-      /* the walls as the field's ovals take them on a light ground (heatmap.ts: the light ground's gold and violet — the
-         box is a dark island whose light set leaves the pair alone); the flip, the supreme, the direction pair and the
-         silver as the tape's own chrome reads them, off its box — in the reader's colour vision (index.css: the light set
-         again under data-cvd; the dark island's colour-vision set had beaten it, and a blue-and-orange Stone tape drew
-         its direction lines in the dark ground's pair at 1.3 and 1.4:1) */
-      paperOf ??= paperInksWith(name => (name === '--absorb' || name === '--amplify' ? groundRgb(name, 'light') : (parseInk(readToken(name, undefined, box))?.rgb ?? null)));
-      return paperOf;
+      /* the walls as the field's ovals take them on the tape's ground (heatmap.ts: the ground's gold and violet, in the
+         reader's colour vision — the box is a dark island whose light set leaves the pair alone); the flip, the supreme
+         and the silver as the tape's own chrome reads them, off its box */
+      const made = box
+        ? scriptInksWith({
+            shipped,
+            light: lightTape,
+            dir,
+            token: name => (name === '--absorb' || name === '--amplify' ? groundRgb(name, lightTape ? 'light' : 'dark') : (parseInk(readToken(name, undefined, box))?.rgb ?? null)),
+          })
+        : undefined;
+      inkers.set(shipped, made);
+      return made;
     };
-    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${lightTape ? 'light' : 'dark'}|${appTheme}|${live.map(p => `${p.chart.id}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
+    const sig = `${ticker}|${timeframe}|${barClock}|${full ? 'full' : 'recent'}|${mainNonce}|${subBase}|${subsActive.join(',')}|${lightTape ? 'light' : 'dark'}|${appTheme}|${dir.up}/${dir.down}|${live.map(p => `${p.chart.id}:${p.script.shelf}:${p.script.sourceHash}:${JSON.stringify(p.chart.inputs)}`).join(';')}`;
     const rebuild = scriptSigRef.current !== sig;
     if (rebuild) tearDown();
     const slayer = { callWall: levels.callWall, putWall: levels.putWall, flip: levels.flip, supreme: levels.supreme };
@@ -4204,8 +4245,9 @@ const StrikeChart = ({
         continue;
       }
       faults.delete(ps.chart.id);
-      /* a script in its own pane colours the price pane's candles too (TradingView's barcolor) */
-      tintRuns.push(result);
+      const ink = inkFor(ps.script.shelf === 'built-in');
+      /* a script in its own pane colours the price pane's candles too (TradingView's barcolor) — in the inks its lines take */
+      tintRuns.push(ink ? inkRun(result, ink) : result);
       const have = handles.get(ps.chart.id);
       if (have && have.update(result, bars)) {
         if (own) ownPanes++;
@@ -4219,7 +4261,7 @@ const StrikeChart = ({
          regime strip's or the flow band's pane) */
       const paneIndex = own ? chart.panes().length : 0;
       if (own) ownPanes++;
-      const made = drawRun(chart, result, bars, paneIndex, { fitCandles: !!fitCandles, ink: inkFor() });
+      const made = drawRun(chart, result, bars, paneIndex, { fitCandles: !!fitCandles, ink });
       handles.set(ps.chart.id, made);
       if (own) ownPaneOf.push(paneIndex);
     }
@@ -4231,8 +4273,8 @@ const StrikeChart = ({
       for (const i of ownPaneOf) panes[i]?.setStretchFactor(each);
     }
     scriptSigRef.current = sig;
-    /* the candles' colours: through the same inks as the scripts' lines (a light tape's paper pairs) */
-    applyTints(barTints(tintRuns, bars, inkFor()));
+    /* the candles' colours: each run already through its script's inks (above) */
+    applyTints(barTints(tintRuns, bars));
     /* the legend hears a change of the faults alone */
     const was = scriptFaultsRef.current;
     if (faults.size !== was.size || [...faults].some(([k, v]) => was.get(k) !== v)) {

@@ -22,6 +22,7 @@ import { useFlowTape } from '../../context/MarketDataContext';
 import ChartToolbar from '../../components/gex/ChartToolbar';
 import CompareControl from '../../components/gex/CompareControl';
 import { chartGround, useCandleThemeKey } from '../../components/gex/candleTheme';
+import { COMPARE_INKS, paperInk } from '../../components/gex/indicatorInks';
 import StrikeChart, {
   DEFAULT_INDICATORS,
   DEFAULT_OVERLAYS,
@@ -45,10 +46,8 @@ import { useFadeClose } from '../../components/ui/useFadeClose';
 import type { Timeframe } from '../../data/timeframe';
 import type { WorkspaceCtx } from './registry';
 
-/* Compare-line inks, blue leading like TradingView's; four slots. None of
-   these collide with the field (gold/steel), the levels (magenta/green/red/
-   baby-blue), or the voices (the silver accent/mint). */
-const COMPARE_INKS = ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'];
+/* Compare-line inks: the indicator family's four (components/gex/indicatorInks.ts COMPARE_INKS — the owner's rule of
+   2026-10-15, "Compare lines … indicator palette, no blue near the violet"), each with its pair for a light tape. */
 
 export interface LiveChartWidgetProps {
   ctx: WorkspaceCtx;
@@ -513,8 +512,8 @@ const LiveChartWidget = ({ ctx, soleChart = false }: LiveChartWidgetProps) => {
               only hand-removal outside the + menu */}
           {compares.map(c => (
             <div key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
-              <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
-              <span className="text-[11px] font-semibold" style={{ color: c.ink }}>
+              <span className="w-2 h-[3px] rounded-full" style={{ background: ground === 'light' ? paperInk(c.ink) : c.ink }} aria-hidden />
+              <span className="text-[11px] font-semibold" style={{ color: ground === 'light' ? paperInk(c.ink) : c.ink }}>
                 {c.ticker}
               </span>
               {Simulator.TICKERS[c.ticker] && (

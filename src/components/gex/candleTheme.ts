@@ -284,6 +284,22 @@ export function themeFor(key: CandleThemeKey, vision: ColourVision = getColourVi
   return (vision === 'blue-orange' ? CVD_CUTS[key] : undefined) ?? CANDLE_THEMES[key];
 }
 
+/** A chart's up and down, as a line or a wash wears them */
+export interface DirInks {
+  up: string;
+  down: string;
+}
+/**
+ * THE CANDLES' UP AND DOWN (the owner, 2026-10-15, one rule under every Colours option: "Anything meaning up/down uses the
+ * candles' up and down colours"): the inks a rising and a falling candle are outlined in — its border where the theme gives
+ * one (Wire's hollow white rise, the colour-vision cut's blue), else its body. Read off the theme the chart paints, after
+ * the reader's colour vision (themeFor), so every direction mark on the chart — an indicator's sign, a shipped script's
+ * trend lines and Ichimoku's cloud, the flow legs, the baseline style — follows the candles under every option.
+ */
+export function candleDirInks(t: CandleTheme): DirInks {
+  return { up: t.borderUp ?? t.up, down: t.borderDown ?? t.down };
+}
+
 // Noah's pick order: Chrome is the locked house default; Velvet then Glacier
 // are the sanctioned fallbacks if it wears badly. The gallery block (with
 // themed surfaces) follows the originals.

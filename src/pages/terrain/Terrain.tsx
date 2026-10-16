@@ -78,6 +78,7 @@ import ScopeChip from '../../components/ui/ScopeChip';
 import { ChartSkeleton, Deferred } from '../../components/ui/Skeleton';
 import SpotPrice from '../../components/gex/SpotPrice';
 import { CANDLE_THEMES, chartGround, pageDefaultCandleKey, usePageDefaultCandleKey, type CandleThemeKey } from '../../components/gex/candleTheme';
+import { COMPARE_INKS, compareInk, paperInk } from '../../components/gex/indicatorInks';
 import { TIMEFRAMES, tfMinutes, type Timeframe } from '../../data/timeframe';
 import { fmtSession } from '../../components/gex/chartTime';
 import { TREND_GLYPH, buildConfluence, trendWords, type ConfluenceRow } from '../../data/confluence';
@@ -526,10 +527,9 @@ const EMPTY_FLOW: never[] = [];
 
 const TF_VALUES = new Set<string>(TIMEFRAMES.map(t => t.value));
 const COMPARE_MODES = new Set<CompareMode>(['percent', 'scale', 'pane']);
-/* The desk's comparison inks (LiveChartWidget's set, verbatim): none of them
-   collide with the field's gold/steel, the levels' magenta/green/red/blue, or
-   the interface's silver. Four, so a pane can cross four symbols at most. */
-const COMPARE_INKS = ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'];
+/* The desk's comparison inks are the indicator family's (components/gex/indicatorInks.ts COMPARE_INKS — the owner's rule
+   of 2026-10-15: "Compare lines … indicator palette, no blue near the violet"), each with its pair for a light tape. Four,
+   so a pane can cross four symbols at most; a desk saved with the old inks takes its slot's (compareInk). */
 const STYLES = new Set<ChartStyle>(['candles', 'hollow', 'bars', 'line', 'step', 'area', 'baseline']);
 /* Derived from the picker's own list rather than typed a second time — a
    fifth mode added there is accepted here without an edit, and one removed
@@ -609,6 +609,7 @@ function readPane(raw: unknown, def: PaneCfg): PaneCfg {
               COMPARE_MODES.has((e as CompareEntry).mode)
           )
           .slice(0, COMPARE_INKS.length)
+          .map(e => ({ ...e, ink: compareInk(e.ink) }))
       : def.compares,
     priceScale: typeof c.priceScale === 'string' && SCALES.has(c.priceScale) ? (c.priceScale as PriceScale) : def.priceScale,
     sessionOr: typeof c.sessionOr === 'number' && OR_VALUES.has(c.sessionOr) ? (c.sessionOr as OpeningRange) : def.sessionOr,
@@ -1213,7 +1214,7 @@ const Pane = ({
     onCfg({
       compares: (() => {
         if (compares.length >= COMPARE_INKS.length || compares.some(c => c.ticker === t) || t === ticker) return compares;
-        const ink = COMPARE_INKS.find(i => !compares.some(c => c.ink === i)) ?? COMPARE_INKS[0];
+        const ink = COMPARE_INKS.find(i => !compares.some(c => compareInk(c.ink) === i)) ?? COMPARE_INKS[0];
         return [...compares, { ticker: t, mode, ink }];
       })(),
     });
@@ -3398,8 +3399,9 @@ const Pane = ({
               >
                 {compares.map(c => (
                   <span key={`${c.ticker}:${c.mode}`} className="flex items-center gap-1.5">
-                    <span className="w-2 h-[3px] rounded-full" style={{ background: c.ink }} aria-hidden />
-                    <span className="font-mono text-[11px] font-semibold" style={{ color: c.ink }}>
+                    {/* the line's ink as the chart draws it: its pair on a light tape */}
+                    <span className="w-2 h-[3px] rounded-full" style={{ background: ground === 'light' ? paperInk(compareInk(c.ink)) : compareInk(c.ink) }} aria-hidden />
+                    <span className="font-mono text-[11px] font-semibold" style={{ color: ground === 'light' ? paperInk(compareInk(c.ink)) : compareInk(c.ink) }}>
                       {c.ticker}
                     </span>
                     {/* on the feed the crossed name's own last bar ("—" where its bars are not on the plans: an index) */}

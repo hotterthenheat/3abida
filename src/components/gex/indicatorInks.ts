@@ -42,12 +42,29 @@
   scripts/indicator-inks-proof.ts measures all of it.
 
   THE HOUSE'S OWN INKS IN A SCRIPT (a wall, the flip,
-  the supreme, the direction pair, the silver) are
-  not this family's: on a light tape they take the
-  paper's (paperInksWith — the walls the light
-  ground's gold and violet, as the field's ovals do;
-  the rest off the tape's own box), so a shipped wall
-  stays the field's wall.
+  the supreme, the silver) are not this family's: on
+  a light tape they take the paper's (paperInksWith —
+  the walls the light ground's gold and violet, as
+  the field's ovals do; the rest off the tape's own
+  box), so a shipped wall stays the field's wall.
+
+  ONE RULE UNDER EVERY COLOURS OPTION (the owner,
+  2026-10-15: "Only the ovals use their two colours
+  … Anything meaning up/down uses the candles' up and
+  down colours. Everything else uses the indicator
+  palette, kept clear of the ovals' colours"): a
+  shipped script's up and down (it writes the house
+  pair, BULL and BEAR) are drawn in the candles' up
+  and down (candleTheme candleDirInks, after the
+  reader's colour vision) on every tape — Supertrend,
+  SAR, ADX's ±DI, Ichimoku's spans and its cloud, a
+  faint wash at the alpha it was written with — and
+  its walls in the field's pair on the tape's ground
+  (scriptInksWith). A reader's own script keeps the
+  colours its code sets; a plot it leaves uncoloured
+  takes the family's default (DEFAULT_PLOT_INK). The
+  compare lines are the family's too (COMPARE_INKS):
+  no blue near the violet.
 ==================================================
 */
 
@@ -74,9 +91,12 @@ const INDICATOR_PAIRS: Record<IndicatorKey, Pair> = {
   macd: ['#B692CE', '#410569'],
   atrPane: ['#A77E91', '#5A0040'],
 };
-const MACD_SIGNAL_PAIR: Pair = ['#D37C18', '#774202'];
-/** One steel wash for the MACD's bars, not red and green — the sign of momentum is not the price direction */
+const MACD_SIGNAL_PAIR: Pair = ['#D37C18', '#763F01'];
+/** The steel wash the MACD's bars wore until 2026-10-16 — a kept MACD script (the reader's own since approval 5) still
+    draws it. The chart's own MACD draws its bars in the candles' up and down now (DIR_WASH_ALPHA, the owner's rule) */
 const MACD_HIST_PAIR: Pair = ['rgba(226,234,244,0.30)', 'rgba(60,64,72,0.30)'];
+/** The alpha the chart's MACD bars wear the candles' up and down at, on either tape — a wash under the two lines */
+export const DIR_WASH_ALPHA = 0.6;
 
 /* The shipped scripts' own lines (the walls, the flip and the supreme keep the house's inks; the direction lines of
    Supertrend, Parabolic SAR, ADX's ±DI and Ichimoku's leading spans keep the direction pair) */
@@ -110,6 +130,25 @@ const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
   obv: ['#AB713C', '#321901'],
 };
 
+/* THE COMPARE LINES AND A PLOT LEFT UNCOLOURED (the owner, 2026-10-15: "Compare lines and Pine plots with no colour set:
+   indicator palette, no blue near the violet"): the compare lines wore #5B9CF6, #BBB2E8, #EDE4CD and #6BD3C7 with no
+   pair for a light tape, and a Pine plot given no colour #5B9CF6 — a blue 0.137 from the field's violet, under the 0.15
+   the family keeps; the lavender and the cream were Whipsaw's and Harbor's rising candles to the digit. Members of the
+   family now, held to its floors from the field's pair (and from it under simulated protanopia and deuteranopia), from
+   the house's inks, from every theme's candles (0.05 — no compare line is a candle) and from each other, each with its
+   pair for a light tape. THEY STAND APART FROM THE LINES THEY SHARE A PANE WITH: a compare line and a script's plot draw
+   on the price pane or a pane of their own, never in a sub-pane indicator's, so they keep 0.08 from the price pane's
+   inks (the averages, the VWAP and its bands, Bollinger, the shipped overlays), not from RSI's or the stochastic's. The
+   family holds no free blue at 0.08 on either ground (2026-10-16, searched: the only room was dim mid-tones at
+   L 0.50–0.57), so no compare line is a blue. */
+const COMPARE_PAIRS: readonly Pair[] = [
+  ['#D69FB2', '#572F42'],
+  ['#929A2D', '#3B3600'],
+  ['#9EC3C2', '#332138'],
+  ['#FDBCD2', '#51004F'],
+];
+const PLOT_DEFAULT_PAIR: Pair = ['#C27F22', '#391C00'];
+
 const dark = <K extends string>(r: Record<K, Pair>): Record<K, string> => Object.fromEntries(Object.entries<Pair>(r).map(([k, v]) => [k, v[0]])) as Record<K, string>;
 
 /** Each Indicators-menu key's lead ink on a dark tape */
@@ -119,12 +158,26 @@ export const MACD_HIST_INK = MACD_HIST_PAIR[0];
 /** Each shipped script's own line inks on a dark tape — the Pine sources write them (data/builtinScripts.ts) */
 export const SCRIPT_INKS: Record<ScriptInkKey, string> = dark(SCRIPT_PAIRS);
 
+/** The compare lines' inks on a dark tape, a slot each (four, so a pane crosses four names at most) */
+export const COMPARE_INKS: readonly string[] = COMPARE_PAIRS.map(p => p[0]);
+/** A Pine plot's or shape's ink when its script sets none (core/pine) */
+export const DEFAULT_PLOT_INK = PLOT_DEFAULT_PAIR[0];
+/* the compare inks a desk saved before 2026-10-16, by slot */
+const OLD_COMPARE_INKS = ['#5B9CF6', '#BBB2E8', '#EDE4CD', '#6BD3C7'];
+/** A compare line's ink as a desk saved it: one saved before the family took the compare lines in is its slot's ink now */
+export function compareInk(saved: string): string {
+  const i = OLD_COMPARE_INKS.indexOf(saved.trim().toUpperCase());
+  return i >= 0 ? COMPARE_INKS[i] : saved;
+}
+
 /** Every pair of the family, for the proof and for the light tape's lookup */
 export const INK_PAIRS: { name: string; dark: string; paper: string; wash?: true }[] = [
   ...Object.entries<Pair>(INDICATOR_PAIRS).map(([k, [d, p]]) => ({ name: `indicator:${k}`, dark: d, paper: p })),
   { name: 'indicator:macdSignal', dark: MACD_SIGNAL_PAIR[0], paper: MACD_SIGNAL_PAIR[1] },
   { name: 'indicator:macdHist', dark: MACD_HIST_PAIR[0], paper: MACD_HIST_PAIR[1], wash: true },
   ...Object.entries<Pair>(SCRIPT_PAIRS).map(([k, [d, p]]) => ({ name: `script:${k}`, dark: d, paper: p })),
+  ...COMPARE_PAIRS.map(([d, p], i) => ({ name: `compare:${i + 1}`, dark: d, paper: p })),
+  { name: 'plot:default', dark: PLOT_DEFAULT_PAIR[0], paper: PLOT_DEFAULT_PAIR[1] },
 ];
 
 /* ---- reading an ink, and its paper pair ---------------------------------------------- */
@@ -185,14 +238,14 @@ export function faintInk(css: string, light: boolean): string {
   return cssOf(c.rgb, light ? paperLineAlpha(FAINT_ALPHA) : FAINT_ALPHA);
 }
 
-/** The house's own inks a script may write, and the token each reads on the tape's ground */
+/** The house's own inks a script may write, and the token each reads on the tape's ground — the walls the field's pair,
+    the flip, the supreme and the silver. The direction pair (BULL, BEAR) is not among them: a shipped script's up and
+    down are the candles' (scriptInksWith) */
 export const HOUSE_INK_TOKENS: [string, string][] = [
   [CALL_WALL, '--absorb'],
   [PUT_WALL, '--amplify'],
   [SUPREME, '--supreme'],
   [FLIP, '--flip'],
-  [BULL, '--bull'],
-  [BEAR, '--bear'],
   [ACCENT, '--select'],
 ];
 
@@ -223,6 +276,85 @@ export function paperInksWith(token: (name: string) => [number, number, number] 
       const k = keyOf(c.rgb);
       const family = PAPER_OF.get(k);
       if (family) out = cssOf(family, kind === 'line' ? paperLineAlpha(c.a) : c.a);
+      else {
+        const to = house.get(k);
+        if (to) out = cssOf(to, c.a);
+      }
+    }
+    if (kept.size > 512) kept.clear();
+    kept.set(key, out);
+    return out;
+  };
+}
+
+/** An ink at an alpha: '#rrggbb' or an rgb() as 'rgba(r, g, b, a)' — anything else as it came */
+export function withAlpha(css: string, a: number): string {
+  const c = parseInk(css);
+  return c ? cssOf(c.rgb, a) : css;
+}
+
+/** What a script's inks are mapped by: whether the terminal ships it, the tape's ground, the chart's candles */
+export interface ScriptInkOpts {
+  /** A script the terminal ships, read-only (Script `shelf: 'built-in'`). A reader's own — a copy, a kept retired one, one
+      they wrote — keeps the colours its code sets */
+  shipped: boolean;
+  /** The tape's ground is light (Stone) */
+  light: boolean;
+  /** The candles' up and down this chart paints (candleTheme candleDirInks, after the reader's colour vision) */
+  dir: { up: string; down: string };
+  /** A house token's channels on the tape's ground: the walls the field's pair there, the rest off the tape's own box */
+  token: (name: string) => [number, number, number] | null;
+}
+
+const DEFAULT_PLOT_KEY = keyOf(parseInk(PLOT_DEFAULT_PAIR[0])!.rgb);
+const DEFAULT_PLOT_PAPER = parseInk(PLOT_DEFAULT_PAIR[1])!.rgb;
+const BULL_KEY = keyOf(parseInk(BULL)!.rgb);
+const BEAR_KEY = keyOf(parseInk(BEAR)!.rgb);
+
+/**
+ * A SCRIPT'S INKS ON THIS CHART (the owner's rule of 2026-10-15), or undefined where nothing is mapped:
+ *  · a SHIPPED script's up and down (the house pair it writes, BULL and BEAR) are the candles' up and down, at the alpha
+ *    written — on a dark tape and a light one, under every theme and colour vision (the last review found nothing mapped
+ *    on a dark tape: under blue and orange Supertrend drew the house green and red beside blue and orange candles); its
+ *    walls are the field's pair on the tape's ground (under blue and orange the ovals' paler gold and redder violet); on a
+ *    light tape its flip, supreme and silver are the tape's tokens and the family's inks their paper pairs
+ *    (paperInksWith);
+ *  · a READER'S OWN script keeps every colour its code sets; only a plot it left uncoloured — the family's default, the
+ *    house's pick — takes its pair on a light tape.
+ */
+export function scriptInksWith(o: ScriptInkOpts): ((css: string, kind?: InkKind) => string) | undefined {
+  if (!o.shipped) {
+    if (!o.light) return undefined;
+    return (css: string, kind: InkKind = 'wash') => {
+      const c = parseInk(css);
+      if (!c || keyOf(c.rgb) !== DEFAULT_PLOT_KEY) return css;
+      return cssOf(DEFAULT_PLOT_PAPER, kind === 'line' ? paperLineAlpha(c.a) : c.a);
+    };
+  }
+  const up = parseInk(o.dir.up)?.rgb ?? null;
+  const down = parseInk(o.dir.down)?.rgb ?? null;
+  const light = o.light ? paperInksWith(o.token) : null;
+  /* on a dark tape the walls alone move — to the field's pair as the reader's colour vision has it; the flip, the supreme
+     and the silver are written in the dark island's own values */
+  const house = new Map<string, [number, number, number]>();
+  if (!o.light)
+    for (const [hex, name] of HOUSE_INK_TOKENS.filter(([, n]) => n === '--absorb' || n === '--amplify')) {
+      const c = parseInk(hex);
+      const t = o.token(name);
+      if (c && t) house.set(keyOf(c.rgb), t);
+    }
+  const kept = new Map<string, string>();
+  return (css: string, kind: InkKind = 'wash') => {
+    const key = `${kind}|${css}`;
+    const hit = kept.get(key);
+    if (hit !== undefined) return hit;
+    let out = css;
+    const c = parseInk(css);
+    if (c) {
+      const k = keyOf(c.rgb);
+      if (k === BULL_KEY && up) out = cssOf(up, c.a);
+      else if (k === BEAR_KEY && down) out = cssOf(down, c.a);
+      else if (light) out = light(css, kind);
       else {
         const to = house.get(k);
         if (to) out = cssOf(to, c.a);
