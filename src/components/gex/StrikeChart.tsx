@@ -41,7 +41,7 @@ import { drawRun, inkRun, type ScriptHandle } from './scriptLayer';
 import { barTints, candleTintForm, NO_TINT, retint, tintPoint, type TintForm } from './barTints';
 import { DIR_WASH_ALPHA, INDICATOR_INKS, IV_INK, MACD_SIGNAL_INK, RV_INK, compareInkOn, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
-import ResetViewControl from './ResetViewControl';
+import ResetViewControl, { pillTopOverFoot } from './ResetViewControl';
 import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
 
 /* the time scale with its day, month and year ticks on the viewer's calendar (chartTime.ts) — one class for every chart */
@@ -63,7 +63,7 @@ import { gapSessionKey, tradesAllSessions } from '../../core/sessions';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
 import { isoDayLabel, num, pct, pctSigned, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
-import PaneFoot from './PaneFoot';
+import PaneFoot, { onPaneFoot, paneFootTopOver } from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { alertMarket } from './alertMarket';
 import { armLine, commitArm, evaluateAlert, markFired, removeAlert, useAlerts, MAX_ALERTS, type AlertContext, type IndicatorSource, type LineMode } from './alertStore';
@@ -1092,9 +1092,6 @@ const FIT_GAP_PX = 6;
 /** The drawing rail docked left: 6 px in, 44 wide, 6 clear — the plot starts after it (the owner, 2026-10-13: "the
     floating drawing toolbar covers candles on the left edge") */
 const RAIL_LEFT_INSET_PX = 56;
-/** The Reset pill over a pane foot (the replay's strip): its top 2rem above the foot's (the pill's 1.5rem and 0.5rem
-    clear), the foot's top said by PaneFoot as --pane-foot-top */
-const FOOT_PILL = { top: 'calc(var(--pane-foot-top, 100%) - 2rem)', bottom: 'auto' } as const;
 
 /* THE AXIS CHIPS' ROWS (the Terrain UI pass, 2026-10-14) */
 type AxisChipKey = 'cw' | 'pw' | 'flip' | 'supreme' | 'top';
@@ -2987,6 +2984,23 @@ const StrikeChart = ({
     trails.gapRev++;
     trails.requestUpdate?.();
   }, [fieldGapCause, mainNonce, ticker, footReservePx]);
+  /* THE PILL'S KEEP-OUT FOLLOWS THE PILL (approval 3's third review, 2026-10-16): over a pane foot the pill stands above
+     it (ResetViewControl), and the field's words — the gap notes, the node pills, the wall chips — keep clear of where it
+     stands, not of its place at rest (in a replay that was about 78 px under it, behind the strip) */
+  useEffect(() => {
+    const trails = trailsRef.current;
+    if (!trails || !boxEl) return;
+    const read = () => {
+      const foot = paneFootTopOver(boxEl);
+      const top = foot == null ? null : pillTopOverFoot(foot);
+      if (trails.resetTop === top) return;
+      trails.resetTop = top;
+      trails.gapRev++;
+      trails.requestUpdate?.();
+    };
+    read();
+    return onPaneFoot(read);
+  }, [mainNonce, boxEl]);
 
   /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) */
   useEffect(() => {
@@ -6074,9 +6088,10 @@ const StrikeChart = ({
         {/* THE HOST'S LAYER (Review's position, target and stop) — over the plot, under the chrome */}
         {layer?.({ chart: () => chartRef.current, series: () => candleSeriesRef.current as ISeriesApi<SeriesType> | null, host: () => containerRef.current, room: layerRoom, reset: resetView })}
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
-        {/* over a pane foot (the replay's strip) the pill stands above it, its top measured (PaneFoot --pane-foot-top) —
-            the strip covered it, and a replay had three ways home of the four */}
-        <ResetViewControl onReset={resetView} {...(footBar || (replay && !external) ? { pillClass: 'left-1/2 -translate-x-1/2', pillStyle: FOOT_PILL } : resetPillClass ? { pillClass: resetPillClass } : {})} />
+        {/* over a pane foot — the replay's strip, a host's bar in the layer (the Backtest's clock, Paper's position), one
+            strip across two charts — the pill stands above it, wherever the foot is mounted (ResetViewControl reads
+            PaneFoot): the strip covered it, and the desk had three ways home of the four */}
+        <ResetViewControl onReset={resetView} {...(resetPillClass ? { pillClass: resetPillClass } : {})} />
         {/* The scripts on this pane, named at the top left with hide and remove (2026-09-10) */}
         {paneId && paneScripts.length > 0 && !replay && <ScriptLegend paneId={paneId} scripts={paneScripts} faults={scriptFaults} left={12 + railLeftInset} />}
         {/* Every band says its own name, the way the reference does. An

@@ -70,6 +70,10 @@ const LOGO_W_CSS = 110;
 /** The Reset pill's keep-out: half its width with a margin, and the price scale it is centred over with the plot */
 const RESET_HALF_W_CSS = 56;
 const RESET_SCALE_CSS = 72;
+const RESET_H_CSS = 24;
+/** The Reset pill's top on the pane, CSS px: over a pane foot where the chart says (`resetTop`), else at rest — its foot
+    4 px over the plot's, lifted over the host's foot row */
+const resetPillTop = (src: { resetTop: number | null; footKeep: number }, paneHCss: number): number => src.resetTop ?? paneHCss - 4 - RESET_H_CSS - src.footKeep;
 const LOGO_H_CSS = 26;
 /** A node's diameter in CSS px at size t (√ of gross ÷ reference, clipped at 1) on a strike row `rowCss` tall:
     3 px + (85% of the row − 3 px) × t — a row too short for three pixels gives three */
@@ -303,6 +307,10 @@ export function addOval(p: Path2D, cx: number, cy: number, rw: number, rh: numbe
   p.closePath();
 }
 
+/** A box placed on the plot by the field's words (device pixels): a keep-out (the library's mark, the Reset pill, the host's
+    foot row) or a word's pad (a gap note, a node pill, a wall chip) */
+type WordBox = { l: number; r: number; t: number; b: number; k?: 'logo' | 'reset' | 'foot' | 'gap' | 'node' | 'chip' };
+
 /** THE GAP NOTES: one a run, inside it at the plot's foot (or just over the Reset pill's row where the foot is taken),
     never twice, skipped where the run is too narrow to hold its words — each placed box added to `boxes` */
 function placeGapNotes(
@@ -311,7 +319,7 @@ function placeGapNotes(
   ts: ReturnType<IChartApi['timeScale']>,
   barSpacing: number,
   g: { hr: number; vr: number; paneHCss: number; full: number; padX: number; leftMost: number; rightMost: number; padInk: string; ink: RGB3 },
-  boxes: { l: number; r: number; t: number; b: number }[],
+  boxes: WordBox[],
   collides: (l: number, r: number, t: number, b: number) => boolean
 ): void {
   if (!runs.length) return;
@@ -334,7 +342,7 @@ function placeGapNotes(
     const br = bl + w + 2 * g.padX;
     const top = !collides(bl, br, footTop, footTop + g.full) ? footTop : !collides(bl, br, liftTop, liftTop + g.full) ? liftTop : null;
     if (top === null) continue;
-    boxes.push({ l: bl, r: br, t: top, b: top + g.full });
+    boxes.push({ l: bl, r: br, t: top, b: top + g.full, k: 'gap' });
     ctx.fillStyle = g.padInk;
     ctx.fillRect(bl, top, br - bl, g.full);
     ctx.fillStyle = `rgba(${g.ink[0]},${g.ink[1]},${g.ink[2]},0.95)`;
@@ -454,10 +462,12 @@ class TrailsPaneRenderer {
       const paneHCss = scope.mediaSize.height;
       const px11 = 11;
       const full = (px11 + 5) * vr;
-      const boxes: { l: number; r: number; t: number; b: number }[] = [{ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr }];
+      const boxes: WordBox[] = [{ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr, k: 'logo' }];
       const cx = (wCss + RESET_SCALE_CSS) / 2;
-      boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30 - src.footKeep) * vr, b: (paneHCss - 2 - src.footKeep) * vr });
-      if (src.footKeep > 0) boxes.push({ l: 0, r: wCss * hr, t: (paneHCss - src.footKeep) * vr, b: paneHCss * vr });
+      const pillT = resetPillTop(src, paneHCss);
+      boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (pillT - 2) * vr, b: (pillT + RESET_H_CSS + 2) * vr, k: 'reset' });
+      if (src.footKeep > 0) boxes.push({ l: 0, r: wCss * hr, t: (paneHCss - src.footKeep) * vr, b: paneHCss * vr, k: 'foot' });
+      src.lastWords = { boxes, hr, vr };
       const collides = (l: number, rr: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && rr > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
       ctx.font = `${Math.round(px11 * vr)}px ${FONT_SANS}`;
       ctx.textBaseline = 'middle';
@@ -563,7 +573,7 @@ class TrailsPaneRenderer {
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? col0.spot) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? col0.spot) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}|${src.footKeep}`;
+      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}|${src.footKeep}|${src.resetTop}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
       const yCache = new Map<number, number | null>();
@@ -842,7 +852,8 @@ class TrailsPaneRenderer {
         const ctx = top.context;
       // ---- the words: gap labels, the node pills, the wall-move chips and ticks ----------------------------------
       /* every box placed on the plot; nothing written over another (the orbs message, items 11 and 14) */
-      const boxes: { l: number; r: number; t: number; b: number }[] = [];
+      const boxes: WordBox[] = [];
+      src.lastWords = { boxes, hr, vr };
       const px11 = 11;
       const full = (px11 + 5) * vr;
       const padX = 4 * hr;
@@ -850,16 +861,18 @@ class TrailsPaneRenderer {
       const leftMost = CHIP_LEFT * hr;
       const rightMost = (wCss - CHIP_RIGHT) * hr;
       /* the library's attribution mark stands at the plot's bottom-left: a keep-out box */
-      boxes.push({ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr });
+      boxes.push({ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr, k: 'logo' });
       /* and the chart's Reset whisper pill (ResetViewControl: centred on the chart's box, price scale included, 24 px
-         tall, its foot 4 px over the plot's) — a keep-out box a little wider than the pill */
+         tall, its foot 4 px over the plot's — or, over a pane foot, where the chart says it stands, `resetTop`) — a
+         keep-out box a little wider than the pill */
       {
         const cx = (wCss + RESET_SCALE_CSS) / 2;
-        boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (paneHCss - 30 - src.footKeep) * vr, b: (paneHCss - 2 - src.footKeep) * vr });
+        const pillT = resetPillTop(src, paneHCss);
+        boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (pillT - 2) * vr, b: (pillT + RESET_H_CSS + 2) * vr, k: 'reset' });
       }
       /* the host's foot row (Terrain's Building chip, the stale banner, Back to live, the phone's peek): a keep-out band
          at the plot's foot, the Reset pill a row above it (the round-3 shots: a wall-move chip stood on the Building chip) */
-      if (src.footKeep > 0) boxes.push({ l: 0, r: wCss * hr, t: (paneHCss - src.footKeep) * vr, b: paneHCss * vr });
+      if (src.footKeep > 0) boxes.push({ l: 0, r: wCss * hr, t: (paneHCss - src.footKeep) * vr, b: paneHCss * vr, k: 'foot' });
       const collides = (l: number, r: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && r > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
       /** a box slid down (then up) until it stands clear, or null when the plot has no room for it */
       const settle = (l: number, r: number, t: number, h: number): number | null => {
@@ -913,7 +926,7 @@ class TrailsPaneRenderer {
             const want = Math.max(floorDev, Math.min(paneHCss * vr - full, y * vr - full / 2));
             const top = settle(l, l + pw, want, full);
             if (top === null) continue;
-            boxes.push({ l, r: l + pw, t: top, b: top + full });
+            boxes.push({ l, r: l + pw, t: top, b: top + full, k: 'node' });
             ctx.fillStyle = padInk;
             ctx.fillRect(l, top, pw, full);
             const rgb = markInk(b.put ? 1 : -1, b.strength, inks);
@@ -980,7 +993,7 @@ class TrailsPaneRenderer {
           if (want < floorDev) want = Math.max(floorDev, y * vr + 3 * vr);
           const top = settle(l, l + w + padX * 2, want, full);
           if (top === null) continue;
-          boxes.push({ l, r: l + w + padX * 2, t: top, b: top + full });
+          boxes.push({ l, r: l + w + padX * 2, t: top, b: top + full, k: 'chip' });
           const rgb = paper ? (m.kind === 'CW' ? paper.cw : paper.pw) : m.kind === 'CW' ? darkMarkInks().call : darkMarkInks().put;
           ctx.fillStyle = padInk;
           ctx.fillRect(l, top, w + padX * 2, full);
@@ -1099,6 +1112,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   /** The gap runs the last frame labelled (bar times, epoch s, and their words) — read by the development probes
       (StrikeChart's `window.__charts` entry, scripts/terrain-ui-proof.mjs) */
   lastGapRuns: readonly GapRun[] = [];
+  /** The boxes the last words pass placed, in device pixels with the pass's ratios — the keep-outs and the words' pads (the
+      same development probes: a word never on the Reset pill) */
+  lastWords: { boxes: readonly WordBox[]; hr: number; vr: number } | null = null;
   chart: IChartApi | null = null;
   series: ISeriesApi<'Candlestick'> | null = null;
   requestUpdate?: () => void;
@@ -1142,6 +1158,9 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   /** The host's foot row over the plot's foot, CSS px tall (0 none): no word of the field is placed there, and the Reset
       pill's keep-out stands that much higher (the host lifts the pill by the same) */
   footKeep = 0;
+  /** WHERE THE RESET PILL STANDS OVER A PANE FOOT (a replay's strip, a desk's clock or position bar — PaneFoot), its top
+      in CSS px from the pane's top; null: at its rest place (footKeep above). The words' keep-out follows it. */
+  resetTop: number | null = null;
   /** Whether a column of the field stands inside the bar at `barTime` (this chart's barSec) */
   hasColumnAt(barTime: number): boolean {
     return this.columnKindAt(barTime) !== 'none';

@@ -3140,7 +3140,11 @@ check('inks: a Long position and the measure draw up and down in the candles\' i
    and those cases say they were met. Before: the first press's work stayed (the day panel, the pin and the card, a
    replay picked) where the second met it, and in a replay the strip covered the pill. The chart's OWN replay (Pulse's
    full screen) has a case of its own: its pick cut the series and the field to the bar and started the replay, and the
-   double-click reset the cut series (the review of 2026-10-16). */
+   double-click reset the cut series (the review of 2026-10-16). THE DESKS (the third review, 2026-10-16): the Backtest's
+   clock, one strip across a split desk's two charts and Paper's position bar are pane feet a host mounts; every pill on
+   the page must be the top element at its centre and its corners, and pressable — before, the Backtest's clock covered
+   the pill (the strip's words at its centre, the pill's click timed out), a split desk's strip covered both charts' pills,
+   and Paper's bar the pill of a chart with a position open. */
 const RESET_PANE = tf => ({ ticker: 'SPY', timeframe: tf, overlays: { trails: true }, ladder: true });
 /** Pulse with its live chart's tile up full screen — the chart's OWN replay rides there (`replay && !external`: it picks
     its bar itself, no host's clock), the desk chooser answered; a fresh context, so nothing is left to put back */
@@ -3158,6 +3162,61 @@ async function pulseFull({ width = 1440, height = 900 } = {}) {
   await page.waitForTimeout(1500);
   return { page, errors, done: () => ctx.close() };
 }
+/** The Backtest's desk on the house's tape (the feed refused: no real days), a session started from the Sessions page —
+    one name on the page, or two side by side in the full screen with the panel folded (the split desk: ONE clock strip
+    across both charts, mounted outside both) */
+async function backtestDesk({ width = 1440, height = 900, split = false } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Los_Angeles' });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
+  await page.route(u => u.pathname.startsWith('/feed/'), r => r.abort());
+  await page.goto(`${base}/practice/backtest`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-review-start]', { timeout: 60_000 });
+  if (split) {
+    await page.click('[data-review-name-2-add]');
+    await page.waitForTimeout(500);
+    await page.keyboard.type('QQQ');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+  }
+  await page.click('[data-review-start]');
+  await page.waitForSelector('[data-review-tape="page"]', { timeout: 20_000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-chart-state]')].some(e => Number((e.getAttribute('data-chart-state') ?? '').split('|')[2]) > 0), null, { timeout: 60_000 });
+  await page.waitForTimeout(2500);
+  if (split) {
+    await page.click('[data-review-full="off"]');
+    await page.waitForTimeout(1500);
+    await page.click('[data-review-panel-door="open"]');
+    await page.waitForSelector('[data-review-split="on"]', { timeout: 8000 });
+    await page.waitForTimeout(2500);
+  }
+  return { page, errors, done: () => ctx.close() };
+}
+/** Paper's desk, a practice account with a call held, so the chart's position bar (a pane foot in the desk's layer) stands
+    at its foot — the page's clock fixed in an open session (a market order waits for the open), the chart at 1h (the
+    house's tape makes a minute's bar every six seconds: at 1m a bar came in under every pill-and-door pair) */
+async function paperDesk({ width = 1440, height = 900 } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Los_Angeles' });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
+  await page.route(u => u.pathname.startsWith('/feed/'), r => r.abort());
+  await page.clock.setFixedTime(new Date('2026-10-14T15:00:30Z'));
+  await page.goto(`${base}/practice/paper`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: '$25,000' }).first().click({ timeout: 60_000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-chart-state]')].some(e => Number((e.getAttribute('data-chart-state') ?? '').split('|')[2]) > 0), null, { timeout: 60_000 });
+  await page.waitForTimeout(2500);
+  await page.locator('[data-paper-chain-grid] .ag-row').nth(6).click();
+  await page.locator('[data-order-act="buy"]').first().click({ timeout: 8000 });
+  await page.waitForSelector('[data-paper-position-bar]', { timeout: 8000 });
+  await page.locator('[data-review-toolbar]').getByText('1h', { exact: true }).first().click({ timeout: 5000 });
+  await page.waitForTimeout(1500);
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(1500);
+  return { page, errors, done: () => ctx.close() };
+}
 const RESET_CASES = [
   { name: '1 pane, 5m, a strike pinned, the double-click on another node', panes: [RESET_PANE('5m')], pin: true, dbl: 'node' },
   { name: '1 pane, 1D, the double-click where the day panel opens', panes: [RESET_PANE('1D')], dbl: 'day', under: 'day panel' },
@@ -3168,10 +3227,22 @@ const RESET_CASES = [
   { name: 'a replay, 5m', panes: [RESET_PANE('5m')], replay: 'play', dbl: 'empty' },
   { name: "a replay's pick, 5m", panes: [RESET_PANE('5m')], replay: 'pick', dbl: 'empty' },
   { name: "Pulse full screen, the chart's own replay's pick, 1m", host: 'pulse', replay: 'own pick', dbl: 'empty' },
+  { name: "the Backtest's desk, its clock at the chart's foot", host: 'backtest', dbl: 'empty' },
+  { name: "the Backtest's split desk, one clock across both charts (1200 wide)", host: 'backtest split', dbl: 'empty' },
+  { name: "Paper's desk, a position's bar at the chart's foot", host: 'paper', dbl: 'empty' },
 ];
 for (const c of RESET_CASES) {
   check(`reset: the pill, a double-click, Alt+R and the right-click card land on the identical view (${c.name})`, async () => {
-    const { page, errors, done } = c.host === 'pulse' ? await pulseFull() : await terrain(c.panes, { layout: c.layout ?? 1 });
+    const { page, errors, done } =
+      c.host === 'pulse'
+        ? await pulseFull()
+        : c.host === 'backtest'
+          ? await backtestDesk()
+          : c.host === 'backtest split'
+            ? await backtestDesk({ width: 1200, split: true })
+            : c.host === 'paper'
+              ? await paperDesk()
+              : await terrain(c.panes, { layout: c.layout ?? 1 });
     const WRAP = '[data-chart-ink][data-chart-ground]:not([data-recap-shot] *)';
     /* the first pane's chart, its plot's free points (none under a card, a chip or the rail), a node of the field (the first
        found, and the one nearest the plot's middle) and a point with a bar under it inside the day panel's footprint */
@@ -3378,6 +3449,39 @@ for (const c of RESET_CASES) {
         await page.mouse.move(5, 5);
         await page.waitForTimeout(300);
       }
+      /* EVERY PILL ON THE PAGE IS THE TOP ELEMENT at its centre and its corners (inside its rounded ends) — nothing a host
+         stands at the chart's foot covers it */
+      const covered = await page.evaluate(() => {
+        const out = [];
+        for (const p of document.querySelectorAll('[data-reset-pill]')) {
+          const r = p.getBoundingClientRect();
+          /* on screen: the recap's picture is drawn by a chart off it (data-recap-shot) */
+          if (!r.width || !r.height || p.closest('[data-recap-shot]') || r.right < 0 || r.left > innerWidth || r.bottom < 0 || r.top > innerHeight) continue;
+          const ri = r.height / 2;
+          const pts = [
+            ['centre', r.left + r.width / 2, r.top + r.height / 2],
+            ['top left', r.left + ri, r.top + 2],
+            ['top right', r.right - ri, r.top + 2],
+            ['bottom left', r.left + ri, r.bottom - 2],
+            ['bottom right', r.right - ri, r.bottom - 2],
+          ];
+          const where = [r.left, r.top, r.width, r.height].map(Math.round).join(', ');
+          for (const [name, x, y] of pts) {
+            const el = document.elementFromPoint(x, y);
+            if (el !== p && !p.contains(el)) {
+              const what = el ? `${el.tagName.toLowerCase()}${[...el.attributes].filter(a => a.name.startsWith('data-')).map(a => `[${a.name}]`).join('') || `.${String(el.className).split(' ')[0]}`}` : 'nothing';
+              const card = el?.closest('[data-replay-strip], [data-paper-position-bar], [data-pane-foot]');
+              out.push(`the pill at [${where}]: its ${name} is under ${what}${card ? ` (in ${[...card.attributes].filter(a => a.name.startsWith('data-')).map(a => a.name).join(' ')})` : ''}`);
+            }
+          }
+        }
+        return out;
+      });
+      const pills = await page.locator('[data-reset-pill]:not([data-recap-shot] *)').count();
+      if (covered.length) {
+        pass = false;
+        notes.push(...covered.slice(0, 6));
+      } else notes.push(`every pill on the page (${pills}) is the top element at its centre and its four corners`);
       /* the pin the resets must keep: a node clicked (its strike and its card) */
       let pinned = null;
       if (c.pin) {
@@ -3498,6 +3602,109 @@ for (const c of RESET_CASES) {
     }
   });
 }
+
+/* ─── IN A REPLAY THE FIELD'S WORDS KEEP CLEAR OF THE RESET PILL WHERE IT STANDS (approval 3's third review, 2026-10-16) ──
+   Over a pane foot the pill stands above it; the field's words (the gap notes, the node pills, the wall chips) settle off
+   a keep-out box round the pill. A replay at 5m, the replay strip at the foot: the keep-out the last words pass placed
+   must cover the pill as it stands; then the live column's largest node is brought onto the pill (the time scale moves
+   its bar so its pill's words start just left of the Reset pill, the price scale its strike to the pill's middle row),
+   and no word may stand on the pill. Before: the keep-out stayed at the pill's place at rest, about 80 px under it,
+   behind the strip — the node's words stood on the pill. */
+check('reset: in a replay the field\'s words keep clear of the Reset pill where it stands, over the strip', async () => {
+  const { page, errors, done } = await terrain([RESET_PANE('5m')]);
+  const WRAP = '[data-chart-ink][data-chart-ground]:not([data-recap-shot] *)';
+  /* the pill and the words' boxes, in the pane's CSS pixels */
+  const read = () =>
+    page.evaluate(W => {
+      const wrap = document.querySelector(W);
+      const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
+      const h = e.host.getBoundingClientRect();
+      const p = wrap.querySelector('[data-reset-pill]').getBoundingClientRect();
+      const lw = e.trails?.lastWords;
+      const boxes = lw ? lw.boxes.map(q => ({ k: q.k, l: q.l / lw.hr, r: q.r / lw.hr, t: q.t / lw.vr, b: q.b / lw.vr })) : [];
+      return { pill: { l: p.left - h.left, r: p.right - h.left, t: p.top - h.top, b: p.bottom - h.top }, boxes, paneH: e.chart.paneSize(0).height };
+    }, WRAP);
+  const r0 = n => Math.round(n);
+  const box = q => `[${r0(q.l)}–${r0(q.r)} × ${r0(q.t)}–${r0(q.b)}]`;
+  const over = (q, p) => q.l < p.r && q.r > p.l && q.t < p.b && q.b > p.t;
+  const notes = [];
+  let pass = true;
+  try {
+    const t0 = Date.now();
+    const head = await page.locator('[data-pane-head]').first().boundingBox();
+    await page.mouse.click(head.x + head.width * 0.6, head.y + head.height / 2);
+    await page.keyboard.press('p');
+    await page.waitForTimeout(600);
+    const b = await page.locator(WRAP).first().boundingBox();
+    await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+    await page.waitForFunction(() => !!document.querySelector('[data-as-of]'), null, { timeout: 8000 });
+    await page.waitForTimeout(1500);
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(800);
+    const a = await read();
+    const pill = a.pill;
+    notes.push(`the pill over the strip at ${box(pill)} on a pane ${r0(a.paneH)} tall`);
+    const keep = a.boxes.find(q => q.k === 'reset');
+    if (!keep || keep.l > pill.l || keep.r < pill.r || keep.t > pill.t || keep.b < pill.b) {
+      pass = false;
+      notes.push(`the words' keep-out for the pill stands at ${keep ? box(keep) : 'nowhere'} — it does not cover the pill`);
+    } else notes.push(`the words' keep-out for the pill: ${box(keep)}`);
+    const node = a.boxes.find(q => q.k === 'node');
+    if (!node) return { pass: false, notes: [...notes, 'no node pill on the plot to bring near'] };
+    /* the live column's bar to the pill's left, its largest node's strike to the pill's middle row — a frame between steps */
+    let at = null;
+    for (let i = 0; i < 4; i++)
+      at = await page.evaluate(
+        async ([W, node, pill]) => {
+          const wrap = document.querySelector(W);
+          const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
+          const ts = e.chart.timeScale();
+          const ps = e.chart.priceScale('right');
+          const bs = ts.options().barSpacing;
+          /* the node's strike (its pill's middle row, as placed before any move) and its column's bar (its words start 8 px
+             past the column's right edge) */
+          window.__nearP ??= e.candles.coordinateToPrice((node.t + node.b) / 2);
+          window.__nearL ??= Math.round(ts.coordinateToLogical(node.l - 8 - bs / 2));
+          const X = pill.l - 24 - bs / 2;
+          const Y = (pill.t + pill.b) / 2;
+          const lr = ts.getVisibleLogicalRange();
+          const dL = (ts.logicalToCoordinate(window.__nearL) - X) / bs;
+          ts.setVisibleLogicalRange({ from: lr.from + dL, to: lr.to + dL });
+          const pr = ps.getVisibleRange();
+          const d = ((Y - e.candles.priceToCoordinate(window.__nearP)) * (pr.to - pr.from)) / e.chart.paneSize(0).height;
+          ps.setVisibleRange({ from: pr.from + d, to: pr.to + d });
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          return { strike: window.__nearP, y: e.candles.priceToCoordinate(window.__nearP), x: ts.logicalToCoordinate(window.__nearL) };
+        },
+        [WRAP, node, pill]
+      );
+    await page.waitForTimeout(1200);
+    const z = await read();
+    /* the node's pill where it wanted to stand: its middle row on the strike, its width as drawn (a settle moves it up or
+       down, never across) */
+    const near = z.boxes.filter(q => q.k === 'node' && q.l < pill.r && q.r > pill.l);
+    const want = near.map(q => ({ ...q, t: at.y - (q.b - q.t) / 2, b: at.y + (q.b - q.t) / 2 })).find(q => over(q, pill));
+    if (!want) {
+      pass = false;
+      notes.push(`no node's words wanted the pill's place (strike ${at.strike.toFixed(2)} at y ${r0(at.y)}, its bar at x ${r0(at.x)}; node pills ${z.boxes.filter(q => q.k === 'node').map(box).join(' ') || 'none'}) — the case was not exercised`);
+    } else {
+      const stood = near.find(q => q.l === want.l && q.r === want.r) ?? near[0];
+      notes.push(`a node's words wanted ${box(want)}, on the pill; they stood at ${box(stood)}`);
+    }
+    const on = z.boxes.filter(q => (q.k === 'gap' || q.k === 'node' || q.k === 'chip') && over(q, pill));
+    if (on.length) {
+      pass = false;
+      notes.push(`words on the pill: ${on.map(q => `${q.k} ${box(q)}`).join(', ')}; the keep-out at ${box(z.boxes.find(q => q.k === 'reset') ?? { l: 0, r: 0, t: 0, b: 0 })}`);
+    } else notes.push('no gap note, node pill or wall chip stands on the pill');
+    if (errors.length) {
+      pass = false;
+      notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+    }
+    return { pass, ms: Date.now() - t0, notes };
+  } finally {
+    await done();
+  }
+});
 
 /* ─── THE RESET VIEW STANDS ON THE NEWEST BAR WHENEVER IT IS PRESSED (approval 3's review, 2026-10-16) ─────────────────
    On the house's tape at one minute (the recent window held, new bars appended by the library's update): the pill, then
