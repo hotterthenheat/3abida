@@ -41,7 +41,7 @@ import { drawRun, inkRun, type ScriptHandle } from './scriptLayer';
 import { barTints, candleTintForm, NO_TINT, retint, tintPoint, type TintForm } from './barTints';
 import { DIR_WASH_ALPHA, INDICATOR_INKS, IV_INK, MACD_SIGNAL_INK, RV_INK, compareInkOn, faintInk, paperInk, parseInk, scriptInksWith, withAlpha } from './indicatorInks';
 import ScriptLegend, { SCRIPT_CAP_NOTE } from './ScriptLegend';
-import ResetViewControl, { pillTopOverFoot } from './ResetViewControl';
+import ResetViewControl from './ResetViewControl';
 import { LOCAL_TIME, SESSION_TIME, localCalendarBehavior, localTickMarks, sessionTickMarks, type SessionBehavior, type TimeBehavior } from './chartTime';
 
 /* the time scale with its day, month and year ticks on the viewer's calendar (chartTime.ts) — one class for every chart */
@@ -55,7 +55,7 @@ import {
   INTRADAY_MAX_MINUTES,
   type Timeframe,
 } from '../../data/timeframe';
-import { GexTrailsPrimitive, axisInksFrom, trailPaperFrom, type BeadHit, type BeadLegend } from './gexNodesPrimitive';
+import { GexTrailsPrimitive, axisInksFrom, trailPaperFrom, type BeadHit, type BeadLegend, type PaneBox } from './gexNodesPrimitive';
 import type { ScaleBasis, ScaleRef } from '../../data/feed/beadScale';
 import { largestNodeOf } from '../../data/feed/beadScale';
 import { WIDE_VOL } from '../../data/feed/forward';
@@ -63,7 +63,7 @@ import { gapSessionKey, tradesAllSessions } from '../../core/sessions';
 import { TRAIL_MODEL, measuredAt, trailMeta } from '../../data/feed/trailField';
 import { isoDayLabel, num, pct, pctSigned, usdCompact, usdCompactSigned, usdSigned } from '../../core/format';
 import { clock as readerClock, marketClock, nyClock as nyClockOf, nyIsoDate as nyIsoDateOf, viewerDay } from '../../core/nyTime';
-import PaneFoot, { onPaneFoot, paneFootTopOver } from './PaneFoot';
+import PaneFoot from './PaneFoot';
 import ReplayStrip from './ReplayStrip';
 import { alertMarket } from './alertMarket';
 import { armLine, commitArm, evaluateAlert, markFired, removeAlert, useAlerts, MAX_ALERTS, type AlertContext, type IndicatorSource, type LineMode } from './alertStore';
@@ -2984,23 +2984,32 @@ const StrikeChart = ({
     trails.gapRev++;
     trails.requestUpdate?.();
   }, [fieldGapCause, mainNonce, ticker, footReservePx]);
-  /* THE PILL'S KEEP-OUT FOLLOWS THE PILL (approval 3's third review, 2026-10-16): over a pane foot the pill stands above
-     it (ResetViewControl), and the field's words — the gap notes, the node pills, the wall chips — keep clear of where it
-     stands, not of its place at rest (in a replay that was about 78 px under it, behind the strip) */
-  useEffect(() => {
+  /* THE PILL'S KEEP-OUT IS THE PILL AS IT STANDS (approval 3's third and fourth reviews, 2026-10-16): over a pane foot the
+     pill stands above it (ResetViewControl), and the field's words — the gap notes, the node pills, the wall chips — keep
+     clear of where it stands, not of its place at rest (in a replay that was about 78 px under it, behind the strip). It
+     is measured, in the plot's own CSS pixels (from the chart's container, the drawing rail's inset left out), whenever
+     ResetViewControl says it may have moved, a new chart's field is up, or the rail moves the plot: a reader's larger
+     type makes it taller and wider (a 24 px root: 36 px, where a fixed 24 left its foot bare), and the rail docked left
+     puts the plot's middle 28 px off the box's */
+  const resetPillRef = useRef<HTMLButtonElement | null>(null);
+  const placeResetPill = useCallback((pill?: HTMLButtonElement | null) => {
+    if (pill !== undefined) resetPillRef.current = pill;
     const trails = trailsRef.current;
-    if (!trails || !boxEl) return;
-    const read = () => {
-      const foot = paneFootTopOver(boxEl);
-      const top = foot == null ? null : pillTopOverFoot(foot);
-      if (trails.resetTop === top) return;
-      trails.resetTop = top;
-      trails.gapRev++;
-      trails.requestUpdate?.();
-    };
-    read();
-    return onPaneFoot(read);
-  }, [mainNonce, boxEl]);
+    if (!trails) return;
+    const p = resetPillRef.current;
+    const c = containerRef.current;
+    let at: PaneBox | null = null;
+    if (p?.isConnected && c) {
+      const pr = p.getBoundingClientRect();
+      const cr = c.getBoundingClientRect();
+      if (pr.width > 0 && pr.height > 0) at = { l: pr.left - cr.left, r: pr.right - cr.left, t: pr.top - cr.top, b: pr.bottom - cr.top };
+    }
+    const was = trails.resetBox;
+    if (was === at || (was && at && was.l === at.l && was.r === at.r && was.t === at.t && was.b === at.b)) return;
+    trails.resetBox = at;
+    trails.gapRev++;
+    trails.requestUpdate?.();
+  }, []);
 
   /* THE BEAD SCALE'S BASIS, FLOOR AND THE SERVER'S REFERENCES (item 5 (b), (e)) */
   useEffect(() => {
@@ -5402,6 +5411,11 @@ const StrikeChart = ({
   const sheetTools = toolsSheet ?? compact;
   const railLeftInset = !sheetTools && (drawing || onEnterDraw) && rail.open && rail.dock === 'left' ? RAIL_LEFT_INSET_PX : 0;
   pickInsetRef.current = railLeftInset;
+  /* the Reset pill measured again in the plot's pixels when a new chart's field is up or the rail moves the plot
+     (placeResetPill) */
+  useEffect(() => {
+    placeResetPill();
+  }, [placeResetPill, railLeftInset, mainNonce]);
   const topDockStyle = rail.dock === 'top' && gap ? { left: gap.left + gap.width / 2, transform: 'translateX(-50%)', maxWidth: Math.max(160, gap.width - 16) } : undefined;
   const [, forceMark] = useReducer((x: number) => x + 1, 0);
   const [barPos, setBarPos] = useState<{ x: number; y: number } | null>(null);
@@ -6090,8 +6104,9 @@ const StrikeChart = ({
         {/* The way home — pill, right-click card, Alt+R (2026-08-30) */}
         {/* over a pane foot — the replay's strip, a host's bar in the layer (the Backtest's clock, Paper's position), one
             strip across two charts — the pill stands above it, wherever the foot is mounted (ResetViewControl reads
-            PaneFoot): the strip covered it, and the desk had three ways home of the four */}
-        <ResetViewControl onReset={resetView} {...(resetPillClass ? { pillClass: resetPillClass } : {})} />
+            PaneFoot): the strip covered it, and the desk had three ways home of the four; the field's words keep clear of
+            it where it stands (placeResetPill) */}
+        <ResetViewControl onReset={resetView} onPlace={placeResetPill} {...(resetPillClass ? { pillClass: resetPillClass } : {})} />
         {/* The scripts on this pane, named at the top left with hide and remove (2026-09-10) */}
         {paneId && paneScripts.length > 0 && !replay && <ScriptLegend paneId={paneId} scripts={paneScripts} faults={scriptFaults} left={12 + railLeftInset} />}
         {/* Every band says its own name, the way the reference does. An

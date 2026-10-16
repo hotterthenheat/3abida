@@ -3165,9 +3165,10 @@ async function pulseFull({ width = 1440, height = 900 } = {}) {
 /** The Backtest's desk on the house's tape (the feed refused: no real days), a session started from the Sessions page —
     one name on the page, or two side by side in the full screen with the panel folded (the split desk: ONE clock strip
     across both charts, mounted outside both) */
-async function backtestDesk({ width = 1440, height = 900, split = false } = {}) {
+async function backtestDesk({ width = 1440, height = 900, split = false, init = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Los_Angeles' });
   const page = await ctx.newPage();
+  if (init) await page.addInitScript(init);
   const errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
   await page.route(u => u.pathname.startsWith('/feed/'), r => r.abort());
@@ -3217,6 +3218,35 @@ async function paperDesk({ width = 1440, height = 900 } = {}) {
   await page.waitForTimeout(1500);
   return { page, errors, done: () => ctx.close() };
 }
+/** Every Reset pill on screen that is not the top element at its centre and its four corners (inside its rounded ends) —
+    what covers it, and the foot it stands in */
+const pillsCovered = page =>
+  page.evaluate(() => {
+    const out = [];
+    for (const p of document.querySelectorAll('[data-reset-pill]')) {
+      const r = p.getBoundingClientRect();
+      /* on screen: the recap's picture is drawn by a chart off it (data-recap-shot) */
+      if (!r.width || !r.height || p.closest('[data-recap-shot]') || r.right < 0 || r.left > innerWidth || r.bottom < 0 || r.top > innerHeight) continue;
+      const ri = r.height / 2;
+      const pts = [
+        ['centre', r.left + r.width / 2, r.top + r.height / 2],
+        ['top left', r.left + ri, r.top + 2],
+        ['top right', r.right - ri, r.top + 2],
+        ['bottom left', r.left + ri, r.bottom - 2],
+        ['bottom right', r.right - ri, r.bottom - 2],
+      ];
+      const where = [r.left, r.top, r.width, r.height].map(Math.round).join(', ');
+      for (const [name, x, y] of pts) {
+        const el = document.elementFromPoint(x, y);
+        if (el !== p && !p.contains(el)) {
+          const what = el ? `${el.tagName.toLowerCase()}${[...el.attributes].filter(a => a.name.startsWith('data-')).map(a => `[${a.name}]`).join('') || `.${String(el.className).split(' ')[0]}`}` : 'nothing';
+          const card = el?.closest('[data-replay-strip], [data-paper-position-bar], [data-pane-foot]');
+          out.push(`the pill at [${where}]: its ${name} is under ${what}${card ? ` (in ${[...card.attributes].filter(a => a.name.startsWith('data-')).map(a => a.name).join(' ')})` : ''}`);
+        }
+      }
+    }
+    return out;
+  });
 const RESET_CASES = [
   { name: '1 pane, 5m, a strike pinned, the double-click on another node', panes: [RESET_PANE('5m')], pin: true, dbl: 'node' },
   { name: '1 pane, 1D, the double-click where the day panel opens', panes: [RESET_PANE('1D')], dbl: 'day', under: 'day panel' },
@@ -3451,32 +3481,7 @@ for (const c of RESET_CASES) {
       }
       /* EVERY PILL ON THE PAGE IS THE TOP ELEMENT at its centre and its corners (inside its rounded ends) — nothing a host
          stands at the chart's foot covers it */
-      const covered = await page.evaluate(() => {
-        const out = [];
-        for (const p of document.querySelectorAll('[data-reset-pill]')) {
-          const r = p.getBoundingClientRect();
-          /* on screen: the recap's picture is drawn by a chart off it (data-recap-shot) */
-          if (!r.width || !r.height || p.closest('[data-recap-shot]') || r.right < 0 || r.left > innerWidth || r.bottom < 0 || r.top > innerHeight) continue;
-          const ri = r.height / 2;
-          const pts = [
-            ['centre', r.left + r.width / 2, r.top + r.height / 2],
-            ['top left', r.left + ri, r.top + 2],
-            ['top right', r.right - ri, r.top + 2],
-            ['bottom left', r.left + ri, r.bottom - 2],
-            ['bottom right', r.right - ri, r.bottom - 2],
-          ];
-          const where = [r.left, r.top, r.width, r.height].map(Math.round).join(', ');
-          for (const [name, x, y] of pts) {
-            const el = document.elementFromPoint(x, y);
-            if (el !== p && !p.contains(el)) {
-              const what = el ? `${el.tagName.toLowerCase()}${[...el.attributes].filter(a => a.name.startsWith('data-')).map(a => `[${a.name}]`).join('') || `.${String(el.className).split(' ')[0]}`}` : 'nothing';
-              const card = el?.closest('[data-replay-strip], [data-paper-position-bar], [data-pane-foot]');
-              out.push(`the pill at [${where}]: its ${name} is under ${what}${card ? ` (in ${[...card.attributes].filter(a => a.name.startsWith('data-')).map(a => a.name).join(' ')})` : ''}`);
-            }
-          }
-        }
-        return out;
-      });
+      const covered = await pillsCovered(page);
       const pills = await page.locator('[data-reset-pill]:not([data-recap-shot] *)').count();
       if (covered.length) {
         pass = false;
@@ -3705,6 +3710,128 @@ check('reset: in a replay the field\'s words keep clear of the Reset pill where 
     await done();
   }
 });
+
+/* ─── AT A READER'S LARGER TYPE THE PILL STILL STANDS CLEAR ABOVE THE FOOT (approval 3's fourth review, 2026-10-16) ─────
+   The pill is 1.5rem tall (h-6): at a 24 px root (Chrome's "Very large" type) it is 36 px, and its place over a pane foot
+   must grow with it. At a 24 px root, over Terrain's replay strip (5m), the Backtest's clock and its split desk's one clock
+   across both charts: every pill on the page is
+   the top element at its centre and four corners, the pill takes a click, its foot stands clear of the foot's top, and
+   where the field writes words (Terrain, at rest and in the replay) its keep-out for the pill covers the pill as it
+   stands. Before: the pill's top stood a fixed 32 px over the foot, so a 36 px pill sank 4 px under the strip (its bottom
+   corners the strip's), and the keep-out was reckoned 24 px tall and 112 wide round a place 28 px left of the pill's
+   middle (the drawing rail's inset), 12 px short of the pill's foot and 6 px short of its left end. */
+const ROOT_24 = () => {
+  /* the root is not there yet when an init script runs: set as it comes */
+  const set = () => !!document.documentElement && (document.documentElement.style.fontSize = '24px');
+  if (!set()) new MutationObserver((_, o) => set() && o.disconnect()).observe(document, { childList: true });
+};
+const ROOT_24_HOSTS = { 'terrain replay': "Terrain's replay strip, 5m", backtest: "the Backtest's clock", 'backtest split': "the Backtest's split desk, one clock across both charts (1200 wide)" };
+for (const [host, said] of Object.entries(ROOT_24_HOSTS)) {
+  check(`reset: at a 24 px root the pill stands clear above the foot, its corners on top, the words' keep-out on it (${said})`, async () => {
+    const { page, errors, done } =
+      host === 'backtest' ? await backtestDesk({ init: ROOT_24 }) : host === 'backtest split' ? await backtestDesk({ width: 1200, split: true, init: ROOT_24 }) : await terrain([RESET_PANE('5m')], { init: ROOT_24 });
+    const WRAP = '[data-chart-ink][data-chart-ground]:not([data-recap-shot] *)';
+    const r0 = n => Math.round(n);
+    const box = q => `[${r0(q.l)}–${r0(q.r)} × ${r0(q.t)}–${r0(q.b)}]`;
+    const notes = [];
+    let pass = true;
+    /* the root's size, the pill and the foot it stands over (page px), and the field's keep-out for it (the pane's CSS px) */
+    const readPill = () =>
+      page.evaluate(W => {
+        const wrap = document.querySelector(W);
+        const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
+        const h = e.host.getBoundingClientRect();
+        const pill = wrap.querySelector('[data-reset-pill]');
+        const p = pill.getBoundingClientRect();
+        /* the foot standing over the pill's box: its own or an ancestor's (a foot across two charts), with a height */
+        let foot = null;
+        for (let n = wrap; n && !foot; n = n.parentElement)
+          for (const f of n.querySelectorAll(':scope > [data-pane-foot]')) {
+            const r = f.getBoundingClientRect();
+            if (r.height > 0 && r.left < p.right && r.right > p.left) foot = { t: r.top, b: r.bottom };
+          }
+        const lw = e.trails?.lastWords;
+        const keep = lw?.boxes.find(q => q.k === 'reset');
+        return {
+          root: parseFloat(getComputedStyle(document.documentElement).fontSize),
+          over: pill.getAttribute('data-reset-pill'),
+          pill: { l: p.left, r: p.right, t: p.top, b: p.bottom },
+          rel: { l: p.left - h.left, r: p.right - h.left, t: p.top - h.top, b: p.bottom - h.top },
+          foot,
+          keep: keep ? { l: keep.l / lw.hr, r: keep.r / lw.hr, t: keep.t / lw.vr, b: keep.b / lw.vr } : null,
+        };
+      }, WRAP);
+    const covers = (k, p) => k.l <= p.l && k.r >= p.r && k.t <= p.t && k.b >= p.b;
+    try {
+      const t0 = Date.now();
+      if (host === 'terrain replay') {
+        /* at rest first, no foot: the keep-out round the pill where it stands (its 2rem off the box's foot, the rail's
+           inset left out) — before, reckoned at 24 px tall and 4 px over the plot's foot, centred 28 px off the pill */
+        await page.mouse.move(5, 5);
+        await page.waitForTimeout(800);
+        const rest = await readPill();
+        if (!rest.keep || !covers(rest.keep, rest.rel)) {
+          pass = false;
+          notes.push(`at rest the words' keep-out for the pill stands at ${rest.keep ? box(rest.keep) : 'nowhere'}; the pill at ${box(rest.rel)} — it does not cover the pill`);
+        } else notes.push(`at rest the words' keep-out ${box(rest.keep)} covers the pill ${box(rest.rel)}`);
+        const head = await page.locator('[data-pane-head]').first().boundingBox();
+        await page.mouse.click(head.x + head.width * 0.6, head.y + head.height / 2);
+        await page.keyboard.press('p');
+        await page.waitForTimeout(600);
+        const b = await page.locator(WRAP).first().boundingBox();
+        await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+        await page.waitForFunction(() => !!document.querySelector('[data-as-of]'), null, { timeout: 8000 });
+        await page.waitForTimeout(1500);
+      }
+      await page.mouse.move(5, 5);
+      await page.waitForTimeout(1000);
+      const a = await readPill();
+      notes.push(`root ${a.root} px; the pill at ${box(a.pill)} (${r0(a.pill.b - a.pill.t)} px tall, ${a.over || 'at rest'}); the foot's top at ${a.foot ? r0(a.foot.t) : 'none'}`);
+      if (a.root !== 24 || a.pill.b - a.pill.t < 35) {
+        pass = false;
+        notes.push('the 24 px root did not take — the case was not exercised');
+      }
+      if (!a.foot) {
+        pass = false;
+        notes.push('no pane foot with a height stands over the pill — the case was not exercised');
+      } else if (a.pill.b > a.foot.t) {
+        pass = false;
+        notes.push(`the pill's foot (${r0(a.pill.b)}) stands ${r0(a.pill.b - a.foot.t)} px under the foot's top (${r0(a.foot.t)})`);
+      } else notes.push(`the pill stands ${r0(a.foot.t - a.pill.b)} px clear above the foot`);
+      const covered = await pillsCovered(page);
+      if (covered.length) {
+        pass = false;
+        notes.push(...covered.slice(0, 6));
+      } else notes.push('every pill on the page is the top element at its centre and its four corners');
+      /* pressable: a click lands on the pill (Playwright waits for the pill to be the target at its point) */
+      try {
+        await page.locator(WRAP).first().locator('[data-reset-pill]').click({ timeout: 3000 });
+        notes.push('the pill takes a click');
+      } catch (err) {
+        pass = false;
+        notes.push(`the pill could not be pressed — ${String(err).split('\n')[0].slice(0, 160)}`);
+      }
+      /* the words' keep-out where the field writes words (Terrain's replay — its field is drawn; the Backtest's chart draws
+         no field) */
+      if (host === 'terrain replay' && !a.keep) {
+        pass = false;
+        notes.push('the field placed no keep-out for the pill — the case was not exercised');
+      } else if (a.keep) {
+        if (!covers(a.keep, a.rel)) {
+          pass = false;
+          notes.push(`the words' keep-out for the pill stands at ${box(a.keep)}; the pill at ${box(a.rel)} — it does not cover the pill`);
+        } else notes.push(`the words' keep-out ${box(a.keep)} covers the pill ${box(a.rel)}`);
+      } else notes.push('the chart draws no field, so no keep-out to measure');
+      if (errors.length) {
+        pass = false;
+        notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+      }
+      return { pass, ms: Date.now() - t0, notes };
+    } finally {
+      await done();
+    }
+  });
+}
 
 /* ─── THE RESET VIEW STANDS ON THE NEWEST BAR WHENEVER IT IS PRESSED (approval 3's review, 2026-10-16) ─────────────────
    On the house's tape at one minute (the recent window held, new bars appended by the library's update): the pill, then

@@ -32,24 +32,26 @@
   and its third review, 2026-10-16): wherever a foot
   with a height stands over the host — a replay's
   strip, the Backtest's clock, Paper's position bar,
-  one strip across two charts — the pill's top is
-  RESET_OVER_FOOT_PX over the foot's (PaneFoot's
-  --pane-foot-top), so the bar never covers it; the
-  chart's words keep clear of it there
-  (pillTopOverFoot).
+  one strip across two charts — the pill's top is 2rem
+  over the foot's (PaneFoot's --pane-foot-top): its own
+  1.5rem and 0.5rem clear, in rem so the clearance
+  grows with the pill (the fourth review: at a reader's
+  larger type, a 24 px root, a fixed 32 px sank the
+  36 px pill's foot under the strip). A host that keeps
+  words off the pill is told whenever it may have moved
+  (`onPlace`) and measures it where it stands.
 ==================================================
 */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw } from 'lucide-react';
 import { useOverlay } from '../ui/layers';
 import { onPaneFoot, paneFootTopOver } from './PaneFoot';
 
-/** The pill over a pane foot: its top this far above the foot's — its own 24 px and 8 px clear */
-export const RESET_OVER_FOOT_PX = 32;
-/** Where the pill's top stands over a foot whose top is `footTop` (pixels from the box's top, the price pane's) */
-export const pillTopOverFoot = (footTop: number): number => footTop - RESET_OVER_FOOT_PX;
+/** The pill over a pane foot: its top 2rem above the foot's — its own 1.5rem (h-6) and 0.5rem clear, both in rem, so a
+    reader's larger type moves it with the pill */
+const OVER_FOOT = { top: 'calc(var(--pane-foot-top) - 2rem)', bottom: 'auto' } as const;
 
 const ResetViewControl = ({
   onReset,
@@ -57,13 +59,20 @@ const ResetViewControl = ({
       2026-10-10): at the right it lay over the level tags ("474 · 9%") the walls print against the price axis, and the
       left foot is the drawing rail's and the engine's mark. */
   pillClass = 'left-1/2 -translate-x-1/2 bottom-8',
+  /** Told whenever the pill may have moved — its place class or the foot over it changed, the host or the pill resized —
+      with the pill, to measure where it stands (StrikeChart: the field's words keep clear of it) */
+  onPlace,
 }: {
   onReset: () => void;
   pillClass?: string;
+  onPlace?: (pill: HTMLButtonElement | null) => void;
 }) => {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
+  const pillRef = useRef<HTMLButtonElement | null>(null);
   const cb = useRef(onReset);
   cb.current = onReset;
+  const placeCb = useRef(onPlace);
+  placeCb.current = onPlace;
   const hoverRef = useRef(false);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   /* a pane foot over the host (PaneFoot): the pill stands above it — its top read off the foot's, the class's place kept
@@ -74,6 +83,29 @@ const ResetViewControl = ({
     const read = () => setOverFoot(paneFootTopOver(host) != null);
     read();
     return onPaneFoot(read);
+  }, []);
+  /* WHERE THE PILL STANDS, said to a host that asks: after a render that moved it (its class, a foot coming or going), and
+     a frame after a foot moved (the pill rides --pane-foot-top with no render) or the host or the pill was resized */
+  useLayoutEffect(() => {
+    placeCb.current?.(pillRef.current);
+  }, [overFoot, pillClass]);
+  useEffect(() => {
+    const host = anchorRef.current?.parentElement;
+    if (!placeCb.current || !host) return;
+    let raf = 0;
+    const soon = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => placeCb.current?.(pillRef.current));
+    };
+    const sizes = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(soon);
+    sizes?.observe(host);
+    if (pillRef.current) sizes?.observe(pillRef.current);
+    const off = onPaneFoot(soon);
+    return () => {
+      cancelAnimationFrame(raf);
+      sizes?.disconnect();
+      off();
+    };
   }, []);
 
   useEffect(() => {
@@ -123,9 +155,10 @@ const ResetViewControl = ({
     <>
       <span ref={anchorRef} className="hidden" aria-hidden />
       <button
+        ref={pillRef}
         onClick={() => cb.current()}
         title="Reset chart view (Alt+R) — or right-click the chart"
-        style={overFoot ? { top: `calc(var(--pane-foot-top) - ${RESET_OVER_FOOT_PX}px)`, bottom: 'auto' } : undefined}
+        style={overFoot ? OVER_FOOT : undefined}
         data-reset-pill={overFoot ? 'over-foot' : ''}
         className={`hit absolute z-20 inline-flex items-center gap-1 px-2 h-6 rounded-full border border-borderSubtle bg-panel/70 backdrop-blur-md font-mono text-[11px] uppercase tracking-wider text-textMuted hover:text-textPrimary focus-visible:opacity-100 opacity-35 hover:opacity-100 transition-opacity ${pillClass}`}
       >

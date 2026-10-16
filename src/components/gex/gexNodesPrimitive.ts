@@ -67,13 +67,25 @@ const TICK_W_CSS = 2;
 const TICK_H_CSS = 7;
 /** The library's attribution mark, bottom-left: the words keep clear of it */
 const LOGO_W_CSS = 110;
-/** The Reset pill's keep-out: half its width with a margin, and the price scale it is centred over with the plot */
+/** A box on the pane in CSS px (the Reset pill as the chart measured it) */
+export type PaneBox = { l: number; r: number; t: number; b: number };
+/** The Reset pill's keep-out round the pill as measured: this much each side, and over and under */
+const RESET_PAD_X_CSS = 16;
+const RESET_PAD_Y_CSS = 2;
+/** Until the chart has measured it: half its width with a margin, the price scale it is centred over with the plot, its
+    24 px, its foot 4 px over the plot's, lifted over the host's foot row */
 const RESET_HALF_W_CSS = 56;
 const RESET_SCALE_CSS = 72;
 const RESET_H_CSS = 24;
-/** The Reset pill's top on the pane, CSS px: over a pane foot where the chart says (`resetTop`), else at rest — its foot
-    4 px over the plot's, lifted over the host's foot row */
-const resetPillTop = (src: { resetTop: number | null; footKeep: number }, paneHCss: number): number => src.resetTop ?? paneHCss - 4 - RESET_H_CSS - src.footKeep;
+/** THE RESET PILL'S KEEP-OUT on the pane, CSS px: round the pill where the chart measured it (`resetBox` — over a pane
+    foot, at a reader's larger type, past the drawing rail's inset), else round its place at rest */
+const resetKeepOut = (src: { resetBox: PaneBox | null; footKeep: number }, wCss: number, paneHCss: number): PaneBox => {
+  const p = src.resetBox;
+  if (p) return { l: p.l - RESET_PAD_X_CSS, r: p.r + RESET_PAD_X_CSS, t: p.t - RESET_PAD_Y_CSS, b: p.b + RESET_PAD_Y_CSS };
+  const cx = (wCss + RESET_SCALE_CSS) / 2;
+  const t = paneHCss - 4 - RESET_H_CSS - src.footKeep;
+  return { l: cx - RESET_HALF_W_CSS, r: cx + RESET_HALF_W_CSS, t: t - RESET_PAD_Y_CSS, b: t + RESET_H_CSS + RESET_PAD_Y_CSS };
+};
 const LOGO_H_CSS = 26;
 /** A node's diameter in CSS px at size t (√ of gross ÷ reference, clipped at 1) on a strike row `rowCss` tall:
     3 px + (85% of the row − 3 px) × t — a row too short for three pixels gives three */
@@ -463,9 +475,8 @@ class TrailsPaneRenderer {
       const px11 = 11;
       const full = (px11 + 5) * vr;
       const boxes: WordBox[] = [{ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr, k: 'logo' }];
-      const cx = (wCss + RESET_SCALE_CSS) / 2;
-      const pillT = resetPillTop(src, paneHCss);
-      boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (pillT - 2) * vr, b: (pillT + RESET_H_CSS + 2) * vr, k: 'reset' });
+      const keep = resetKeepOut(src, wCss, paneHCss);
+      boxes.push({ l: keep.l * hr, r: keep.r * hr, t: keep.t * vr, b: keep.b * vr, k: 'reset' });
       if (src.footKeep > 0) boxes.push({ l: 0, r: wCss * hr, t: (paneHCss - src.footKeep) * vr, b: paneHCss * vr, k: 'foot' });
       src.lastWords = { boxes, hr, vr };
       const collides = (l: number, rr: number, t: number, b: number) => boxes.some(q => l < q.r + 2 * hr && rr > q.l - 2 * hr && t < q.b + 2 * vr && b > q.t - 2 * vr);
@@ -573,7 +584,7 @@ class TrailsPaneRenderer {
       const x0 = ts.timeToCoordinate(firstBucket as Time);
       const probeA = series.priceToCoordinate(col0.top[0]?.strike ?? col0.spot) ?? -1;
       const probeB = series.priceToCoordinate((col0.top[0]?.strike ?? col0.spot) + 1) ?? -1;
-      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}|${src.footKeep}|${src.resetTop}`;
+      const key = `${src.rev}|${wCss}|${paneHCss}|${barSpacing.toFixed(3)}|${x0}|${first}|${last}|${probeA.toFixed(2)}|${probeB.toFixed(2)}|${hr}|${vr}|${paper ? 'paper' : 'dark'}|${src.density ? 'd' : 'e'}|${src.globalDim}|${dMaxCss.toFixed(2)}|${src.gapRev}|${ground.join(',')}|${inks.put.join(',')}|${inks.call.join(',')}|${src.footKeep}|${src.resetBox ? `${src.resetBox.l},${src.resetBox.r},${src.resetBox.t},${src.resetBox.b}` : ''}`;
       const cached = key === this.cacheKey && !!this.bmp;
 
       const yCache = new Map<number, number | null>();
@@ -862,13 +873,11 @@ class TrailsPaneRenderer {
       const rightMost = (wCss - CHIP_RIGHT) * hr;
       /* the library's attribution mark stands at the plot's bottom-left: a keep-out box */
       boxes.push({ l: 0, r: LOGO_W_CSS * hr, t: (paneHCss - LOGO_H_CSS) * vr, b: paneHCss * vr, k: 'logo' });
-      /* and the chart's Reset whisper pill (ResetViewControl: centred on the chart's box, price scale included, 24 px
-         tall, its foot 4 px over the plot's — or, over a pane foot, where the chart says it stands, `resetTop`) — a
-         keep-out box a little wider than the pill */
+      /* and the chart's Reset whisper pill (ResetViewControl) where the chart measured it — at rest, over a pane foot, at a
+         reader's larger type — a keep-out box a little wider than the pill */
       {
-        const cx = (wCss + RESET_SCALE_CSS) / 2;
-        const pillT = resetPillTop(src, paneHCss);
-        boxes.push({ l: (cx - RESET_HALF_W_CSS) * hr, r: (cx + RESET_HALF_W_CSS) * hr, t: (pillT - 2) * vr, b: (pillT + RESET_H_CSS + 2) * vr, k: 'reset' });
+        const keep = resetKeepOut(src, wCss, paneHCss);
+        boxes.push({ l: keep.l * hr, r: keep.r * hr, t: keep.t * vr, b: keep.b * vr, k: 'reset' });
       }
       /* the host's foot row (Terrain's Building chip, the stale banner, Back to live, the phone's peek): a keep-out band
          at the plot's foot, the Reset pill a row above it (the round-3 shots: a wall-move chip stood on the Building chip) */
@@ -1158,9 +1167,10 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
   /** The host's foot row over the plot's foot, CSS px tall (0 none): no word of the field is placed there, and the Reset
       pill's keep-out stands that much higher (the host lifts the pill by the same) */
   footKeep = 0;
-  /** WHERE THE RESET PILL STANDS OVER A PANE FOOT (a replay's strip, a desk's clock or position bar — PaneFoot), its top
-      in CSS px from the pane's top; null: at its rest place (footKeep above). The words' keep-out follows it. */
-  resetTop: number | null = null;
+  /** WHERE THE RESET PILL STANDS, as the chart measured it (StrikeChart placeResetPill) in CSS px from the pane's
+      top-left — at rest, over a pane foot (a replay's strip, a desk's clock or position bar), at a reader's larger type;
+      null: not measured yet (its rest place is reckoned, footKeep above). The words' keep-out is round it. */
+  resetBox: PaneBox | null = null;
   /** Whether a column of the field stands inside the bar at `barTime` (this chart's barSec) */
   hasColumnAt(barTime: number): boolean {
     return this.columnKindAt(barTime) !== 'none';
