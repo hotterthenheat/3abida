@@ -2735,28 +2735,36 @@ check('inks: the compare menu\'s swatch is the colour its line is drawn in — o
 /* ─── THE FOUR RESETS LAND ON THE IDENTICAL VIEW (approval 3, 2026-10-15 — the owner: "All four resets must land on the
    identical view") ───────────────────────────────────────────────────────────────────────────────────────────────────────
    The pill, a double-click on the plot, Alt+R over the chart and the right-click card's Reset all call the chart's one
-   resetView. From the same disturbed state — a pan back, a wheel zoom and a drag of the price axis — each is run in turn
-   (the state disturbed again in between) and the views must be equal field by field: the visible logical and time ranges
+   resetView. Each of the other three is run from a disturbed state — a pan back, a wheel zoom and a drag of the price
+   axis — and the pill from the same disturbance just before it, in the same take at the same bars (a bar that comes in
+   meanwhile runs the pair again), and the two views must be equal field by field: the visible logical and time ranges
    (counted from the last bar), the price range and its autoscale, the fit's margins, the right offset, the scroll, the
-   bar spacing and the plot's width; and what the reset must leave as it stood: the pinned strike, a pinned node card,
-   the day panel, "Back to live", a replay's cursor, no menu left open. The crosshair and its readout follow the pointer
-   (on the pill, on the plot, where the card's line was), not the reset, and are left out. Before: a double-click's first
-   press was a click — on 1D it opened the day panel, on another node it took the pin and the card — and in a replay the
-   strip covered the pill. */
+   bar spacing and the plot's width; and what the reset must leave as it stood: the pinned strike, a pinned node card, the
+   day panel, "Back to live", a replay's pick or cursor, no menu left open. The crosshair and its readout follow the
+   pointer, not the reset, and are left out. The double-click is a hand's: its first press lands and is drawn before the
+   second, so the second meets whatever the first opened over the spot (the card in a narrow pane, the day panel at 1D) —
+   and those cases say they were met. Before: the first press's work stayed (the day panel, the pin and the card, a
+   replay picked) where the second met it, and in a replay the strip covered the pill. */
+const RESET_PANE = tf => ({ ticker: 'SPY', timeframe: tf, overlays: { trails: true }, ladder: true });
 const RESET_CASES = [
-  { name: '1 pane, 5m, a strike pinned', panes: [{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], pin: true },
-  { name: '1 pane, 1D', panes: [{ ticker: 'SPY', timeframe: '1D', overlays: { trails: true }, ladder: true }] },
-  { name: '4 panes, 1m', panes: [{ ticker: 'SPY', timeframe: '1m', overlays: { trails: true }, ladder: true }], layout: 4 },
-  { name: 'a replay, 5m', panes: [{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }], replay: true },
+  { name: '1 pane, 5m, a strike pinned, the double-click on another node', panes: [RESET_PANE('5m')], pin: true, dbl: 'node' },
+  { name: '1 pane, 1D, the double-click where the day panel opens', panes: [RESET_PANE('1D')], dbl: 'day', under: 'day panel' },
+  { name: "1 pane, 1D, the double-click where the day panel's door opens", panes: [RESET_PANE('1D')], dbl: 'door', under: "the day panel's door" },
+  { name: '4 panes, 1m, the double-click on the plot', panes: [RESET_PANE('1m')], layout: 4, dbl: 'empty' },
+  { name: '4 panes, 5m, the double-click on a node its own card covers', panes: [RESET_PANE('5m')], layout: 4, dbl: 'mid', under: 'card' },
+  { name: '4 panes, 1D, the double-click where the day panel opens', panes: [RESET_PANE('1D')], layout: 4, dbl: 'day', under: 'day panel' },
+  { name: 'a replay, 5m', panes: [RESET_PANE('5m')], replay: 'play', dbl: 'empty' },
+  { name: "a replay's pick, 5m", panes: [RESET_PANE('5m')], replay: 'pick', dbl: 'empty' },
 ];
 for (const c of RESET_CASES) {
   check(`reset: the pill, a double-click, Alt+R and the right-click card land on the identical view (${c.name})`, async () => {
     const { page, errors, done } = await terrain(c.panes, { layout: c.layout ?? 1 });
     const WRAP = '[data-chart-ink][data-chart-ground]:not([data-recap-shot] *)';
-    /* the first pane's chart, its plot's free points (none under a card, a chip or the rail) and a node of the field */
-    const probe = avoid =>
+    /* the first pane's chart, its plot's free points (none under a card, a chip or the rail), a node of the field (the first
+       found, and the one nearest the plot's middle) and a point with a bar under it inside the day panel's footprint */
+    const probe = (avoid, dayBox) =>
       page.evaluate(
-        ([W, avoid]) => {
+        ([W, avoid, dayBox]) => {
           const wrap = document.querySelector(W);
           const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
           const r = e.host.getBoundingClientRect();
@@ -2772,16 +2780,50 @@ for (const c of RESET_CASES) {
           };
           let empty = null;
           let node = null;
-          for (let y = Math.round(h * 0.3); y < h * 0.8 && (!empty || !node); y += 3)
-            for (let x = Math.round(w * 0.12); x < w * 0.6 && (!empty || !node); x += 4) {
-              if (!free(x, y)) continue;
+          /* the plot's left half first, then across it (a card pinned in a narrow pane covers its middle) */
+          for (const [x0, x1] of [[0.12, 0.6], [0.04, 0.96]])
+            for (let y = Math.round(h * 0.3); y < h * 0.8 && (!empty || !node); y += 3)
+              for (let x = Math.round(w * x0); x < w * x1 && (!empty || !node); x += 4) {
+                if (!free(x, y)) continue;
+                const b = e.trails?.beadAt(x, y);
+                if (b && !node && b.strike !== avoid) node = { x: r.left + x, y: r.top + y, strike: b.strike };
+                if (!b && !empty && !near(x, y)) empty = { x: r.left + x, y: r.top + y };
+              }
+          /* the node nearest the plot's middle, low enough that a narrow pane's card (its top held under the chrome) stands
+             over it */
+          let mid = null;
+          let best = Infinity;
+          for (let y = Math.round(h * 0.4); y < h * 0.85; y += 3)
+            for (let x = Math.round(w * 0.25); x < w * 0.75; x += 4) {
+              const d = Math.hypot(x - w * 0.5, y - h * 0.62);
+              if (d >= best || !free(x, y)) continue;
               const b = e.trails?.beadAt(x, y);
-              if (b && !node && b.strike !== avoid) node = { x: r.left + x, y: r.top + y, strike: b.strike };
-              if (!b && !empty && !near(x, y)) empty = { x: r.left + x, y: r.top + y };
+              if (b && b.strike !== avoid) {
+                best = d;
+                mid = { x: r.left + x, y: r.top + y, strike: b.strike };
+              }
             }
-          return { empty, node, w, h, box: { x: r.left, y: r.top } };
+          /* inside the day panel's footprint, on the plot, a bar under it */
+          let day = null;
+          if (dayBox) {
+            const ts = e.chart.timeScale();
+            const cx = dayBox.x + dayBox.width / 2 - r.left;
+            const cy = dayBox.y + dayBox.height / 2 - r.top;
+            const pts = [];
+            for (let y = dayBox.y + 8 - r.top; y < dayBox.y + dayBox.height - 8 - r.top; y += 4)
+              for (let x = dayBox.x + 8 - r.left; x < dayBox.x + dayBox.width - 8 - r.left; x += 6) pts.push([x, y]);
+            pts.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy));
+            for (const [x, y] of pts) {
+              if (x < 0 || x >= w || y < 0 || y >= h || !free(x, y) || e.trails?.beadAt(x, y)) continue;
+              const lg = ts.coordinateToLogical(x);
+              if (lg == null || !e.candles.dataByIndex(Math.round(lg))) continue;
+              day = { x: r.left + x, y: r.top + y };
+              break;
+            }
+          }
+          return { empty, node, mid, day, w, h };
         },
-        [WRAP, avoid ?? null]
+        [WRAP, avoid ?? null, dayBox ?? null]
       );
     const viewOf = () =>
       page.evaluate(W => {
@@ -2816,6 +2858,8 @@ for (const c of RESET_CASES) {
             card: card ? card.textContent.slice(0, 24) : null,
             dayPanel: document.querySelector('[data-day-panel]')?.getAttribute('data-day-panel') ?? null,
             backToLive: !!wrap.parentElement?.querySelector('[data-back-to-live]'),
+            world: (wrap.querySelector('[data-chart-state]')?.getAttribute('data-chart-state') ?? '').split('|').slice(0, 2).join(' '),
+            picking: !!wrap.querySelector('[data-pick-time]'),
             replay: wrap.querySelector('[data-as-of]')?.getAttribute('data-as-of') ?? null,
             menu: !!document.querySelector('[role="menu"][aria-label="Chart"], [data-chart-menu="level-alert"]'),
           },
@@ -2848,14 +2892,28 @@ for (const c of RESET_CASES) {
       await page.mouse.up();
       await page.waitForTimeout(700);
     };
+    /* what stands under a point: the card or the day panel the first press may have opened over it, else the plot */
+    const underOf = at =>
+      page.evaluate(([x, y]) => {
+        const el = document.elementFromPoint(x, y);
+        return el?.closest('[data-day-open]') ? "the day panel's door" : el?.closest('[data-day-panel]') ? 'day panel' : el?.closest('[data-bead-card]') ? 'card' : 'the plot';
+      }, [at.x, at.y]);
+    let dayBox = null;
+    const met = [];
     const resets = {
       pill: async () => {
         await page.locator(WRAP).first().locator('button[title^="Reset chart view"]').click({ timeout: 3000 });
       },
       'double-click': async s => {
-        /* on a node when a strike is pinned (another strike's), else on the plot */
-        const at = c.pin && s.node ? s.node : s.empty;
-        await page.mouse.dblclick(at.x, at.y);
+        const at = c.dbl === 'node' ? s.node : c.dbl === 'mid' ? s.mid : c.dbl === 'day' || c.dbl === 'door' ? s.day : s.empty;
+        /* a hand's double-click: the first press lands and is drawn, then the second, counted 2 */
+        await page.mouse.move(at.x, at.y);
+        await page.mouse.down({ clickCount: 1 });
+        await page.mouse.up({ clickCount: 1 });
+        await page.waitForTimeout(220);
+        met.push(await underOf(at));
+        await page.mouse.down({ clickCount: 2 });
+        await page.mouse.up({ clickCount: 2 });
       },
       'Alt+R': async s => {
         await page.mouse.move(s.empty.x, s.empty.y);
@@ -2876,10 +2934,26 @@ for (const c of RESET_CASES) {
         await page.mouse.click(head.x + head.width * 0.6, head.y + head.height / 2);
         await page.keyboard.press('p');
         await page.waitForTimeout(600);
-        const b = await page.locator(WRAP).first().boundingBox();
-        await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
-        await page.waitForFunction(() => !!document.querySelector('[data-as-of]'), null, { timeout: 8000 });
+        if (c.replay === 'play') {
+          const b = await page.locator(WRAP).first().boundingBox();
+          await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+          await page.waitForFunction(() => !!document.querySelector('[data-as-of]'), null, { timeout: 8000 });
+        } else await page.waitForFunction(W => !!document.querySelector(W)?.querySelector('[data-pick-time]'), WRAP, { timeout: 8000 });
         await page.waitForTimeout(1500);
+      }
+      /* the day panel's footprint (or its "Open this session" door's): opened once by a click on a bar, measured, let go */
+      if (c.dbl === 'day' || c.dbl === 'door') {
+        for (let i = 0; i < 4 && !dayBox; i++) {
+          const s0 = await probe();
+          if (s0.empty) await page.mouse.click(s0.empty.x, s0.empty.y);
+          if (await page.waitForSelector('[data-day-panel]', { timeout: 2500 }).catch(() => null)) dayBox = await page.locator(c.dbl === 'door' ? '[data-day-panel] [data-day-open]' : '[data-day-panel]').first().boundingBox();
+          else await page.waitForTimeout(1500);
+        }
+        if (!dayBox) return { pass: false, notes: ['a click on a day bar opened no day panel'] };
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => !document.querySelector('[data-day-panel]'), null, { timeout: 3000 });
+        await page.mouse.move(5, 5);
+        await page.waitForTimeout(300);
       }
       /* the pin the resets must keep: a node clicked (its strike and its card) */
       let pinned = null;
@@ -2890,57 +2964,101 @@ for (const c of RESET_CASES) {
         await page.waitForTimeout(500);
         pinned = s0.node.strike;
       }
-      const rows = {};
-      for (const [name, run] of Object.entries(resets)) {
-        let row = null;
-        for (let attempt = 0; attempt < 2 && !row; attempt++) {
-          await disturb();
-          const before = await viewOf();
-          const s = await probe(pinned);
-          const wantNode = c.pin && name === 'double-click';
-          if (!s.empty || (wantNode && !s.node)) {
-            notes.push(`${name}: no free point${wantNode ? ' or node of another strike' : ''} on the plot`);
+      /* a door, run from a disturbed state: its view, or null where a bar came in meanwhile */
+      const take = async (name, wantAt) => {
+        await disturb();
+        const before = await viewOf();
+        const s = await probe(pinned, dayBox);
+        if (!s.empty || (wantAt && !s[wantAt])) return { missing: `no ${wantAt && !s[wantAt] ? `${wantAt === 'day' ? 'bar inside the day panel\'s footprint' : wantAt === 'empty' ? 'free point' : 'node'}` : 'free point'} on the plot` };
+        await resets[name](s);
+        await page.waitForTimeout(1200);
+        const after = await viewOf();
+        await page.mouse.move(5, 5);
+        await page.waitForTimeout(150);
+        return { before, after };
+      };
+      const rows = [];
+      for (const name of ['double-click', 'Alt+R', 'the right-click card']) {
+        const wantAt = name === 'double-click' ? (c.dbl === 'node' ? 'node' : c.dbl === 'mid' ? 'mid' : c.dbl === 'day' || c.dbl === 'door' ? 'day' : 'empty') : 'empty';
+        let pair = null;
+        for (let attempt = 0; attempt < 3 && !pair; attempt++) {
+          /* the pill first, then the door, each from the disturbance — what the door leaves differently is its own */
+          let pill;
+          try {
+            pill = await take('pill');
+          } catch (err) {
+            notes.push(`pill: could not be used — ${String(err).split('\n')[0].slice(0, 160)}`);
             pass = false;
             break;
           }
+          if (pill.missing) {
+            notes.push(`pill: ${pill.missing}`);
+            pass = false;
+            break;
+          }
+          const atMet = met.length;
+          let door;
           try {
-            await run(s);
+            door = await take(name, wantAt);
           } catch (err) {
             notes.push(`${name}: could not be used — ${String(err).split('\n')[0].slice(0, 160)}`);
             pass = false;
             break;
           }
-          await page.waitForTimeout(1200);
-          const after = await viewOf();
-          /* a bar that came in meanwhile moves the view with it — that take is run again */
-          if (after.bars === before.bars) row = after;
+          if (door.missing) {
+            notes.push(`${name}: ${door.missing}`);
+            pass = false;
+            break;
+          }
+          /* the same take: the same bars under the pill and the door — a bar that came in (the last bar later) runs the pair
+             again; bars the door itself changed (a replay started, its tape cut) are the door's difference */
+          const reads = [pill.before, pill.after, door.before, door.after];
+          const seq = reads.map(v => v.bars);
+          const lastOf = b => Number(b.split(' to ')[1]);
+          /* a bar came: the last bar later in the same world (a door that changed the world — a timeframe pressed — is the
+             door's difference) */
+          const came = new Set(reads.map(v => v.kept.world)).size === 1 && seq.some((b, i) => i > 0 && lastOf(b) > lastOf(seq[i - 1]));
+          if (new Set(seq).size === 1 || !came) pair = { name, door: door.after, pill: pill.after, met: met[atMet] ?? null };
+          else notes.push(`${name}: a bar came in during the take (${seq.join(' · ')}) — taken again`);
         }
-        if (row) rows[name] = row;
-        await page.mouse.move(5, 5);
-        await page.waitForTimeout(150);
+        if (pair) rows.push(pair);
+        else if (pass) {
+          notes.push(`${name}: a bar came in under every take`);
+          pass = false;
+        }
       }
-      const names = Object.keys(rows);
-      if (names.length) {
-        const first = rows[names[0]];
-        notes.push(`${names[0]}: ${JSON.stringify(first.view)} · ${JSON.stringify(first.kept)} · bars ${first.bars}`);
-        for (const n of names.slice(1)) {
-          const diffs = [];
-          for (const part of ['view', 'kept'])
-            for (const k of Object.keys(first[part])) if (JSON.stringify(rows[n][part][k]) !== JSON.stringify(first[part][k])) diffs.push(`${k} ${JSON.stringify(rows[n][part][k])} (the ${names[0]}: ${JSON.stringify(first[part][k])})`);
-          if (rows[n].bars !== first.bars) diffs.push(`bars ${rows[n].bars} (the ${names[0]}: ${first.bars})`);
-          notes.push(`${n}: ${diffs.length ? diffs.join('; ') : 'the same view, field by field'}`);
-          if (diffs.length) pass = false;
+      for (const { name, door, pill, met: under } of rows) {
+        const diffs = [];
+        for (const part of ['view', 'kept']) for (const k of Object.keys(pill[part])) if (JSON.stringify(door[part][k]) !== JSON.stringify(pill[part][k])) diffs.push(`${k} ${JSON.stringify(door[part][k])} (the pill: ${JSON.stringify(pill[part][k])})`);
+        if (door.bars !== pill.bars) diffs.push(`bars ${door.bars} (the pill: ${pill.bars})`);
+        notes.push(`${name}${under ? ` (its second press met ${under})` : ''}: ${diffs.length ? diffs.join('; ') : 'the same view as the pill, field by field'} · bars ${door.bars}`);
+        if (diffs.length) pass = false;
+        if (name === 'double-click' && c.under && under !== c.under) {
+          pass = false;
+          notes.push(`the double-click's second press met ${under}, not the ${c.under} — the case was not exercised`);
         }
-        if (first.view.autoscale !== true) {
+      }
+      const pillRow = rows[0]?.pill;
+      if (pillRow) {
+        notes.push(`the pill: ${JSON.stringify(pillRow.view)} · ${JSON.stringify(pillRow.kept)}`);
+        if (pillRow.view.autoscale !== true) {
           pass = false;
           notes.push('the reset left the price scale off autoscale');
         }
-        if (c.pin && first.kept.pin !== pinned) {
+        if (c.pin && pillRow.kept.pin !== pinned) {
           pass = false;
-          notes.push(`the pin was ${pinned}, the reset left ${first.kept.pin}`);
+          notes.push(`the pin was ${pinned}, the reset left ${pillRow.kept.pin}`);
+        }
+        if (c.replay === 'pick' && !pillRow.kept.picking) {
+          pass = false;
+          notes.push('the reset left the pick');
+        }
+        if (c.replay === 'play' && !pillRow.kept.replay) {
+          pass = false;
+          notes.push('the reset left the replay');
         }
       }
-      if (names.length < 4) pass = false;
+      if (rows.length < 3) pass = false;
       if (errors.length) {
         pass = false;
         notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
@@ -2951,6 +3069,81 @@ for (const c of RESET_CASES) {
     }
   });
 }
+
+/* ─── THE RESET VIEW STANDS ON THE NEWEST BAR WHENEVER IT IS PRESSED (approval 3's review, 2026-10-16) ─────────────────
+   On the house's tape at one minute (the recent window held, new bars appended by the library's update): the pill, then
+   a new bar, then the pill again — the two views must be the same counted from the newest bar (the logical range, the
+   scroll, the bar spacing, the right offset, the autoscale). Before: the reset counted the window's bars noted at the
+   load, not the bars the series held, and stood a bar further left for every bar since ([-166, 22] then [-170, 18] after
+   four bars). */
+check('reset: the reset view stands on the newest bar whenever it is pressed (1m, the house\'s tape, a bar between two resets)', async () => {
+  const { page, errors, done } = await terrain([RESET_PANE('1m')], { block: u => u.pathname.startsWith('/feed/') });
+  const WRAP = '[data-chart-ink][data-chart-ground]:not([data-recap-shot] *)';
+  const viewOf = () =>
+    page.evaluate(W => {
+      const wrap = document.querySelector(W);
+      const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
+      const ts = e.chart.timeScale();
+      const lr = ts.getVisibleLogicalRange();
+      const bars = e.candles.data().filter(d => 'close' in d);
+      const len = bars.length;
+      const r3 = v => Math.round(v * 1000) / 1000;
+      return {
+        n: len,
+        last: bars.at(-1)?.time ?? 0,
+        held: !!e.state?.().held,
+        view: {
+          logical: lr ? [r3(lr.from - len), r3(lr.to - len)] : null,
+          scroll: r3(ts.scrollPosition()),
+          rightOffset: ts.options().rightOffset,
+          barSpacing: r3(ts.options().barSpacing),
+          autoscale: e.chart.priceScale('right').options().autoScale,
+        },
+      };
+    }, WRAP);
+  const pill = async () => {
+    await page.locator(WRAP).first().locator('button[title^="Reset chart view"]').click({ timeout: 3000 });
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(800);
+  };
+  const notes = [];
+  let pass = true;
+  try {
+    const t0 = Date.now();
+    await pill();
+    const a = await viewOf();
+    /* a new bar, appended: up to a minute and a half */
+    const until = Date.now() + 90_000;
+    let grown = null;
+    while (Date.now() < until) {
+      await page.waitForTimeout(1000);
+      const v = await viewOf();
+      if (v.n > a.n && v.last > a.last) {
+        grown = v;
+        break;
+      }
+    }
+    if (!grown) {
+      notes.push(`no new bar in 90 s (bars ${a.n} to ${a.last})`);
+      pass = false;
+    } else {
+      await page.waitForTimeout(1500);
+      await pill();
+      const b = await viewOf();
+      notes.push(`the first reset: ${JSON.stringify(a.view)} · bars ${a.n} to ${a.last}${a.held ? ' (the recent window)' : ''}`);
+      const diffs = Object.keys(a.view).filter(k => JSON.stringify(a.view[k]) !== JSON.stringify(b.view[k])).map(k => `${k} ${JSON.stringify(b.view[k])} (before: ${JSON.stringify(a.view[k])})`);
+      notes.push(`after ${b.n - a.n} new bar${b.n - a.n === 1 ? '' : 's'}, the second: ${diffs.length ? diffs.join('; ') : 'the same view, counted from the newest bar'}`);
+      if (diffs.length) pass = false;
+    }
+    if (errors.length) {
+      pass = false;
+      notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+    }
+    return { pass, ms: Date.now() - t0, notes };
+  } finally {
+    await done();
+  }
+});
 
 let failed = 0;
 for (const { name, fn } of results) {

@@ -178,11 +178,18 @@ export function useTerrainReplay(a: Args) {
     },
     [src]
   );
+  const ctlRef = useRef(ctl);
+  ctlRef.current = ctl;
   const pick = useCallback(
-    (barTime: number) => {
+    (barTime: number): void | (() => void) => {
       /* a bar picked on the chart: its last minute on the tape, the bar whole */
       const m = atMinute(barTime + Math.max(1, minutes) * 60 - 60);
-      if (m != null) setCursor(m);
+      if (m == null) return;
+      const was = ctlRef.current;
+      setCursor(m);
+      /* its undo, handed to the chart: a double-click is a reset, and its first press must not leave the replay started
+         (StrikeChart's press journal; approval 3's review — the pill and Alt+R kept the pick, the double-click played) */
+      return () => setCtl(c => (c ? was : c));
     },
     [atMinute, minutes, setCursor]
   );

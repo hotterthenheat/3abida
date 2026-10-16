@@ -23,6 +23,7 @@ import {
   LineStyle,
   LineType,
   PriceScaleMode,
+  MismatchDirection,
   type IChartApi,
   type ISeriesApi,
   type IPriceLine,
@@ -705,7 +706,9 @@ interface StrikeChartProps {
       line and a click on a bar hands its time to the host, which starts the
       replay from that minute. */
   pickTime?: boolean;
-  onPickTime?: (time: number) => void;
+  /** It may hand back how to undo the pick: a double-click is a reset, and its first press is put back (the press journal)
+      — a double-click in the pick phase leaves the replay picking, as the pill and Alt+R do */
+  onPickTime?: (time: number) => void | (() => void);
   onExitReplay?: () => void;
   /** A TAPE OF ITS OWN (Review's backtest, 2026-09-20 — Noah: "my top row button layout is not the same. i cant see my
       toolbar and other things that might be deemed helpful during backtesting"). The backtest drew its own small chart, so
@@ -1505,6 +1508,16 @@ const StrikeChart = ({
     }
   }, []);
   const barCountRef = useRef(0);
+  /* THE BARS THE SERIES HOLDS, read where the library keeps them (approval 3's review, 2026-10-16): a new bar comes in by
+     update(), which appends, while the recent window's count stays the window's — so barCountRef, noted at the load, ran
+     a bar behind for every bar since, and the reset view built on it stood a bar further left each minute (the newest bar
+     four bars nearer the edge after four, off it past the runway). The last bar's place on the time scale, plus one; the
+     noted count while the series holds nothing. */
+  const seriesBars = useCallback((): number => {
+    const last = candleSeriesRef.current?.dataByIndex(Number.MAX_SAFE_INTEGER, MismatchDirection.NearestLeft) as { time?: unknown } | null | undefined;
+    const i = last && last.time != null ? chartRef.current?.timeScale().timeToIndex(last.time as Time, false) : null;
+    return i != null ? (i as number) + 1 : barCountRef.current;
+  }, []);
   /* THE HISTORY ON DEMAND (2026-09-06, the perf sweep): a world (name ·
      interval · clock) opens on its recent bars; the reader scrolling to
      their left edge asks for the whole store, once — `fullWorldRef` names
@@ -1699,7 +1712,7 @@ const StrikeChart = ({
   const showRecent = useCallback(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    const len = barCountRef.current;
+    const len = seriesBars();
     const width = widthRef.current || (containerRef.current?.clientWidth ?? 1200);
     const pitch = DEFAULT_PITCH_PX[timeframeRef.current] ?? 4;
     let total = Math.max(90, Math.min(700, Math.round(width / pitch)));
@@ -1716,7 +1729,7 @@ const StrikeChart = ({
     const history = Math.round(total * share);
     const ahead = total - history;
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - history), to: len + ahead });
-  }, []);
+  }, [seriesBars]);
 
   /*
     ══ RE-FIT WHEN THE PANE CHANGES WIDTH ═══════════════════════════════════
@@ -1869,11 +1882,12 @@ const StrikeChart = ({
   /* THE RESET VIEW, ONE FUNCTION FOR ALL FOUR DOORS (the pill, the right-click card — the chart's own or the level card's
      last line — Alt+R over the chart, and a double-click on the plot; approval 3, 2026-10-15 — the owner: "All four resets
      must land on the identical view"): the price scale back on autoscale (the candles in view, inside the fit's margins
-     when the host fits — applyFitMargins, the chrome measured), the time scale on the newest bars as the world opened
-     (showRecent: the timeframe's pitch, the history share left and the runway right), and that opening view held as bars
-     arrive ('recent'). It touches nothing else: a pinned strike, a pinned card, a day panel, the drawings and the
-     timeframe stay as they stood — so the double-click puts back what its own presses did before it calls this (the
-     press journal, below). */
+     when the host fits — applyFitMargins, the chrome measured), the time scale laid as a world opens, counted from the
+     newest bar the series holds at the press (showRecent on seriesBars: the timeframe's pitch, the history share left of
+     the newest bar and the runway right of it — the same place against the newest bar whenever it is pressed), and that
+     view held as bars arrive ('recent'). It touches nothing else: a pinned strike, a pinned card, a day panel, a replay's
+     pick or cursor, the drawings and the timeframe stay as they stood — so the double-click puts back what its own
+     presses did before it calls this (the press journal, below). */
   const resetView = useCallback(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -1883,14 +1897,25 @@ const StrikeChart = ({
   }, [showRecent]);
   /* A DOUBLE-CLICK IS A RESET, NOT TWO CLICKS (approval 3): its first press is a click before the browser knows a second
      is coming — on a node it pinned the node's card and toggled its strike's pin (another node's pin was lost), on empty
-     plot it let a pinned card go, on a day bar it opened the day panel — so the pill, Alt+R and the card landed with the
-     pin and the panel as they were and the double-click without. Each press's click work notes its undo here (a press
-     counted 1 starts the journal; the second press of a double-click does no click work), and the double-click runs the
-     journal back before the reset. */
-  const pressUndoRef = useRef<(() => void)[]>([]);
+     plot it let a pinned card go, on a day bar it opened the day panel, in a replay's pick it picked the bar — so the
+     pill, Alt+R and the card landed with the pin, the panel and the pick as they were and the double-click without. Each
+     press's click work notes its undo here (a press counted 1 starts the journal, and says whether it was taken on this
+     plot; the second press of a double-click does no click work), and the double-click runs the journal back before the
+     reset — wherever its second press lands, since what the first press opened (the pinned card, the day panel) may
+     stand over the spot pressed (the review of 2026-10-16: in a narrow pane and at 1D the second press met the card or
+     the panel and nothing was reset). */
+  const pressRef = useRef<{ undo: (() => void)[]; surface: boolean }>({ undo: [], surface: false });
   const notePress = (undo: void | (() => void)) => {
-    if (typeof undo === 'function') pressUndoRef.current.push(undo);
+    if (typeof undo === 'function') pressRef.current.undo.push(undo);
   };
+  const resetByDoubleClick = () => {
+    /* the presses' click work put back, newest first, then the one reset */
+    const undo = pressRef.current.undo.splice(0);
+    for (let i = undo.length - 1; i >= 0; i--) undo[i]();
+    resetView();
+  };
+  const resetByDoubleClickRef = useRef(resetByDoubleClick);
+  resetByDoubleClickRef.current = resetByDoubleClick;
 
   useEffect(() => {
     chartRef.current?.applyOptions({ rightPriceScale: { minimumWidth: axisChips ? AXIS_CHIPS_SCALE_MIN_WIDTH : priceTag ? PRICE_SCALE_MIN_WIDTH : 0 } });
@@ -2456,7 +2481,9 @@ const StrikeChart = ({
       const box = el.getBoundingClientRect();
       if (box.height === 0) return;
       let low = 0;
-      document.querySelectorAll<HTMLElement>('[data-chart-chrome]').forEach(c => {
+      /* never a hover's chrome (the crosshair readout, `data-chart-chrome="hover"`): up only while a pointer is on the
+         plot, it made the band — and the fit's margins — depend on where the pointer stood when the band was measured */
+      document.querySelectorAll<HTMLElement>('[data-chart-chrome]:not([data-chart-chrome="hover"])').forEach(c => {
         const r = c.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) return;
         const overlaps = r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.top + box.height / 3;
@@ -2682,7 +2709,8 @@ const StrikeChart = ({
       /* THE LIVE EDGE: the view's right edge within two bars of the last one — said to the host on change alone */
       {
         const r = chart.timeScale().getVisibleLogicalRange();
-        const n = barCountRef.current;
+        /* the series' own count — the window's noted one ran behind the bars that came since (seriesBars) */
+        const n = seriesBars();
         if (r && n > 0) {
           const live = r.to >= n - 2.5;
           if (atLiveRef.current !== live) {
@@ -5080,7 +5108,8 @@ const StrikeChart = ({
     const onClick = (p: MouseEventParams<Time>) => {
       if (typeof p.time !== 'number') return;
       if (pickTime) {
-        onPickTimeRef.current?.(p.time as number);
+        /* the pick's undo, kept: a double-click's first press is no pick (the press journal) */
+        notePress(onPickTimeRef.current?.(p.time as number));
         return;
       }
       /* Our own pick: the bar becomes the position, paused */
@@ -5845,6 +5874,47 @@ const StrikeChart = ({
      itself (the library's host) and the drawing surface over it hover, pin and reset the view. */
   const onSurface = (t: EventTarget | null) =>
     t instanceof Node && (!!containerRef.current?.contains(t) || (t instanceof Element && !!t.closest('[data-draw-surface]')));
+  /* THE PRESS JOURNAL'S WATCH, ON THE WINDOW (the review of 2026-10-16): a first press anywhere starts the journal and
+     says whether it was taken on this plot; a later press of the same double-click that lands OFF the plot — on the card
+     or the panel its first press opened over the spot (the day panel stands outside this box) — is the double-click's:
+     no word selected, no door under it pressed, and the double-click resets as one on the plot does (the box's own
+     onDoubleClick takes those, so a path's seal on the drawing surface still keeps its double-click). */
+  useEffect(() => {
+    /* this chart's plot alone (onSurface's drawing surface is any chart's — its own handlers only ever met their own) */
+    const ours = (t: EventTarget | null) => onSurface(t) && t instanceof Node && !!boxElRef.current?.contains(t);
+    const offPlot = (e: MouseEvent) => pressRef.current.surface && !ours(e.target);
+    const down = (e: MouseEvent) => {
+      if (e.detail <= 1) {
+        pressRef.current = { undo: [], surface: ours(e.target) };
+        return;
+      }
+      if (offPlot(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    const click = (e: MouseEvent) => {
+      if (e.detail > 1 && offPlot(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    const dbl = (e: MouseEvent) => {
+      if (!offPlot(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resetByDoubleClickRef.current();
+    };
+    window.addEventListener('mousedown', down, true);
+    window.addEventListener('click', click, true);
+    window.addEventListener('dblclick', dbl, true);
+    return () => {
+      window.removeEventListener('mousedown', down, true);
+      window.removeEventListener('click', click, true);
+      window.removeEventListener('dblclick', dbl, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -5867,18 +5937,11 @@ const StrikeChart = ({
         data-chart-ink
         data-chart-ground={chartGround(themeKey)}
         onDoubleClick={e => {
-          if (!onSurface(e.target)) return;
-          /* the presses' click work put back, newest first, then the one reset (the press journal, above) */
-          const undo = pressUndoRef.current.splice(0);
-          for (let i = undo.length - 1; i >= 0; i--) undo[i]();
-          resetView();
+          /* on the plot: the presses put back, then the one reset (the press journal, above; off the plot, its watch) */
+          if (onSurface(e.target)) resetByDoubleClick();
         }}
         onPointerDownCapture={e => {
           downAtRef.current = { x: e.clientX, y: e.clientY };
-        }}
-        onMouseDownCapture={e => {
-          /* a first press starts the journal; a double-click's second (detail 2) keeps it */
-          if (e.detail <= 1) pressUndoRef.current = [];
         }}
         onMouseMove={e => {
           /* The event lane's hover — resolved here because canvas glyphs

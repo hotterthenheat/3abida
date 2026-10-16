@@ -3397,10 +3397,13 @@ const Pane = ({
                 the stack and back on for the buttons, so the legend never eats
                 a drag on the chart. */}
             {/* THE CROSSHAIR READOUT (the UI pass): the hovered bar's figures at the plot's top-left, under the chrome —
-                only while a pointer is on the plot or a moment arrives from another pane */}
+                only while a pointer is on the plot or a moment arrives from another pane. Chrome for its inks, but HOVER
+                chrome, out of the fit's band as the hover row is (approval 3's review, 2026-10-16: measured whenever the
+                band happened to be measured with a pointer on the plot, it moved the fit's margins — a double-click in a
+                replay's pick passed through the play and left them 0.283 where the pill's were 0.165) */}
             {readout && !expanded && (
               /* past the drawing rail where it is docked left and open, as the legend and the candles stand (the audit's B-23) */
-              <div className="pointer-events-none absolute z-10" style={{ top: stripH + 4 + hoverRowH, left: (ownScale ? PRICE_GUTTER_PX : 12) + railInset }} data-chart-chrome>
+              <div className="pointer-events-none absolute z-10" style={{ top: stripH + 4 + hoverRowH, left: (ownScale ? PRICE_GUTTER_PX : 12) + railInset }} data-chart-chrome="hover">
                 <CrosshairReadout readout={readout} showOhl={showReadoutOhl} showVol={showReadoutVol} showInds={showReadoutInds} when={readoutWhen} />
               </div>
             )}
