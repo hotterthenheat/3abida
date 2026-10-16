@@ -5,6 +5,8 @@ import { fmtDistance, type DistanceScales } from '../../data/atr';
 import { getDistanceUnit } from '../../data/distanceUnits';
 import { avwapSeries, defaultStop, handlePoints, hitKind, renderKind, type KindBar, type KindHit, type KindRender } from './drawingKinds';
 import { FONT_SANS } from '../../theme/fonts';
+import { BEAR, BULL } from './palette';
+import type { DirInks } from './candleTheme';
 
 /*
   User drawings layer — trendlines and horizontal levels, sketched directly on
@@ -221,6 +223,44 @@ const MARK = '237,237,237';
 const MEASURE_RGB = '226,234,244';
 
 /*
+  UP AND DOWN ARE THE CANDLES' (the owner's rule of 2026-10-15: "Anything meaning up/down uses the candles' up and down
+  colours"; the third review of it, 2026-10-16, found the measure's band and headline, a position's reward and risk, a
+  price range and the arrow stamps in the house green and red beside blue and orange candles). The chart hands the layer
+  its candles' up and down (setDirInks, from candleTheme candleDirInks after the reader's colour vision) beside its bars,
+  and again on a change of theme or vision. A mark that IS direction wears them; a word on the layer's dark wash wears
+  them lifted toward white until it reads 4.5:1 on that wash over the tape's ground (Stone's black falling candle, the
+  slate ones of Glacier, Chrome and Mono would not read there as they are), its hue kept.
+*/
+const LABEL_WASH: [number, number, number] = [10, 10, 10];
+const LABEL_WASH_A = 0.82;
+const WORDS_RATIO = 4.5;
+const rgbParts = (css: string): [number, number, number] | null => {
+  const m = /^#([0-9a-f]{6})/i.exec(css.trim());
+  if (m) return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
+  const r = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(css.trim());
+  return r ? [Number(r[1]), Number(r[2]), Number(r[3])] : null;
+};
+const channelLum = (c: number) => {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+const lumOf = ([r, g, b]: readonly number[]) => 0.2126 * channelLum(r) + 0.7152 * channelLum(g) + 0.0722 * channelLum(b);
+const ratioOf = (a: readonly number[], b: readonly number[]) => {
+  const [x, y] = [lumOf(a), lumOf(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+};
+/** An ink as words on the layer's wash: as it is where it reads WORDS_RATIO there, else mixed toward white until it does */
+export function wordsInk(ink: readonly number[], ground: readonly number[]): [number, number, number] {
+  const box = LABEL_WASH.map((v, i) => v * LABEL_WASH_A + ground[i] * (1 - LABEL_WASH_A));
+  for (let t = 0; t <= 1.0001; t += 0.02) {
+    const c = ink.map(v => Math.round(v + (255 - v) * t)) as [number, number, number];
+    if (ratioOf(c, box) >= WORDS_RATIO) return c;
+  }
+  return [255, 255, 255];
+}
+const rgbStr = (c: readonly number[]) => c.map(v => Math.round(v)).join(',');
+
+/*
   ONE TYPE VOICE FOR EVERY LABEL THE LAYER PRINTS (partner, 2026-08-27:
   "improve typography"). Before this, each renderer typed its own font
   string — the fib ran 9px, the note and the measure 10px, all at regular
@@ -321,10 +361,10 @@ class DrawingsPaneRenderer {
 
         const span = measureSpan(d.p1.time, d.p1.price, d.p2.time, d.p2.price, src.barMinutes);
         /* Direction is the market's — the band is tinted by whether price
-           ROSE across the span, which is the one place red and green belong
-           (they are price direction, and nothing else here is). */
+           ROSE across the span — price direction, so the candles' up and down
+           (setDirInks), and nothing else here is. */
         const rose = span.deltaAbs >= 0;
-        ctx.fillStyle = rose ? 'rgba(48,209,88,0.10)' : 'rgba(255,59,48,0.10)';
+        ctx.fillStyle = `rgba(${rose ? src.dir.up : src.dir.down},0.10)`;
         ctx.fillRect(xa, ya, Math.max(1, xb - xa), Math.max(1, yb - ya));
         ctx.strokeStyle = `rgba(${MEASURE_RGB},${alpha * 0.8})`;
         ctx.lineWidth = 1 * vr;
@@ -388,7 +428,7 @@ class DrawingsPaneRenderer {
         lines.forEach((t, i) => {
           ctx.font = labelFont(vr, i === 0 ? 11 : LABEL_PX);
           ctx.fillStyle =
-            i === 0 ? (rose ? 'rgba(48,209,88,0.95)' : 'rgba(255,59,48,0.95)') : `rgba(${MEASURE_RGB},0.66)`;
+            i === 0 ? `rgba(${rose ? src.dir.upWords : src.dir.downWords},0.95)` : `rgba(${MEASURE_RGB},0.66)`;
           ctx.fillText(t, bx + padX, by + padY + i * lineH);
         });
       };
@@ -415,6 +455,10 @@ class DrawingsPaneRenderer {
         ink: MARK,
         textInk: MARK,
         inked: false,
+        up: src.dir.up,
+        down: src.dir.down,
+        upWords: src.dir.upWords,
+        downWords: src.dir.downWords,
         alpha: 1,
         draft: false,
         bars: src.bars,
@@ -880,6 +924,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** The bars themselves — the anchored VWAP is computed off them. `barsRev` moves whenever they do, and is what its cache is keyed on. */
   bars: KindBar[] = [];
   barsRev = 0;
+  /** The candles' up and down as 'r,g,b' — for marks, and lifted for words on the layer's wash (setDirInks) */
+  dir = { up: rgbStr(rgbParts(BULL)!), down: rgbStr(rgbParts(BEAR)!), upWords: rgbStr(rgbParts(BULL)!), downWords: rgbStr(rgbParts(BEAR)!) };
   private _paneViews: DrawingsPaneView[];
 
   constructor() {
@@ -1022,6 +1068,20 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   shiftTimeExact(time: number, k: number): number | null {
     const logical = this.logicalExact(time);
     return logical === null ? null : this.timeAtLogicalExact(logical + k);
+  }
+
+  /** The chart's candles' up and down (candleTheme candleDirInks, after the reader's colour vision) and the tape's ground
+      ('#rrggbb' or 'rgb(r g b)': the theme's canvas, or the dark island's panel) — set with the chart and on every change
+      of theme or vision */
+  setDirInks(dir: DirInks, ground?: string): void {
+    const up = rgbParts(dir.up);
+    const down = rgbParts(dir.down);
+    if (!up || !down) return;
+    const g = (ground && rgbParts(ground)) || [0, 0, 0];
+    const next = { up: rgbStr(up), down: rgbStr(down), upWords: rgbStr(wordsInk(up, g)), downWords: rgbStr(wordsInk(down, g)) };
+    if (next.up === this.dir.up && next.down === this.dir.down && next.upWords === this.dir.upWords && next.downWords === this.dir.downWords) return;
+    this.dir = next;
+    this.requestUpdate?.();
   }
 
   setBars(bars: KindBar[]): void {

@@ -2732,6 +2732,135 @@ check('inks: the compare menu\'s swatch is the colour its line is drawn in — o
   return { pass, ms: Date.now() - t0, notes };
 });
 
+/* ─── THE DRAWINGS' UP AND DOWN ARE THE CANDLES' (the third review of the owner's colour rule, 2026-10-16) ─────────────────
+   "Anything meaning up/down uses the candles' up and down colours" — the drawing tools that ARE direction (a Long or Short
+   position's target and stop, a price range, the measure's band and headline, the arrow stamps) drew the house green and
+   red under every theme and colour vision (drawingKinds UP/DOWN, the measure's own two rgba). A Long position and a
+   falling measure are stored for the name, in the empty room right of the last candle, and the page reloaded on Market
+   under the blue-orange pair: the target's zone must be the candles' up (blue), the stop's their down (orange), the
+   measure's band their down. Read off the chart's own canvas — each zone's colour against the ground beside it, as a
+   direction in RGB (the wash's alpha leaves the direction alone). */
+check('inks: a Long position and the measure draw up and down in the candles\' inks (Market under blue and orange)', async () => {
+  const t0 = Date.now();
+  const notes = [];
+  let pass = true;
+  const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', theme: 'market', overlays: { trails: false }, ladder: true }], { cvd: 'blue-orange', theme: 'dark' });
+  try {
+    const chartOf = `[...window.__charts].find(x => x.trails && x.host.isConnected && !x.host.closest('[data-recap-shot]') && x.candles.data().length)`;
+    const at = await page.evaluate(`(() => {
+      const e = ${chartOf};
+      const d = e.candles.data().filter(b => 'close' in b);
+      const n = d.length;
+      const step = d[n - 1].time - d[n - 2].time;
+      const pr = e.chart.priceScale('right').getVisibleRange();
+      return { last: d[n - 1].time, close: d[n - 1].close, step, span: (pr.to - pr.from) * 0.18, n, co: e.candles.options() };
+    })()`);
+    const { last, close, step, span } = at;
+    const drawings = [
+      { kind: 'long', id: 'proof-long', p1: { time: last + 2 * step, price: close }, p2: { time: last + 9 * step, price: close + span }, p3: { time: last + 9 * step, price: close - span / 2 } },
+      { kind: 'measure', id: 'proof-measure', p1: { time: last + 11 * step, price: close + span * 0.6 }, p2: { time: last + 18 * step, price: close - span * 0.6 } },
+    ];
+    /* the name's drawings, under the house's tape and the feed's */
+    await page.evaluate(ds => {
+      for (const k of ['slayer_chart_drawings_SPY', 'slayer_chart_drawings_feed:SPY']) localStorage.setItem(k, JSON.stringify(ds));
+    }, drawings);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-chart-ink]', { timeout: 60_000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-chart-state]')].some(e => Number((e.getAttribute('data-chart-state') ?? '').split('|')[2]) > 0), null, { timeout: 60_000 });
+    await page.waitForTimeout(3000);
+    const got = await page.evaluate(`(() => {
+      const e = ${chartOf};
+      const d = e.candles.data().filter(b => 'close' in b);
+      const n = d.length;
+      const step = d[n - 1].time - d[n - 2].time;
+      const ts = e.chart.timeScale();
+      const X = t => ts.logicalToCoordinate(n - 1 + (t - d[n - 1].time) / step);
+      const Y = p => e.candles.priceToCoordinate(p);
+      const ds = ${JSON.stringify(drawings)};
+      const L = ds[0], M = ds[1];
+      /* the price pane's canvases (the largest pair in the chart's box: the series' and the one over it, where the
+         drawings are), laid one over the other as the screen shows them */
+      const all = [...e.host.querySelectorAll('canvas')].filter(c => c.width > 0 && c.height > 0);
+      const big = Math.max(...all.map(c => c.width * c.height));
+      const cvs = all.filter(c => c.width * c.height === big);
+      const r = cvs[0].getBoundingClientRect();
+      const kx = cvs[0].width / r.width;
+      const ky = cvs[0].height / r.height;
+      /* chart coordinates are the pane's, and the pane's canvases stand at the pane */
+      const px = (x, y) => {
+        let out = [0, 0, 0];
+        for (const cv of cvs) {
+          const v = cv.getContext('2d').getImageData(Math.round(x * kx), Math.round(y * ky), 1, 1).data;
+          const a = v[3] / 255;
+          out = out.map((o, i) => v[i] * a + o * (1 - a));
+        }
+        return out;
+      };
+      const zone = (x0, x1, y0, y1) => {
+        const out = [];
+        for (const fx of [0.3, 0.5, 0.7]) for (const fy of [0.3, 0.6]) out.push(px(x0 + (x1 - x0) * fx, y0 + (y1 - y0) * fy));
+        const m = [0, 1, 2].map(i => out.reduce((s, c) => s + c[i], 0) / out.length);
+        return m;
+      };
+      const lx0 = X(L.p1.time), lx1 = X(L.p2.time);
+      const yE = Y(L.p1.price), yT = Y(L.p2.price), yS = Y(L.p3.price);
+      const mx0 = X(M.p1.time), mx1 = X(M.p2.time);
+      const ma = Y(M.p1.price), mb = Y(M.p2.price);
+      const bg = px((lx1 + mx0) / 2, (yT + yS) / 2);
+      return {
+        coords: [lx0, lx1, yE, yT, yS, mx0, mx1, ma, mb].map(v => v == null ? null : Math.round(v)),
+        target: zone(lx0, lx1, Math.min(yT, yE) + 4, Math.max(yT, yE) - 4),
+        stop: zone(lx0, lx1, Math.min(yS, yE) + 4, Math.max(yS, yE) - 4),
+        band: zone(mx0, mx1, Math.min(ma, mb) + 6, Math.max(ma, mb) - 6),
+        bg,
+        up: e.candles.options().borderUpColor,
+        down: e.candles.options().borderDownColor,
+      };
+    })()`);
+    const rgbOf = c => {
+      const m = /^#([0-9a-f]{6})/i.exec(String(c));
+      if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
+      const q = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(String(c));
+      return q ? [+q[1], +q[2], +q[3]] : null;
+    };
+    /* how well a wash's colour over the ground points at an ink: the cosine of (wash − ground) and (ink − ground) */
+    const toward = (wash, ink) => {
+      const a = wash.map((v, i) => v - got.bg[i]);
+      const b = ink.map((v, i) => v - got.bg[i]);
+      const na = Math.hypot(...a);
+      const nb = Math.hypot(...b);
+      return na < 3 ? 0 : a.reduce((s, v, i) => s + v * b[i], 0) / (na * nb);
+    };
+    const up = rgbOf(got.up);
+    const down = rgbOf(got.down);
+    const green = [48, 209, 88];
+    const red = [255, 59, 48];
+    const fmt = c => `rgb(${c.map(v => Math.round(v)).join(',')})`;
+    for (const [what, wash, want, wantName, house] of [
+      ['the target zone', got.target, up, `the candles' up ${got.up}`, green],
+      ['the stop zone', got.stop, down, `the candles' down ${got.down}`, red],
+      ["the falling measure's band", got.band, down, `the candles' down ${got.down}`, red],
+    ]) {
+      const kw = toward(wash, want);
+      const kh = toward(wash, house);
+      const ok = kw > 0.995 && kw > kh;
+      notes.push(`${what}: ${fmt(wash)} over the ground ${fmt(got.bg)} — toward ${wantName} ${kw.toFixed(4)}, toward the house's ${fmt(house)} ${kh.toFixed(4)}${ok ? '' : ' — not the candles\''}`);
+      if (!ok) pass = false;
+    }
+    notes.push(`at x/y ${got.coords.join(', ')}`);
+    if (errors.length) {
+      pass = false;
+      notes.push(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+    }
+  } finally {
+    await page.evaluate(() => {
+      for (const k of ['slayer_chart_drawings_SPY', 'slayer_chart_drawings_feed:SPY']) localStorage.removeItem(k);
+    }).catch(() => {});
+    await done();
+  }
+  return { pass, ms: Date.now() - t0, notes };
+});
+
 /* ─── THE FOUR RESETS LAND ON THE IDENTICAL VIEW (approval 3, 2026-10-15 — the owner: "All four resets must land on the
    identical view") ───────────────────────────────────────────────────────────────────────────────────────────────────────
    The pill, a double-click on the plot, Alt+R over the chart and the right-click card's Reset all call the chart's one

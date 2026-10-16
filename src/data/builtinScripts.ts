@@ -483,9 +483,16 @@ let retiredText: Map<string, string> | null = null;
  * and one whose text is a retired built-in's as a kept copy does; a retired id kept as the house wrote it is kept
  * (keptAsWritten). Once the reader saves an edit the text is theirs and keeps the colours its code sets.
  */
-export function inksBy(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sourceHash' | 'source'>): InksBy {
+export function inksBy(s: Pick<Script, 'id' | 'shelf' | 'version' | 'sourceHash' | 'source' | 'forkedFrom'>): InksBy {
   if (s.shelf === 'built-in') return 'shipped';
   if (keptAsWritten(s)) return 'kept';
+  /* A COPY OF A SHIPPED SCRIPT NEVER SAVED AGAIN (the third review of the colour rule, 2026-10-16): "Make a copy" writes
+     version 1 with the shelf's id in forkedFrom, so a copy is the house's until the reader saves it — as keptAsWritten
+     reads a kept one. Its text alone could not tell: once the house moved one of its inks (Keltner's #7D7D74, MFI's
+     #447CAE) a copy made the day before no longer matched the shelf's text, read as the reader's own, and drew those dark
+     inks on a Stone tape at 2.21 and 2.35:1. Its inks the house has since moved draw as their pairs do now
+     (indicatorInks FORMER_DARK, on the shipped path too). */
+  if (s.shelf === 'mine' && s.version === 1 && s.forkedFrom && builtinScripts().some(b => b.id === s.forkedFrom)) return 'shipped';
   shippedText ??= new Map(builtinScripts().map(b => [b.sourceHash, b.source]));
   if (shippedText.get(s.sourceHash) === s.source) return 'shipped';
   retiredText ??= new Map(RETIRED_SOURCES.map(r => [hashSource(r.source), r.source]));

@@ -85,20 +85,36 @@ export type IndicatorKey = 'ema9' | 'ema21' | 'ema50' | 'vwap' | 'bb' | 'vwapBan
    Glacier's rising candle at 0.038; Bollinger #D498FC, Keltner #7D7D74 and MFI #447CAE off the gold or the violet under
    tritanopia; compare lines 1 and 4). Those that met it only with a new hue — RSI, the stochastic's %K, ADX, Ichimoku's
    lagging span, the SMA, and on paper EMA 9, EMA 50, Donchian and Keltner — are the owner's to decide, each measured in
-   scripts/indicator-inks-proof.ts with an alternative that clears it. */
+   scripts/indicator-inks-proof.ts with an alternative that clears it.
+   THE CANDLES UNDER COLOUR VISION, AND THEIR HUES (the third review of the rule, 2026-10-16 — the owner: "Check that
+   candles, indicator inks and the two oval colours stay distinct under every Colours option, including colour-vision
+   simulations"): every ink as drawn stands 0.05 from each option's candle up and down under simulated protanopia,
+   deuteranopia and tritanopia too, and 30° of OKLCh hue from each candle ink with a hue. Measured on the family as
+   it was, 516 of 21,216 option-ink-candle-view pairs stood under the floor (Bollinger 0.004 from the blue-orange rise
+   #50A4FF under protanopia, IV 0.005 from Glacier's rise and the MACD signal 0.009 from Market's fall, both under
+   deuteranopia) and 284 ink-candle pairs within 30° of hue (EMA 21 and the SMA 3° from the blue-orange rise, the MACD
+   signal 10° from its fall). The candles' own hues — the colour-vision cut's blue and orange, Neon's lime, Foil's
+   violet fall — joined to the direction pair's red and green and the ovals' gold and violet leave the family three arcs
+   and the greys: teals and aquas, pinks and magentas, an olive. So it moved there, 27 of its 31 dark inks and 17 paper
+   pairs (each paper ink that moved kept its dark ink's hue), every floor above kept; FORMER_DARK keeps what each was.
+   A clash left with the candle the owner is deciding on in one of eight themes (Contrast's, Velvet's, Tide's and
+   Harbor's falling candles, Whipsaw's violets, Stone's blue rise) waits on that decision, held by ink and theme in the
+   proof. EMA 21's and the SMA's paper inks keep their navy: no paper ink at their new dark inks' hue clears every
+   floor. Of the inks held under tritanopia above, the stochastic's %K and EMA 50's and Keltner's paper inks are held
+   still; the rest moved and clear it. */
 const INDICATOR_PAIRS: Record<IndicatorKey, Pair> = {
-  ema9: ['#0099CC', '#0E6B9E'],
-  ema21: ['#85B9FE', '#002A57'],
-  ema50: ['#ABF8F3', '#0B726E'],
-  sma: ['#768EAE', '#04077E'],
-  vwap: ['#06BFB0', '#003F38'],
-  vwapBands: ['#42F6D9', '#005856'],
-  bb: ['#D394FE', '#703E81'],
-  rsi: ['#FBACFE', '#3A2244'],
-  macd: ['#B692CE', '#410569'],
-  atrPane: ['#A77E91', '#5A0040'],
+  ema9: ['#54A6AB', '#04585C'],
+  ema21: ['#88C0B4', '#002A57'],
+  ema50: ['#75E0D8', '#0B726E'],
+  sma: ['#FB31BA', '#04077E'],
+  vwap: ['#C21EB2', '#140013'],
+  vwapBands: ['#FF69F6', '#54286C'],
+  bb: ['#DB88CE', '#703E81'],
+  rsi: ['#C68B9E', '#5C3242'],
+  macd: ['#A1667A', '#400220'],
+  atrPane: ['#885288', '#4B054D'],
 };
-const MACD_SIGNAL_PAIR: Pair = ['#D37C18', '#763F01'];
+const MACD_SIGNAL_PAIR: Pair = ['#F35697', '#763F01'];
 /** The steel wash the MACD's bars wore until 2026-10-16 — a kept MACD script (the reader's own since approval 5) still
     draws it. The chart's own MACD draws its bars in the candles' up and down now (DIR_WASH_ALPHA, the owner's rule) */
 const MACD_HIST_PAIR: Pair = ['rgba(226,234,244,0.30)', 'rgba(60,64,72,0.30)'];
@@ -122,19 +138,19 @@ export type ScriptInkKey =
   | 'mfi'
   | 'obv';
 const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
-  movingAverage: ['#18A19C', '#002823'],
-  ichimokuConversion: ['#E37DC1', '#791853'],
+  movingAverage: ['#0C9884', '#002823'],
+  ichimokuConversion: ['#DD62D1', '#791853'],
   ichimokuBase: ['#9F9170', '#4D4834'],
-  ichimokuLagging: ['#FCDCFF', '#700982'],
-  keltner: ['#6A6B57', '#5C5663'],
-  donchian: ['#58B0D1', '#005282'],
+  ichimokuLagging: ['#187D6E', '#034239'],
+  keltner: ['#71674D', '#5C5663'],
+  donchian: ['#DC2C92', '#730081'],
   stochasticK: ['#FD98BE', '#BD1D73'],
-  stochasticD: ['#A78A00', '#433009'],
-  adx: ['#FFBCD3', '#5B3244'],
-  cci: ['#C267A9', '#9A0179'],
-  williamsR: ['#C73996', '#974477'],
-  mfi: ['#44739E', '#013583'],
-  obv: ['#AB713C', '#321901'],
+  stochasticD: ['#9931A7', '#270033'],
+  adx: ['#C6B4C4', '#291509'],
+  cci: ['#C66597', '#9A0179'],
+  williamsR: ['#B2448F', '#974477'],
+  mfi: ['#596F82', '#3B2634'],
+  obv: ['#9F7A2B', '#402E05'],
 };
 
 /* THE COMPARE LINES AND A PLOT LEFT UNCOLOURED (the owner, 2026-10-15: "Compare lines and Pine plots with no colour set:
@@ -148,14 +164,16 @@ const SCRIPT_PAIRS: Record<ScriptInkKey, Pair> = {
    on the price pane or a pane of their own, never in a sub-pane indicator's, so they keep 0.08 from the price pane's
    inks (the averages, the VWAP and its bands, Bollinger, the shipped overlays), not from RSI's or the stochastic's. The
    family holds no free blue at 0.08 on either ground (2026-10-16, searched: the only room was dim mid-tones at
-   L 0.50–0.57), so no compare line is a blue. */
+   L 0.50–0.57), so no compare line is a blue. The second and third moved off the candles under colour vision
+   (2026-10-16: the olive 0.010 from Market's fall under protanopia and 20° from Neon's lime rise, the grey-teal 0.046 from
+   Glacier's rise under tritanopia); a desk saved with either takes its slot's ink (OLD_COMPARE_INKS). */
 const COMPARE_PAIRS: readonly Pair[] = [
   ['#C4879C', '#572F42'],
-  ['#929A2D', '#3B3600'],
-  ['#9EC3C2', '#332138'],
-  ['#A92E81', '#51004F'],
+  ['#A87084', '#32051A'],
+  ['#C4B5C3', '#322234'],
+  ['#A92E81', '#5B0042'],
 ];
-const PLOT_DEFAULT_PAIR: Pair = ['#C27F22', '#391C00'];
+const PLOT_DEFAULT_PAIR: Pair = ['#A97C07', '#432F01'];
 
 const dark = <K extends string>(r: Record<K, Pair>): Record<K, string> => Object.fromEntries(Object.entries<Pair>(r).map(([k, v]) => [k, v[0]])) as Record<K, string>;
 
@@ -199,7 +217,7 @@ export function compareInkOn(saved: string, light: boolean): string {
    palette, kept clear of the ovals' colours"). Members of the family now, held to its floors from the ovals (as seen and
    under the three simulations), the house's inks and every theme's candles, 0.08 from each other, 0.05 from every other
    ink (their pane is their own), each with its pair for a light tape. */
-const VOL_PAIRS = { rv: ['#915004', '#613503'] as Pair, iv: ['#0DDBF5', '#212F32'] as Pair };
+const VOL_PAIRS = { rv: ['#7F5D08', '#583F00'] as Pair, iv: ['#15DECE', '#212F32'] as Pair };
 /** Realised volatility's line on a dark tape (its pair on a light one through paperInk) */
 export const RV_INK = VOL_PAIRS.rv[0];
 /** Implied volatility's line on a dark tape */
@@ -247,7 +265,7 @@ for (const p of INK_PAIRS) {
    (approval 5) holds the inks of the day it was kept, and draws its pair's current ink (keptInksWith), so the copy and the
    Indicators menu's line agree — and it finds its paper pair on a light tape (an ink the family no longer lists had none:
    a copy kept on 2026-10-15 drew its EMA 21 and MACD signal dark inks on Stone). */
-const FORMER_DARK: [string, string][] = [
+export const FORMER_DARK: readonly [string, string][] = [
   /* approval 4's first cut (03ca5ad), moved by its review (59d97da) */
   ['#75BBF4', 'indicator:ema21'],
   ['#D27843', 'indicator:macdSignal'],
@@ -255,6 +273,42 @@ const FORMER_DARK: [string, string][] = [
      tritanopia */
   ['#77C4FE', 'indicator:ema21'],
   ['#D498FC', 'indicator:bb'],
+  /* A SHIPPED SCRIPT'S COPY HOLDS ITS DAY'S INKS TOO (the third review of the colour rule, 2026-10-16): an unedited copy
+     draws as the shipped one (builtinScripts inksBy), so an ink the house moved since it was made is its pair's ink now —
+     on a Stone tape a Keltner copy's #7D7D74 and an MFI copy's #447CAE drew at 2.21 and 2.35:1. The same day's moves
+     (8367930), and the first cut's script inks that its review moved (59d97da) */
+  ['#7D7D74', 'script:keltner'],
+  ['#447CAE', 'script:mfi'],
+  ['#968D6C', 'script:ichimokuBase'],
+  ['#CE909B', 'script:keltner'],
+  ['#7BAB84', 'script:donchian'],
+  ['#AA8802', 'script:stochasticD'],
+  ['#D06976', 'script:williamsR'],
+  ['#40A859', 'script:mfi'],
+  ['#FA7F7D', 'script:obv'],
+  /* moved off the candles under colour vision and their hues (the third review, 2026-10-16) */
+  ['#0099CC', 'indicator:ema9'],
+  ['#85B9FE', 'indicator:ema21'],
+  ['#ABF8F3', 'indicator:ema50'],
+  ['#768EAE', 'indicator:sma'],
+  ['#06BFB0', 'indicator:vwap'],
+  ['#42F6D9', 'indicator:vwapBands'],
+  ['#D394FE', 'indicator:bb'],
+  ['#FBACFE', 'indicator:rsi'],
+  ['#B692CE', 'indicator:macd'],
+  ['#A77E91', 'indicator:atrPane'],
+  ['#D37C18', 'indicator:macdSignal'],
+  ['#18A19C', 'script:movingAverage'],
+  ['#E37DC1', 'script:ichimokuConversion'],
+  ['#FCDCFF', 'script:ichimokuLagging'],
+  ['#6A6B57', 'script:keltner'],
+  ['#58B0D1', 'script:donchian'],
+  ['#A78A00', 'script:stochasticD'],
+  ['#FFBCD3', 'script:adx'],
+  ['#C267A9', 'script:cci'],
+  ['#C73996', 'script:williamsR'],
+  ['#44739E', 'script:mfi'],
+  ['#AB713C', 'script:obv'],
 ];
 const NOW_OF = new Map<string, [number, number, number]>();
 for (const [hex, name] of FORMER_DARK) {
@@ -444,12 +498,15 @@ export function scriptInksWith(o: ScriptInkOpts): ((css: string, kind?: InkKind)
     const c = parseInk(css);
     if (c) {
       const k = keyOf(c.rgb);
+      /* an ink the house has since moved (a copy made before the move holds it) is its pair's ink now */
+      const now = NOW_OF.get(k);
+      const cur = now ? cssOf(now, c.a) : css;
       if (k === BULL_KEY && up) out = cssOf(up, c.a);
       else if (k === BEAR_KEY && down) out = cssOf(down, c.a);
-      else if (light) out = light(css, kind);
+      else if (light) out = light(cur, kind);
       else {
         const to = house.get(k);
-        if (to) out = cssOf(to, c.a);
+        out = to ? cssOf(to, c.a) : cur;
       }
     }
     if (kept.size > 512) kept.clear();

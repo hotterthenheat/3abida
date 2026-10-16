@@ -30,6 +30,17 @@
   take the pair instead, because there they ARE
   direction: a position's reward and risk, a price
   range's sign, and the up and down arrow stamps.
+  THE PAIR IS THE CANDLES' (the owner's rule of
+  2026-10-15, "Anything meaning up/down uses the
+  candles' up and down colours"; the third review of
+  it, 2026-10-16, found these four in the house green
+  and red beside blue and orange candles): the chart
+  hands the layer its candles' up and down (candleTheme
+  candleDirInks, after the reader's colour vision —
+  KindRender `up`, `down`), and its words on their
+  wash the same inks lifted where too dark to read
+  (`upWords`, `downWords`). An arrow stamp the reader
+  inked keeps their ink.
 ==================================================
 */
 
@@ -44,8 +55,6 @@ export interface KindBar {
   volume: number;
 }
 
-const UP = '48,209,88';
-const DOWN = '255,59,48';
 const HIGHLIGHT = '245,197,66';
 
 export const FIBEXT_RATIOS = [0, 0.618, 1, 1.272, 1.618, 2.618] as const;
@@ -68,6 +77,12 @@ export interface KindRender {
   textInk: string;
   /** the mark chose its own ink */
   inked: boolean;
+  /** 'r,g,b' — the chart's candles' up and down (candleTheme candleDirInks), what a mark that IS direction wears */
+  up: string;
+  down: string;
+  /** 'r,g,b' — the same two for words on the layer's dark wash, lifted where the candle ink is too dark to read there */
+  upWords: string;
+  downWords: string;
   alpha: number;
   /** still in the hand — not yet committed */
   draft: boolean;
@@ -337,15 +352,15 @@ export function renderKind(d: Drawing, R: KindRender): boolean {
       const xa = Math.min(a[0], b[0]);
       const xb = Math.max(Math.max(a[0], b[0]), xa + 24 * hr);
       ctx.setLineDash([]);
-      /* reward and risk ARE direction — the one place this layer takes the pair */
-      ctx.fillStyle = `rgba(${UP},${0.16 * alpha})`;
+      /* reward and risk ARE direction — the one place this layer takes the pair, the candles' up and down */
+      ctx.fillStyle = `rgba(${R.up},${0.16 * alpha})`;
       ctx.fillRect(xa, Math.min(a[1], b[1]), xb - xa, Math.abs(b[1] - a[1]));
-      ctx.fillStyle = `rgba(${DOWN},${0.16 * alpha})`;
+      ctx.fillStyle = `rgba(${R.down},${0.16 * alpha})`;
       ctx.fillRect(xa, Math.min(a[1], yS), xb - xa, Math.abs(yS - a[1]));
       ctx.lineWidth = 1 * vr;
-      ctx.strokeStyle = `rgba(${UP},${0.7 * alpha})`;
+      ctx.strokeStyle = `rgba(${R.up},${0.7 * alpha})`;
       line([xa, b[1]], [xb, b[1]]);
-      ctx.strokeStyle = `rgba(${DOWN},${0.7 * alpha})`;
+      ctx.strokeStyle = `rgba(${R.down},${0.7 * alpha})`;
       line([xa, yS], [xb, yS]);
       ctx.strokeStyle = solid;
       line([xa, a[1]], [xb, a[1]]);
@@ -353,8 +368,8 @@ export function renderKind(d: Drawing, R: KindRender): boolean {
       const risk = Math.abs(stop - entry);
       const pct = (v: number) => `${((v / entry) * 100).toFixed(2)}%`;
       const above = (yy: number, other: number) => (yy < other ? yy - 11 * vr : yy + 11 * vr);
-      label(`Target ${priceWords(target)}  ${reward.toFixed(2)}  ${pct(reward)}`, xa + 4 * hr, above(b[1], a[1]), UP, alpha);
-      label(`Stop ${priceWords(stop)}  ${risk.toFixed(2)}  ${pct(risk)}`, xa + 4 * hr, above(yS, a[1]), DOWN, alpha);
+      label(`Target ${priceWords(target)}  ${reward.toFixed(2)}  ${pct(reward)}`, xa + 4 * hr, above(b[1], a[1]), R.upWords, alpha);
+      label(`Stop ${priceWords(stop)}  ${risk.toFixed(2)}  ${pct(risk)}`, xa + 4 * hr, above(yS, a[1]), R.downWords, alpha);
       label(`${d.kind === 'long' ? 'Long' : 'Short'} ${priceWords(entry)}  reward to risk ${risk > 0 ? (reward / risk).toFixed(2) : '—'}`, xa + 4 * hr, a[1], R.textInk, alpha);
       ctx.fillStyle = solid;
       R.dot(a[0], a[1]);
@@ -372,9 +387,8 @@ export function renderKind(d: Drawing, R: KindRender): boolean {
       const xa = Math.min(a[0], b[0]);
       const xb = Math.max(Math.max(a[0], b[0]), xa + 30 * hr);
       const rose = d.p2.price >= d.p1.price;
-      const dir = rose ? UP : DOWN;
       ctx.setLineDash([]);
-      ctx.fillStyle = `rgba(${dir},${0.1 * alpha})`;
+      ctx.fillStyle = `rgba(${rose ? R.up : R.down},${0.1 * alpha})`;
       ctx.fillRect(xa, Math.min(a[1], b[1]), xb - xa, Math.abs(b[1] - a[1]));
       ctx.lineWidth = 1 * vr;
       line([xa, a[1]], [xb, a[1]]);
@@ -384,7 +398,7 @@ export function renderKind(d: Drawing, R: KindRender): boolean {
       if (Math.abs(b[1] - a[1]) > 10 * vr) head([mx, b[1]], rose ? -Math.PI / 2 : Math.PI / 2, 7 * vr);
       const delta = d.p2.price - d.p1.price;
       const sign = delta >= 0 ? '+' : '−';
-      label(`${sign}${Math.abs(delta).toFixed(2)}  ${sign}${Math.abs((delta / d.p1.price) * 100).toFixed(2)}%`, mx + 8 * hr, rose ? b[1] - 11 * vr : b[1] + 11 * vr, dir, alpha, 11);
+      label(`${sign}${Math.abs(delta).toFixed(2)}  ${sign}${Math.abs((delta / d.p1.price) * 100).toFixed(2)}%`, mx + 8 * hr, rose ? b[1] - 11 * vr : b[1] + 11 * vr, rose ? R.upWords : R.downWords, alpha, 11);
       return true;
     }
     case 'drange': {
@@ -559,7 +573,7 @@ export function renderKind(d: Drawing, R: KindRender): boolean {
       /* the stamp sits on the far side of the point and points AT it: an up arrow under a low, a down arrow over a high */
       ctx.save();
       ctx.setLineDash([]);
-      ctx.fillStyle = `rgba(${R.inked ? ink : up ? UP : DOWN},${Math.min(1, alpha + 0.15)})`;
+      ctx.fillStyle = `rgba(${R.inked ? ink : up ? R.up : R.down},${Math.min(1, alpha + 0.15)})`;
       ctx.beginPath();
       ctx.moveTo(a[0], a[1] + dir * 3 * vr);
       ctx.lineTo(a[0] - s * 0.62, a[1] + dir * (3 * vr + s * 0.8));

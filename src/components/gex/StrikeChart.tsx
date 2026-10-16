@@ -186,6 +186,13 @@ const baselineInks = (t: CandleTheme) => {
   };
 };
 
+/** The tape's own ground — its canvas, or where a theme has none the dark island's panel the chart stands on, read off the
+    chart's box — that the drawings' words are lifted to read against */
+const tapeGround = (t: CandleTheme, box: Element | null): string => {
+  const bg = chartSurface(t).bg;
+  return /^#[0-9a-f]{6}$/i.test(bg) ? bg : readToken('--panel', undefined, box);
+};
+
 /** Height of a pane's name chip, and its inset from the pane's top edge. */
 const PANE_LABEL_H = 17;
 const PANE_LABEL_INSET = 3;
@@ -2678,6 +2685,8 @@ const StrikeChart = ({
     devCharts?.add(devEntry);
     const drawingsPrim = new DrawingsPrimitive();
     candles.attachPrimitive(drawingsPrim);
+    /* the drawings' up and down are the candles' (a position's reward and risk, a price range, the measure, the arrows) */
+    drawingsPrim.setDirInks(candleDirInks(themeRef.current), tapeGround(themeRef.current, containerRef.current));
     /* T-6's session rules. Attached with the series like the two above, so it
        lives as long as the chart does; what it draws is swapped by the
        session effect. It renders at `bottom`, under the tape — the day's
@@ -3865,6 +3874,8 @@ const StrikeChart = ({
         (main as unknown as ISeriesApi<'Area'>).applyOptions({ lineColor: t.up, topColor: `${t.up}40`, bottomColor: `${t.up}05` });
       else if (style === 'baseline') (main as unknown as ISeriesApi<'Baseline'>).applyOptions(baselineInks(t));
     }
+    /* the drawings' up and down follow the candles through a change of theme or colour vision */
+    drawingsRef.current?.setDirInks(candleDirInks(t), tapeGround(t, containerRef.current));
     /* The frame's inks ride the theme too (2026-09-11, the Stone theme): a
        light ground takes the dark axis ink, scale borders and crosshair. */
     const s = chartSurface(t);
