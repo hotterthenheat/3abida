@@ -1500,7 +1500,11 @@ export class GexTrailsPrimitive implements ISeriesPrimitive<Time> {
     return levelValue(l, this.greek);
   }
 
+  /** The last setData's arguments, as they were handed — a chart that hands the field a moment's cut and then takes it back
+      (the chart's own replay's pick, undone by a double-click: StrikeChart's press journal) sets these again */
+  lastData: [GexSnapshot[], boolean, number, TrailGreek, GexSnapshot[] | undefined] | null = null;
   setData(snapshots: GexSnapshot[], enabled: boolean, barSec = 60, greek: TrailGreek = 'gex', base?: GexSnapshot[]): void {
+    this.lastData = [snapshots, enabled, barSec, greek, base];
     if (greek !== this.colGreek) {
       this.colCache = new WeakMap();
       this.colGreek = greek;

@@ -2744,8 +2744,26 @@ check('inks: the compare menu\'s swatch is the colour its line is drawn in — o
    pointer, not the reset, and are left out. The double-click is a hand's: its first press lands and is drawn before the
    second, so the second meets whatever the first opened over the spot (the card in a narrow pane, the day panel at 1D) —
    and those cases say they were met. Before: the first press's work stayed (the day panel, the pin and the card, a
-   replay picked) where the second met it, and in a replay the strip covered the pill. */
+   replay picked) where the second met it, and in a replay the strip covered the pill. The chart's OWN replay (Pulse's
+   full screen) has a case of its own: its pick cut the series and the field to the bar and started the replay, and the
+   double-click reset the cut series (the review of 2026-10-16). */
 const RESET_PANE = tf => ({ ticker: 'SPY', timeframe: tf, overlays: { trails: true }, ladder: true });
+/** Pulse with its live chart's tile up full screen — the chart's OWN replay rides there (`replay && !external`: it picks
+    its bar itself, no host's clock), the desk chooser answered; a fresh context, so nothing is left to put back */
+async function pulseFull({ width = 1440, height = 900 } = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Los_Angeles' });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e).slice(0, 300)));
+  await page.addInitScript(() => localStorage.setItem('slayer_desk_chooser', 'done'));
+  await page.goto(`${base}/pulse`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-chart-ink]', { timeout: 60_000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-chart-state]')].some(e => Number((e.getAttribute('data-chart-state') ?? '').split('|')[2]) > 0), null, { timeout: 60_000 });
+  await page.waitForTimeout(3000);
+  await page.locator('button[aria-label="Fullscreen"]').first().click({ timeout: 5000 });
+  await page.waitForTimeout(1500);
+  return { page, errors, done: () => ctx.close() };
+}
 const RESET_CASES = [
   { name: '1 pane, 5m, a strike pinned, the double-click on another node', panes: [RESET_PANE('5m')], pin: true, dbl: 'node' },
   { name: '1 pane, 1D, the double-click where the day panel opens', panes: [RESET_PANE('1D')], dbl: 'day', under: 'day panel' },
@@ -2755,10 +2773,11 @@ const RESET_CASES = [
   { name: '4 panes, 1D, the double-click where the day panel opens', panes: [RESET_PANE('1D')], layout: 4, dbl: 'day', under: 'day panel' },
   { name: 'a replay, 5m', panes: [RESET_PANE('5m')], replay: 'play', dbl: 'empty' },
   { name: "a replay's pick, 5m", panes: [RESET_PANE('5m')], replay: 'pick', dbl: 'empty' },
+  { name: "Pulse full screen, the chart's own replay's pick, 1m", host: 'pulse', replay: 'own pick', dbl: 'empty' },
 ];
 for (const c of RESET_CASES) {
   check(`reset: the pill, a double-click, Alt+R and the right-click card land on the identical view (${c.name})`, async () => {
-    const { page, errors, done } = await terrain(c.panes, { layout: c.layout ?? 1 });
+    const { page, errors, done } = c.host === 'pulse' ? await pulseFull() : await terrain(c.panes, { layout: c.layout ?? 1 });
     const WRAP = '[data-chart-ink][data-chart-ground]:not([data-recap-shot] *)';
     /* the first pane's chart, its plot's free points (none under a card, a chip or the rail), a node of the field (the first
        found, and the one nearest the plot's middle) and a point with a bar under it inside the day panel's footprint */
@@ -2826,7 +2845,7 @@ for (const c of RESET_CASES) {
         [WRAP, avoid ?? null, dayBox ?? null]
       );
     const viewOf = () =>
-      page.evaluate(W => {
+      page.evaluate(([W, own]) => {
         const wrap = document.querySelector(W);
         const e = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host));
         const ts = e.chart.timeScale();
@@ -2861,10 +2880,15 @@ for (const c of RESET_CASES) {
             world: (wrap.querySelector('[data-chart-state]')?.getAttribute('data-chart-state') ?? '').split('|').slice(0, 2).join(' '),
             picking: !!wrap.querySelector('[data-pick-time]'),
             replay: wrap.querySelector('[data-as-of]')?.getAttribute('data-as-of') ?? null,
+            /* the chart's own replay's position (none until a bar is picked), and the field it draws in the pick: the columns
+               it held before the reset (the same store, folding in place as minutes come — so the same array, not its
+               length), not a replay's cut */
+            replayIdx: wrap.querySelector('[data-replay-idx]')?.getAttribute('data-replay-idx') ?? null,
+            field: own && e.trails ? (e.trails.snapshots === window.__fieldMark ? 'as it stood' : `another: ${e.trails.snapshots.length} to ${e.trails.snapshots.at(-1)?.time ?? 0}`) : null,
             menu: !!document.querySelector('[role="menu"][aria-label="Chart"], [data-chart-menu="level-alert"]'),
           },
         };
-      }, WRAP);
+      }, [WRAP, c.replay === 'own pick']);
     const disturb = async () => {
       const b = await page.locator(WRAP).first().boundingBox();
       const s = await probe();
@@ -2929,7 +2953,12 @@ for (const c of RESET_CASES) {
     let pass = true;
     try {
       const t0 = Date.now();
-      if (c.replay) {
+      if (c.replay === 'own pick') {
+        /* the chart's own replay, from its toolbar: the pick phase, the series held as it stood */
+        await page.locator('button[aria-label="Replay session history"]').first().click({ timeout: 5000 });
+        await page.waitForFunction(W => !!document.querySelector(W)?.querySelector('[data-pick-time]'), WRAP, { timeout: 8000 });
+        await page.waitForTimeout(1500);
+      } else if (c.replay) {
         const head = await page.locator('[data-pane-head]').first().boundingBox();
         await page.mouse.click(head.x + head.width * 0.6, head.y + head.height / 2);
         await page.keyboard.press('p');
@@ -2968,6 +2997,12 @@ for (const c of RESET_CASES) {
       const take = async (name, wantAt) => {
         await disturb();
         const before = await viewOf();
+        /* the field the chart draws now, marked (the chart's own replay's pick) */
+        if (c.replay === 'own pick')
+          await page.evaluate(W => {
+            const wrap = document.querySelector(W);
+            window.__fieldMark = [...window.__charts].find(x => x.host?.isConnected && wrap.contains(x.host))?.trails?.snapshots ?? null;
+          }, WRAP);
         const s = await probe(pinned, dayBox);
         if (!s.empty || (wantAt && !s[wantAt])) return { missing: `no ${wantAt && !s[wantAt] ? `${wantAt === 'day' ? 'bar inside the day panel\'s footprint' : wantAt === 'empty' ? 'free point' : 'node'}` : 'free point'} on the plot` };
         await resets[name](s);
@@ -3049,7 +3084,7 @@ for (const c of RESET_CASES) {
           pass = false;
           notes.push(`the pin was ${pinned}, the reset left ${pillRow.kept.pin}`);
         }
-        if (c.replay === 'pick' && !pillRow.kept.picking) {
+        if ((c.replay === 'pick' || c.replay === 'own pick') && !pillRow.kept.picking) {
           pass = false;
           notes.push('the reset left the pick');
         }

@@ -1681,6 +1681,11 @@ const StrikeChart = ({
   const replayAppliedRef = useRef(0); // last idx applied to the series (for the fast append path)
   const [replayIdx, setReplayIdx] = useState(0);
   const [replayPlaying, setReplayPlaying] = useState(false);
+  /* read by the own pick's undo, from a click handler subscribed once a phase */
+  const replayIdxRef = useRef(replayIdx);
+  replayIdxRef.current = replayIdx;
+  const replayPlayingRef = useRef(replayPlaying);
+  replayPlayingRef.current = replayPlaying;
   const [replaySpeed, setReplaySpeed] = useState(2);
   const [reloadNonce, setReloadNonce] = useState(0);
 
@@ -5117,6 +5122,35 @@ const StrikeChart = ({
       if (!bars) return;
       let i = bars.length;
       while (i > 0 && bars[i - 1].time > (p.time as number)) i--;
+      /* ITS UNDO, KEPT (the press journal; the review of 2026-10-16 — Pulse's full-screen chart): a double-click's first
+         press is no pick, so a double-click in the pick leaves the replay picking, as the pill and Alt+R do. The pick cuts
+         the series and the field to the bar (the apply effect, below); the pick phase drew them as the replay found them,
+         so what they held is taken now and set back — the candles, the volume, the field, the count — before the reset
+         lays its view on them, and the position, the play and the phase go back to the pick's. */
+      {
+        const candleSeries = candleSeriesRef.current;
+        const volumeSeries = volumeSeriesRef.current;
+        const trails = trailsRef.current;
+        const held = {
+          candles: candleSeries?.data().slice() ?? null,
+          volume: volumeSeries?.data().slice() ?? null,
+          field: trails?.lastData ?? null,
+          count: barCountRef.current,
+          applied: replayAppliedRef.current,
+          idx: replayIdxRef.current,
+          playing: replayPlayingRef.current,
+        };
+        notePress(() => {
+          if (candleSeriesRef.current === candleSeries && held.candles) candleSeries?.setData(held.candles);
+          if (volumeSeriesRef.current === volumeSeries && held.volume) volumeSeries?.setData(held.volume);
+          if (trailsRef.current === trails && held.field) trails?.setData(...held.field);
+          barCountRef.current = held.count;
+          replayAppliedRef.current = held.applied;
+          setReplayIdx(held.idx);
+          setReplayPlaying(held.playing);
+          setOwnPhase('pick');
+        });
+      }
       replayAppliedRef.current = 0;
       setReplayIdx(Math.max(31, i));
       setReplayNonce(n => n + 1);
