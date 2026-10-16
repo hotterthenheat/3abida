@@ -165,9 +165,23 @@ for (const tf of ['15m', '5m', '1m']) {
     const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: tf, overlays: { trails: true }, ladder: true }], { at: '2026-10-17T16:00:00Z' });
     try {
       const t0 = Date.now();
-      await page.waitForFunction(() => [...document.querySelectorAll('[data-chart-state]')].some(e => /\|f[1-9]\d*\|/.test(e.getAttribute('data-chart-state') ?? '')), null, { timeout: 30_000 }).catch(() => null);
-      const st = await page.evaluate(want => [...document.querySelectorAll('[data-chart-state]')].map(e => e.getAttribute('data-chart-state')).filter(x => x?.startsWith(want)), `SPY|${tf}|`);
-      /* the pane's chart: the one holding the most bars (a chart from the open before the desk was set can linger a frame) */
+      /* THE PANE'S CHART (the one holding the most bars) with its field in, and that state KEPT as read (the full check of
+         2026-10-15): each new session's tiles run the candles again, which mark the field "f-" until it is folded and
+         handed — the columns drawn stand all the while (measured: 440 drawn under an "f-") — so a second read could land
+         on the marker between two hand-overs */
+      const top = await page
+        .waitForFunction(
+          want => {
+            const st = [...document.querySelectorAll('[data-chart-state]')].map(e => e.getAttribute('data-chart-state') ?? '').filter(x => x.startsWith(want));
+            const t = st.sort((a, b) => Number(b.split('|')[2]) - Number(a.split('|')[2]))[0];
+            return t && /\|f[1-9]\d*\|/.test(t) ? t : false;
+          },
+          `SPY|${tf}|`,
+          { timeout: 30_000 }
+        )
+        .then(h => h.jsonValue())
+        .catch(() => null);
+      const st = top ? [top] : await page.evaluate(want => [...document.querySelectorAll('[data-chart-state]')].map(e => e.getAttribute('data-chart-state')).filter(x => x?.startsWith(want)), `SPY|${tf}|`);
       const s0 = ([...st].sort((a, b) => Number(b.split('|')[2]) - Number(a.split('|')[2]))[0] ?? '').split('|');
       const bars = Number(s0[2] ?? 0);
       const cols = Number((s0[5] ?? 'f0').slice(1)) || 0;
@@ -1000,6 +1014,9 @@ check('pane chips: the flow, regime and vol drift panes are named from the first
 });
 
 /* B-08: pinning a node in view keeps the fitted axis where it was — the node stays under the pointer */
+/* A NODE TO PIN, FOUND ACROSS THE PLOT from its right (the full check of 2026-10-15 at 8 pm New York: the right half of a
+   5-minute chart was the evening's after-hours bars, where SPY's field draws nothing, and the search stopped at its
+   middle) */
 check('pin: a node pinned in view leaves the axis where it was', async () => {
   const { page, errors, done } = await terrain([{ ticker: 'SPY', timeframe: '5m', overlays: { trails: true }, ladder: true }]);
   try {
@@ -1011,7 +1028,7 @@ check('pin: a node pinned in view leaves the axis where it was', async () => {
       const ps = e.candles.priceScale();
       const before = ps.getVisibleRange?.() ?? null;
       for (let y = Math.round(r.height * 0.35); y < r.height * 0.85; y += 3)
-        for (let x = Math.round(r.width * 0.5); x < r.width * 0.85; x += 4) {
+        for (let x = Math.round(r.width * 0.85); x > r.width * 0.08; x -= 4) {
           const b = tr.beadAt(x, y);
           if (b) return { x: r.left + x, y: r.top + y, strike: b.strike, before };
         }
@@ -1431,7 +1448,7 @@ check('menus: Esc closes the toolbar menu and keeps the pin; the keys go into th
       const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
       const r = e.host.getBoundingClientRect();
       for (let y = Math.round(r.height * 0.35); y < r.height * 0.85; y += 3)
-        for (let x = Math.round(r.width * 0.5); x < r.width * 0.85; x += 4) {
+        for (let x = Math.round(r.width * 0.85); x > r.width * 0.08; x -= 4) {
           const b = e.trails.beadAt(x, y);
           if (b) return { x: r.left + x, y: r.top + y, strike: b.strike };
         }
@@ -1549,7 +1566,7 @@ check('menus: Esc closes the drawing sheet, the right-click card and the alerts 
       const e = [...window.__charts].find(x => x.trails && x.host.isConnected && x.candles.data().length);
       const r = e.host.getBoundingClientRect();
       for (let y = Math.round(r.height * 0.35); y < r.height * 0.85; y += 3)
-        for (let x = Math.round(r.width * 0.5); x < r.width * 0.85; x += 4) {
+        for (let x = Math.round(r.width * 0.85); x > r.width * 0.08; x -= 4) {
           const b = e.trails.beadAt(x, y);
           if (b) return { x: r.left + x, y: r.top + y, strike: b.strike };
         }
